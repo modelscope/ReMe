@@ -1,4 +1,4 @@
-[**English**](./README.md) | 中文
+[**English**](./README.md) | 中文 | [**日本語**](./README_JP.md)
 
 # MemoryScope
 <p align="center">
