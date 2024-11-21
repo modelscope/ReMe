@@ -4,7 +4,7 @@
 rm -rf build/html/*
 rm -rf en/source/memoryscope*.rst
 rm -rf zh/source/memoryscope*.rst
-
+rm -rf ja/source/memoryscope*.rst
 
 # copy related files
 cd ../../
@@ -21,10 +21,17 @@ cp docs/contribution_zh.md docs/sphinx_doc/zh/source/docs/contribution.md
 cp -r docs/images docs/sphinx_doc/zh/source/docs/images
 cp -r examples docs/sphinx_doc/zh/source/examples
 
+cp README_JP.md docs/sphinx_doc/ja/source/README.md
+cp docs/installation_jp.md docs/sphinx_doc/ja/source/docs/installation.md
+cp docs/contribution_jp.md docs/sphinx_doc/ja/source/docs/contribution.md
+cp -r docs/images docs/sphinx_doc/ja/source/docs/images
+cp -r examples docs/sphinx_doc/ja/source/examples
+
 # build
 cd docs/sphinx_doc
 sphinx-apidoc -f -o en/source ../../memoryscope -t template -e
 sphinx-apidoc -f -o zh/source ../../memoryscope -t template -e
+sphinx-apidoc -f -o ja/source ../../memoryscope -t template -e
 
 # clear redundant files
 make clean all
@@ -40,3 +47,9 @@ rm zh/source/docs/installation.md
 rm zh/source/docs/contribution.md
 rm -rf zh/source/docs/images
 rm -rf zh/source/examples
+
+rm ja/source/README.md
+rm ja/source/docs/installation.md
+rm ja/source/docs/contribution.md
+rm -rf ja/source/docs/images
+rm -rf ja/source/examples
