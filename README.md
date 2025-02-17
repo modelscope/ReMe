@@ -93,7 +93,7 @@ For installation, please refer to [Installation.md](docs/installation.md).
 ## 🍕 Quick Start
 - [Simple Usages (Quick Start)](./examples/api/simple_usages.ipynb)
 - [With AutoGen](./examples/api/autogen_example.md)
-- [CLI with a MemoryScope Chatbot](./examples/cli/README.md)
+- [CLI with a MemoryScope Chatbot](./examples/cli/CLI_README.md)
 - [Advanced Customization](./examples/advance/custom_operator.md)
 
 ## 💡 Contribute
