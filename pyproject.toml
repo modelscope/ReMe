@@ -1,0 +1,30 @@
+[project]
+name = "beyond-agent"
+version = "0.1.1"
+description = "Agent "
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "beast-logger",
+    "anthropic>=0.45.1",
+    "argparse>=1.4.0",
+    "httpx>=0.28.1",
+    "mcp[cli]>=1.2.1",
+    "python-dotenv>=1.0.1",
+    "firecrawl-py>=1.14.1",
+    "loguru",
+    "pillow",
+    "regex",
+    "fastapi",
+    "arxiv",
+    "tqdm",
+    "requests_oauthlib",
+    "teamwork-mcp>=0.2.1",
+    "agentscope",
+    "beyond @ file:///${PROJECT_ROOT}/beyondagent/third_party/beyond",
+    "astor",
+]
+
+
+[tool.setuptools.packages.find]
+include = ["beyondagent"]
