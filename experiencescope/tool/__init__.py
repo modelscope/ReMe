@@ -1,7 +1,8 @@
-from beyondagent.core.tool.python_tools.code_tool import CodeTool
-from beyondagent.core.tool.python_tools.dashscope_search_tool import DashscopeSearchTool
-from beyondagent.core.tool.python_tools.terminate_tool import TerminateTool
-from beyondagent.core.utils.registry import Registry
+from experiencescope.tool.python_tools.code_tool import CodeTool
+from experiencescope.tool.python_tools.dashscope_search_tool import DashscopeSearchTool
+from experiencescope.tool.python_tools.terminate_tool import TerminateTool
+
+from experiencescope.utils.registry import Registry
 
 TOOL_REGISTRY = Registry("tools")
 TOOL_REGISTRY.register(CodeTool)

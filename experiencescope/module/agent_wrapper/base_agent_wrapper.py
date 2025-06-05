@@ -4,9 +4,9 @@ from typing import List
 from loguru import logger
 from pydantic import Field
 
-from beyondagent.core.module.agent_wrapper.base_agent_wrapper import BaseAgentWrapper
-from beyondagent.core.module.environment.base_environment import BaseEnvironment
-from beyondagent.core.schema.trajectory import Trajectory, Message, StateMessage, ActionMessage, ContextMessage
+from experiencescope.module.agent_wrapper.base_agent_wrapper_mixin import BaseAgentWrapperMixin
+from experiencescope.module.environment.base_environment import BaseEnvironment
+from experiencescope.schema.trajectory import Trajectory, Message, StateMessage, ActionMessage, ContextMessage
 
 
 class BaseAgentWrapper(BaseAgentWrapperMixin, ABC):

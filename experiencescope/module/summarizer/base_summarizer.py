@@ -2,9 +2,9 @@ from typing import List
 
 from pydantic import Field
 
-from beyondagent.core.module.base_module import BaseModule
-from beyondagent.core.schema.trajectory import Trajectory, Sample, SummaryMessage
-from beyondagent.core.storage.base_vector_store import BaseVectorStore
+from experiencescope.module.base_module import BaseModule
+from experiencescope.schema.trajectory import Trajectory, Sample, SummaryMessage
+from experiencescope.storage.base_vector_store import BaseVectorStore
 
 
 class BaseSummarizer(BaseModule):

@@ -6,10 +6,10 @@ from openai import OpenAI
 from openai.types import CompletionUsage
 from pydantic import Field, PrivateAttr, model_validator
 
-from beyondagent.core.enumeration.chunk_enum import ChunkEnum
-from beyondagent.core.model.base_llm import BaseLLM
-from beyondagent.core.schema.trajectory import Message, ActionMessage, ToolCall
-from beyondagent.core.tool.base_tool import BaseTool
+from experiencescope.enumeration.chunk_enum import ChunkEnum
+from experiencescope.model.base_llm import BaseLLM
+from experiencescope.schema.trajectory import Message, ActionMessage, ToolCall
+from experiencescope.tool.base_tool import BaseTool
 
 
 class OpenAICompatibleBaseLLM(BaseLLM):
@@ -103,16 +103,12 @@ class OpenAICompatibleBaseLLM(BaseLLM):
                     yield e.args, ChunkEnum.ERROR
 
     def _chat(self, messages: List[Message], tools: List[BaseTool] = None, **kwargs) -> ActionMessage:
-        # usage = None
         reasoning_content = ""
         answer_content = ""
         tool_calls = []
 
         for chunk, chunk_enum in self.stream_chat(messages, tools, **kwargs):
-            if chunk_enum is ChunkEnum.USAGE:
-                usage = chunk
-
-            elif chunk_enum is ChunkEnum.THINK:
+            if chunk_enum is ChunkEnum.THINK:
                 reasoning_content += chunk
 
             elif chunk_enum is ChunkEnum.ANSWER:

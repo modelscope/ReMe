@@ -3,8 +3,8 @@ from typing import List
 
 from pydantic import Field
 
-from beyondagent.core.schema.module_loader import ModuleLoader
-from beyondagent.core.schema.trajectory import Trajectory
+from experiencescope.schema.module_loader import ModuleLoader
+from experiencescope.schema.trajectory import Trajectory
 
 
 class BaseRequest(ModuleLoader, ABC):

@@ -6,7 +6,7 @@ import requests
 from loguru import logger
 from pydantic import BaseModel, Field, PrivateAttr
 
-from beyondagent.core.enumeration.http_enum import HttpEnum
+from experiencescope.enumeration.http_enum import HttpEnum
 
 
 class HttpClient(BaseModel):

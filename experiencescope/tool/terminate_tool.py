@@ -1,4 +1,4 @@
-from beyondagent.core.tool.base_tool import BaseTool
+from experiencescope.tool.base_tool import BaseTool
 
 
 class TerminateTool(BaseTool):

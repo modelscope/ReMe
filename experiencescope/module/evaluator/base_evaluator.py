@@ -2,10 +2,10 @@ from abc import ABC
 
 from pydantic import BaseModel, Field
 
-from beyondagent.core.module.agent_wrapper.base_agent_wrapper import BaseAgentWrapper
-from beyondagent.core.module.context_generator.base_context_generator import BaseContextGenerator
-from beyondagent.core.module.environment.base_environment import BaseEnvironment
-from beyondagent.core.module.summarizer.base_summarizer import BaseSummarizer
+from experiencescope.module.agent_wrapper.base_agent_wrapper import BaseAgentWrapper
+from experiencescope.module.context_generator.base_context_generator import BaseContextGenerator
+from experiencescope.module.environment.base_environment import BaseEnvironment
+from experiencescope.module.summarizer.base_summarizer import BaseSummarizer
 
 
 class BaseEvaluator(BaseModel, ABC):

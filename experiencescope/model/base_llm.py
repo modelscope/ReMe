@@ -4,8 +4,8 @@ from typing import List, Literal
 from loguru import logger
 from pydantic import Field, BaseModel
 
-from beyondagent.core.schema.trajectory import Message, ActionMessage
-from beyondagent.core.tool.base_tool import BaseTool
+from experiencescope.schema.trajectory import Message, ActionMessage
+from experiencescope.tool.base_tool import BaseTool
 
 
 class BaseLLM(BaseModel, ABC):

@@ -1,10 +1,10 @@
 import datetime
 
+from experiencescope.module.agent_wrapper.base_agent_wrapper_v2 import BaseAgentWrapperV2
 from loguru import logger
 
-from beyondagent.core.module.agent_wrapper.base_agent_wrapper_v2 import BaseAgentWrapperV2
-from beyondagent.core.module.environment.base_environment import BaseEnvironment
-from beyondagent.core.schema.trajectory import Message, StateMessage, ContextMessage, ActionMessage
+from experiencescope.module.environment.base_environment import BaseEnvironment
+from experiencescope.schema.trajectory import Message, StateMessage, ContextMessage, ActionMessage
 
 
 class NaiveAgentWrapper(BaseAgentWrapperV2):

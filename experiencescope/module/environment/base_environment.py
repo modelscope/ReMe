@@ -2,11 +2,11 @@ from typing import List
 
 from pydantic import Field
 
-from beyondagent.core.module.base_module import BaseModule
-from beyondagent.core.module.reward_fn.base_reward_fn import BaseRewardFn
-from beyondagent.core.schema.reward import Reward
-from beyondagent.core.schema.trajectory import StateMessage, ActionMessage, ToolCall
-from beyondagent.core.tool.base_tool import BaseTool
+from experiencescope.module.base_module import BaseModule
+from experiencescope.module.reward_fn.base_reward_fn import BaseRewardFn
+from experiencescope.schema.reward import Reward
+from experiencescope.schema.trajectory import StateMessage, ActionMessage, ToolCall
+from experiencescope.tool.base_tool import BaseTool
 
 
 class BaseEnvironment(BaseModule):

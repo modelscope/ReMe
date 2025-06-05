@@ -1,8 +1,8 @@
 from pydantic import Field
 
-from beyondagent.core.schema.request import AgentWrapperRequest, ContextGeneratorRequest, SummarizerRequest
-from beyondagent.core.schema.response import AgentWrapperResponse, ContextGeneratorResponse, SummarizerResponse
-from beyondagent.core.utils.http_client import HttpClient
+from experiencescope.schema.request import AgentWrapperRequest, ContextGeneratorRequest, SummarizerRequest
+from experiencescope.schema.response import AgentWrapperResponse, ContextGeneratorResponse, SummarizerResponse
+from experiencescope.utils.http_client import HttpClient
 
 
 class ModelServiceClient(HttpClient):

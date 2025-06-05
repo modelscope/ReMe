@@ -7,8 +7,8 @@ from typing import List, Any
 from loguru import logger
 from pydantic import Field, model_validator, PrivateAttr
 
-from beyondagent.core.schema.vector_store_node import VectorStoreNode
-from beyondagent.core.storage.base_vector_store import BaseVectorStore
+from experiencescope.schema.vector_store_node import VectorStoreNode
+from experiencescope.storage.base_vector_store import BaseVectorStore
 
 
 class FileVectorStore(BaseVectorStore):

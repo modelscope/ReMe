@@ -1,7 +1,7 @@
 import sys
 from io import StringIO
 
-from beyondagent.core.tool.base_tool import BaseTool
+from experiencescope.tool.base_tool import BaseTool
 
 
 class CodeTool(BaseTool):

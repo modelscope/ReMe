@@ -4,7 +4,7 @@ from typing import List
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from beyondagent.core.schema.vector_store_node import VectorStoreNode
+from experiencescope.schema.vector_store_node import VectorStoreNode
 
 
 class BaseEmbeddingModel(BaseModel, ABC):

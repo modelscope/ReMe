@@ -3,10 +3,10 @@ from abc import ABC
 from loguru import logger
 from pydantic import BaseModel, Field, model_validator
 
-from beyondagent.core.model import LLM_REGISTRY, EMBEDDING_MODEL_REGISTRY
-from beyondagent.core.model.base_embedding_model import BaseEmbeddingModel
-from beyondagent.core.model.base_llm import BaseLLM
-from beyondagent.core.utils.prompt_handler import PromptHandler
+from experiencescope.model import LLM_REGISTRY, EMBEDDING_MODEL_REGISTRY
+from experiencescope.model.base_embedding_model import BaseEmbeddingModel
+from experiencescope.model.base_llm import BaseLLM
+from experiencescope.utils.prompt_handler import PromptHandler
 
 
 class BaseModule(BaseModel, ABC):

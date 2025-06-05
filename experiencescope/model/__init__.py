@@ -1,7 +1,7 @@
-from beyondagent.core.model.openai_compatible_embedding_model import OpenAICompatibleEmbeddingModel
-from beyondagent.core.model.openai_compatible_llm import OpenAICompatibleBaseLLM
+from experiencescope.model.openai_compatible_embedding_model import OpenAICompatibleEmbeddingModel
+from experiencescope.model.openai_compatible_llm import OpenAICompatibleBaseLLM
 
-from beyondagent.core.utils.registry import Registry
+from experiencescope.utils.registry import Registry
 
 LLM_REGISTRY = Registry("llm")
 LLM_REGISTRY.register(OpenAICompatibleBaseLLM, "openai_compatible")

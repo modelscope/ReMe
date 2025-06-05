@@ -2,7 +2,7 @@ from typing import List
 
 from pydantic import BaseModel
 
-from beyondagent.core.schema.trajectory import Sample
+from experiencescope.schema.trajectory import Sample
 
 
 class BaseSampleBuffer(BaseModel):

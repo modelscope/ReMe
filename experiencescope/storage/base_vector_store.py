@@ -3,8 +3,8 @@ from typing import List
 
 from pydantic import BaseModel, Field
 
-from beyondagent.core.model.base_embedding_model import BaseEmbeddingModel
-from beyondagent.core.schema.vector_store_node import VectorStoreNode
+from experiencescope.model.base_embedding_model import BaseEmbeddingModel
+from experiencescope.schema.vector_store_node import VectorStoreNode
 
 
 class BaseVectorStore(BaseModel, ABC):

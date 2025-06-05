@@ -6,7 +6,7 @@ from dashscope.api_entities.dashscope_response import Message
 from loguru import logger
 from pydantic import Field
 
-from beyondagent.core.tool.base_tool import BaseTool
+from experiencescope.tool.base_tool import BaseTool
 
 
 class DashscopeSearchTool(BaseTool):
@@ -141,7 +141,7 @@ Extract the original content related to the user's question directly from the co
             return result
 
 def main():
-    from beyondagent.core.utils.test_key import set_key
+    from experiencescope.utils.test_key import set_key
     set_key()
     query = "What is artificial intelligence?"
 

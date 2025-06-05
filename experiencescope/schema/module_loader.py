@@ -2,7 +2,7 @@ from importlib import import_module
 
 from pydantic import BaseModel, Field
 
-from beyondagent.core.utils.file_handler import FileHandler
+from experiencescope.utils.file_handler import FileHandler
 
 
 class ModuleLoader(BaseModel):

@@ -1,7 +1,7 @@
 from typing import List
 
+from experiencescope.schema.trajectory import Message, StateMessage, ActionMessage
 
-from beyondagent.core.schema.trajectory import Message, StateMessage, ActionMessage
 
 def format_trajectory_steps(steps: List[Message]) -> str:
     format_steps = []

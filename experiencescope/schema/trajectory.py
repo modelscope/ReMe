@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, model_validator
 
-from beyondagent.core.enumeration.role import Role
+from experiencescope.enumeration.role import Role
 
 
 class ToolCall(BaseModel):

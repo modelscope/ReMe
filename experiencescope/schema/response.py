@@ -3,7 +3,7 @@ from typing import List
 
 from pydantic import BaseModel, Field
 
-from beyondagent.core.schema.trajectory import Trajectory, ContextMessage, Sample
+from experiencescope.schema.trajectory import Trajectory, ContextMessage, Sample
 
 
 class BaseResponse(BaseModel, ABC):

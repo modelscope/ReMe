@@ -1,10 +1,10 @@
 from abc import ABC
 
-from pydantic import Field, BaseModel
+from pydantic import Field
 
-from beyondagent.core.module.base_module import BaseModule
-from beyondagent.core.module.context_generator.base_context_generator import BaseContextGenerator
-from beyondagent.core.schema.trajectory import Trajectory, ActionMessage, Message
+from experiencescope.module.base_module import BaseModule
+from experiencescope.module.context_generator.base_context_generator import BaseContextGenerator
+from experiencescope.schema.trajectory import Trajectory, ActionMessage, Message
 
 
 class BaseAgentWrapperMixin(BaseModule, ABC):

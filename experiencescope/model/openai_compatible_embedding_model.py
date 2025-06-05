@@ -4,7 +4,7 @@ from typing import Literal, List
 from openai import OpenAI
 from pydantic import Field, PrivateAttr, model_validator
 
-from beyondagent.core.model.base_embedding_model import BaseEmbeddingModel
+from experiencescope.model.base_embedding_model import BaseEmbeddingModel
 
 
 class OpenAICompatibleEmbeddingModel(BaseEmbeddingModel):
