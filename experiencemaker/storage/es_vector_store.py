@@ -7,6 +7,7 @@ from loguru import logger
 from pydantic import Field, PrivateAttr, model_validator
 
 from experiencemaker.schema.vector_store_node import VectorStoreNode
+from experiencemaker.storage import VECTOR_STORE_REGISTRY
 from experiencemaker.storage.base_vector_store import BaseVectorStore
 
 
@@ -60,7 +61,7 @@ class EsVectorStore(BaseVectorStore):
         node = VectorStoreNode(**doc["_source"])
         node.unique_id = doc["_id"]
         if "_score" in doc:
-            node.metadata["score"] = doc["_score"] - 1
+            node.metadata["_score"] = doc["_score"] - 1
         return node
 
     def exist_id(self, doc_id: str):
@@ -167,3 +168,6 @@ class EsVectorStore(BaseVectorStore):
 
         self.retrieve_filters.clear()
         return nodes
+
+
+VECTOR_STORE_REGISTRY.register(EsVectorStore, "elasticsearch")

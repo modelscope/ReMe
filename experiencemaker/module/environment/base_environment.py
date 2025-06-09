@@ -12,7 +12,7 @@ from experiencemaker.tool.base_tool import BaseTool
 class BaseEnvironment(BaseModule):
     tools: List[BaseTool] = Field(default_factory=list)
     reward_fns: List[BaseRewardFn] = Field(default_factory=list)
-    current_state: StateMessage | None = Field(default=None)
+    current_state: StateMessage = Field(default_factory=StateMessage)
     metadata: dict = Field(default_factory=dict, description="add query / answer and etc for reward calculating!")
 
     def reset(self):

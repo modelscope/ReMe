@@ -6,7 +6,9 @@ from pydantic import Field, BaseModel
 
 from experiencemaker.schema.trajectory import Message, ActionMessage
 from experiencemaker.tool.base_tool import BaseTool
+from experiencemaker.utils.registry import Registry
 
+LLM_REGISTRY = Registry("llm")
 
 class BaseLLM(BaseModel, ABC):
     model_name: str = Field(...)

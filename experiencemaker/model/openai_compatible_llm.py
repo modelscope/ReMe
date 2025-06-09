@@ -7,7 +7,7 @@ from openai.types import CompletionUsage
 from pydantic import Field, PrivateAttr, model_validator
 
 from experiencemaker.enumeration.chunk_enum import ChunkEnum
-from experiencemaker.model.base_llm import BaseLLM
+from experiencemaker.model.base_llm import BaseLLM, LLM_REGISTRY
 from experiencemaker.schema.trajectory import Message, ActionMessage, ToolCall
 from experiencemaker.tool.base_tool import BaseTool
 
@@ -150,3 +150,6 @@ class OpenAICompatibleBaseLLM(BaseLLM):
 
             elif chunk_enum is ChunkEnum.ERROR:
                 print(f"\n<error>{chunk}</error>", end="")
+
+
+LLM_REGISTRY.register(OpenAICompatibleBaseLLM, "openai_compatible")

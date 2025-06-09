@@ -12,8 +12,8 @@ from experiencemaker.utils.prompt_handler import PromptHandler
 class BaseModule(BaseModel, ABC):
     prompt_dir: str | None = Field(default=None)
     prompt_file: str | None = Field(default=None)
-    prompt_handler: PromptHandler | None = Field(default=None)
 
+    prompt_handler: PromptHandler | None = Field(default=None)
     llm: BaseLLM | None = Field(default=None)
     embedding_model: BaseEmbeddingModel | None = Field(default=None)
 

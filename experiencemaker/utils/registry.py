@@ -1,13 +1,21 @@
-from typing import Dict, Any, List
+from typing import Dict, List
+
+from typing import TypeVar, Generic
+
+T = TypeVar('T')
 
 
-class Registry(object):
+class Registry(Generic[T]):
 
     def __init__(self, name: str):
         self.name: str = name
-        self.module_dict: Dict[str, Any] = {}
+        self.module_dict: Dict[str, T] = {}
 
-    def register(self, module, module_name: str = None):
+    @property
+    def registered_modules(self) -> List[str]:
+        return sorted(self.module_dict.keys())
+
+    def register(self, module: T, module_name: str = None):
         if module_name is None:
             module_name = module.__name__
 
@@ -16,7 +24,7 @@ class Registry(object):
 
         self.module_dict[module_name] = module
 
-    def batch_register(self, modules: List[Any] | Dict[str, Any]):
+    def batch_register(self, modules: List[T] | Dict[str, T]):
         if isinstance(modules, list):
             module_name_dict = {m.__name__: m for m in modules}
 
@@ -27,6 +35,6 @@ class Registry(object):
             raise NotImplementedError("Input must be a list or a dictionary.")
         self.module_dict.update(module_name_dict)
 
-    def __getitem__(self, module_name: str):
+    def __getitem__(self, module_name: str) -> T:
         assert module_name in self.module_dict, f"{module_name} not found in {self.name}"
         return self.module_dict[module_name]
