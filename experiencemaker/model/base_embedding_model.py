@@ -7,8 +7,6 @@ from pydantic import BaseModel, Field
 from experiencemaker.schema.vector_store_node import VectorStoreNode
 from experiencemaker.utils.registry import Registry
 
-EMBEDDING_MODEL_REGISTRY = Registry("embedding_model")
-
 
 class BaseEmbeddingModel(BaseModel, ABC):
     model_name: str = Field(default=..., description="model name")
@@ -87,3 +85,6 @@ class BaseEmbeddingModel(BaseModel, ABC):
 
         else:
             raise RuntimeError(f"unsupported type={type(nodes)}")
+
+
+EMBEDDING_MODEL_REGISTRY = Registry[BaseEmbeddingModel]("embedding_model")

@@ -8,8 +8,7 @@ from loguru import logger
 from pydantic import Field, model_validator, PrivateAttr
 
 from experiencemaker.schema.vector_store_node import VectorStoreNode
-from experiencemaker.storage import VECTOR_STORE_REGISTRY
-from experiencemaker.storage.base_vector_store import BaseVectorStore
+from experiencemaker.storage.base_vector_store import BaseVectorStore, VECTOR_STORE_REGISTRY
 
 
 class FileVectorStore(BaseVectorStore):

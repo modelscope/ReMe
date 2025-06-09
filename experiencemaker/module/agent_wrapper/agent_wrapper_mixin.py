@@ -9,6 +9,7 @@ from experiencemaker.utils.registry import Registry
 
 class AgentWrapperMixin(BaseModel, ABC):
     context_generator: BaseContextGenerator | None = Field(default=None)
+    workspace_id: str = Field(default="")
 
     def execute(self, query: str, **kwargs) -> Trajectory:
         raise NotImplementedError

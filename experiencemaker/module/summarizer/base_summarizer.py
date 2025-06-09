@@ -3,24 +3,33 @@ from typing import List
 
 from pydantic import Field, BaseModel
 
-from experiencemaker.schema.trajectory import Trajectory, Sample
+from experiencemaker.model.base_embedding_model import BaseEmbeddingModel
+from experiencemaker.model.base_llm import BaseLLM
+from experiencemaker.schema.experience import Experience
+from experiencemaker.schema.trajectory import Trajectory
+from experiencemaker.schema.vector_store_node import VectorStoreNode
 from experiencemaker.storage.base_vector_store import BaseVectorStore
+from experiencemaker.utils.registry import Registry
 
 
 class BaseSummarizer(BaseModel, ABC):
     vector_store: BaseVectorStore | None = Field(default=None)
+    llm: BaseLLM | None = Field(default=None)
+    embedding_model: BaseEmbeddingModel | None = Field(default=None)
+    workspace_id: str = Field(default="")
 
-    def _extract_samples(self, trajectories: List[Trajectory], **kwargs) -> List[Sample]:
+    def _extract_experiences(self, trajectories: List[Trajectory], **kwargs) -> List[Experience]:
         raise NotImplementedError
 
-    def _insert_into_database(self, samples: List[Sample], **kwargs):
-        raise NotImplementedError
+    def execute(self, trajectories: List[Trajectory], return_experience: bool = True, **kwargs) -> List[Experience]:
+        experiences: List[Experience] = self._extract_experiences(trajectories, **kwargs)
 
-    def execute(self, trajectories: List[Trajectory], return_samples: bool = True, **kwargs) -> List[Sample]:
-        samples: List[Sample] = self._extract_samples(trajectories, **kwargs)
-        self._insert_into_database(samples, **kwargs)
+        nodes: List[VectorStoreNode] = [x.to_vector_store_node() for x in experiences]
+        self.vector_store.insert(nodes, **kwargs)
 
-        if return_samples:
-            return samples
-
+        if return_experience:
+            return experiences
         return []
+
+
+SUMMARIZER_REGISTRY = Registry[BaseSummarizer]("summarizer")

@@ -7,8 +7,7 @@ from loguru import logger
 from pydantic import Field, PrivateAttr, model_validator
 
 from experiencemaker.schema.vector_store_node import VectorStoreNode
-from experiencemaker.storage import VECTOR_STORE_REGISTRY
-from experiencemaker.storage.base_vector_store import BaseVectorStore
+from experiencemaker.storage.base_vector_store import BaseVectorStore, VECTOR_STORE_REGISTRY
 
 
 class EsVectorStore(BaseVectorStore):
@@ -104,7 +103,7 @@ class EsVectorStore(BaseVectorStore):
         self.retrieve_filters.clear()
         return self
 
-    def insert(self, nodes: VectorStoreNode | List[VectorStoreNode], refresh_index: bool = False, **kwargs):
+    def insert(self, nodes: VectorStoreNode | List[VectorStoreNode], refresh_index: bool = True, **kwargs):
         if isinstance(nodes, VectorStoreNode):
             nodes = [nodes]
 
@@ -119,7 +118,7 @@ class EsVectorStore(BaseVectorStore):
         if refresh_index:
             self.refresh_index()
 
-    def update(self, nodes: VectorStoreNode | List[VectorStoreNode], refresh_index: bool = False, **kwargs):
+    def update(self, nodes: VectorStoreNode | List[VectorStoreNode], refresh_index: bool = True, **kwargs):
         if isinstance(nodes, VectorStoreNode):
             nodes = [nodes]
 

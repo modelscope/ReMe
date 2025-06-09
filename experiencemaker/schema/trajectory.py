@@ -118,11 +118,3 @@ class Trajectory(BaseModel):
         self.query = ""
         self.answer = ""
         self.metadata.clear()
-
-
-class Experience(BaseModel):
-    experience_id: str = Field(default_factory=lambda: uuid4().hex, description="experience unique id")
-    experience_desc: str = Field(default="", description="use condition or use purpose for vector matching")
-    experience_content: str | bytes = Field(default="", description="content of the experience")
-    experience_score: float = Field(default=0.0, description="score of the experience")
-    metadata: dict = Field(default_factory=dict, description="additional metadata")
