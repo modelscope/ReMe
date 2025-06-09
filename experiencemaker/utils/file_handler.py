@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, PrivateAttr
 
 
 class FileHandler(BaseModel):
-    file_path: str = Field(default=...)
+    file_path: str | Path = Field(default=...)
     _obj: Any = PrivateAttr()
 
     def __init__(self, **kwargs):

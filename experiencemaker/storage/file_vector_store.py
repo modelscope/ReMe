@@ -8,6 +8,7 @@ from loguru import logger
 from pydantic import Field, model_validator, PrivateAttr
 
 from experiencemaker.schema.vector_store_node import VectorStoreNode
+from experiencemaker.storage import VECTOR_STORE_REGISTRY
 from experiencemaker.storage.base_vector_store import BaseVectorStore
 
 
@@ -39,22 +40,22 @@ class FileVectorStore(BaseVectorStore):
                 self.index_path.touch(exist_ok=True)
 
     def load(self) -> List[VectorStoreNode]:
+        nodes = []
         with self._thread_lock:
-            nodes = []
             with open(self.index_path) as f:
                 for line in f:
                     if line.strip():
                         nodes.append(VectorStoreNode(**json.loads(line)))
-            return nodes
+        return nodes
 
     def _load(self) -> List[VectorStoreNode]:
+        nodes = []
         with self._thread_lock:
-            nodes = []
             with open(self.index_path) as f:
                 for line in f:
                     if line.strip():
                         nodes.append(VectorStoreNode(**json.loads(line)))
-            return nodes
+        return nodes
 
     def _dump(self, nodes: List[VectorStoreNode]):
         with self._thread_lock:
@@ -130,3 +131,6 @@ class FileVectorStore(BaseVectorStore):
 
         nodes = sorted(nodes, key=lambda x: x.metadata["score"], reverse=True)
         return nodes[:top_k]
+
+
+VECTOR_STORE_REGISTRY.register(FileVectorStore, "local_file")

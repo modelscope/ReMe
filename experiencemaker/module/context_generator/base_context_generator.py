@@ -1,15 +1,15 @@
 from abc import ABC
 from typing import List
 
-from pydantic import Field
+from pydantic import Field, BaseModel
 
-from experiencemaker.module.base_module import BaseModule
 from experiencemaker.schema.trajectory import Trajectory, ContextMessage
 from experiencemaker.schema.vector_store_node import VectorStoreNode
 from experiencemaker.storage.base_vector_store import BaseVectorStore
+from experiencemaker.utils.registry import Registry
 
 
-class BaseContextGenerator(BaseModule, ABC):
+class BaseContextGenerator(BaseModel, ABC):
     vector_store: BaseVectorStore | None = Field(default=None)
 
     def _build_retrieve_query(self, trajectory: Trajectory, **kwargs) -> str:
@@ -31,7 +31,4 @@ class BaseContextGenerator(BaseModule, ABC):
         return context_msg
 
 
-class MockContextGenerator(BaseContextGenerator):
-
-    def execute(self, trajectory: Trajectory, **kwargs) -> ContextMessage:
-        return ContextMessage(content="mock context")
+CONTEXT_GENERATOR_REGISTRY = Registry[BaseContextGenerator]("context_generator")
