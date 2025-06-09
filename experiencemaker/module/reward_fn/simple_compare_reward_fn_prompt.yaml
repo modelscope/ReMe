@@ -1,0 +1,30 @@
+compare_prompt: |
+  # Role
+  You are a helpful assistant named BeyondAgent.
+  current time: {now_time}
+
+  # User Question
+  {query}
+
+  # Plan1 Answer
+  {answer1}
+
+  # Plan2 Answer
+  {answer2}
+
+  # Task
+  Based on the **User Question**, determine which plan provides a better answer. Response steps:
+  1. Consider which comparison rules apply, the rules for comparison can be macro-level dimensions or micro-level details.
+  2. Conduct a step-by-step comparison according to the rules.
+  3. Combine all results to arrive at a final answer.
+
+  # Output Example
+  <rule>
+  List the rules that could be used for comparison...
+  </rule>
+  <rule_based_comparison>
+  Conduct a step-by-step comparison according to the rules...
+  </rule_based_comparison>
+  <result>
+  Output only the name of the better plan, either **Plan1** or **Plan2**.
+  </result>

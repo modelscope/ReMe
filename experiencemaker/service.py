@@ -4,17 +4,15 @@ import uvicorn
 from fastapi import FastAPI
 from loguru import logger
 
-from experiencemaker.model import LLM_REGISTRY, EMBEDDING_MODEL_REGISTRY
-from experiencemaker.model.base_embedding_model import BaseEmbeddingModel
-from experiencemaker.model.base_llm import BaseLLM
+from experiencemaker.model.base_embedding_model import BaseEmbeddingModel, EMBEDDING_MODEL_REGISTRY
+from experiencemaker.model.base_llm import BaseLLM, LLM_REGISTRY
 from experiencemaker.module.agent_wrapper.base_agent_wrapper import BaseAgentWrapper
 from experiencemaker.module.context_generator.base_context_generator import BaseContextGenerator
 from experiencemaker.module.summarizer.base_summarizer import BaseSummarizer
 from experiencemaker.schema.request import AgentWrapperRequest, ContextGeneratorRequest, SummarizerRequest
 from experiencemaker.schema.response import AgentWrapperResponse, ContextGeneratorResponse, SummarizerResponse
 from experiencemaker.schema.trajectory import ContextMessage, Trajectory, Sample
-from experiencemaker.storage import VECTOR_STORE_REGISTRY
-from experiencemaker.storage.base_vector_store import BaseVectorStore
+from experiencemaker.storage.base_vector_store import BaseVectorStore, VECTOR_STORE_REGISTRY
 
 app = FastAPI()
 from pydantic import BaseModel, Field, model_validator
@@ -29,7 +27,6 @@ class ExperienceMakerHttpService(BaseModel):
     llm_config: dict = Field(default_factory=dict)
     embedding_model_config: dict = Field(default_factory=dict)
     vector_store_config: dict = Field(default_factory=dict)
-
     agent_wrapper_config: dict = Field(default_factory=dict)
     context_generator_config: dict = Field(default_factory=dict)
     summarizer_config: dict = Field(default_factory=dict)
@@ -37,7 +34,6 @@ class ExperienceMakerHttpService(BaseModel):
     llm: BaseLLM | None = Field(default=None)
     embedding_model: BaseEmbeddingModel | None = Field(default=None)
     vector_store: BaseVectorStore | None = Field(default=None)
-
     agent_wrapper: BaseAgentWrapper | None = Field(default=None)
     context_generator: BaseContextGenerator | None = Field(default=None)
     summarizer: BaseSummarizer | None = Field(default=None)

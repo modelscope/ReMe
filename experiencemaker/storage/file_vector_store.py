@@ -7,6 +7,7 @@ from typing import List, Any
 from loguru import logger
 from pydantic import Field, model_validator, PrivateAttr
 
+from experiencemaker.model.openai_compatible_embedding_model import OpenAICompatibleEmbeddingModel
 from experiencemaker.schema.vector_store_node import VectorStoreNode
 from experiencemaker.storage.base_vector_store import BaseVectorStore, VECTOR_STORE_REGISTRY
 
@@ -133,3 +134,58 @@ class FileVectorStore(BaseVectorStore):
 
 
 VECTOR_STORE_REGISTRY.register(FileVectorStore, "local_file")
+
+
+def main():
+    from experiencemaker.utils.util_function import load_env_keys
+    load_env_keys()
+
+    embedding_model = OpenAICompatibleEmbeddingModel(dimensions=1024)
+    index_name = "rag_nodes_index"
+    client = FileVectorStore(embedding_model=embedding_model, index_name=index_name)
+    client.delete_index()
+    client.create_index()
+
+    sample_nodes = [
+        VectorStoreNode(
+            workspace_id="w1",
+            content="Artificial intelligence is a technology that simulates human intelligence.",
+            metadata={
+                "node_type": "n1",
+            }
+        ),
+        VectorStoreNode(
+            workspace_id="w1",
+            content="AI is the future of mankind.",
+            metadata={
+                "node_type": "n1",
+            }
+        ),
+        VectorStoreNode(
+            workspace_id="w1",
+            content="I want to eat fish!",
+            metadata={
+                "node_type": "n2",
+            }
+        ),
+        VectorStoreNode(
+            workspace_id="w2",
+            content="The bigger the storm, the more expensive the fish.",
+            metadata={
+                "node_type": "n1",
+            }
+        ),
+    ]
+
+    client.insert(sample_nodes)
+
+    logger.info("=" * 20)
+    results = client.retrieve_by_query("What is AI?", top_k=5)
+    for r in results:
+        logger.info(r.model_dump(exclude={"vector"}))
+    logger.info("=" * 20)
+
+
+if __name__ == "__main__":
+    main()
+    # launch with: python -m experiencemaker.storage.file_vector_store

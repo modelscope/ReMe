@@ -17,4 +17,4 @@ log/
 .trash/
 runs
 logs
-
+rag_nodes_index.jsonl

@@ -18,12 +18,10 @@ class BaseRunner(BaseModel):
 
     def reset(self):
         self.traj_buffer.clear()
+        self.env.reset()
 
-    def rollout_trajectory(self, user_query: str, **kwargs):
+    def rollout_trajectory(self, query: str, **kwargs):
         raise NotImplementedError
 
-    def summary(self):
-        raise NotImplementedError
-
-    def start_backend_summary(self):
+    def summary(self, **kwargs):
         raise NotImplementedError

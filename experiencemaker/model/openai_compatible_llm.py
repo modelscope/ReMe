@@ -153,3 +153,25 @@ class OpenAICompatibleBaseLLM(BaseLLM):
 
 
 LLM_REGISTRY.register(OpenAICompatibleBaseLLM, "openai_compatible")
+
+
+def main():
+    from experiencemaker.utils.util_function import load_env_keys
+    from experiencemaker.tool.dashscope_search_tool import DashscopeSearchTool
+    from experiencemaker.tool.code_tool import CodeTool
+    from experiencemaker.enumeration.role import Role
+
+    load_env_keys()
+    model_name = "qwen-max-2025-01-25"
+    # model_name = "qwen3-32b"
+    llm = OpenAICompatibleBaseLLM(model_name=model_name)
+    tools: List[BaseTool] = [DashscopeSearchTool(), CodeTool()]
+
+    llm.stream_print([Message(role=Role.USER, content="hello")], [])
+    print("=" * 20)
+    llm.stream_print([Message(role=Role.USER, content="What's the weather like in Beijing today?")], tools)
+
+
+if __name__ == "__main__":
+    main()
+    # launch with: python -m experiencemaker.model.openai_compatible_llm

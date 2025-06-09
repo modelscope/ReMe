@@ -1,11 +1,10 @@
 
 import asyncio
-from typing import List, Optional
+from typing import List
 
-from loguru import logger
 from mcp import ClientSession
 from mcp.client.sse import sse_client
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from experiencemaker.tool.base_tool import BaseTool
 
@@ -14,35 +13,11 @@ class MCPTool(BaseTool):
     server_url: str = Field(..., description="MCP server URL")
     tool_name_list: List[str] = Field(default_factory=list)
     cache_tools: dict = Field(default_factory=dict, alias="cache_tools")
-    cache_tools_info: Optional[dict] = Field(default=None, alias="cache_tools_info")
 
-    class Config:
-        underscore_attrs_are_private = True
-
-    def __init__(self, **data):
-        super().__init__(**data)
+    @model_validator(mode="after")
+    def refresh_tools(self):
         self.refresh()
-
-    def get_tool_name_list(self) -> List[str]:
-        return self.tool_name_list
-
-    def get_server_info(self):
-        return self.cache_tools_info
-
-    def refresh(self):
-        self.cache_tools.clear()
-        self.tool_name_list.clear()
-
-        if "sse" in self.server_url:
-            original_tool_list = asyncio.run(self._get_tools())
-            self.cache_tools_info = original_tool_list.tools
-
-            for tool in self.cache_tools_info:
-                self.cache_tools[tool.name] = tool
-                self.tool_name_list.append(tool.name)
-        else:
-            # TODO: Implement non-SSE refresh logic
-            logger.warning("Non-SSE refresh not implemented yet")
+        return self
 
     async def _get_tools(self):
         async with sse_client(url=self.server_url) as streams:
@@ -51,41 +26,51 @@ class MCPTool(BaseTool):
                 tools = await session.list_tools()
         return tools
 
-    def input_schema(self, tool_name: str) -> dict:
-        return self.cache_tools.get(tool_name, {}).inputSchema
+    def refresh(self):
+        self.tool_name_list.clear()
+        self.cache_tools.clear()
 
-    def output_schema(self, tool_name: str) -> dict:
-        # TODO: Implement output schema logic
-        return {}
+        if "sse" in self.server_url:
+            original_tool_list = asyncio.run(self._get_tools())
+            for tool in original_tool_list.tools:
+                self.cache_tools[tool.name] = tool
+                self.tool_name_list.append(tool.name)
+        else:
+            raise NotImplementedError("Non-SSE refresh not implemented yet")
+
+    @property
+    def input_schema(self) -> dict:
+        return {x: self.cache_tools[x].inputSchema for x in self.cache_tools}
+
+    @property
+    def output_schema(self) -> dict:
+        raise NotImplementedError("Output schema not implemented yet")
 
     def get_tool_description(self, tool_name: str, schema: bool = False) -> str:
+        if tool_name not in self.cache_tools:
+            raise RuntimeError(f"Tool {tool_name} not found")
+
         tool = self.cache_tools.get(tool_name)
-        if not tool:
-            return ""
-
-        description = f'tool \'{tool_name}\' description is:'+ tool.description
+        description = f"tool={tool_name} description={tool.description}\n"
         if schema:
-            description += f"\nInput Schema: {self.input_schema(tool_name)}"
-            description += f"\nOutput Schema: {self.output_schema(tool_name)}"
-        return description
+            description += f"input_schema={self.input_schema[tool_name]}\n" \
+                           f"output_schema={self.output_schema[tool_name]}\n"
+        return description.strip()
 
-    async def _execute(self, **kwargs):
-        tool_name = kwargs.get('tool_name')
-        args = kwargs.get('args', {})
-
+    async def async_execute(self, tool_name: str, **kwargs):
         if "sse" in self.server_url:
             async with sse_client(url=self.server_url) as streams:
                 async with ClientSession(streams[0], streams[1]) as session:
                     await session.initialize()
-                    results = await session.call_tool(tool_name, args)
+                    results = await session.call_tool(tool_name, kwargs)
             return results.content[0].text, results.isError
-        else:
-            return "Failed to connect to the tool", False
 
-    def execute(self, **kwargs):
-        return asyncio.run(self._execute(**kwargs))
+        else:
+            raise NotImplementedError("Non-SSE execute not implemented yet")
+
+    def _execute(self, **kwargs):
+        return asyncio.run(self.async_execute(**kwargs))
 
     def get_cache_id(self, **kwargs) -> str:
         # Implement a method to generate a unique cache ID based on the input
         return f"{kwargs.get('tool_name')}_{hash(frozenset(kwargs.get('args', {}).items()))}"
-

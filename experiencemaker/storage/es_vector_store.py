@@ -6,6 +6,7 @@ from elasticsearch.helpers import bulk
 from loguru import logger
 from pydantic import Field, PrivateAttr, model_validator
 
+from experiencemaker.model.openai_compatible_embedding_model import OpenAICompatibleEmbeddingModel
 from experiencemaker.schema.vector_store_node import VectorStoreNode
 from experiencemaker.storage.base_vector_store import BaseVectorStore, VECTOR_STORE_REGISTRY
 
@@ -170,3 +171,74 @@ class EsVectorStore(BaseVectorStore):
 
 
 VECTOR_STORE_REGISTRY.register(EsVectorStore, "elasticsearch")
+
+
+def main():
+    from experiencemaker.utils.util_function import load_env_keys
+    load_env_keys()
+
+    embedding_model = OpenAICompatibleEmbeddingModel(dimensions=1024)
+    index_name = "rag_nodes_index"
+    hosts = "http://11.160.132.46:8200"
+    es = EsVectorStore(hosts=hosts, embedding_model=embedding_model, index_name=index_name)
+    es.delete_index()
+    es.create_index()
+
+    sample_nodes = [
+        VectorStoreNode(
+            workspace_id="w1",
+            content="Artificial intelligence is a technology that simulates human intelligence.",
+            metadata={
+                "node_type": "n1",
+            }
+        ),
+        VectorStoreNode(
+            workspace_id="w1",
+            content="AI is the future of mankind.",
+            metadata={
+                "node_type": "n1",
+            }
+        ),
+        VectorStoreNode(
+            workspace_id="w1",
+            content="I want to eat fish!",
+            metadata={
+                "node_type": "n2",
+            }
+        ),
+        VectorStoreNode(
+            workspace_id="w2",
+            content="The bigger the storm, the more expensive the fish.",
+            metadata={
+                "node_type": "n1",
+            }
+        ),
+    ]
+
+    es.insert(sample_nodes, refresh_index=True)
+
+    logger.info("=" * 20)
+    results = es.add_term_filter(key="workspace_id", value="w1") \
+        .add_term_filter(key="metadata.node_type", value="n1") \
+        .retrieve_by_query("What is AI?", top_k=5)
+    for r in results:
+        logger.info(r.model_dump(exclude={"vector"}))
+    logger.info("=" * 20)
+
+    logger.info("=" * 20)
+    results = es.add_term_filter(key="workspace_id", value="w1") \
+        .retrieve_by_query("What is AI?", top_k=5)
+    for r in results:
+        logger.info(r.model_dump(exclude={"vector"}))
+    logger.info("=" * 20)
+
+    logger.info("=" * 20)
+    results = es.retrieve_by_query("What is AI?", top_k=5)
+    for r in results:
+        logger.info(r.model_dump(exclude={"vector"}))
+    logger.info("=" * 20)
+
+
+if __name__ == "__main__":
+    main()
+    # launch with: python -m experiencemaker.storage.es_vector_store

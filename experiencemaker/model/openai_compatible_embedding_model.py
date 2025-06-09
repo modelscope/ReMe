@@ -10,7 +10,7 @@ from experiencemaker.model.base_embedding_model import BaseEmbeddingModel, EMBED
 class OpenAICompatibleEmbeddingModel(BaseEmbeddingModel):
     api_key: str = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY"), description="api key")
     base_url: str = Field(default_factory=lambda: os.getenv("OPENAI_BASE_URL"), description="base url")
-    model_name: str = Field(default="text-embedding-v3", description="model name")
+    model_name: str = Field(default="text-embedding-v4", description="model name")
     dimensions: int = Field(default=1024, description="dimensions")
     encoding_format: Literal["float", "base64"] = Field(default="float", description="encoding_format")
     _client: OpenAI = PrivateAttr()
@@ -74,3 +74,20 @@ class OpenAICompatibleEmbeddingModel(BaseEmbeddingModel):
 
 
 EMBEDDING_MODEL_REGISTRY.register(OpenAICompatibleEmbeddingModel, "openai_compatible")
+
+
+def main():
+    from experiencemaker.utils.util_function import load_env_keys
+    load_env_keys()
+
+    model = OpenAICompatibleEmbeddingModel(dimensions=64, model_name="text-embedding-v4")
+    res1 = model.get_embeddings(
+        "The clothes are of good quality and look good, definitely worth the wait. I love them.")
+    res2 = model.get_embeddings(["aa", "bb"])
+    print(res1)
+    print(res2)
+
+
+if __name__ == "__main__":
+    main()
+    # launch with: python -m experiencemaker.model.openai_compatible_embedding_model

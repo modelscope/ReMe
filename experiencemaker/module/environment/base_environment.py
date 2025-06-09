@@ -1,15 +1,15 @@
+from abc import ABC
 from typing import List
 
-from pydantic import Field
+from pydantic import Field, BaseModel
 
-from experiencemaker.module.base_module import BaseModule
 from experiencemaker.module.reward_fn.base_reward_fn import BaseRewardFn
 from experiencemaker.schema.reward import Reward
 from experiencemaker.schema.trajectory import StateMessage, ActionMessage, ToolCall
 from experiencemaker.tool.base_tool import BaseTool
 
 
-class BaseEnvironment(BaseModule):
+class BaseEnvironment(BaseModel, ABC):
     tools: List[BaseTool] = Field(default_factory=list)
     reward_fns: List[BaseRewardFn] = Field(default_factory=list)
     current_state: StateMessage = Field(default_factory=StateMessage)
@@ -54,15 +54,3 @@ class BaseEnvironment(BaseModule):
 
     def build_info(self, **kwargs):
         return {}
-
-    def get_tool_info(self,tool_name):
-        tool_dict = {tool.name: tool for tool in self.tools}
-        if tool_name in tool_dict:
-
-            return f'tool \'{tool_name}\' description is: {tool_dict[tool_name].description}\t' + f'parameters: {str(tool_dict[tool_name].input_schema)}'
-        else:
-            return ''
-
-    def get_tools_info(self):
-        tool_dict = {tool.name: tool for tool in self.tools}
-        return {tool_name:self.get_tool_info(tool_name=tool_name) for tool_name in tool_dict}
