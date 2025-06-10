@@ -5,7 +5,7 @@ from experiencemaker.schema.response import AgentWrapperResponse, ContextGenerat
 from experiencemaker.utils.http_client import HttpClient
 
 
-class ExperienceMakerClient(HttpClient):
+class EMClient(HttpClient):
     base_url: str = Field(default=...)
 
     def call_agent_wrapper(self, request: AgentWrapperRequest):

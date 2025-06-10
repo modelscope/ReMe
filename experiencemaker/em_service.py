@@ -29,7 +29,7 @@ from experiencemaker.storage import VECTOR_STORE_REGISTRY
 from experiencemaker.storage.base_vector_store import BaseVectorStore
 
 
-class ExperienceMakerService(BaseModel):
+class EMService(BaseModel):
     workspace_id: str = Field(default="")
     host: str = Field(default="0.0.0.0")
     port: int = Field(default=8001)
@@ -192,7 +192,7 @@ class ExperienceMakerService(BaseModel):
 
 
 app = FastAPI()
-service: ExperienceMakerService | None = None
+service: EMService | None = None
 
 
 @app.post('/agent_wrapper', response_model=AgentWrapperResponse)
@@ -212,7 +212,7 @@ def call_summarizer(request: SummarizerRequest):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    field_dict = ExperienceMakerService.model_fields
+    field_dict = EMService.model_fields
     assert isinstance(field_dict, dict)
 
     json_keys = []
@@ -231,7 +231,7 @@ if __name__ == "__main__":
     service_kwargs = {k: json.loads(v) if k in json_keys else v for k, v in args.__dict__.items()}
     logger.info(f"service.kwargs={json.dumps(service_kwargs, indent=2, ensure_ascii=False)}")
 
-    service = ExperienceMakerService(**service_kwargs)
+    service = EMService(**service_kwargs)
     uvicorn.run(app,
                 host=service.host,
                 port=service.port,
@@ -239,7 +239,7 @@ if __name__ == "__main__":
                 limit_concurrency=service.limit_concurrency)
 
 # launch with:
-# python -m experiencemaker.service.experience_maker_service \
+# python -m experiencemaker.em_service \
 #     --port=8001 \
 #     --llm='{"backend": "openai_compatible", "model_name": "qwen3-32b", "temperature": 0.6}' \
 #     --embedding_model='{"backend": "openai_compatible", "model_name": "text-embedding-v4", "dimensions": 1024}' \
