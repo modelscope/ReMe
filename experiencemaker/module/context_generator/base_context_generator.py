@@ -21,9 +21,9 @@ class BaseContextGenerator(BaseModel, ABC):
         raise NotImplementedError
 
     def _generate_context_message(self,
-                                 trajectory: Trajectory,
-                                 nodes: List[VectorStoreNode],
-                                 **kwargs) -> ContextMessage:
+                                  trajectory: Trajectory,
+                                  nodes: List[VectorStoreNode],
+                                  **kwargs) -> ContextMessage:
         raise NotImplementedError
 
     def execute(self, trajectory: Trajectory, **kwargs) -> ContextMessage:

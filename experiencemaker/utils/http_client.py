@@ -24,7 +24,6 @@ class HttpClient(BaseModel):
 
     _client: Any = PrivateAttr()
 
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._client = requests.Session() if self.keep_alive else requests

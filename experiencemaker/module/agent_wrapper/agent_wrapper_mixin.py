@@ -14,5 +14,3 @@ class AgentWrapperMixin(BaseModel, ABC):
 
     def execute(self, query: str, **kwargs) -> Trajectory:
         raise NotImplementedError
-
-

@@ -1,7 +1,9 @@
 import json
 import os
 import re
+
 from loguru import logger
+
 
 def get_html_match_content(content: str, key: str):
     pattern = rf"<{key}>(.*?)</{key}>"

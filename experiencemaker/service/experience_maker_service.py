@@ -159,7 +159,8 @@ class ExperienceMakerService(BaseModel):
                 data["embedding_model"] = cls.init_embedding_model(data["embedding_model"])
 
             if "vector_store" in data:
-                data["vector_store"] = cls.init_vector_store(data["vector_store"], embedding_model=data["embedding_model"])
+                data["vector_store"] = cls.init_vector_store(data["vector_store"],
+                                                             embedding_model=data["embedding_model"])
 
             if "context_generator" in data:
                 data["context_generator"] = cls.init_context_generator(data["context_generator"], data)

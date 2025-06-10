@@ -24,5 +24,3 @@ class BaseVectorStore(BaseModel, ABC):
 
     def retrieve_by_query(self, query: str, top_k: int = 3, **kwargs) -> List[VectorStoreNode]:
         raise NotImplementedError
-
-

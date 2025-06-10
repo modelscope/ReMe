@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import yaml
-from langchain_core.prompts import load_prompt
 from loguru import logger
 from pydantic import BaseModel, Field, model_validator
 
