@@ -8,6 +8,7 @@ from pydantic import Field, BaseModel
 from experiencemaker.model.base_llm import BaseLLM
 from experiencemaker.module.prompt.prompt_mixin import PromptMixin
 from experiencemaker.schema.trajectory import Message, ActionMessage, ToolCall, StateMessage
+from experiencemaker.tool import CodeTool, DashscopeSearchTool, TerminateTool
 from experiencemaker.tool.base_tool import BaseTool
 
 
@@ -23,7 +24,7 @@ class SimpleAgentContext(BaseModel):
 class SimpleAgent(PromptMixin):
     llm: BaseLLM | None = Field(default=None)
     max_steps: int = Field(default=10)
-    tools: List[BaseTool] = Field(default_factory=list)
+    tools: List[BaseTool] = [CodeTool(), DashscopeSearchTool(), TerminateTool()]
     prompt_file_path: Path = Path(__file__).parent / "simple_agent_prompt.yaml"
 
     def think(self, context: SimpleAgentContext):

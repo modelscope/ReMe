@@ -3,7 +3,8 @@ from typing import List
 
 from pydantic import BaseModel, Field
 
-from experiencemaker.schema.trajectory import Trajectory, ContextMessage, Sample
+from experiencemaker.schema.experience import Experience
+from experiencemaker.schema.trajectory import Trajectory, ContextMessage
 
 
 class BaseResponse(BaseModel, ABC):
@@ -20,4 +21,4 @@ class ContextGeneratorResponse(BaseResponse):
 
 
 class SummarizerResponse(BaseResponse):
-    extract_samples: List[Sample] = Field(default_factory=list)
+    experiences: List[Experience] = Field(default_factory=list)

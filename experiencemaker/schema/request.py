@@ -1,13 +1,12 @@
 from abc import ABC
 from typing import List
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
-from experiencemaker.schema.module_loader import ModuleLoader
 from experiencemaker.schema.trajectory import Trajectory
 
 
-class BaseRequest(ModuleLoader, ABC):
+class BaseRequest(BaseModel, ABC):
     metadata: dict = Field(default_factory=dict)
 
 
@@ -21,4 +20,4 @@ class ContextGeneratorRequest(BaseRequest):
 
 class SummarizerRequest(BaseRequest):
     trajectories: List[Trajectory] = Field(default_factory=dict)
-    return_samples: bool = Field(default=False)
+    return_experience: bool = Field(default=True)

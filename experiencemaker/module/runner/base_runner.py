@@ -2,7 +2,7 @@ from typing import List
 
 from pydantic import BaseModel, Field
 
-from experiencemaker.module.agent_wrapper.base_agent_wrapper import BaseAgentWrapper
+from experiencemaker.module.agent_wrapper.agent_wrapper_mixin import AgentWrapperMixin
 from experiencemaker.module.context_generator.base_context_generator import BaseContextGenerator
 from experiencemaker.module.environment.base_environment import BaseEnvironment
 from experiencemaker.module.summarizer.base_summarizer import BaseSummarizer
@@ -10,7 +10,7 @@ from experiencemaker.schema.trajectory import Trajectory
 
 
 class BaseRunner(BaseModel):
-    agent_wrapper: BaseAgentWrapper | None = Field(default=None)
+    agent_wrapper: AgentWrapperMixin | None = Field(default=None)
     context_generator: BaseContextGenerator | None = Field(default=None)
     summarizer: BaseSummarizer | None = Field(default=None)
     env: BaseEnvironment | None = Field(default=None)
