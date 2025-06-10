@@ -111,6 +111,8 @@ class HttpClient(BaseModel):
                 retry_sleep_time *= self.retry_time_multiplier
                 time.sleep(retry_sleep_time)
 
+        return None
+
     def request_stream(self,
                        data: str = None,
                        json_data: dict = None,
@@ -137,7 +139,7 @@ class HttpClient(BaseModel):
                                             http_enum=http_enum,
                                             **kwargs)
 
-                return
+                return None
 
             except Exception as e:
                 logger.exception(f"{self.__class__.__name__} {i}th request failed with args={e.args}")
@@ -150,3 +152,5 @@ class HttpClient(BaseModel):
 
                 retry_sleep_time *= self.retry_time_multiplier
                 time.sleep(retry_sleep_time)
+
+        return None

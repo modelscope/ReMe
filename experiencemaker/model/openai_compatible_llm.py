@@ -7,7 +7,7 @@ from openai.types import CompletionUsage
 from pydantic import Field, PrivateAttr, model_validator
 
 from experiencemaker.enumeration.chunk_enum import ChunkEnum
-from experiencemaker.model.base_llm import BaseLLM
+from experiencemaker.model.base_llm import BaseLLM, LLM_REGISTRY
 from experiencemaker.schema.trajectory import Message, ActionMessage, ToolCall
 from experiencemaker.tool.base_tool import BaseTool
 
@@ -150,3 +150,28 @@ class OpenAICompatibleBaseLLM(BaseLLM):
 
             elif chunk_enum is ChunkEnum.ERROR:
                 print(f"\n<error>{chunk}</error>", end="")
+
+
+LLM_REGISTRY.register(OpenAICompatibleBaseLLM, "openai_compatible")
+
+
+def main():
+    from experiencemaker.utils.util_function import load_env_keys
+    from experiencemaker.tool.dashscope_search_tool import DashscopeSearchTool
+    from experiencemaker.tool.code_tool import CodeTool
+    from experiencemaker.enumeration.role import Role
+
+    load_env_keys()
+    model_name = "qwen-max-2025-01-25"
+    # model_name = "qwen3-32b"
+    llm = OpenAICompatibleBaseLLM(model_name=model_name)
+    tools: List[BaseTool] = [DashscopeSearchTool(), CodeTool()]
+
+    llm.stream_print([Message(role=Role.USER, content="hello")], [])
+    print("=" * 20)
+    llm.stream_print([Message(role=Role.USER, content="What's the weather like in Beijing today?")], tools)
+
+
+if __name__ == "__main__":
+    main()
+    # launch with: python -m experiencemaker.model.openai_compatible_llm

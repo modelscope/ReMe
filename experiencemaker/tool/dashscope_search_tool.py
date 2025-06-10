@@ -6,7 +6,7 @@ from dashscope.api_entities.dashscope_response import Message
 from loguru import logger
 from pydantic import Field
 
-from experiencemaker.tool.base_tool import BaseTool
+from experiencemaker.tool.base_tool import BaseTool, TOOL_REGISTRY
 
 
 class DashscopeSearchTool(BaseTool):
@@ -140,9 +140,13 @@ Extract the original content related to the user's question directly from the co
         else:
             return result
 
+
+TOOL_REGISTRY.register(DashscopeSearchTool, "web_search")
+
+
 def main():
-    from experiencemaker.utils.test_key import set_key
-    set_key()
+    from experiencemaker.utils.util_function import load_env_keys
+    load_env_keys()
     query = "What is artificial intelligence?"
 
     tool = DashscopeSearchTool(stream_print=True)

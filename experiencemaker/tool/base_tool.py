@@ -3,6 +3,8 @@ from abc import ABC
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from experiencemaker.utils.registry import Registry
+
 
 class BaseTool(BaseModel, ABC):
     tool_id: str = Field(default="")
@@ -77,3 +79,6 @@ class BaseTool(BaseModel, ABC):
 
     def get_cache_id(self, **kwargs) -> str:
         raise NotImplementedError
+
+
+TOOL_REGISTRY = Registry[BaseTool]("tool")

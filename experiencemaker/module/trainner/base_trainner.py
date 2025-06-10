@@ -7,18 +7,7 @@ from experiencemaker.schema.trajectory import Trajectory
 
 
 class BaseTrainner(BaseModel, ABC):
-    """
-    load model/prompt
-    data
-    env
-    -> 新cpt
-
-    off policy/onpolicy
-    """
     traj_buffer: List[Trajectory] = Field()
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
 
     def fit(self):
         return
@@ -29,17 +18,17 @@ class BaseTrainner(BaseModel, ABC):
 
 class BaseContextTrainner(BaseTrainner):
     """
-     load model/prompt/db/buffer -> 新cpt
+    load model/prompt/db/buffer -> new cpt
     """
 
 
 class BaseSummaryTrainner(BaseTrainner):
     """
-     load model/prompt/db/buffer -> 新cpt
+    load model/prompt/db/buffer -> new cpt
     """
 
 
 class BasePolicyTrainner(BaseTrainner):
     """
-     load model/prompt/db/buffer -> 新cpt
+    load model/prompt/db/buffer -> new cpt
     """

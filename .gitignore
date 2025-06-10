@@ -17,5 +17,4 @@ log/
 .trash/
 runs
 logs
-alfworld_data
-beyondagent/dataset/appworld/data
+rag_nodes_index.jsonl

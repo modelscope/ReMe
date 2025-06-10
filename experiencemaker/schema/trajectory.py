@@ -49,19 +49,12 @@ class Message(BaseModel):
     content: str | bytes = Field(default="")
     reasoning_content: str = Field(default="")
     tool_calls: List[ToolCall] = Field(default_factory=list)
-    timestamp: str = Field(
-        default_factory=lambda: datetime.datetime.now().strftime(
-            "%Y-%m-%d %H:%M:%S.%f",
-        ),
-    )
+    timestamp: str = Field(default_factory=lambda: datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"))
     metadata: dict = Field(default_factory=dict)
 
     @property
     def simple_dict(self) -> dict:
-        result = {
-            "role": self.role.value,
-            "content": self.content,
-        }
+        result = {"role": self.role.value, "content": self.content}
         if self.tool_calls:
             result["tool_calls"] = [x.simple_dict for x in self.tool_calls]
         return result
@@ -77,10 +70,7 @@ class StateMessage(Message):
 
     @property
     def simple_dict(self) -> dict:
-        result = {
-            "role": self.role.value,
-            "content": self.content,
-        }
+        result = super().simple_dict
         if self.tool_call_id:
             result["tool_call_id"] = self.tool_call_id
         return result
@@ -110,6 +100,7 @@ class Sample(BaseModel):
 class Trajectory(BaseModel):
     id: str = Field(default_factory=lambda: uuid4().hex)
     steps: List[Message] = Field(default_factory=list)
+    current_step: int = Field(default=0)
 
     done: bool = Field(default=False)
     query: str = Field(default="")
@@ -120,7 +111,9 @@ class Trajectory(BaseModel):
         self.steps.append(step)
 
     def reset(self):
+        self.id = uuid4().hex
         self.steps.clear()
+        self.current_step = 0
         self.done = False
         self.query = ""
         self.answer = ""

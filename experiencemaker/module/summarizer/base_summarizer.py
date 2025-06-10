@@ -1,37 +1,33 @@
+from abc import ABC
 from typing import List
 
-from pydantic import Field
+from pydantic import Field, BaseModel
 
-from experiencemaker.module.base_module import BaseModule
-from experiencemaker.schema.trajectory import Trajectory, Sample, SummaryMessage
+from experiencemaker.model.base_llm import BaseLLM
+from experiencemaker.schema.experience import Experience
+from experiencemaker.schema.trajectory import Trajectory
+from experiencemaker.schema.vector_store_node import VectorStoreNode
 from experiencemaker.storage.base_vector_store import BaseVectorStore
+from experiencemaker.utils.registry import Registry
 
 
-class BaseSummarizer(BaseModule):
+class BaseSummarizer(BaseModel, ABC):
     vector_store: BaseVectorStore | None = Field(default=None)
+    llm: BaseLLM | None = Field(default=None)
+    workspace_id: str = Field(default="")
 
-    def extract_samples(self, trajectories: List[Trajectory], **kwargs) -> List[Sample]:
+    def _extract_experiences(self, trajectories: List[Trajectory], **kwargs) -> List[Experience]:
         raise NotImplementedError
 
-    def insert_into_vector_store(self, samples: List[Sample], **kwargs):
-        raise NotImplementedError
+    def execute(self, trajectories: List[Trajectory], return_experience: bool = True, **kwargs) -> List[Experience]:
+        experiences: List[Experience] = self._extract_experiences(trajectories, **kwargs)
 
-    def execute(self, trajectories: List[Trajectory], return_samples: bool = True, **kwargs) -> List[Sample]:
-        samples: List[Sample] = self.extract_samples(trajectories, **kwargs)
-        self.insert_into_vector_store(samples, **kwargs)
+        nodes: List[VectorStoreNode] = [x.to_vector_store_node() for x in experiences]
+        self.vector_store.insert(nodes, **kwargs)
 
-        if return_samples:
-            return samples
-
+        if return_experience:
+            return experiences
         return []
 
 
-class MockSummarizer(BaseSummarizer):
-
-    def execute(self, trajectories: List[Trajectory], return_samples: bool = True, **kwargs) -> List[Sample]:
-        tip_message = SummaryMessage(content="I am a mock summarizer.")
-
-        if return_samples:
-            return [Sample(steps=[tip_message])]
-
-        return []
+SUMMARIZER_REGISTRY = Registry[BaseSummarizer]("summarizer")

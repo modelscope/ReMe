@@ -1,40 +1,36 @@
-import os
+from pathlib import Path
 
 import yaml
 from loguru import logger
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
-class PromptHandler(BaseModel):
-    dir_path: str = Field(default="")
+class PromptMixin(BaseModel):
+    prompt_file_path: Path | str = Field(default=None)
     prompt_dict: dict = Field(default_factory=dict)
 
-    def add_prompt_file(self, file_name: str):
-        prompt_path = os.path.join(self.dir_path, file_name + ".yaml")
-        self._add_prompt_file(prompt_path)
+    @model_validator(mode="after")
+    def init_prompt(self):
+        if self.prompt_dict:
+            logger.info(f"load prompt from dict, keys={self.prompt_dict.keys()}")
 
-    def _add_prompt_file(self, prompt_path: str):
-        if os.path.exists(prompt_path):
-            with open(prompt_path) as f:
-                prompt_dict: dict = yaml.load(f, yaml.FullLoader)
-            self.update_prompt_dict(prompt_dict)
-        else:
-            logger.warning(f"prompt_path={prompt_path} not exists!")
+        if self.prompt_file_path is not None:
+            if isinstance(self.prompt_file_path, str):
+                self.prompt_file_path = Path(self.prompt_file_path)
 
-    def update_prompt_dict(self, prompt_dict: dict):
-        self.prompt_dict.update(prompt_dict)
+            if not self.prompt_file_path.exists():
+                logger.warning(f"prompt_file_path={self.prompt_file_path} not exists!")
 
-    def __getitem__(self, key: str):
-        return self.prompt_dict[key]
+            else:
+                with self.prompt_file_path.open("r") as f:
+                    for k, v in yaml.load(f, yaml.FullLoader):
+                        if k not in self.prompt_dict:
+                            self.prompt_dict[k] = v
+                            logger.info(f"add prompt_dict key={k}")
+                        else:
+                            logger.warning(f"key={k} is already exists in prompt_dict!")
 
-    def __setitem__(self, key: str, value: str):
-        self.prompt_dict[key] = value
-
-    def __getattr__(self, key: str):
-        if key in self.prompt_dict:
-            return self.prompt_dict[key]
-
-        return super().__getattr__(key)
+        return self
 
     def prompt_format(self, prompt_name: str, **kwargs):
         prompt = self.prompt_dict[prompt_name]
