@@ -5,7 +5,6 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 from experiencemaker.schema.vector_store_node import VectorStoreNode
-from experiencemaker.utils.registry import Registry
 
 
 class BaseEmbeddingModel(BaseModel, ABC):
@@ -65,7 +64,7 @@ class BaseEmbeddingModel(BaseModel, ABC):
         - nodes (VectorStoreNode | List[VectorStoreNode]): A single node or list of nodes whose embeddings need to be retrieved.
 
         Returns:
-        - (VectorStoreNode | List[VectorStoreNode]): Returns the input nodes with their vector attribute populated with embeddings.
+        - VectorStoreNode | List[VectorStoreNode]: Returns the input nodes with their vector attribute populated with embeddings.
 
         Raises:
         - RuntimeError: If the input is neither a VectorStoreNode nor a list of VectorStoreNodes, a RuntimeError is raised.
@@ -85,6 +84,3 @@ class BaseEmbeddingModel(BaseModel, ABC):
 
         else:
             raise RuntimeError(f"unsupported type={type(nodes)}")
-
-
-EMBEDDING_MODEL_REGISTRY = Registry[BaseEmbeddingModel]("embedding_model")

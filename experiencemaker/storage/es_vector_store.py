@@ -8,7 +8,7 @@ from pydantic import Field, PrivateAttr, model_validator
 
 from experiencemaker.model.openai_compatible_embedding_model import OpenAICompatibleEmbeddingModel
 from experiencemaker.schema.vector_store_node import VectorStoreNode
-from experiencemaker.storage.base_vector_store import BaseVectorStore, VECTOR_STORE_REGISTRY
+from experiencemaker.storage.base_vector_store import BaseVectorStore
 
 
 class EsVectorStore(BaseVectorStore):
@@ -168,9 +168,6 @@ class EsVectorStore(BaseVectorStore):
 
         self.retrieve_filters.clear()
         return nodes
-
-
-VECTOR_STORE_REGISTRY.register(EsVectorStore, "elasticsearch")
 
 
 def main():

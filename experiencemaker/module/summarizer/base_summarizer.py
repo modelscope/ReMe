@@ -8,7 +8,6 @@ from experiencemaker.schema.experience import Experience
 from experiencemaker.schema.trajectory import Trajectory
 from experiencemaker.schema.vector_store_node import VectorStoreNode
 from experiencemaker.storage.base_vector_store import BaseVectorStore
-from experiencemaker.utils.registry import Registry
 
 
 class BaseSummarizer(BaseModel, ABC):
@@ -28,6 +27,3 @@ class BaseSummarizer(BaseModel, ABC):
         if return_experience:
             return experiences
         return []
-
-
-SUMMARIZER_REGISTRY = Registry[BaseSummarizer]("summarizer")

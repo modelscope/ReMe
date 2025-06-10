@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field
 
 from experiencemaker.model.base_embedding_model import BaseEmbeddingModel
 from experiencemaker.schema.vector_store_node import VectorStoreNode
-from experiencemaker.utils.registry import Registry
 
 
 class BaseVectorStore(BaseModel, ABC):
@@ -27,4 +26,3 @@ class BaseVectorStore(BaseModel, ABC):
         raise NotImplementedError
 
 
-VECTOR_STORE_REGISTRY = Registry[BaseVectorStore]("vector_store")

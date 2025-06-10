@@ -1,12 +1,14 @@
 from typing import List
 
-from experiencemaker.module.context_generator.base_context_generator import BaseContextGenerator, \
-    CONTEXT_GENERATOR_REGISTRY
+from pydantic import Field
+
+from experiencemaker.module.context_generator.base_context_generator import BaseContextGenerator
 from experiencemaker.schema.trajectory import Trajectory, ContextMessage
 from experiencemaker.schema.vector_store_node import VectorStoreNode
 
 
 class SimpleContextGenerator(BaseContextGenerator):
+    retrieve_top_k: int = Field(default=5)
 
     def _build_retrieve_query(self, trajectory: Trajectory, **kwargs) -> str:
         query = ""
@@ -18,7 +20,7 @@ class SimpleContextGenerator(BaseContextGenerator):
         if not query:
             return []
 
-        return self.vector_store.retrieve_by_query(query=query, top_k=self.vector_store_top_k)
+        return self.vector_store.retrieve_by_query(query=query, top_k=self.retrieve_top_k)
 
     def _generate_context_message(self,
                                   trajectory: Trajectory,
@@ -35,6 +37,3 @@ class SimpleContextGenerator(BaseContextGenerator):
 
             content += f"- {node.content} {experience}\n"
         return ContextMessage(content=content.strip())
-
-
-CONTEXT_GENERATOR_REGISTRY.register(SimpleContextGenerator, "simple")

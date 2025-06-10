@@ -3,12 +3,10 @@ from typing import List
 
 from pydantic import Field, BaseModel
 
-from experiencemaker.model.base_embedding_model import BaseEmbeddingModel
 from experiencemaker.model.base_llm import BaseLLM
 from experiencemaker.schema.trajectory import Trajectory, ContextMessage
 from experiencemaker.schema.vector_store_node import VectorStoreNode
 from experiencemaker.storage.base_vector_store import BaseVectorStore
-from experiencemaker.utils.registry import Registry
 
 
 class BaseContextGenerator(BaseModel, ABC):
@@ -33,6 +31,3 @@ class BaseContextGenerator(BaseModel, ABC):
         nodes: List[VectorStoreNode] = self._retrieve_by_query(trajectory, query, **kwargs)
         context_msg: ContextMessage = self._generate_context_message(trajectory, nodes, **kwargs)
         return context_msg
-
-
-CONTEXT_GENERATOR_REGISTRY = Registry[BaseContextGenerator]("context_generator")

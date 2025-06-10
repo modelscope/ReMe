@@ -9,7 +9,7 @@ from pydantic import Field, model_validator, PrivateAttr
 
 from experiencemaker.model.openai_compatible_embedding_model import OpenAICompatibleEmbeddingModel
 from experiencemaker.schema.vector_store_node import VectorStoreNode
-from experiencemaker.storage.base_vector_store import BaseVectorStore, VECTOR_STORE_REGISTRY
+from experiencemaker.storage.base_vector_store import BaseVectorStore
 
 
 class FileVectorStore(BaseVectorStore):
@@ -131,9 +131,6 @@ class FileVectorStore(BaseVectorStore):
 
         nodes = sorted(nodes, key=lambda x: x.metadata["score"], reverse=True)
         return nodes[:top_k]
-
-
-VECTOR_STORE_REGISTRY.register(FileVectorStore, "local_file")
 
 
 def main():

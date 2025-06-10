@@ -1,7 +1,7 @@
 import sys
 from io import StringIO
 
-from experiencemaker.tool.base_tool import BaseTool, TOOL_REGISTRY
+from experiencemaker.tool.base_tool import BaseTool
 
 
 class CodeTool(BaseTool):
@@ -33,9 +33,6 @@ class CodeTool(BaseTool):
         sys.stdout = old_stdout
 
         return result
-
-
-TOOL_REGISTRY.register(CodeTool, "code")
 
 
 if __name__ == '__main__':

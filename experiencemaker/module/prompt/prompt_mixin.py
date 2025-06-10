@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import yaml
+from langchain_core.prompts import load_prompt
 from loguru import logger
 from pydantic import BaseModel, Field, model_validator
 
@@ -23,13 +24,13 @@ class PromptMixin(BaseModel):
 
             else:
                 with self.prompt_file_path.open("r") as f:
-                    for k, v in yaml.load(f, yaml.FullLoader):
+                    load_prompt_dict = yaml.load(f, yaml.FullLoader)
+                    for k, v in load_prompt_dict.items():
                         if k not in self.prompt_dict:
                             self.prompt_dict[k] = v
                             logger.info(f"add prompt_dict key={k}")
                         else:
                             logger.warning(f"key={k} is already exists in prompt_dict!")
-
         return self
 
     def prompt_format(self, prompt_name: str, **kwargs):

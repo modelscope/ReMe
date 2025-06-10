@@ -6,7 +6,7 @@ from dashscope.api_entities.dashscope_response import Message
 from loguru import logger
 from pydantic import Field
 
-from experiencemaker.tool.base_tool import BaseTool, TOOL_REGISTRY
+from experiencemaker.tool.base_tool import BaseTool
 
 
 class DashscopeSearchTool(BaseTool):
@@ -139,10 +139,6 @@ Extract the original content related to the user's question directly from the co
             return result["answer_content"]
         else:
             return result
-
-
-TOOL_REGISTRY.register(DashscopeSearchTool, "web_search")
-
 
 def main():
     from experiencemaker.utils.util_function import load_env_keys

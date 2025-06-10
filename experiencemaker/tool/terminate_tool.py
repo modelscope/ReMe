@@ -1,4 +1,4 @@
-from experiencemaker.tool.base_tool import BaseTool, TOOL_REGISTRY
+from experiencemaker.tool.base_tool import BaseTool
 
 
 class TerminateTool(BaseTool):
@@ -19,6 +19,3 @@ class TerminateTool(BaseTool):
     def execute(self, status: str):
         self.success = status in ["success", "failure"]
         return f"The interaction has been completed with status: {status}"
-
-
-TOOL_REGISTRY.register(TerminateTool, "terminate")

@@ -1,4 +1,4 @@
-from experiencemaker.module.agent_wrapper.agent_wrapper_mixin import AgentWrapperMixin, AGENT_WRAPPER_REGISTRY
+from experiencemaker.module.agent_wrapper.agent_wrapper_mixin import AgentWrapperMixin
 from experiencemaker.module.agent_wrapper.simple_agent import SimpleAgent
 from experiencemaker.schema.trajectory import Trajectory
 
@@ -16,6 +16,3 @@ class SimpleAgentWrapper(SimpleAgent, AgentWrapperMixin):
         trajectory.answer = messages[-1].content
         trajectory.done = True
         return trajectory
-
-
-AGENT_WRAPPER_REGISTRY.register(SimpleAgentWrapper, "simple")

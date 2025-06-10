@@ -6,7 +6,7 @@ from pydantic import Field
 
 from experiencemaker.enumeration.role import Role
 from experiencemaker.module.prompt.prompt_mixin import PromptMixin
-from experiencemaker.module.summarizer.base_summarizer import BaseSummarizer, SUMMARIZER_REGISTRY
+from experiencemaker.module.summarizer.base_summarizer import BaseSummarizer
 from experiencemaker.schema.experience import Experience
 from experiencemaker.schema.trajectory import Trajectory, Message, ActionMessage
 from experiencemaker.utils.util_function import get_html_match_content
@@ -63,6 +63,3 @@ class SimpleSummarizer(BaseSummarizer, PromptMixin):
             if experience:
                 experiences.append(experience)
         return experiences
-
-
-SUMMARIZER_REGISTRY.register(SimpleSummarizer, "simple")

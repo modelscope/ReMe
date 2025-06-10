@@ -1,0 +1,7 @@
+from experiencemaker.module.context_generator.base_context_generator import BaseContextGenerator
+from experiencemaker.module.context_generator.simple_context_generator import SimpleContextGenerator
+from experiencemaker.utils.registry import Registry
+
+CONTEXT_GENERATOR_REGISTRY = Registry[BaseContextGenerator]("context_generator")
+
+CONTEXT_GENERATOR_REGISTRY.register(SimpleContextGenerator, "simple")

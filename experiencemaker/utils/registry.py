@@ -12,7 +12,7 @@ class Registry(Generic[T]):
         self.module_dict: Dict[str, T] = {}
 
     @property
-    def registered_modules(self) -> List[str]:
+    def registered_module_names(self) -> List[str]:
         return sorted(self.module_dict.keys())
 
     def register(self, module: T, module_name: str = None):
@@ -38,3 +38,6 @@ class Registry(Generic[T]):
     def __getitem__(self, module_name: str) -> T:
         assert module_name in self.module_dict, f"{module_name} not found in {self.name}"
         return self.module_dict[module_name]
+
+    def __contains__(self, module_name: str):
+        return module_name in self.module_dict

@@ -4,7 +4,7 @@ from typing import Literal, List
 from openai import OpenAI
 from pydantic import Field, PrivateAttr, model_validator
 
-from experiencemaker.model.base_embedding_model import BaseEmbeddingModel, EMBEDDING_MODEL_REGISTRY
+from experiencemaker.model.base_embedding_model import BaseEmbeddingModel
 
 
 class OpenAICompatibleEmbeddingModel(BaseEmbeddingModel):
@@ -71,9 +71,6 @@ class OpenAICompatibleEmbeddingModel(BaseEmbeddingModel):
         else:
             # If the input type is neither a string nor a list of strings, throw an exception
             raise RuntimeError(f"unsupported type={type(input_text)}")
-
-
-EMBEDDING_MODEL_REGISTRY.register(OpenAICompatibleEmbeddingModel, "openai_compatible")
 
 
 def main():
