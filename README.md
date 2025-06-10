@@ -33,6 +33,7 @@ Or manually download and load the image. Here, we take elasticsearch-wolfi:9.0.0
 ```shell
 docker pull docker.elastic.co/elasticsearch/elasticsearch-wolfi:9.0.0
 docker run -p 9200:9200 \
+  --memory='4GB' \
   -e "discovery.type=single-node" \
   -e "xpack.security.enabled=false" \
   -e "xpack.license.self_generated.type=trial" \
