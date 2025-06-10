@@ -1,5 +1,6 @@
 import argparse
 import json
+import types
 from typing import List
 
 import uvicorn
@@ -26,7 +27,6 @@ from experiencemaker.schema.response import AgentWrapperResponse, ContextGenerat
 from experiencemaker.schema.trajectory import Trajectory, ContextMessage
 from experiencemaker.storage import VECTOR_STORE_REGISTRY
 from experiencemaker.storage.base_vector_store import BaseVectorStore
-from experiencemaker.utils.file_handler import FileHandler
 
 
 class ExperienceMakerService(BaseModel):
@@ -210,24 +210,40 @@ def call_summarizer(request: SummarizerRequest):
     return service.call_summarizer(request)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, help='config dict')
-    parser.add_argument('--config_path', type=str, help='config load path')
-    args = parser.parse_args()
+    field_dict = ExperienceMakerService.model_fields
+    assert isinstance(field_dict, dict)
 
-    if args.config_path:
-        parse_config = FileHandler(file_path=args.config_path).load()
-    elif args.config:
-        parse_config = json.loads(args.config)
-    else:
-        raise RuntimeError("both config and config_path are not specified")
+    json_keys = []
+    for key, info in field_dict.items():
+        if info.annotation in [int, str, bool]:
+            parser.add_argument(f"--{key}", type=info.annotation, default=info.default)
 
-    service = ExperienceMakerService(**parse_config)
+        elif isinstance(info.annotation, types.UnionType) and issubclass(info.annotation.__args__[0], BaseModel):
+            parser.add_argument(f"--{key}", type=str, default=None)
+            json_keys.append(key)
+
+        else:
+            raise NotImplementedError(f"key={key} annotation={info.annotation} is not supported.")
+
+    args: argparse.Namespace = parser.parse_args()
+    service_kwargs = {k: json.loads(v) if k in json_keys else v for k, v in args.__dict__.items()}
+    logger.info(f"service.kwargs={json.dumps(service_kwargs, indent=2, ensure_ascii=False)}")
+
+    service = ExperienceMakerService(**service_kwargs)
     uvicorn.run(app,
                 host=service.host,
                 port=service.port,
                 timeout_keep_alive=service.timeout_keep_alive,
                 limit_concurrency=service.limit_concurrency)
 
-# launch with: python -m experiencemaker.service.http_service
+# launch with:
+# python -m experiencemaker.service.experience_maker_service \
+#     --port=8001 \
+#     --llm='{"backend": "openai_compatible", "model_name": "qwen3-32b", "temperature": 0.6}' \
+#     --embedding_model='{"backend": "openai_compatible", "model_name": "text-embedding-v4", "dimensions": 1024}' \
+#     --vector_store='{"backend": "elasticsearch", "index_name": "naive_agent"}' \
+#     --agent_wrapper='{"backend": "simple", "max_steps": 10}' \
+#     --context_generator='{"backend": "simple", "retrieve_top_k": 1}' \
+#     --summarizer='{"backend": "simple"}'
