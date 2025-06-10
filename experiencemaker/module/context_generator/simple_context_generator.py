@@ -3,6 +3,7 @@ from typing import List
 from pydantic import Field
 
 from experiencemaker.module.context_generator.base_context_generator import BaseContextGenerator
+from experiencemaker.schema.experience import Experience
 from experiencemaker.schema.trajectory import Trajectory, ContextMessage
 from experiencemaker.schema.vector_store_node import VectorStoreNode
 
@@ -31,9 +32,9 @@ class SimpleContextGenerator(BaseContextGenerator):
 
         content = ""
         for node in nodes:
-            experience = node.metadata.get("experience", "")
-            if not experience:
+            experience: Experience = Experience.from_vector_store_node(node)
+            if not experience.experience_content:
                 continue
 
-            content += f"- {node.content} {experience}\n"
+            content += f"- {experience.experience_desc} {experience.experience_content}\n"
         return ContextMessage(content=content.strip())
