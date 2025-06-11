@@ -1,4 +1,5 @@
 import argparse
+import copy
 import json
 import types
 from typing import List
@@ -30,7 +31,6 @@ from experiencemaker.storage.base_vector_store import BaseVectorStore
 
 
 class EMService(BaseModel):
-    workspace_id: str = Field(default="")
     host: str = Field(default="0.0.0.0")
     port: int = Field(default=8001)
     timeout_keep_alive: int = Field(default=600000)
@@ -42,6 +42,8 @@ class EMService(BaseModel):
     agent_wrapper: AgentWrapperMixin | None = Field(default=None)
     context_generator: BaseContextGenerator | None = Field(default=None)
     summarizer: BaseSummarizer | None = Field(default=None)
+
+    origin_config: dict = Field(default_factory=dict)
 
     @staticmethod
     def init_llm(llm_config: dict) -> BaseLLM:
@@ -115,7 +117,7 @@ class EMService(BaseModel):
                                             embedding_model=data.get("embedding_model"))
 
         context_generator: BaseContextGenerator = CONTEXT_GENERATOR_REGISTRY[backend](
-            **context_generator_config, llm=llm, vector_store=vector_store, workspace_id=data.get("workspace_id", ""))
+            **context_generator_config, llm=llm, vector_store=vector_store)
         logger.info(f"context_generator is inited with backend={backend} params={context_generator_config}")
         return context_generator
 
@@ -130,7 +132,7 @@ class EMService(BaseModel):
         vector_store = cls.get_vector_store(summarizer_config, vector_store=data.get("vector_store"),
                                             embedding_model=data.get("embedding_model"))
         summarizer: BaseSummarizer = SUMMARIZER_REGISTRY[backend](
-            **summarizer_config, llm=llm, vector_store=vector_store, workspace_id=data.get("workspace_id", ""))
+            **summarizer_config, llm=llm, vector_store=vector_store)
         logger.info(f"summarizer is inited with backend={backend} params={summarizer_config}")
         return summarizer
 
@@ -143,14 +145,12 @@ class EMService(BaseModel):
 
         llm = cls.get_llm(agent_wrapper_config, llm=data.get("llm"))
         agent_wrapper: AgentWrapperMixin = AGENT_WRAPPER_REGISTRY[backend](
-            **agent_wrapper_config, llm=llm, context_generator=data.get("context_generator"),
-            workspace_id=data.get("workspace_id", ""))
+            **agent_wrapper_config, llm=llm, context_generator=data.get("context_generator"))
         logger.info(f"agent_wrapper is inited with backend={backend} params={agent_wrapper_config}")
         return agent_wrapper
 
-    @model_validator(mode="before")  # noqa
     @classmethod
-    def init_modules(cls, data: dict):
+    def init_class_by_config(cls, data: dict):
         try:
             if "llm" in data:
                 data["llm"] = cls.init_llm(data["llm"])
@@ -170,24 +170,62 @@ class EMService(BaseModel):
 
             if "agent_wrapper" in data:
                 data["agent_wrapper"] = cls.init_agent_wrapper(data["agent_wrapper"], data)
+
         except Exception as e:
             logger.exception(e.args)
         return data
 
+    @model_validator(mode="before")  # noqa
+    @classmethod
+    def init_modules(cls, data: dict):
+        origin_config = copy.deepcopy(data)
+        data = cls.init_class_by_config(data)
+        data["origin_config"] = origin_config
+        return data
+
     def call_agent_wrapper(self, request: AgentWrapperRequest) -> AgentWrapperResponse:
-        assert self.agent_wrapper_ is not None, "agent_wrapper must be provided."
-        trajectory: Trajectory = self.agent_wrapper_.execute(request.query, **request.metadata)
+        if "em_config" in request.metadata:
+            new_config = copy.deepcopy(self.origin_config)
+            new_config.update(request.metadata["em_config"])
+            data = EMService.init_class_by_config(new_config)
+            agent_wrapper = data["agent_wrapper"]
+        else:
+            assert self.agent_wrapper is not None, "agent_wrapper must be provided."
+            agent_wrapper = self.agent_wrapper
+
+        trajectory: Trajectory = agent_wrapper.execute(query=request.query,
+                                                       workspace_id=request.workspace_id,
+                                                       **request.metadata)
         return AgentWrapperResponse(trajectory=trajectory)
 
     def call_context_generator(self, request: ContextGeneratorRequest) -> ContextGeneratorResponse:
-        assert self.context_generator_ is not None, "context_generator must be provided."
-        context_msg: ContextMessage = self.context_generator_.execute(request.trajectory, **request.metadata)
+        if "em_config" in request.metadata:
+            new_config = copy.deepcopy(self.origin_config)
+            new_config.update(request.metadata["em_config"])
+            data = EMService.init_class_by_config(new_config)
+            context_generator = data["context_generator"]
+        else:
+            assert self.context_generator is not None, "context_generator must be provided."
+            context_generator = self.context_generator
+
+        context_msg: ContextMessage = context_generator.execute(trajectory=request.trajectory,
+                                                                workspace_id=request.workspace_id,
+                                                                **request.metadata)
         return ContextGeneratorResponse(context_msg=context_msg)
 
     def call_summarizer(self, request: SummarizerRequest) -> SummarizerResponse:
-        assert self.summarizer_ is not None, "summarizer must be provided."
-        experiences: List[Experience] = self.summarizer_.execute(request.trajectories, request.return_experience,
-                                                                 **request.metadata)
+        if "em_config" in request.metadata:
+            new_config = copy.deepcopy(self.origin_config)
+            new_config.update(request.metadata["em_config"])
+            data = EMService.init_class_by_config(new_config)
+            summarizer = data["summarizer"]
+        else:
+            assert self.summarizer is not None, "summarizer must be provided."
+            summarizer = self.summarizer
+
+        experiences: List[Experience] = summarizer.execute(trajectories=request.trajectories,
+                                                           workspace_id=request.workspace_id,
+                                                           **request.metadata)
         return SummarizerResponse(experiences=experiences)
 
 
@@ -238,12 +276,14 @@ if __name__ == "__main__":
                 timeout_keep_alive=service.timeout_keep_alive,
                 limit_concurrency=service.limit_concurrency)
 
-# launch with:
-# python -m experiencemaker.em_service \
-#     --port=8001 \
-#     --llm='{"backend": "openai_compatible", "model_name": "qwen3-32b", "temperature": 0.6}' \
-#     --embedding_model='{"backend": "openai_compatible", "model_name": "text-embedding-v4", "dimensions": 1024}' \
-#     --vector_store='{"backend": "elasticsearch", "index_name": "naive_agent"}' \
-#     --agent_wrapper='{"backend": "simple", "max_steps": 10}' \
-#     --context_generator='{"backend": "simple", "retrieve_top_k": 1}' \
-#     --summarizer='{"backend": "simple"}'
+"""
+launch with:
+python -m experiencemaker.em_service \
+    --port=8001 \
+    --llm='{"backend": "openai_compatible", "model_name": "qwen3-32b", "temperature": 0.6}' \
+    --embedding_model='{"backend": "openai_compatible", "model_name": "text-embedding-v4", "dimensions": 1024}' \
+    --vector_store='{"backend": "elasticsearch", "index_name": "simple_agent"}' \
+    --agent_wrapper='{"backend": "simple", "max_steps": 10}' \
+    --context_generator='{"backend": "simple", "retrieve_top_k": 1}' \
+    --summarizer='{"backend": "simple"}'
+"""

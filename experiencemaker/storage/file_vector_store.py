@@ -13,15 +13,13 @@ from experiencemaker.storage.base_vector_store import BaseVectorStore
 
 
 class FileVectorStore(BaseVectorStore):
-    store_dir: str = Field(default="./")
-    index_name: str = Field(default=...)
+    store_dir: str = Field(default="./file_vector_store")
     index_path: Path | None = Field(default=None)
     _thread_lock: Any = PrivateAttr()
 
     @model_validator(mode="after")
     def init_client(self):
         self._thread_lock = threading.Lock()
-
         store_path = Path(self.store_dir)
         store_path.mkdir(parents=True, exist_ok=True)
         self.index_path = store_path / f"{self.index_name}.jsonl"
@@ -29,57 +27,75 @@ class FileVectorStore(BaseVectorStore):
             self.index_path.touch(exist_ok=True)
         return self
 
-    def delete_index(self):
-        with self._thread_lock:
-            if self.index_path.exists() and self.index_path.is_file():
-                self.index_path.unlink()
+    def get_index_path(self, index_name: str = None) -> Path:
+        if index_name is None:
+            index_path = self.index_path
+        else:
+            store_path = Path(self.store_dir)
+            index_path = store_path / f"{self.index_name}.jsonl"
+            if not index_path.exists():
+                index_path.touch(exist_ok=True)
+        return index_path
 
-    def create_index(self):
+    def exist_index(self, index_name: str = None) -> bool:
+        index_path = self.get_index_path(index_name)
         with self._thread_lock:
-            if not self.index_path.exists():
-                self.index_path.touch(exist_ok=True)
+            return index_path.exists()
 
-    def load(self) -> List[VectorStoreNode]:
+    def delete_index(self, index_name: str = None):
+        index_path = self.get_index_path(index_name)
+        with self._thread_lock:
+            if index_path.exists() and index_path.is_file():
+                index_path.unlink()
+
+    def create_index(self, index_name: str = None):
+        index_path = self.get_index_path(index_name)
+        with self._thread_lock:
+            if not index_path.exists():
+                index_path.touch(exist_ok=True)
+
+    def _load(self, index_name: str = None) -> List[VectorStoreNode]:
+        index_path = self.get_index_path(index_name)
+
         nodes = []
         with self._thread_lock:
-            with open(self.index_path) as f:
+            with open(index_path) as f:
                 for line in f:
                     if line.strip():
                         nodes.append(VectorStoreNode(**json.loads(line)))
         return nodes
 
-    def _load(self) -> List[VectorStoreNode]:
-        nodes = []
-        with self._thread_lock:
-            with open(self.index_path) as f:
-                for line in f:
-                    if line.strip():
-                        nodes.append(VectorStoreNode(**json.loads(line)))
-        return nodes
+    def _dump(self, nodes: List[VectorStoreNode], index_name: str = None):
+        index_path = self.get_index_path(index_name)
 
-    def _dump(self, nodes: List[VectorStoreNode]):
         with self._thread_lock:
-            with open(self.index_path, "w") as f:
+            with open(index_path, "w") as f:
                 for doc in nodes:
                     f.write(doc.model_dump_json() + "\n")
 
-    def exist_id(self, unique_id: str):
-        nodes = self._load()
+    def exist_id(self, unique_id: str, index_name: str = None):
+        nodes = self._load(index_name=index_name)
         for node in nodes:
             if node.unique_id == unique_id:
                 return True
         return False
 
-    def insert(self, nodes: VectorStoreNode | List[VectorStoreNode], **kwargs):
-        return self.update(nodes, **kwargs)
+    def insert(self, nodes: VectorStoreNode | List[VectorStoreNode], index_name: str = None, **kwargs):
+        if index_name is None:
+            index_name = self.index_name
 
-    def update(self, nodes: VectorStoreNode | List[VectorStoreNode], **kwargs):
+        return self.update(nodes, index_name=index_name, **kwargs)
+
+    def update(self, nodes: VectorStoreNode | List[VectorStoreNode], index_name: str = None, **kwargs):
+        if index_name is None:
+            index_name = self.index_name
+
         if isinstance(nodes, VectorStoreNode):
             nodes = [nodes]
 
         all_node_dict = {}
         nodes: List[VectorStoreNode] = self.embedding_model.get_node_embeddings(nodes)
-        exist_nodes: List[VectorStoreNode] = self._load()
+        exist_nodes: List[VectorStoreNode] = self._load(index_name=index_name)
         for node in exist_nodes:
             all_node_dict[node.unique_id] = node
 
@@ -90,22 +106,26 @@ class FileVectorStore(BaseVectorStore):
 
             all_node_dict[node.unique_id] = node
 
-        self._dump(list(all_node_dict.values()))
-        logger.info(f"update nodes.size={len(nodes)} all.size={len(all_node_dict)} update_cnt={update_cnt}")
+        self._dump(list(all_node_dict.values()), index_name=index_name)
+        logger.info(
+            f"update {index_name} nodes.size={len(nodes)} all.size={len(all_node_dict)} update_cnt={update_cnt}")
 
-    def delete_by_id(self, unique_id: str, **kwargs):
-        nodes = self._load()
+    def delete_by_id(self, unique_id: str, index_name: str = None, **kwargs):
+        if index_name is None:
+            index_name = self.index_name
+
+        nodes = self._load(index_name=index_name)
         dump_nodes: List[VectorStoreNode] = []
         for node in nodes:
             if node.unique_id != unique_id:
                 dump_nodes.append(node)
 
         if len(dump_nodes) < len(nodes):
-            self._dump(dump_nodes)
+            self._dump(dump_nodes, index_name=index_name)
             logger.info(f"delete_by_id unique_id={unique_id}")
 
-    def retrieve_by_id(self, unique_id: str, **kwargs) -> VectorStoreNode | None:
-        nodes = self._load()
+    def retrieve_by_id(self, unique_id: str, index_name: str = None, **kwargs) -> VectorStoreNode | None:
+        nodes = self._load(index_name=index_name)
         for node in nodes:
             if node.unique_id == unique_id:
                 return node
@@ -123,9 +143,9 @@ class FileVectorStore(BaseVectorStore):
         norm_v2 = math.sqrt(sum(y ** 2 for y in node_vector))
         return dot_product / (norm_v1 * norm_v2)
 
-    def retrieve_by_query(self, query: str, top_k: int = 3, **kwargs) -> List[VectorStoreNode]:
+    def retrieve_by_query(self, query: str, top_k: int = 1, index_name: str = None, **kwargs) -> List[VectorStoreNode]:
         query_vector = self.embedding_model.get_embeddings(query)
-        nodes: List[VectorStoreNode] = self._load()
+        nodes: List[VectorStoreNode] = self._load(index_name=index_name)
         for node in nodes:
             node.metadata["score"] = self.calculate_similarity(query_vector, node.vector)
 

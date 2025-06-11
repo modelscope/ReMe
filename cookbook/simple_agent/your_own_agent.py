@@ -5,6 +5,10 @@ from typing import List
 from loguru import logger
 from pydantic import Field, BaseModel
 
+from experiencemaker.utils.util_function import load_env_keys
+load_env_keys("../../.env")
+
+from experiencemaker.model import OpenAICompatibleBaseLLM
 from experiencemaker.model.base_llm import BaseLLM
 from experiencemaker.module.prompt.prompt_mixin import PromptMixin
 from experiencemaker.schema.trajectory import Message, ActionMessage, ToolCall, StateMessage
@@ -20,11 +24,11 @@ class AgentContext(BaseModel):
     has_terminate_tool: bool = Field(default=False)
 
 
-class SimpleAgent(PromptMixin):
+class YourOwnAgent(PromptMixin):
     llm: BaseLLM | None = Field(default=None)
     max_steps: int = Field(default=10)
     tools: List[BaseTool] = [CodeTool(), DashscopeSearchTool(), TerminateTool()]
-    prompt_file_path: Path = Path(__file__).parent / "simple_agent_prompt.yaml"
+    prompt_file_path: Path = Path(__file__).parent / "Your_own_agent_prompt.yaml"
 
     def think(self, context: AgentContext):
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -93,3 +97,10 @@ class SimpleAgent(PromptMixin):
             else:
                 break
         return context.messages
+
+
+if __name__ == "__main__":
+    agent = YourOwnAgent(llm=OpenAICompatibleBaseLLM(model_name="qwen3-32b", temperature=0.6))
+    messages = agent.run(query="Analyze Xiaomi Corporation.")
+    answer = messages[-1].content
+    logger.info(answer)

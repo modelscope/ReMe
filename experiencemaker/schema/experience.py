@@ -35,12 +35,14 @@ class Experience(BaseModel):
         metadata: dict = {
             "experience_role": self.experience_role,
             "experience_content": self.experience_content,
-            "experience_function": self.experience_function.model_dump(),
             "experience_score": self.experience_score,
             "experience_created_time": self.experience_created_time,
             "experience_modified_time": self.experience_modified_time,
             "metadata": self.metadata,
         }
+        if self.experience_function:
+            metadata["experience_function"] = self.experience_function.model_dump(),
+
         return VectorStoreNode(
             unique_id=self.experience_id,
             workspace_id=self.experience_workspace_id,

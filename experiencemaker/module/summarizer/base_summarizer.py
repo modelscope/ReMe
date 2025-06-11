@@ -13,17 +13,14 @@ from experiencemaker.storage.base_vector_store import BaseVectorStore
 class BaseSummarizer(BaseModel, ABC):
     vector_store: BaseVectorStore | None = Field(default=None)
     llm: BaseLLM | None = Field(default=None)
-    workspace_id: str = Field(default="")
 
     def _extract_experiences(self, trajectories: List[Trajectory], **kwargs) -> List[Experience]:
         raise NotImplementedError
 
-    def execute(self, trajectories: List[Trajectory], return_experience: bool = True, **kwargs) -> List[Experience]:
+    def execute(self, trajectories: List[Trajectory], workspace_id: str = None, **kwargs) -> List[Experience]:
         experiences: List[Experience] = self._extract_experiences(trajectories, **kwargs)
 
         nodes: List[VectorStoreNode] = [x.to_vector_store_node() for x in experiences]
-        self.vector_store.insert(nodes, **kwargs)
+        self.vector_store.insert(nodes, index_name=workspace_id, **kwargs)
 
-        if return_experience:
-            return experiences
-        return []
+        return experiences

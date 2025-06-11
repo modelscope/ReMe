@@ -41,3 +41,11 @@ docker run -p 9200:9200 \
 ```
 
 # run module service
+
+[] 注册函数
+
+[] 更新workspace_id + index_name
+[] trajectory 加 reward
+[] summary去重，context加LLM eval
+[] 
+

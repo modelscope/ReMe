@@ -10,7 +10,6 @@ from experiencemaker.schema.trajectory import Trajectory
 class AgentWrapperMixin(BaseModel, ABC):
     context_generator: BaseContextGenerator | None = Field(default=None)
     llm: BaseLLM | None = Field(default=None)
-    workspace_id: str = Field(default="")
 
-    def execute(self, query: str, **kwargs) -> Trajectory:
+    def execute(self, query: str, workspace_id: str = None, **kwargs) -> Trajectory:
         raise NotImplementedError

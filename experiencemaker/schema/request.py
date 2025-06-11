@@ -8,6 +8,7 @@ from experiencemaker.schema.trajectory import Trajectory
 
 class BaseRequest(BaseModel, ABC):
     metadata: dict = Field(default_factory=dict)
+    workspace_id: str = Field(default="")
 
 
 class AgentWrapperRequest(BaseRequest):

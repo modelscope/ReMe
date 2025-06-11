@@ -13,11 +13,11 @@ def get_html_match_content(content: str, key: str):
     return None
 
 
-def load_env_keys():
-    if os.path.exists(".env"):
-        with open(".env") as f:
+def load_env_keys(file_path: str = ".env"):
+    if os.path.exists(file_path):
+        with open(file_path) as f:
             config = json.load(f)
             for k, v in config.items():
                 os.environ[k] = v
     else:
-        logger.warning(".env file not found~")
+        logger.warning(f"{file_path} file not found~")
