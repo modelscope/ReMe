@@ -26,6 +26,7 @@ class YourOwnAgentEnhanced(YourOwnAgent):
         response: SummarizerResponse = self.em_client.call_summarizer(request)
         for experience in response.experiences:
             logger.info(experience.model_dump_json())
+        return response.experiences
 
     def run_with_experience(self, query: str):
         trajectory: Trajectory = Trajectory(query=query)
@@ -55,3 +56,4 @@ if __name__ == "__main__":
                                  llm=OpenAICompatibleBaseLLM(model_name="qwen3-32b", temperature=0.00001))
     traj = agent.execute()
     logger.info(traj.model_dump_json(indent=2))
+

@@ -19,7 +19,7 @@ class BaseSummarizer(BaseModel, ABC):
         raise NotImplementedError
 
     def execute(self, trajectories: List[Trajectory], workspace_id: str = None, **kwargs) -> List[Experience]:
-        experiences: List[Experience] = self._extract_experiences(trajectories, **kwargs)
+        experiences: List[Experience] = self._extract_experiences(trajectories, workspace_id=workspace_id, **kwargs)
 
         nodes: List[VectorStoreNode] = [x.to_vector_store_node() for x in experiences]
         self.vector_store.insert(nodes, index_name=workspace_id, **kwargs)

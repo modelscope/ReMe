@@ -107,8 +107,8 @@ class YourOwnAgent(PromptMixin):
 
 
 if __name__ == "__main__":
-    # query = "Analyze Xiaomi Corporation."
-    query = "分析一下小米公司"
+    query = "Analyze Xiaomi Corporation."
+    # query = "分析一下小米公司"
 
     agent = YourOwnAgent(llm=OpenAICompatibleBaseLLM(model_name="qwen3-32b", temperature=0.000001))
     messages = agent.run(query=query)
