@@ -1,4 +1,5 @@
 import datetime
+import json
 from pathlib import Path
 from typing import List
 
@@ -6,6 +7,7 @@ from loguru import logger
 from pydantic import Field, BaseModel
 
 from experiencemaker.utils.util_function import load_env_keys
+
 load_env_keys("../../.env")
 
 from experiencemaker.model import OpenAICompatibleBaseLLM
@@ -29,6 +31,7 @@ class YourOwnAgent(PromptMixin):
     max_steps: int = Field(default=10)
     tools: List[BaseTool] = [CodeTool(), DashscopeSearchTool(), TerminateTool()]
     prompt_file_path: Path = Path(__file__).parent / "your_own_agent_prompt.yaml"
+    add_reasoning_content_when_content_is_empty: bool = Field(default=True)
 
     def think(self, context: AgentContext):
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -46,7 +49,8 @@ class YourOwnAgent(PromptMixin):
         else:
             user_prompt = self.prompt_format(prompt_name="next_prompt", query=context.query)
 
-        context.messages.append(Message(content=user_prompt))
+        context.messages.append(Message(content=user_prompt,
+                                        add_reasoning_content_when_content_is_empty=self.add_reasoning_content_when_content_is_empty))
         logger.info(f"step.{context.current_step} user_prompt={user_prompt}")
 
         if context.has_terminate_tool:
@@ -59,6 +63,7 @@ class YourOwnAgent(PromptMixin):
                     context.has_terminate_tool = True
                     break
 
+        action_msg.add_reasoning_content_when_content_is_empty = self.add_reasoning_content_when_content_is_empty
         context.messages.append(action_msg)
         action_msg_context: str = action_msg.content + "\n\n" + action_msg.reasoning_content
         logger.info(f"step.{context.current_step} action_msg_context={action_msg_context} "
@@ -81,7 +86,9 @@ class YourOwnAgent(PromptMixin):
             new_tool_call.result = tool.execute(**tool_call.argument_dict)
             new_tool_calls.append(new_tool_call)
 
-        state_msg = StateMessage(tool_calls=new_tool_calls)
+        state_msg = StateMessage(tool_calls=new_tool_calls,
+                                 add_reasoning_content_when_content_is_empty=self.add_reasoning_content_when_content_is_empty)
+        state_msg.tool_result_to_content()
         context.messages.append(state_msg)
         logger.info(f"step.{context.current_step} state_msg_context={state_msg.content}")
 
@@ -100,7 +107,12 @@ class YourOwnAgent(PromptMixin):
 
 
 if __name__ == "__main__":
-    agent = YourOwnAgent(llm=OpenAICompatibleBaseLLM(model_name="qwen3-32b", temperature=0.6))
-    messages = agent.run(query="Analyze Xiaomi Corporation.")
+    # query = "Analyze Xiaomi Corporation."
+    query = "分析一下小米公司"
+
+    agent = YourOwnAgent(llm=OpenAICompatibleBaseLLM(model_name="qwen3-32b", temperature=0.000001))
+    messages = agent.run(query=query)
     answer = messages[-1].content
     logger.info(answer)
+    with open("messages.jsonl", "w") as f:
+        f.write(json.dumps([x.model_dump() for x in messages], indent=2, ensure_ascii=False))

@@ -52,6 +52,6 @@ class YourOwnAgentEnhanced(YourOwnAgent):
 
 if __name__ == "__main__":
     agent = YourOwnAgentEnhanced(workspace_id="w_agent_enhanced",
-                                 llm=OpenAICompatibleBaseLLM(model_name="qwen3-32b", temperature=0.6))
+                                 llm=OpenAICompatibleBaseLLM(model_name="qwen3-32b", temperature=0.00001))
     traj = agent.execute()
     logger.info(traj.model_dump_json(indent=2))

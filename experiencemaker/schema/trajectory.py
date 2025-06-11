@@ -43,6 +43,15 @@ class ToolCall(BaseModel):
             "index": self.index,
         }
 
+    @property
+    def tool_text_result(self):
+        return f"""
+tool.{self.index}
+name={self.name}
+arguments={self.arguments}
+result={str(self.result)}
+""".strip()
+
 
 class Message(BaseModel):
     role: Role = Field(default=Role.USER)
@@ -50,11 +59,16 @@ class Message(BaseModel):
     reasoning_content: str = Field(default="")
     tool_calls: List[ToolCall] = Field(default_factory=list)
     timestamp: str = Field(default_factory=lambda: datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"))
+    add_reasoning_content_when_content_is_empty: bool = Field(default=False)
     metadata: dict = Field(default_factory=dict)
 
     @property
     def simple_dict(self) -> dict:
         result = {"role": self.role.value, "content": self.content}
+
+        if self.add_reasoning_content_when_content_is_empty and not self.content:
+            result["content"] += self.reasoning_content
+
         if self.tool_calls:
             result["tool_calls"] = [x.simple_dict for x in self.tool_calls]
         return result
@@ -67,6 +81,9 @@ class ActionMessage(Message):
 class StateMessage(Message):
     role: Role = Field(default=Role.TOOL)
     tool_call_id: str = Field(default="")
+
+    def tool_result_to_content(self):
+        self.content += "\n\n".join([x.tool_text_result for x in self.tool_calls])
 
     @property
     def simple_dict(self) -> dict:

@@ -78,6 +78,7 @@ class SimpleAgent(PromptMixin):
             new_tool_calls.append(new_tool_call)
 
         state_msg = StateMessage(tool_calls=new_tool_calls)
+        state_msg.tool_result_to_content()
         context.messages.append(state_msg)
         logger.info(f"step.{context.current_step} state_msg_context={state_msg.content}")
 

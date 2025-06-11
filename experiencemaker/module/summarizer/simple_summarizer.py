@@ -16,7 +16,7 @@ class SimpleSummarizer(BaseSummarizer, PromptMixin):
     max_retries: int = Field(default=5, description="max retries")
     prompt_file_path: Path = Path(__file__).parent / "simple_summarizer_prompt.yaml"
 
-    def _extract_trajectory_experience(self, trajectory: Trajectory) -> Experience | None:
+    def _extract_trajectory_experience(self, trajectory: Trajectory, workspace_id: str) -> Experience | None:
         step_content_collector: List[str] = []
 
         for step in trajectory.steps:
@@ -47,7 +47,7 @@ class SimpleSummarizer(BaseSummarizer, PromptMixin):
             experience_str = get_html_match_content(action_message.content, key="experience")
             condition_str = get_html_match_content(action_message.content, key="condition")
             if experience_str and condition_str:
-                return Experience(experience_workspace_id=self.workspace_id,
+                return Experience(experience_workspace_id=workspace_id,
                                   experience_role=self.llm.model_name,
                                   experience_desc=condition_str,
                                   experience_content=experience_str)
@@ -56,10 +56,11 @@ class SimpleSummarizer(BaseSummarizer, PromptMixin):
 
         return None
 
-    def _extract_experiences(self, trajectories: List[Trajectory], **kwargs) -> List[Experience]:
+    def _extract_experiences(self, trajectories: List[Trajectory], workspace_id: str = None,
+                             **kwargs) -> List[Experience]:
         experiences: List[Experience] = []
         for trajectory in trajectories:
-            experience: Experience = self._extract_trajectory_experience(trajectory)
+            experience: Experience = self._extract_trajectory_experience(trajectory, workspace_id=workspace_id)
             if experience:
                 experiences.append(experience)
         return experiences

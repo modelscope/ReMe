@@ -14,7 +14,8 @@ class BaseSummarizer(BaseModel, ABC):
     vector_store: BaseVectorStore | None = Field(default=None)
     llm: BaseLLM | None = Field(default=None)
 
-    def _extract_experiences(self, trajectories: List[Trajectory], **kwargs) -> List[Experience]:
+    def _extract_experiences(self, trajectories: List[Trajectory], workspace_id: str = None,
+                             **kwargs) -> List[Experience]:
         raise NotImplementedError
 
     def execute(self, trajectories: List[Trajectory], workspace_id: str = None, **kwargs) -> List[Experience]:

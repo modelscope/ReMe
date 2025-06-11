@@ -262,6 +262,10 @@ if __name__ == "__main__":
             parser.add_argument(f"--{key}", type=str, default=None)
             json_keys.append(key)
 
+        elif info.annotation in [dict, list]:
+            logger.warning(f"skip key={key} info.annotation={info.annotation}")
+            continue
+
         else:
             raise NotImplementedError(f"key={key} annotation={info.annotation} is not supported.")
 
