@@ -11,6 +11,7 @@ from experiencemaker.schema.trajectory import Trajectory
 
 class YourOwnAgentEnhanced(YourOwnAgent):
     em_client: EMClient | None = Field(default=None)
+    workspace_id: str = Field(default=...)
 
     @model_validator(mode="after")
     def init_client(self):
@@ -21,14 +22,16 @@ class YourOwnAgentEnhanced(YourOwnAgent):
         messages = self.run(query)
         trajectory: Trajectory = Trajectory(query=query, steps=messages, answer=messages[-1].content, done=True)
 
-        request: SummarizerRequest = SummarizerRequest(trajectories=[trajectory])
+        request: SummarizerRequest = SummarizerRequest(trajectories=[trajectory], workspace_id=self.workspace_id)
         response: SummarizerResponse = self.em_client.call_summarizer(request)
         for experience in response.experiences:
             logger.info(experience.model_dump_json())
 
     def run_with_experience(self, query: str):
         trajectory: Trajectory = Trajectory(query=query)
-        request: ContextGeneratorRequest = ContextGeneratorRequest(trajectory=trajectory)
+        request: ContextGeneratorRequest = ContextGeneratorRequest(trajectory=trajectory,
+                                                                   retrieve_top_k=1,
+                                                                   workspace_id=self.workspace_id)
         response: ContextGeneratorResponse = self.em_client.call_context_generator(request)
         new_query = f"{response.context_msg.content}\n\nUser Question\n{query}"
         logger.info(f"new query={new_query}")
@@ -48,6 +51,7 @@ class YourOwnAgentEnhanced(YourOwnAgent):
 
 
 if __name__ == "__main__":
-    agent = YourOwnAgentEnhanced(llm=OpenAICompatibleBaseLLM(model_name="qwen3-32b", temperature=0.6))
+    agent = YourOwnAgentEnhanced(workspace_id="w_agent_enhanced",
+                                 llm=OpenAICompatibleBaseLLM(model_name="qwen3-32b", temperature=0.6))
     traj = agent.execute()
     logger.info(traj.model_dump_json(indent=2))

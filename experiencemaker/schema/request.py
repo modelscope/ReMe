@@ -17,8 +17,8 @@ class AgentWrapperRequest(BaseRequest):
 
 class ContextGeneratorRequest(BaseRequest):
     trajectory: Trajectory = Field(default_factory=Trajectory)
+    retrieve_top_k: int = Field(default=1)
 
 
 class SummarizerRequest(BaseRequest):
     trajectories: List[Trajectory] = Field(default_factory=dict)
-    return_experience: bool = Field(default=True)

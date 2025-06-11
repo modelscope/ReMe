@@ -28,7 +28,7 @@ class YourOwnAgent(PromptMixin):
     llm: BaseLLM | None = Field(default=None)
     max_steps: int = Field(default=10)
     tools: List[BaseTool] = [CodeTool(), DashscopeSearchTool(), TerminateTool()]
-    prompt_file_path: Path = Path(__file__).parent / "Your_own_agent_prompt.yaml"
+    prompt_file_path: Path = Path(__file__).parent / "your_own_agent_prompt.yaml"
 
     def think(self, context: AgentContext):
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
