@@ -7,11 +7,12 @@ from openai.types import CompletionUsage
 from pydantic import Field, PrivateAttr, model_validator
 
 from experiencemaker.enumeration.chunk_enum import ChunkEnum
-from experiencemaker.model.base_llm import BaseLLM
+from experiencemaker.model.base_llm import BaseLLM, LLM_REGISTRY
 from experiencemaker.schema.trajectory import Message, ActionMessage, ToolCall
 from experiencemaker.tool.base_tool import BaseTool
 
 
+@LLM_REGISTRY.register("openai_compatible")
 class OpenAICompatibleBaseLLM(BaseLLM):
     model_name: str = Field(default="qwen3-32b")
     api_key: str = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY"), description="api key")

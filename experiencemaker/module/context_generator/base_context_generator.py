@@ -7,7 +7,9 @@ from experiencemaker.model.base_llm import BaseLLM
 from experiencemaker.schema.trajectory import Trajectory, ContextMessage
 from experiencemaker.schema.vector_store_node import VectorStoreNode
 from experiencemaker.storage.base_vector_store import BaseVectorStore
+from experiencemaker.utils.registry import Registry
 
+CONTEXT_GENERATOR_REGISTRY = Registry()
 
 class BaseContextGenerator(BaseModel, ABC):
     vector_store: BaseVectorStore | None = Field(default=None)

@@ -5,7 +5,9 @@ from pydantic import BaseModel, Field
 
 from experiencemaker.model.base_embedding_model import BaseEmbeddingModel
 from experiencemaker.schema.vector_store_node import VectorStoreNode
+from experiencemaker.utils.registry import Registry
 
+VECTOR_STORE_REGISTRY = Registry()
 
 class BaseVectorStore(BaseModel, ABC):
     embedding_model: BaseEmbeddingModel = Field(default=...)

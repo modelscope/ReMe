@@ -8,7 +8,9 @@ from experiencemaker.schema.experience import Experience
 from experiencemaker.schema.trajectory import Trajectory
 from experiencemaker.schema.vector_store_node import VectorStoreNode
 from experiencemaker.storage.base_vector_store import BaseVectorStore
+from experiencemaker.utils.registry import Registry
 
+SUMMARIZER_REGISTRY = Registry()
 
 class BaseSummarizer(BaseModel, ABC):
     vector_store: BaseVectorStore | None = Field(default=None)

@@ -1,43 +1,27 @@
-from typing import Dict, List
+from typing import List
 
-from typing import TypeVar, Generic
-
-T = TypeVar('T')
+from loguru import logger
 
 
-class Registry(Generic[T]):
+class Registry(object):
+    def __init__(self):
+        self._registry = {}
 
-    def __init__(self, name: str):
-        self.name: str = name
-        self.module_dict: Dict[str, T] = {}
+    def register(self, name: str = None):
 
-    @property
-    def registered_module_names(self) -> List[str]:
-        return sorted(self.module_dict.keys())
+        def decorator(cls):
+            class_name = name if name is not None else cls.__name__
+            if class_name in self._registry:
+                logger.warning(f"name={class_name} is already registered, will be overwritten.")
+            self._registry[class_name] = cls
+            return cls
 
-    def register(self, module: T, module_name: str = None):
-        if module_name is None:
-            module_name = module.__name__
+        return decorator
 
-        if module_name in self.module_dict:
-            raise KeyError(f'{module_name} is already registered in {self.name}')
+    def __getitem__(self, name: str):
+        if name not in self._registry:
+            raise KeyError(f"name={name} is not registered!")
+        return self._registry[name]
 
-        self.module_dict[module_name] = module
-
-    def batch_register(self, modules: List[T] | Dict[str, T]):
-        if isinstance(modules, list):
-            module_name_dict = {m.__name__: m for m in modules}
-
-        elif isinstance(modules, dict):
-            module_name_dict = modules
-
-        else:
-            raise NotImplementedError("Input must be a list or a dictionary.")
-        self.module_dict.update(module_name_dict)
-
-    def __getitem__(self, module_name: str) -> T:
-        assert module_name in self.module_dict, f"{module_name} not found in {self.name}"
-        return self.module_dict[module_name]
-
-    def __contains__(self, module_name: str):
-        return module_name in self.module_dict
+    def list_all(self) -> List[str]:
+        return sorted(self._registry.keys())

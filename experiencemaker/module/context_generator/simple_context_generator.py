@@ -1,11 +1,13 @@
 from typing import List
 
-from experiencemaker.module.context_generator.base_context_generator import BaseContextGenerator
+from experiencemaker.module.context_generator.base_context_generator import BaseContextGenerator, \
+    CONTEXT_GENERATOR_REGISTRY
 from experiencemaker.schema.experience import Experience
 from experiencemaker.schema.trajectory import Trajectory, ContextMessage
 from experiencemaker.schema.vector_store_node import VectorStoreNode
 
 
+@CONTEXT_GENERATOR_REGISTRY.register(name="simple")
 class SimpleContextGenerator(BaseContextGenerator):
 
     def _build_retrieve_query(self, trajectory: Trajectory, **kwargs) -> str:

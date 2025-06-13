@@ -4,9 +4,10 @@ from typing import Literal, List
 from openai import OpenAI
 from pydantic import Field, PrivateAttr, model_validator
 
-from experiencemaker.model.base_embedding_model import BaseEmbeddingModel
+from experiencemaker.model.base_embedding_model import BaseEmbeddingModel, EMBEDDING_MODEL_REGISTRY
 
 
+@EMBEDDING_MODEL_REGISTRY.register("openai_compatible")
 class OpenAICompatibleEmbeddingModel(BaseEmbeddingModel):
     api_key: str = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY"), description="api key")
     base_url: str = Field(default_factory=lambda: os.getenv("OPENAI_BASE_URL"), description="base url")

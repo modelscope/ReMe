@@ -5,7 +5,9 @@ from pydantic import Field, BaseModel
 from experiencemaker.model.base_llm import BaseLLM
 from experiencemaker.module.context_generator.base_context_generator import BaseContextGenerator
 from experiencemaker.schema.trajectory import Trajectory
+from experiencemaker.utils.registry import Registry
 
+AGENT_WRAPPER_REGISTRY = Registry()
 
 class AgentWrapperMixin(BaseModel, ABC):
     context_generator: BaseContextGenerator | None = Field(default=None)

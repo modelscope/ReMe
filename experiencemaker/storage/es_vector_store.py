@@ -8,9 +8,10 @@ from pydantic import Field, PrivateAttr, model_validator
 
 from experiencemaker.model.openai_compatible_embedding_model import OpenAICompatibleEmbeddingModel
 from experiencemaker.schema.vector_store_node import VectorStoreNode
-from experiencemaker.storage.base_vector_store import BaseVectorStore
+from experiencemaker.storage.base_vector_store import BaseVectorStore, VECTOR_STORE_REGISTRY
 
 
+@VECTOR_STORE_REGISTRY.register("elasticsearch")
 class EsVectorStore(BaseVectorStore):
     hosts: str | List[str] = Field(default_factory=lambda: os.getenv("ES_HOSTS", "http://localhost:9200"))
     basic_auth: str | Tuple[str, str] | None = Field(default=None)

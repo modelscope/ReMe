@@ -9,9 +9,10 @@ from pydantic import Field, model_validator, PrivateAttr
 
 from experiencemaker.model.openai_compatible_embedding_model import OpenAICompatibleEmbeddingModel
 from experiencemaker.schema.vector_store_node import VectorStoreNode
-from experiencemaker.storage.base_vector_store import BaseVectorStore
+from experiencemaker.storage.base_vector_store import BaseVectorStore, VECTOR_STORE_REGISTRY
 
 
+@VECTOR_STORE_REGISTRY.register("local_file")
 class FileVectorStore(BaseVectorStore):
     store_dir: str = Field(default="./file_vector_store")
     index_path: Path | None = Field(default=None)

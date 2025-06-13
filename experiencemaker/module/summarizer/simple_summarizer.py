@@ -6,12 +6,13 @@ from pydantic import Field
 
 from experiencemaker.enumeration.role import Role
 from experiencemaker.module.prompt.prompt_mixin import PromptMixin
-from experiencemaker.module.summarizer.base_summarizer import BaseSummarizer
+from experiencemaker.module.summarizer.base_summarizer import BaseSummarizer, SUMMARIZER_REGISTRY
 from experiencemaker.schema.experience import Experience
 from experiencemaker.schema.trajectory import Trajectory, Message, ActionMessage
 from experiencemaker.utils.util_function import get_html_match_content
 
 
+@SUMMARIZER_REGISTRY.register("simple")
 class SimpleSummarizer(BaseSummarizer, PromptMixin):
     max_retries: int = Field(default=5, description="max retries")
     prompt_file_path: Path = Path(__file__).parent / "simple_summarizer_prompt.yaml"
