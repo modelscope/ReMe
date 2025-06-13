@@ -1,1 +1,2 @@
 from experiencemaker.module.summarizer.simple_summarizer import SimpleSummarizer
+from experiencemaker.module.summarizer.step_summarizer import StepSummarizer
