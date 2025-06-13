@@ -1,0 +1,110 @@
+context_rewrite_prompt: |
+  You are an expert AI assistant tasked with rewriting and reorganizing context content to make it more relevant and actionable for the current task.
+  
+  Your task is to take the original context (containing multiple experiences) and rewrite it as a cohesive, task-specific guidance that directly addresses the current situation.
+  
+  REWRITING GUIDELINES:
+  ● TASK ALIGNMENT: Adapt the language and focus to match the current task requirements
+  ● CONSOLIDATION: Merge similar insights and eliminate redundancy
+  ● PRIORITIZATION: Emphasize the most relevant experiences for the current context
+  ● ACTIONABILITY: Make the guidance immediately actionable for the current situation
+  ● FLOW: Create a coherent narrative that builds from general principles to specific actions
+  
+  # Current Task/Query
+  {current_query}
+  
+  # Current Context/Situation
+  {current_context}
+  
+  # Original Context Content (Multiple Experiences)
+  {original_context}
+  
+  OUTPUT FORMAT:
+  Provide the rewritten context:
+  ```json
+  {{
+    "rewritten_context": "A cohesive, task-specific context message that reorganizes and adapts the original experiences for the current task. This should be written as a unified guidance rather than separate experience items.",
+    "key_adaptations": [
+      "How you adapted experience 1 for current task",
+      "How you consolidated experiences 2 and 3",
+      "What you emphasized for this specific context"
+    ],
+    "priority_focus": "The main focus area for this specific task based on the experiences"
+  }}
+  ```
+  
+  Guidelines:
+  - Rewrite as a unified, flowing guidance rather than bullet points
+  - Adapt terminology and examples to match the current task domain
+  - Consolidate overlapping insights into coherent recommendations
+  - Prioritize experiences most relevant to the current situation
+  - Make the guidance feel custom-written for this specific task
+
+experience_rerank_prompt: |
+  You are an expert AI analyst tasked with reranking retrieved experiences based on their relevance to a specific query.
+  
+  Your task is to analyze the candidates and rank them by relevance, considering:
+  ● DIRECT RELEVANCE: How directly applicable the experience is to the current query
+  ● SITUATION SIMILARITY: How similar the experience context is to the current situation
+  ● ACTIONABILITY: How actionable and specific the experience is
+  ● QUALITY: The overall quality and clarity of the experience
+  
+  # Current Query
+  {query}
+  
+  # Candidate Experiences (Total: {num_candidates})
+  {candidates}
+  
+  OUTPUT FORMAT:
+  Provide a ranked list of candidate indices (0-based) from most relevant to least relevant:
+  ```json
+  {{
+    "ranked_indices": [2, 0, 4, 1, 3],
+    "reasoning": "Brief explanation of ranking rationale"
+  }}
+  ```
+  
+  Note: Include ALL candidate indices in the ranking, even if some are less relevant.
+
+context_generation_prompt: |
+  You are an expert AI assistant tasked with synthesizing retrieved experiences into actionable context for an AI agent.
+  
+  Your task is to create a coherent, actionable context message that helps the agent leverage relevant past experiences.
+  
+  SYNTHESIS GUIDELINES:
+  ● RELEVANCE FOCUS: Emphasize the most relevant aspects of each experience
+  ● ACTIONABLE INSIGHTS: Extract specific, actionable guidance
+  ● COHERENT NARRATIVE: Create a flowing narrative rather than disconnected tips
+  ● SITUATIONAL AWARENESS: Adapt the guidance to the current situation
+  
+  # Current Query/Task
+  {query}
+  
+  # Current Step Context
+  {current_step}
+  
+  # Retrieved Experiences ({num_experiences} total)
+  {retrieved_experiences}
+  
+  OUTPUT FORMAT:
+  Create a synthesized context message:
+  ```json
+  {{
+    "context": "A coherent, actionable context message that synthesizes the relevant experiences and provides specific guidance for the current task",
+    "key_insights": [
+      "Key pattern from successful approaches",
+      "Common pitfall to avoid",
+      "Specific technique that worked well"
+    ],
+    "recommended_actions": [
+      "Specific action recommendation based on experiences",
+      "Decision point with recommended choice"
+    ]
+  }}
+  ```
+  
+  Guidelines:
+  - Make the context immediately actionable
+  - Prioritize the most relevant experiences
+  - Use clear, direct language
+  - Focus on practical guidance rather than abstract principles
