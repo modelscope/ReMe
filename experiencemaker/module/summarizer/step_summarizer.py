@@ -2,60 +2,77 @@ import json
 import re
 import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 
 from loguru import logger
-from pydantic import Field, model_validator
+from pydantic import Field
 
 from experiencemaker.enumeration.role import Role
-from experiencemaker.module.summarizer.base_summarizer import BaseSummarizer
-from experiencemaker.schema.trajectory import Trajectory, Sample, SummaryMessage, Message
-from experiencemaker.schema.vector_store_node import VectorStoreNode
-from experiencemaker.storage.es_vector_store import EsVectorStore
-from experiencemaker.storage.file_vector_store import FileVectorStore
+from experiencemaker.module.prompt.prompt_mixin import PromptMixin
+from experiencemaker.module.summarizer.base_summarizer import BaseSummarizer, SUMMARIZER_REGISTRY
+from experiencemaker.schema.experience import Experience
+from experiencemaker.schema.trajectory import Trajectory, Message
 
 
-class StepSummarizer(BaseSummarizer):
+@SUMMARIZER_REGISTRY.register("step")
+class StepSummarizer(BaseSummarizer, PromptMixin):
     """
     Step-level experience extractor that focuses on extracting reusable experiences
     from individual steps or step sequences in trajectories
     """
 
-    # Vector Store 配置
-    vector_store_type: str = Field(default="file_vector_store")
-    vector_store_hosts: str | List[str] = Field(default="http://localhost:9200")
-    vector_store_index_name: str = Field(default="step_experience_store")
-    store_dir: str = Field(default="./step_experiences/")
+    # Feature switches - can be configured via startup parameters
+    enable_step_segmentation: bool = Field(default=False, description="Enable trajectory segmentation into steps")
+    enable_similarity_search: bool = Field(default=False, description="Enable similarity search for comparison")
+    enable_experience_validation: bool = Field(default=True, description="Enable experience validation")
 
-    # 功能开关
-    enable_step_segmentation: bool = Field(default=False)
-    enable_similarity_search: bool = Field(default=False)
-    enable_experience_validation: bool = Field(default=True)
+    # LLM retries
+    max_retries: int = Field(default=3, description="Maximum retries for LLM calls")
 
-    # llm retries
-    max_retries: int = Field(default=3)
+    # Prompt configuration
+    prompt_file_path: Path = Field(default=Path(__file__).parent / "step_summarizer_prompt.yaml")
 
-    @model_validator(mode="after")
-    def init_vector_store(self):
-        """initialize"""
-        if self.vector_store_type == "file_vector_store":
-            self.vector_store = FileVectorStore(
-                embedding_model=self.embedding_model,
-                index_name=self.vector_store_index_name,
-                store_dir=self.store_dir
+    def _extract_experiences(self, trajectories: List[Trajectory], workspace_id: str = None,
+                             **kwargs) -> List[Experience]:
+        """Extract step-level experiences from trajectories (implements base class method)"""
+        logger.info(f"Starting step-level experience extraction pipeline for {len(trajectories)} trajectories")
+
+        all_experiences = []
+
+        # Classify trajectories based on trajectory.done
+        success_trajectories = [traj for traj in trajectories if traj.done]
+        failure_trajectories = [traj for traj in trajectories if not traj.done]
+
+        # Process success and failure samples separately
+        if success_trajectories:
+            success_experiences = self._extract_step_experiences_from_success(success_trajectories, workspace_id,
+                                                                              **kwargs)
+            all_experiences.extend(success_experiences)
+
+        if failure_trajectories:
+            failure_experiences = self._extract_step_experiences_from_failure(failure_trajectories, workspace_id,
+                                                                              **kwargs)
+            all_experiences.extend(failure_experiences)
+
+        # Comparative analysis (if similarity search is enabled)
+        if success_trajectories and failure_trajectories and self.enable_similarity_search:
+            comparative_experiences = self._extract_step_experiences_from_comparison(
+                success_trajectories, failure_trajectories, workspace_id, **kwargs
             )
-        elif self.vector_store_type == "es_vector_store":
-            self.vector_store = EsVectorStore(
-                embedding_model=self.embedding_model,
-                index_name=self.vector_store_index_name,
-                hosts=self.vector_store_hosts
-            )
+            all_experiences.extend(comparative_experiences)
+
+        # Validate experiences
+        if self.enable_experience_validation:
+            validated_experiences = self._validate_experiences(all_experiences, **kwargs)
         else:
-            raise ValueError(f"Unknown vector store type: {self.vector_store_type}")
+            validated_experiences = all_experiences
 
-        return self
+        logger.info(f"Extracted {len(validated_experiences)} validated step experiences")
+        return validated_experiences
 
-    def extract_step_experiences_from_success(self, trajectories: List[Trajectory], **kwargs) -> List[SummaryMessage]:
+    def _extract_step_experiences_from_success(self, trajectories: List[Trajectory], workspace_id: str, **kwargs) -> \
+    List[Experience]:
         """Extract step-level experiences from successful samples"""
         logger.info(f"Extracting step experiences from {len(trajectories)} successful trajectories")
 
@@ -65,16 +82,36 @@ class StepSummarizer(BaseSummarizer):
 
             for step_seq in step_sequences:
                 try:
-                    prompt = self.prompt_handler.success_step_experience_prompt.format(
+                    step_content_collector = []
+                    for step in step_seq:
+                        step_index = len(step_content_collector)
+
+                        if step.role is Role.ASSISTANT:
+                            line = f"### step.{step_index} role={step.role.value} content=\n{step.content}\n"
+                            if hasattr(step, 'reasoning_content') and step.reasoning_content:
+                                line += f"{step.reasoning_content}\n"
+                            if hasattr(step, 'tool_calls') and step.tool_calls:
+                                for tool_call in step.tool_calls:
+                                    line += f" - tool call={tool_call.name}\n   params={tool_call.arguments}\n"
+                            step_content_collector.append(line)
+                        elif step.role is Role.USER:
+                            line = f"### step.{step_index} role={step.role.value} content=\n{step.content}\n"
+                            step_content_collector.append(line)
+                        elif step.role is Role.TOOL:
+                            line = f"### step.{step_index} role={step.role.value} tool call result=\n{step.content}\n"
+                            step_content_collector.append(line)
+
+                    prompt = self.prompt_format(
+                        prompt_name="success_step_experience_prompt",
                         query=trajectory.query,
-                        step_sequence=self._format_step_sequence(step_seq),
+                        step_sequence="\n".join(step_content_collector).strip(),
                         context=self._get_trajectory_context(trajectory, step_seq),
                         outcome="successful"
                     )
 
-                    experience = self._extract_with_llm(prompt, "success")
-                    if experience:
-                        all_experiences.extend(experience)
+                    experiences = self._extract_with_llm(prompt, "success", workspace_id)
+                    if experiences:
+                        all_experiences.extend(experiences)
 
                 except Exception as e:
                     logger.error(f"Error extracting success experience: {e}")
@@ -82,7 +119,8 @@ class StepSummarizer(BaseSummarizer):
 
         return all_experiences
 
-    def extract_step_experiences_from_failure(self, trajectories: List[Trajectory], **kwargs) -> List[SummaryMessage]:
+    def _extract_step_experiences_from_failure(self, trajectories: List[Trajectory], workspace_id: str, **kwargs) -> \
+    List[Experience]:
         """Extract step-level experiences from failed samples"""
         logger.info(f"Extracting step experiences from {len(trajectories)} failed trajectories")
 
@@ -92,16 +130,36 @@ class StepSummarizer(BaseSummarizer):
 
             for step_seq in step_sequences:
                 try:
-                    prompt = self.prompt_handler.failure_step_experience_prompt.format(
+                    step_content_collector = []
+                    for step in step_seq:
+                        step_index = len(step_content_collector)
+
+                        if step.role is Role.ASSISTANT:
+                            line = f"### step.{step_index} role={step.role.value} content=\n{step.content}\n"
+                            if hasattr(step, 'reasoning_content') and step.reasoning_content:
+                                line += f"{step.reasoning_content}\n"
+                            if hasattr(step, 'tool_calls') and step.tool_calls:
+                                for tool_call in step.tool_calls:
+                                    line += f" - tool call={tool_call.name}\n   params={tool_call.arguments}\n"
+                            step_content_collector.append(line)
+                        elif step.role is Role.USER:
+                            line = f"### step.{step_index} role={step.role.value} content=\n{step.content}\n"
+                            step_content_collector.append(line)
+                        elif step.role is Role.TOOL:
+                            line = f"### step.{step_index} role={step.role.value} tool call result=\n{step.content}\n"
+                            step_content_collector.append(line)
+
+                    prompt = self.prompt_format(
+                        prompt_name="failure_step_experience_prompt",
                         query=trajectory.query,
-                        step_sequence=self._format_step_sequence(step_seq),
+                        step_sequence="\n".join(step_content_collector).strip(),
                         context=self._get_trajectory_context(trajectory, step_seq),
                         outcome="failed"
                     )
 
-                    experience = self._extract_with_llm(prompt, "failure")
-                    if experience:
-                        all_experiences.extend(experience)
+                    experiences = self._extract_with_llm(prompt, "failure", workspace_id)
+                    if experiences:
+                        all_experiences.extend(experiences)
 
                 except Exception as e:
                     logger.error(f"Error extracting failure experience: {e}")
@@ -109,10 +167,11 @@ class StepSummarizer(BaseSummarizer):
 
         return all_experiences
 
-    def extract_step_experiences_from_comparison(self,
-                                                 success_trajectories: List[Trajectory],
-                                                 failure_trajectories: List[Trajectory],
-                                                 **kwargs) -> List[SummaryMessage]:
+    def _extract_step_experiences_from_comparison(self,
+                                                  success_trajectories: List[Trajectory],
+                                                  failure_trajectories: List[Trajectory],
+                                                  workspace_id: str,
+                                                  **kwargs) -> List[Experience]:
         """Extract step-level experiences from comparative samples"""
         logger.info(f"Extracting comparative step experiences from {len(success_trajectories)} success "
                     f"and {len(failure_trajectories)} failure trajectories")
@@ -124,15 +183,16 @@ class StepSummarizer(BaseSummarizer):
 
         for success_steps, failure_steps, similarity_score in similar_step_pairs:
             try:
-                prompt = self.prompt_handler.comparative_step_experience_prompt.format(
+                prompt = self.prompt_format(
+                    prompt_name="comparative_step_experience_prompt",
                     success_steps=self._format_step_sequence(success_steps),
                     failure_steps=self._format_step_sequence(failure_steps),
                     similarity_score=similarity_score
                 )
 
-                experience = self._extract_with_llm(prompt, "comparative")
-                if experience:
-                    all_experiences.extend(experience)
+                experiences = self._extract_with_llm(prompt, "comparative", workspace_id)
+                if experiences:
+                    all_experiences.extend(experiences)
 
             except Exception as e:
                 logger.error(f"Error extracting comparative experience: {e}")
@@ -140,34 +200,7 @@ class StepSummarizer(BaseSummarizer):
 
         return all_experiences
 
-    def extract_step_experiences_general(self, trajectories: List[Trajectory], **kwargs) -> List[SummaryMessage]:
-        """Extract general step experiences when no labels are provided"""
-        logger.info(f"Extracting general step experiences from {len(trajectories)} trajectories")
-
-        all_experiences = []
-
-        for trajectory in trajectories:
-            step_sequences = self._segment_trajectory_into_steps(trajectory)
-
-            for step_seq in step_sequences:
-                try:
-                    prompt = self.prompt_handler.general_step_experience_prompt.format(
-                        query=trajectory.query,
-                        step_sequence=self._format_step_sequence(step_seq),
-                        context=self._get_trajectory_context(trajectory, step_seq)
-                    )
-
-                    experience = self._extract_with_llm(prompt, "general")
-                    if experience:
-                        all_experiences.extend(experience)
-
-                except Exception as e:
-                    logger.error(f"Error extracting general experience: {e}")
-                    continue
-
-        return all_experiences
-
-    def validate_experiences(self, experiences: List[SummaryMessage], **kwargs) -> List[SummaryMessage]:
+    def _validate_experiences(self, experiences: List[Experience], **kwargs) -> List[Experience]:
         """Validate the quality and validity of extracted experiences"""
         if not self.enable_experience_validation:
             return experiences
@@ -181,12 +214,6 @@ class StepSummarizer(BaseSummarizer):
                 validation_result = self._validate_single_experience(experience)
 
                 if validation_result["is_valid"]:
-                    # Add validation info to metadata
-                    experience.metadata.update({
-                        "validation_score": validation_result["score"],
-                        "validation_feedback": validation_result["feedback"],
-                        "validated_at": datetime.now().isoformat()
-                    })
                     validated_experiences.append(experience)
                 else:
                     logger.warning(f"Experience validation failed: {validation_result['reason']}")
@@ -197,73 +224,6 @@ class StepSummarizer(BaseSummarizer):
 
         logger.info(f"Validated {len(validated_experiences)} out of {len(experiences)} experiences")
         return validated_experiences
-
-    def store_experiences(self, experiences: List[SummaryMessage], **kwargs):
-        """Store experiences into vector storage"""
-        if not experiences:
-            logger.warning("No experiences to store")
-            return
-
-        # Deduplication
-        unique_experiences = self._deduplicate_experiences(experiences)
-        logger.info(f"Storing {len(unique_experiences)} unique experiences (deduplicated from {len(experiences)})")
-
-        # Convert to storage nodes
-        nodes = []
-        for exp in unique_experiences:
-            node = VectorStoreNode(
-                content=exp.content,
-                metadata={
-                    **exp.metadata,
-                    "stored_at": datetime.now().isoformat(),
-                    "experience_type": "step_level"
-                }
-            )
-            nodes.append(node)
-
-        # Store to vector database
-        refresh_index = kwargs.get("refresh_index", True)
-        self.vector_store.insert(nodes, refresh_index=refresh_index)
-        logger.info(f"Successfully stored {len(nodes)} step experiences")
-
-    def execute(self, trajectories: List[Trajectory], **kwargs) -> List[Sample]:
-        """Execute complete step-level experience extraction pipeline"""
-        logger.info(f"Starting step-level experience extraction pipeline for {len(trajectories)} trajectories")
-
-        all_experiences = []
-
-        # Classify trajectories based on trajectory.done
-        success_trajectories = [traj for traj in trajectories if traj.done]
-        failure_trajectories = [traj for traj in trajectories if not traj.done]
-
-        # Process success and failure samples separately
-        if success_trajectories:
-            success_experiences = self.extract_step_experiences_from_success(success_trajectories, **kwargs)
-            all_experiences.extend(success_experiences)
-
-        if failure_trajectories:
-            failure_experiences = self.extract_step_experiences_from_failure(failure_trajectories, **kwargs)
-            all_experiences.extend(failure_experiences)
-
-        # Comparative analysis (if similarity search is enabled)
-        if success_trajectories and failure_trajectories and self.enable_similarity_search:
-            comparative_experiences = self.extract_step_experiences_from_comparison(
-                success_trajectories, failure_trajectories, **kwargs
-            )
-            all_experiences.extend(comparative_experiences)
-
-        # Validate experiences
-        if self.enable_experience_validation:
-            validated_experiences = self.validate_experiences(all_experiences, **kwargs)
-        else:
-            validated_experiences = all_experiences
-
-        # Store experiences
-        if validated_experiences:
-            self.store_experiences(validated_experiences, **kwargs)
-
-        # Construct return result
-        return [Sample(steps=validated_experiences)]
 
     # ========== Helper Methods ==========
 
@@ -277,7 +237,8 @@ class StepSummarizer(BaseSummarizer):
             # Use LLM for segmentation
             trajectory_content = self._format_trajectory_content(trajectory)
 
-            prompt = self.prompt_handler.step_segmentation_prompt.format(
+            prompt = self.prompt_format(
+                prompt_name="step_segmentation_prompt",
                 query=trajectory.query,
                 trajectory_content=trajectory_content,
                 total_steps=len(trajectory.steps)
@@ -413,9 +374,9 @@ class StepSummarizer(BaseSummarizer):
             success_texts = [self._format_step_sequence(seq) for seq in success_step_sequences]
             failure_texts = [self._format_step_sequence(seq) for seq in failure_step_sequences]
 
-            # Get embeddings
-            success_embeddings = self.embedding_model.get_embeddings(success_texts)
-            failure_embeddings = self.embedding_model.get_embeddings(failure_texts)
+            # Get embeddings using embedding model
+            success_embeddings = self.vector_store.embedding_model.get_embeddings(success_texts)
+            failure_embeddings = self.vector_store.embedding_model.get_embeddings(failure_texts)
 
             # Calculate similarity and find most similar pairs
             for i, s_emb in enumerate(success_embeddings):
@@ -457,16 +418,29 @@ class StepSummarizer(BaseSummarizer):
         except Exception as e:
             logger.error(f"Error calculating cosine similarity: {e}")
             return 0.0
-            import json
 
-    def _extract_with_llm(self, prompt: str, experience_type: str) -> List[SummaryMessage]:
+    def _extract_with_llm(self, prompt: str, experience_type: str, workspace_id: str) -> List[Experience]:
+        """Extract experiences using LLM with JSON parsing - can return multiple experiences"""
         for attempt in range(self.max_retries):
             try:
                 response = self.llm.chat([Message(role=Role.USER, content=prompt)])
-                experiences = self._parse_experience_response(response.content, experience_type)
 
-                if experiences:
+                # Parse JSON response to extract experiences
+                experiences_data = self._parse_json_experience_response(response.content)
+
+                if experiences_data:
+                    experiences = []
+                    for exp_data in experiences_data:
+                        experience = Experience(
+                            experience_workspace_id=workspace_id,
+                            experience_desc=exp_data.get("condition", exp_data.get("when_to_use", "")),
+                            experience_content=exp_data.get("experience", ""),
+                            metadata = exp_data
+                        )
+                        experiences.append(experience)
                     return experiences
+                else:
+                    logger.warning(f"Experience extraction failed: no valid JSON experience found in response")
 
             except Exception as e:
                 logger.warning(f"Attempt {attempt + 1} failed for experience extraction: {e}")
@@ -474,72 +448,58 @@ class StepSummarizer(BaseSummarizer):
         logger.error(f"Failed to extract experience after {self.max_retries} attempts")
         return []
 
-    def _parse_experience_response(self, response: str, experience_type: str) -> List[SummaryMessage]:
-        """解析经验抽取响应"""
-        experiences = []
-
+    def _parse_json_experience_response(self, response: str) -> List[dict]:
+        """Parse JSON experience response - handles both single objects and arrays"""
         try:
-            # 尝试提取JSON格式的经验
+            # Try to extract JSON format
             json_pattern = r'```json\s*([\s\S]*?)\s*```'
             json_blocks = re.findall(json_pattern, response)
 
-            for block in json_blocks:
-                try:
-                    parsed = json.loads(block)
-                    if isinstance(parsed, list):
-                        for exp_data in parsed:
-                            experience = self._create_experience_message(exp_data, experience_type)
-                            if experience:
-                                experiences.append(experience)
-                    else:
-                        experience = self._create_experience_message(parsed, experience_type)
-                        if experience:
-                            experiences.append(experience)
-                except json.JSONDecodeError:
-                    continue
+            if json_blocks:
+                parsed = json.loads(json_blocks[0])
 
-        except Exception as e:
-            logger.error(f"Error parsing experience response: {e}")
+                # Handle array of experiences
+                if isinstance(parsed, list):
+                    valid_experiences = []
+                    for exp_data in parsed:
+                        if isinstance(exp_data, dict) and (
+                                ("condition" in exp_data and "experience" in exp_data) or
+                                ("when_to_use" in exp_data and "experience" in exp_data)
+                        ):
+                            valid_experiences.append(exp_data)
+                    return valid_experiences
 
-        return experiences
+                # Handle single experience object
+                elif isinstance(parsed, dict) and (
+                        ("condition" in parsed and "experience" in parsed) or
+                        ("when_to_use" in parsed and "experience" in parsed)
+                ):
+                    return [parsed]
 
-    def _create_experience_message(self, exp_data: Dict[str, Any], experience_type: str) -> Optional[SummaryMessage]:
-        """创建经验消息对象"""
+            # Fallback: try to parse the entire response as JSON
+            parsed = json.loads(response)
+            if isinstance(parsed, list):
+                return parsed
+            elif isinstance(parsed, dict):
+                return [parsed]
+
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse JSON experience response: {e}")
+
+        return []
+
+    def _validate_single_experience(self, experience: Experience) -> Dict[str, Any]:
+        """Validate single experience"""
         try:
-            condition = exp_data.get("when_to_use", exp_data.get("condition", ""))
-            experience_content = exp_data.get("experience", exp_data.get("tip_content", exp_data.get("tips", "")))
-
-            if not condition or not experience_content:
-                return None
-
-            metadata = {
-                "experience": experience_content,
-                "experience_type": experience_type,
-                "tags": exp_data.get("tags", []),
-                "confidence": exp_data.get("confidence", 0.5),
-                "extracted_at": datetime.now().isoformat(),
-                "experience_id": str(uuid.uuid4())
-            }
-
-            return SummaryMessage(content=condition, metadata=metadata)
-
-        except Exception as e:
-            logger.error(f"Error creating experience message: {e}")
-            return None
-
-    def _validate_single_experience(self, experience: SummaryMessage) -> Dict[str, Any]:
-        """验证单个经验的有效性"""
-        try:
-            prompt = self.prompt_handler.experience_validation_prompt.format(
-                condition=experience.content,
-                experience_content=experience.metadata.get("experience", ""),
-                experience_type=experience.metadata.get("experience_type", ""),
-                tags=experience.metadata.get("tags", [])
+            prompt = self.prompt_format(
+                prompt_name="experience_validation_prompt",
+                condition=experience.experience_desc,
+                experience_content=experience.experience_content,
             )
 
             response = self.llm.chat([Message(role=Role.USER, content=prompt)])
 
-            # 解析验证结果
+            # Parse validation result
             is_valid = "valid" in response.content.lower() and "invalid" not in response.content.lower()
             score_match = re.search(r'score[:\s]*([0-9.]+)', response.content.lower())
             score = float(score_match.group(1)) if score_match else 0.5
@@ -554,28 +514,3 @@ class StepSummarizer(BaseSummarizer):
         except Exception as e:
             logger.error(f"Error validating experience: {e}")
             return {"is_valid": False, "score": 0.0, "feedback": "", "reason": str(e)}
-
-    def _deduplicate_experiences(self, experiences: List[SummaryMessage]) -> List[SummaryMessage]:
-        unique_experiences = []
-        seen_contents = set()
-
-        for exp in experiences:
-            content_hash = hash(exp.content)
-
-            if content_hash not in seen_contents:
-                seen_contents.add(content_hash)
-                unique_experiences.append(exp)
-
-        return unique_experiences
-
-    def extract_samples(self, trajectories: List[Trajectory], **kwargs) -> List[Sample]:
-        experiences = self.execute(trajectories, **kwargs)
-        return [Sample(steps=experiences)] if experiences else []
-
-    def insert_into_vector_store(self, samples: List[Sample], **kwargs):
-        all_experiences = []
-        for sample in samples:
-            all_experiences.extend(sample.steps)
-
-        if all_experiences:
-            self.store_experiences(all_experiences, **kwargs)
