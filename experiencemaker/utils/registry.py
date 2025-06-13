@@ -23,5 +23,9 @@ class Registry(object):
             raise KeyError(f"name={name} is not registered!")
         return self._registry[name]
 
-    def list_all(self) -> List[str]:
+    def __contains__(self, name: str):
+        return name in self._registry
+
+    @property
+    def registered_module_names(self) -> List[str]:
         return sorted(self._registry.keys())

@@ -13,21 +13,17 @@ from experiencemaker.utils.util_function import load_env_keys
 
 load_env_keys()
 
-from experiencemaker.model import LLM_REGISTRY, EMBEDDING_MODEL_REGISTRY
-from experiencemaker.model.base_embedding_model import BaseEmbeddingModel
-from experiencemaker.model.base_llm import BaseLLM
-from experiencemaker.module.agent_wrapper import AGENT_WRAPPER_REGISTRY
-from experiencemaker.module.agent_wrapper.agent_wrapper_mixin import AgentWrapperMixin
-from experiencemaker.module.context_generator import CONTEXT_GENERATOR_REGISTRY
-from experiencemaker.module.context_generator.base_context_generator import BaseContextGenerator
-from experiencemaker.module.summarizer import SUMMARIZER_REGISTRY
-from experiencemaker.module.summarizer.base_summarizer import BaseSummarizer
+from experiencemaker.model.base_embedding_model import BaseEmbeddingModel, EMBEDDING_MODEL_REGISTRY
+from experiencemaker.model.base_llm import BaseLLM, LLM_REGISTRY
+from experiencemaker.module.agent_wrapper.agent_wrapper_mixin import AgentWrapperMixin, AGENT_WRAPPER_REGISTRY
+from experiencemaker.module.context_generator.base_context_generator import BaseContextGenerator, \
+    CONTEXT_GENERATOR_REGISTRY
+from experiencemaker.module.summarizer.base_summarizer import BaseSummarizer, SUMMARIZER_REGISTRY
 from experiencemaker.schema.experience import Experience
 from experiencemaker.schema.request import AgentWrapperRequest, ContextGeneratorRequest, SummarizerRequest
 from experiencemaker.schema.response import AgentWrapperResponse, ContextGeneratorResponse, SummarizerResponse
 from experiencemaker.schema.trajectory import Trajectory, ContextMessage
-from experiencemaker.storage import VECTOR_STORE_REGISTRY
-from experiencemaker.storage.base_vector_store import BaseVectorStore
+from experiencemaker.storage.base_vector_store import BaseVectorStore, VECTOR_STORE_REGISTRY
 
 
 class EMService(BaseModel):
@@ -286,8 +282,8 @@ python -m experiencemaker.em_service \
     --port=8001 \
     --llm='{"backend": "openai_compatible", "model_name": "qwen3-32b", "temperature": 0.6}' \
     --embedding_model='{"backend": "openai_compatible", "model_name": "text-embedding-v4", "dimensions": 1024}' \
-    --vector_store='{"backend": "elasticsearch", "index_name": "simple_agent"}' \
-    --agent_wrapper='{"backend": "simple", "max_steps": 10}' \
-    --context_generator='{"backend": "simple", "retrieve_top_k": 1}' \
+    --vector_store='{"backend": "elasticsearch"}' \
+    --agent_wrapper='{"backend": "simple"}' \
+    --context_generator='{"backend": "simple"}' \
     --summarizer='{"backend": "simple"}'
 """

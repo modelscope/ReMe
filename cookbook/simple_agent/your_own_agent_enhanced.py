@@ -46,7 +46,7 @@ class YourOwnAgentEnhanced(YourOwnAgent):
 
     def execute(self):
         self.summary_experience(query="Analyze the company Tesla.")
-        self.summary_experience(query="Analyze the company Apple.")
+        # self.summary_experience(query="Analyze the company Apple.")
 
         return self.run_with_experience(query="Analyze Xiaomi Corporation.")
 

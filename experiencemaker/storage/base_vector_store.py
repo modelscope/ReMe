@@ -11,7 +11,7 @@ VECTOR_STORE_REGISTRY = Registry()
 
 class BaseVectorStore(BaseModel, ABC):
     embedding_model: BaseEmbeddingModel = Field(default=...)
-    index_name: str = Field(default=...)
+    index_name: str = Field(default="default")
 
     def exist_index(self, index_name: str = None) -> bool:
         raise NotImplementedError

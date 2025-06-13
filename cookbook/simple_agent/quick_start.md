@@ -51,10 +51,7 @@ python -m experiencemaker.em_service \
  --port=8001 \
  --llm='{"backend": "openai_compatible", "model_name": "qwen3-32b", "temperature": 0.6}' \
  --embedding_model='{"backend": "openai_compatible", "model_name": "text-embedding-v4", "dimensions": 1024}' \
- --vector_store='{"backend": "elasticsearch", "index_name": "your_own_agent"}' \
- --context_generator='{"backend": "simple", "retrieve_top_k": 1}' \
+ --vector_store='{"backend": "elasticsearch"}' \
+ --context_generator='{"backend": "simple"}' \
  --summarizer='{"backend": "simple"}'
-```
-
-
 ```
