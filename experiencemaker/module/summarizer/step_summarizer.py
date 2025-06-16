@@ -1,9 +1,11 @@
 import json
 import re
 import uuid
+import asyncio
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
+from concurrent.futures import ThreadPoolExecutor
 
 from loguru import logger
 from pydantic import Field
@@ -30,205 +32,353 @@ class StepSummarizer(BaseSummarizer, PromptMixin):
     # LLM retries
     max_retries: int = Field(default=3, description="Maximum retries for LLM calls")
 
+    # Concurrency control
+    max_workers: int = Field(default=5, description="Maximum concurrent LLM calls")
+
     # Prompt configuration
     prompt_file_path: Path = Field(default=Path(__file__).parent / "step_summarizer_prompt.yaml")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Create thread pool for concurrent LLM calls
+        self._executor = ThreadPoolExecutor(max_workers=self.max_workers)
+
+    async def _async_llm_chat(self, messages: List[Message]) -> str:
+        """Async wrapper for LLM chat calls"""
+        loop = asyncio.get_event_loop()
+
+        def _sync_chat():
+            response = self.llm.chat(messages)
+            return response.content if response else ""
+
+        return await loop.run_in_executor(self._executor, _sync_chat)
+
+    async def _batch_process_with_semaphore(self, tasks, semaphore_limit: int = None):
+        """Process tasks concurrently with semaphore to limit concurrent calls"""
+        if semaphore_limit is None:
+            semaphore_limit = self.max_workers
+
+        semaphore = asyncio.Semaphore(semaphore_limit)
+
+        async def _semaphore_task(task):
+            async with semaphore:
+                return await task
+
+        return await asyncio.gather(*[_semaphore_task(task) for task in tasks], return_exceptions=True)
 
     def _extract_experiences(self, trajectories: List[Trajectory], workspace_id: str = None,
                              **kwargs) -> List[Experience]:
         """Extract step-level experiences from trajectories (implements base class method)"""
         logger.info(f"Starting step-level experience extraction pipeline for {len(trajectories)} trajectories")
 
+        # Run async extraction in event loop
+        return asyncio.run(self._async_extract_experiences(trajectories, workspace_id, **kwargs))
+
+    async def _async_extract_experiences(self, trajectories: List[Trajectory], workspace_id: str = None,
+                                         **kwargs) -> List[Experience]:
+        """Async version of experience extraction"""
         all_experiences = []
 
         # Classify trajectories based on trajectory.done
         success_trajectories = [traj for traj in trajectories if traj.done]
         failure_trajectories = [traj for traj in trajectories if not traj.done]
 
-        # Process success and failure samples separately
+        # Process success and failure samples concurrently
+        tasks = []
+
         if success_trajectories:
-            success_experiences = self._extract_step_experiences_from_success(success_trajectories, workspace_id,
-                                                                              **kwargs)
-            all_experiences.extend(success_experiences)
+            tasks.append(
+                self._async_extract_step_experiences_from_success(success_trajectories, workspace_id, **kwargs))
 
         if failure_trajectories:
-            failure_experiences = self._extract_step_experiences_from_failure(failure_trajectories, workspace_id,
-                                                                              **kwargs)
-            all_experiences.extend(failure_experiences)
+            tasks.append(
+                self._async_extract_step_experiences_from_failure(failure_trajectories, workspace_id, **kwargs))
 
         # Comparative analysis (if similarity search is enabled)
         if success_trajectories and failure_trajectories and self.enable_similar_comparison:
-            comparative_experiences = self._extract_step_experiences_from_comparison(
+            tasks.append(self._async_extract_step_experiences_from_comparison(
                 success_trajectories, failure_trajectories, workspace_id, **kwargs
-            )
-            all_experiences.extend(comparative_experiences)
+            ))
 
-        # Validate experiences
-        if self.enable_experience_validation:
-            validated_experiences = self._validate_experiences(all_experiences, **kwargs)
+        # Wait for all extraction tasks to complete
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for result in results:
+            if isinstance(result, Exception):
+                logger.error(f"Error in extraction task: {result}")
+            elif isinstance(result, list):
+                all_experiences.extend(result)
+
+        # Validate experiences concurrently
+        if self.enable_experience_validation and all_experiences:
+            validated_experiences = await self._async_validate_experiences(all_experiences, **kwargs)
         else:
             validated_experiences = all_experiences
 
         logger.info(f"Extracted {len(validated_experiences)} validated step experiences")
         return validated_experiences
 
-    def _extract_step_experiences_from_success(self, trajectories: List[Trajectory], workspace_id: str, **kwargs) -> \
-    List[Experience]:
-        """Extract step-level experiences from successful samples"""
+    async def _async_extract_step_experiences_from_success(self, trajectories: List[Trajectory],
+                                                           workspace_id: str, **kwargs) -> List[Experience]:
+        """Async extract step-level experiences from successful samples"""
         logger.info(f"Extracting step experiences from {len(trajectories)} successful trajectories")
 
-        all_experiences = []
-        for trajectory in trajectories:
-            step_sequences = self._segment_trajectory_into_steps(trajectory)
+        # First, segment all trajectories concurrently
+        segmentation_tasks = [self._async_segment_trajectory_into_steps(trajectory) for trajectory in trajectories]
+        segmentation_results = await self._batch_process_with_semaphore(segmentation_tasks)
 
+        # Collect all step sequences
+        all_step_sequences = []
+        trajectory_contexts = []
+
+        for i, result in enumerate(segmentation_results):
+            if isinstance(result, Exception):
+                logger.error(f"Error segmenting trajectory {i}: {result}")
+                continue
+
+            step_sequences = result
             for step_seq in step_sequences:
-                try:
-                    step_content_collector = []
-                    for step in step_seq:
-                        step_index = len(step_content_collector)
+                all_step_sequences.append(step_seq)
+                trajectory_contexts.append((trajectories[i], step_seq))
 
-                        if step.role is Role.ASSISTANT:
-                            line = f"### step.{step_index} role={step.role.value} content=\n{step.content}\n"
-                            if hasattr(step, 'reasoning_content') and step.reasoning_content:
-                                line += f"{step.reasoning_content}\n"
-                            if hasattr(step, 'tool_calls') and step.tool_calls:
-                                for tool_call in step.tool_calls:
-                                    line += f" - tool call={tool_call.name}\n   params={tool_call.arguments}\n"
-                            step_content_collector.append(line)
-                        elif step.role is Role.USER:
-                            line = f"### step.{step_index} role={step.role.value} content=\n{step.content}\n"
-                            step_content_collector.append(line)
-                        elif step.role is Role.TOOL:
-                            line = f"### step.{step_index} role={step.role.value} tool call result=\n{step.content}\n"
-                            step_content_collector.append(line)
+        # Extract experiences from all step sequences concurrently
+        extraction_tasks = []
+        for step_seq, (trajectory, _) in zip(all_step_sequences, trajectory_contexts):
+            task = self._async_extract_success_experience_from_step_sequence(step_seq, trajectory, workspace_id)
+            extraction_tasks.append(task)
 
-                    prompt = self.prompt_format(
-                        prompt_name="success_step_experience_prompt",
-                        query=trajectory.query,
-                        step_sequence="\n".join(step_content_collector).strip(),
-                        context=self._get_trajectory_context(trajectory, step_seq),
-                        outcome="successful"
-                    )
+        extraction_results = await self._batch_process_with_semaphore(extraction_tasks)
 
-                    experiences = self._extract_with_llm(prompt, "success", workspace_id)
-                    if experiences:
-                        all_experiences.extend(experiences)
-
-                except Exception as e:
-                    logger.error(f"Error extracting success experience: {e}")
-                    continue
+        # Collect all experiences
+        all_experiences = []
+        for result in extraction_results:
+            if isinstance(result, Exception):
+                logger.error(f"Error extracting success experience: {result}")
+                continue
+            if result:
+                all_experiences.extend(result)
 
         return all_experiences
 
-    def _extract_step_experiences_from_failure(self, trajectories: List[Trajectory], workspace_id: str, **kwargs) -> \
-    List[Experience]:
-        """Extract step-level experiences from failed samples"""
+    async def _async_extract_success_experience_from_step_sequence(self, step_seq: List[Message],
+                                                                   trajectory: Trajectory, workspace_id: str) -> List[
+        Experience]:
+        """Extract experience from a single step sequence"""
+        try:
+            step_content_collector = []
+            for step in step_seq:
+                step_index = len(step_content_collector)
+
+                if step.role is Role.ASSISTANT:
+                    line = f"### step.{step_index} role={step.role.value} content=\n{step.content}\n"
+                    if hasattr(step, 'reasoning_content') and step.reasoning_content:
+                        line += f"{step.reasoning_content}\n"
+                    if hasattr(step, 'tool_calls') and step.tool_calls:
+                        for tool_call in step.tool_calls:
+                            line += f" - tool call={tool_call.name}\n   params={tool_call.arguments}\n"
+                    step_content_collector.append(line)
+                elif step.role is Role.USER:
+                    line = f"### step.{step_index} role={step.role.value} content=\n{step.content}\n"
+                    step_content_collector.append(line)
+                elif step.role is Role.TOOL:
+                    line = f"### step.{step_index} role={step.role.value} tool call result=\n{step.content}\n"
+                    step_content_collector.append(line)
+
+            prompt = self.prompt_format(
+                prompt_name="success_step_experience_prompt",
+                query=trajectory.query,
+                step_sequence="\n".join(step_content_collector).strip(),
+                context=self._get_trajectory_context(trajectory, step_seq),
+                outcome="successful"
+            )
+
+            return await self._async_extract_with_llm(prompt, "success", workspace_id)
+
+        except Exception as e:
+            logger.error(f"Error extracting success experience: {e}")
+            return []
+
+    async def _async_extract_step_experiences_from_failure(self, trajectories: List[Trajectory],
+                                                           workspace_id: str, **kwargs) -> List[Experience]:
+        """Async extract step-level experiences from failed samples"""
         logger.info(f"Extracting step experiences from {len(trajectories)} failed trajectories")
 
-        all_experiences = []
-        for trajectory in trajectories:
-            step_sequences = self._segment_trajectory_into_steps(trajectory)
+        # First, segment all trajectories concurrently
+        segmentation_tasks = [self._async_segment_trajectory_into_steps(trajectory) for trajectory in trajectories]
+        segmentation_results = await self._batch_process_with_semaphore(segmentation_tasks)
 
+        # Collect all step sequences
+        all_step_sequences = []
+        trajectory_contexts = []
+
+        for i, result in enumerate(segmentation_results):
+            if isinstance(result, Exception):
+                logger.error(f"Error segmenting trajectory {i}: {result}")
+                continue
+
+            step_sequences = result
             for step_seq in step_sequences:
-                try:
-                    step_content_collector = []
-                    for step in step_seq:
-                        step_index = len(step_content_collector)
+                all_step_sequences.append(step_seq)
+                trajectory_contexts.append((trajectories[i], step_seq))
 
-                        if step.role is Role.ASSISTANT:
-                            line = f"### step.{step_index} role={step.role.value} content=\n{step.content}\n"
-                            if hasattr(step, 'reasoning_content') and step.reasoning_content:
-                                line += f"{step.reasoning_content}\n"
-                            if hasattr(step, 'tool_calls') and step.tool_calls:
-                                for tool_call in step.tool_calls:
-                                    line += f" - tool call={tool_call.name}\n   params={tool_call.arguments}\n"
-                            step_content_collector.append(line)
-                        elif step.role is Role.USER:
-                            line = f"### step.{step_index} role={step.role.value} content=\n{step.content}\n"
-                            step_content_collector.append(line)
-                        elif step.role is Role.TOOL:
-                            line = f"### step.{step_index} role={step.role.value} tool call result=\n{step.content}\n"
-                            step_content_collector.append(line)
+        # Extract experiences from all step sequences concurrently
+        extraction_tasks = []
+        for step_seq, (trajectory, _) in zip(all_step_sequences, trajectory_contexts):
+            task = self._async_extract_failure_experience_from_step_sequence(step_seq, trajectory, workspace_id)
+            extraction_tasks.append(task)
 
-                    prompt = self.prompt_format(
-                        prompt_name="failure_step_experience_prompt",
-                        query=trajectory.query,
-                        step_sequence="\n".join(step_content_collector).strip(),
-                        context=self._get_trajectory_context(trajectory, step_seq),
-                        outcome="failed"
-                    )
+        extraction_results = await self._batch_process_with_semaphore(extraction_tasks)
 
-                    experiences = self._extract_with_llm(prompt, "failure", workspace_id)
-                    if experiences:
-                        all_experiences.extend(experiences)
-
-                except Exception as e:
-                    logger.error(f"Error extracting failure experience: {e}")
-                    continue
+        # Collect all experiences
+        all_experiences = []
+        for result in extraction_results:
+            if isinstance(result, Exception):
+                logger.error(f"Error extracting failure experience: {result}")
+                continue
+            if result:
+                all_experiences.extend(result)
 
         return all_experiences
 
-    def _extract_step_experiences_from_comparison(self,
-                                                  success_trajectories: List[Trajectory],
-                                                  failure_trajectories: List[Trajectory],
-                                                  workspace_id: str,
-                                                  **kwargs) -> List[Experience]:
-        """Extract step-level experiences from comparative samples"""
+    async def _async_extract_failure_experience_from_step_sequence(self, step_seq: List[Message],
+                                                                   trajectory: Trajectory, workspace_id: str) -> List[
+        Experience]:
+        """Extract experience from a single failed step sequence"""
+        try:
+            step_content_collector = []
+            for step in step_seq:
+                step_index = len(step_content_collector)
+
+                if step.role is Role.ASSISTANT:
+                    line = f"### step.{step_index} role={step.role.value} content=\n{step.content}\n"
+                    if hasattr(step, 'reasoning_content') and step.reasoning_content:
+                        line += f"{step.reasoning_content}\n"
+                    if hasattr(step, 'tool_calls') and step.tool_calls:
+                        for tool_call in step.tool_calls:
+                            line += f" - tool call={tool_call.name}\n   params={tool_call.arguments}\n"
+                    step_content_collector.append(line)
+                elif step.role is Role.USER:
+                    line = f"### step.{step_index} role={step.role.value} content=\n{step.content}\n"
+                    step_content_collector.append(line)
+                elif step.role is Role.TOOL:
+                    line = f"### step.{step_index} role={step.role.value} tool call result=\n{step.content}\n"
+                    step_content_collector.append(line)
+
+            prompt = self.prompt_format(
+                prompt_name="failure_step_experience_prompt",
+                query=trajectory.query,
+                step_sequence="\n".join(step_content_collector).strip(),
+                context=self._get_trajectory_context(trajectory, step_seq),
+                outcome="failed"
+            )
+
+            return await self._async_extract_with_llm(prompt, "failure", workspace_id)
+
+        except Exception as e:
+            logger.error(f"Error extracting failure experience: {e}")
+            return []
+
+    async def _async_extract_step_experiences_from_comparison(self,
+                                                              success_trajectories: List[Trajectory],
+                                                              failure_trajectories: List[Trajectory],
+                                                              workspace_id: str,
+                                                              **kwargs) -> List[Experience]:
+        """Async extract step-level experiences from comparative samples"""
         logger.info(f"Extracting comparative step experiences from {len(success_trajectories)} success "
                     f"and {len(failure_trajectories)} failure trajectories")
 
-        all_experiences = []
-
-        # Find similar step sequences for comparison
+        # Find similar step sequences for comparison (this can remain sync as it's CPU-bound)
         similar_step_pairs = self._find_similar_step_sequences(success_trajectories, failure_trajectories)
 
+        # Extract experiences from all similar pairs concurrently
+        extraction_tasks = []
         for success_steps, failure_steps, similarity_score in similar_step_pairs:
-            try:
-                prompt = self.prompt_format(
-                    prompt_name="comparative_step_experience_prompt",
-                    success_steps=self._format_step_sequence(success_steps),
-                    failure_steps=self._format_step_sequence(failure_steps),
-                    similarity_score=similarity_score
-                )
+            task = self._async_extract_comparative_experience(success_steps, failure_steps, similarity_score,
+                                                              workspace_id)
+            extraction_tasks.append(task)
 
-                experiences = self._extract_with_llm(prompt, "comparative", workspace_id)
-                if experiences:
-                    all_experiences.extend(experiences)
+        extraction_results = await self._batch_process_with_semaphore(extraction_tasks)
 
-            except Exception as e:
-                logger.error(f"Error extracting comparative experience: {e}")
+        # Collect all experiences
+        all_experiences = []
+        for result in extraction_results:
+            if isinstance(result, Exception):
+                logger.error(f"Error extracting comparative experience: {result}")
                 continue
+            if result:
+                all_experiences.extend(result)
 
         return all_experiences
 
-    def _validate_experiences(self, experiences: List[Experience], **kwargs) -> List[Experience]:
-        """Validate the quality and validity of extracted experiences"""
-        if not self.enable_experience_validation:
-            return experiences
+    async def _async_extract_comparative_experience(self, success_steps: List[Message],
+                                                    failure_steps: List[Message],
+                                                    similarity_score: float, workspace_id: str) -> List[Experience]:
+        """Extract experience from a single comparative pair"""
+        try:
+            prompt = self.prompt_format(
+                prompt_name="comparative_step_experience_prompt",
+                success_steps=self._format_step_sequence(success_steps),
+                failure_steps=self._format_step_sequence(failure_steps),
+                similarity_score=similarity_score
+            )
 
+            return await self._async_extract_with_llm(prompt, "comparative", workspace_id)
+
+        except Exception as e:
+            logger.error(f"Error extracting comparative experience: {e}")
+            return []
+
+    async def _async_validate_experiences(self, experiences: List[Experience], **kwargs) -> List[Experience]:
+        """Async validate the quality and validity of extracted experiences"""
         logger.info(f"Validating {len(experiences)} extracted experiences")
 
+        # Validate all experiences concurrently
+        validation_tasks = [self._async_validate_single_experience(experience) for experience in experiences]
+        validation_results = await self._batch_process_with_semaphore(validation_tasks)
+
         validated_experiences = []
-
-        for experience in experiences:
-            try:
-                validation_result = self._validate_single_experience(experience)
-
-                if validation_result["is_valid"]:
-                    validated_experiences.append(experience)
-                else:
-                    logger.warning(f"Experience validation failed: {validation_result['reason']}")
-
-            except Exception as e:
-                logger.error(f"Error validating experience: {e}")
+        for i, result in enumerate(validation_results):
+            if isinstance(result, Exception):
+                logger.error(f"Error validating experience {i}: {result}")
                 continue
+
+            if result.get("is_valid", False):
+                validated_experiences.append(experiences[i])
+            else:
+                logger.warning(f"Experience validation failed: {result.get('reason', 'Unknown reason')}")
 
         logger.info(f"Validated {len(validated_experiences)} out of {len(experiences)} experiences")
         return validated_experiences
 
-    # ========== Helper Methods ==========
+    async def _async_validate_single_experience(self, experience: Experience) -> Dict[str, Any]:
+        """Async validate single experience"""
+        try:
+            prompt = self.prompt_format(
+                prompt_name="experience_validation_prompt",
+                condition=experience.experience_desc,
+                experience_content=experience.experience_content,
+            )
 
-    def _segment_trajectory_into_steps(self, trajectory: Trajectory) -> List[List[Message]]:
-        """Segment trajectory into meaningful step sequences"""
+            response_content = await self._async_llm_chat([Message(role=Role.USER, content=prompt)])
+
+            # Parse validation result
+            is_valid = "valid" in response_content.lower() and "invalid" not in response_content.lower()
+            score_match = re.search(r'score[:\s]*([0-9.]+)', response_content.lower())
+            score = float(score_match.group(1)) if score_match else 0.5
+
+            return {
+                "is_valid": is_valid and score > 0.3,
+                "score": score,
+                "feedback": response_content,
+                "reason": "" if is_valid else "Low validation score or marked as invalid"
+            }
+
+        except Exception as e:
+            logger.error(f"Error validating experience: {e}")
+            return {"is_valid": False, "score": 0.0, "feedback": "", "reason": str(e)}
+
+    async def _async_segment_trajectory_into_steps(self, trajectory: Trajectory) -> List[List[Message]]:
+        """Async segment trajectory into meaningful step sequences"""
         if not self.enable_step_segmentation:
             # If segmentation is not enabled, return the entire trajectory as one step sequence
             return [trajectory.steps]
@@ -244,10 +394,10 @@ class StepSummarizer(BaseSummarizer, PromptMixin):
                 total_steps=len(trajectory.steps)
             )
 
-            response = self.llm.chat([Message(role=Role.USER, content=prompt)])
+            response_content = await self._async_llm_chat([Message(role=Role.USER, content=prompt)])
 
             # Parse segmentation points
-            segment_points = self._parse_segmentation_response(response.content)
+            segment_points = self._parse_segmentation_response(response_content)
 
             # Segment trajectory based on split points
             step_sequences = []
@@ -267,6 +417,37 @@ class StepSummarizer(BaseSummarizer, PromptMixin):
         except Exception as e:
             logger.error(f"Error in step segmentation: {e}, falling back to whole trajectory")
             return [trajectory.steps]
+
+    async def _async_extract_with_llm(self, prompt: str, experience_type: str, workspace_id: str) -> List[Experience]:
+        """Async extract experiences using LLM with JSON parsing - can return multiple experiences"""
+        for attempt in range(self.max_retries):
+            try:
+                response_content = await self._async_llm_chat([Message(role=Role.USER, content=prompt)])
+
+                # Parse JSON response to extract experiences
+                experiences_data = self._parse_json_experience_response(response_content)
+
+                if experiences_data:
+                    experiences = []
+                    for exp_data in experiences_data:
+                        experience = Experience(
+                            experience_workspace_id=workspace_id,
+                            experience_desc=exp_data.get("condition", exp_data.get("when_to_use", "")),
+                            experience_content=exp_data.get("experience", ""),
+                            metadata=exp_data
+                        )
+                        experiences.append(experience)
+                    return experiences
+                else:
+                    logger.warning(f"Experience extraction failed: no valid JSON experience found in response")
+
+            except Exception as e:
+                logger.warning(f"Attempt {attempt + 1} failed for experience extraction: {e}")
+
+        logger.error(f"Failed to extract experience after {self.max_retries} attempts")
+        return []
+
+    # ========== Helper Methods (remain mostly unchanged) ==========
 
     def _parse_segmentation_response(self, response: str) -> List[int]:
         """Parse segmentation response to extract split point positions"""
@@ -354,12 +535,12 @@ class StepSummarizer(BaseSummarizer, PromptMixin):
             # Get step sequences from success and failure trajectories
             success_step_sequences = []
             for traj in success_trajectories:
-                sequences = self._segment_trajectory_into_steps(traj)
+                sequences = asyncio.run(self._async_segment_trajectory_into_steps(traj))
                 success_step_sequences.extend(sequences)
 
             failure_step_sequences = []
             for traj in failure_trajectories:
-                sequences = self._segment_trajectory_into_steps(traj)
+                sequences = asyncio.run(self._async_segment_trajectory_into_steps(traj))
                 failure_step_sequences.extend(sequences)
 
             # Limit comparison count to avoid computation overload
@@ -419,35 +600,6 @@ class StepSummarizer(BaseSummarizer, PromptMixin):
             logger.error(f"Error calculating cosine similarity: {e}")
             return 0.0
 
-    def _extract_with_llm(self, prompt: str, experience_type: str, workspace_id: str) -> List[Experience]:
-        """Extract experiences using LLM with JSON parsing - can return multiple experiences"""
-        for attempt in range(self.max_retries):
-            try:
-                response = self.llm.chat([Message(role=Role.USER, content=prompt)])
-
-                # Parse JSON response to extract experiences
-                experiences_data = self._parse_json_experience_response(response.content)
-
-                if experiences_data:
-                    experiences = []
-                    for exp_data in experiences_data:
-                        experience = Experience(
-                            experience_workspace_id=workspace_id,
-                            experience_desc=exp_data.get("condition", exp_data.get("when_to_use", "")),
-                            experience_content=exp_data.get("experience", ""),
-                            metadata = exp_data
-                        )
-                        experiences.append(experience)
-                    return experiences
-                else:
-                    logger.warning(f"Experience extraction failed: no valid JSON experience found in response")
-
-            except Exception as e:
-                logger.warning(f"Attempt {attempt + 1} failed for experience extraction: {e}")
-
-        logger.error(f"Failed to extract experience after {self.max_retries} attempts")
-        return []
-
     def _parse_json_experience_response(self, response: str) -> List[dict]:
         """Parse JSON experience response - handles both single objects and arrays"""
         try:
@@ -488,29 +640,7 @@ class StepSummarizer(BaseSummarizer, PromptMixin):
 
         return []
 
-    def _validate_single_experience(self, experience: Experience) -> Dict[str, Any]:
-        """Validate single experience"""
-        try:
-            prompt = self.prompt_format(
-                prompt_name="experience_validation_prompt",
-                condition=experience.experience_desc,
-                experience_content=experience.experience_content,
-            )
-
-            response = self.llm.chat([Message(role=Role.USER, content=prompt)])
-
-            # Parse validation result
-            is_valid = "valid" in response.content.lower() and "invalid" not in response.content.lower()
-            score_match = re.search(r'score[:\s]*([0-9.]+)', response.content.lower())
-            score = float(score_match.group(1)) if score_match else 0.5
-
-            return {
-                "is_valid": is_valid and score > 0.3,
-                "score": score,
-                "feedback": response.content,
-                "reason": "" if is_valid else "Low validation score or marked as invalid"
-            }
-
-        except Exception as e:
-            logger.error(f"Error validating experience: {e}")
-            return {"is_valid": False, "score": 0.0, "feedback": "", "reason": str(e)}
+    def __del__(self):
+        """Cleanup thread pool executor when object is destroyed"""
+        if hasattr(self, '_executor'):
+            self._executor.shutdown(wait=False)

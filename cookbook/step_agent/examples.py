@@ -92,7 +92,7 @@ def example_1_extract_step_experiences():
 
     # Extract experiences using summarizer
     summarizer_request = {
-        "trajectories": [successful_trajectory.model_dump(), failed_trajectory.model_dump()],
+        "trajectories": [successful_trajectory.model_dump(), failed_trajectory.model_dump()]*5,
         "workspace_id": WORKSPACE_ID
     }
 
@@ -251,9 +251,9 @@ def main():
 
     # Run examples
     example_1_extract_step_experiences()
-    example_2_generate_step_context()
-    example_3_full_agent_execution()
-    example_4_custom_configuration()
+    # example_2_generate_step_context()
+    # example_3_full_agent_execution()
+    # example_4_custom_configuration()
 
     print("\n🎉 All examples completed!")
 
