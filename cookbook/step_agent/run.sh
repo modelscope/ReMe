@@ -5,7 +5,7 @@
 
 # StepSummarizer Parameters
 # enable_step_segmentation: Segment trajectories into meaningful step sequences
-# enable_similarity_search: Compare similar sequences between success/failure
+# enable_similar_comparison: Compare similar sequences between success/failure
 # enable_experience_validation: Validate experience quality before storage
 
 # StepContextGenerator Parameters
@@ -22,6 +22,6 @@ python -m experiencemaker.em_service \
     --vector_store='{"backend": "local_file", "store_dir": "./step_experiences/"}' \
     --agent_wrapper='{"backend": "simple"}' \
     --context_generator='{"backend": "step", "enable_llm_rerank": true, "enable_context_rewrite": true, "enable_score_filter": false, "vector_retrieve_top_k": 15, "final_top_k": 5, "min_score_threshold": 0.3}' \
-    --summarizer='{"backend": "step", "enable_step_segmentation": false, "enable_similarity_search": false, "enable_experience_validation": true, "max_retries": 3}'
+    --summarizer='{"backend": "step", "enable_step_segmentation": false, "enable_similar_comparison": false, "enable_experience_validation": true, "max_retries": 3}'
 
 echo "Step Experience Service started on port 8001"

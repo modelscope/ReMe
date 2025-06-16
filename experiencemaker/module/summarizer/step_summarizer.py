@@ -24,7 +24,7 @@ class StepSummarizer(BaseSummarizer, PromptMixin):
 
     # Feature switches - can be configured via startup parameters
     enable_step_segmentation: bool = Field(default=False, description="Enable trajectory segmentation into steps")
-    enable_similarity_search: bool = Field(default=False, description="Enable similarity search for comparison")
+    enable_similar_comparison: bool = Field(default=False, description="Enable similarity search for comparison")
     enable_experience_validation: bool = Field(default=True, description="Enable experience validation")
 
     # LLM retries
@@ -56,7 +56,7 @@ class StepSummarizer(BaseSummarizer, PromptMixin):
             all_experiences.extend(failure_experiences)
 
         # Comparative analysis (if similarity search is enabled)
-        if success_trajectories and failure_trajectories and self.enable_similarity_search:
+        if success_trajectories and failure_trajectories and self.enable_similar_comparison:
             comparative_experiences = self._extract_step_experiences_from_comparison(
                 success_trajectories, failure_trajectories, workspace_id, **kwargs
             )
@@ -345,7 +345,7 @@ class StepSummarizer(BaseSummarizer, PromptMixin):
     def _find_similar_step_sequences(self, success_trajectories: List[Trajectory],
                                      failure_trajectories: List[Trajectory]) -> List[Tuple]:
         """Use embedding model to find similar step sequences for comparison"""
-        if not self.enable_similarity_search:
+        if not self.enable_similar_comparison:
             return []
 
         try:

@@ -12,17 +12,16 @@ This system provides advanced step-level experience extraction and context gener
 ## Key Features
 
 ### StepSummarizer Features
-- **Step-level experience extraction** from successful and failed trajectories
-- **Comparative analysis** between success and failure cases
 - **Trajectory segmentation** into meaningful step sequences
+- **Step-level experience extraction** from successful and failed trajectories
+- **Similarity-based comparison** for finding related experiences and compare between success and failure cases
 - **Experience validation** for quality assurance
-- **Similarity-based comparison** for finding related experiences
 
 ### StepContextGenerator Features
-- **Hybrid retrieval** combining vector search with LLM reranking
-- **Context rewriting** to make experiences more relevant to current tasks
 - **Score-based filtering** for quality control
-- **Configurable retrieval parameters** for different use cases
+- **Llm reranking** for reranking after recalling
+- **Context rewriting** to make experiences more relevant to current tasks
+- **Hybrid retrieval** combining vector search with LLM reranking
 
 ## Configuration Options
 

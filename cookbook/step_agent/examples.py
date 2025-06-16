@@ -202,7 +202,7 @@ def example_4_custom_configuration():
         "summarizer": {
             "backend": "step",
             "enable_step_segmentation": True,
-            "enable_similarity_search": True,
+            "enable_similar_comparison": True,
             "enable_experience_validation": True,
             "max_retries": 5
         }
@@ -222,7 +222,7 @@ def example_4_custom_configuration():
         "summarizer": {
             "backend": "step",
             "enable_step_segmentation": False,
-            "enable_similarity_search": False,
+            "enable_similar_comparison": False,
             "enable_experience_validation": False,
             "max_retries": 1
         }
