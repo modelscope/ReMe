@@ -175,6 +175,10 @@ class EsVectorStore(BaseVectorStore):
         if index_name is None:
             index_name = self.index_name
 
+        if not self.exist_index(index_name):
+            logger.warning(f"index_name={index_name} is not exists!")
+            return None
+
         try:
             doc = self._client.get(index=index_name, id=unique_id, **kwargs)
             return self.doc2node(doc)
@@ -186,6 +190,10 @@ class EsVectorStore(BaseVectorStore):
     def retrieve_by_query(self, query: str, top_k: int = 1, index_name: str = None, **kwargs) -> List[VectorStoreNode]:
         if index_name is None:
             index_name = self.index_name
+
+        if not self.exist_index(index_name):
+            logger.warning(f"index_name={index_name} is not exists!")
+            return []
 
         query_vector = self.embedding_model.get_embeddings(query)
 

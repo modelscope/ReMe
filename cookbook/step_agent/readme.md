@@ -62,16 +62,16 @@ python examples.py
 summarizer_request = {
     "trajectories": [successful_trajectory, failed_trajectory],
     "workspace_id": "my_workspace",
-    "metadata": {
-        "em_config": {
-            "summarizer": {
-                "backend": "step",
-                "enable_step_segmentation": True,
-                "enable_similarity_search": True,
-                "enable_experience_validation": True
-            }
-        }
-    }
+    # "metadata": {
+    #     "em_config": {
+    #         "summarizer": {
+    #             "backend": "step",
+    #             "enable_step_segmentation": True,
+    #             "enable_similarity_search": True,
+    #             "enable_experience_validation": True
+    #         }
+    #     }
+    # }
 }
 
 response = requests.post(f"{SERVICE_URL}/summarizer", json=summarizer_request)
@@ -83,16 +83,16 @@ response = requests.post(f"{SERVICE_URL}/summarizer", json=summarizer_request)
 context_request = {
     "trajectory": current_trajectory,
     "workspace_id": "my_workspace",
-    "metadata": {
-        "em_config": {
-            "context_generator": {
-                "backend": "step",
-                "enable_llm_rerank": True,
-                "enable_context_rewrite": True,
-                "final_top_k": 5
-            }
-        }
-    }
+    # "metadata": {
+    #     "em_config": {
+    #         "context_generator": {
+    #             "backend": "step",
+    #             "enable_llm_rerank": True,
+    #             "enable_context_rewrite": True,
+    #             "final_top_k": 5
+    #         }
+    #     }
+    # }
 }
 
 response = requests.post(f"{SERVICE_URL}/context_generator", json=context_request)
