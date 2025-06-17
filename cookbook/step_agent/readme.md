@@ -1,10 +1,10 @@
 # Step Summarizer & Context Generator
 
-A step-level experience extraction and context generation system for the ExperienceMaker framework.
+A step-level experience extraction and context generation module for the ExperienceMaker framework.
 
 ## Overview
-
-This system provides advanced step-level experience extraction and context generation capabilities:
+![pipeline.png](pipeline.png)
+This module provides advanced step-level experience extraction and context generation capabilities:
 
 - **StepSummarizer**: Extracts reusable experiences from individual steps or step sequences in trajectories
 - **StepContextGenerator**: Retrieves and utilizes step-level experiences to provide relevant context for agent execution

@@ -19,9 +19,9 @@ dependencies = [
     "arxiv",
     "tqdm",
     "requests_oauthlib",
-    "teamwork-mcp>=0.2.1",
+#    "teamwork-mcp>=0.2.1",
     "agentscope",
-    "beyond @ file:///${PROJECT_ROOT}/experiencemaker/third_party/beyond",
+#    "beyond @ file:///${PROJECT_ROOT}/experiencemaker/third_party/beyond",
     "astor",
 ]
 
