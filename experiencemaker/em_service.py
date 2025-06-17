@@ -266,7 +266,7 @@ if __name__ == "__main__":
             raise NotImplementedError(f"key={key} annotation={info.annotation} is not supported.")
 
     args: argparse.Namespace = parser.parse_args()
-    service_kwargs = {k: json.loads(v) if k in json_keys else v for k, v in args.__dict__.items()}
+    service_kwargs = {k: json.loads(v) if k in json_keys else v for k, v in args.__dict__.items() if v is not None}
     logger.info(f"service.kwargs={json.dumps(service_kwargs, indent=2, ensure_ascii=False)}")
 
     service = EMService(**service_kwargs)
