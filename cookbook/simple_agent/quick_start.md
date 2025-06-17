@@ -46,7 +46,6 @@ pip install .
 
 - We start our context and summary services in `simple` mode. Next, you can use standard HTTP interfaces to call the services.
 ```shell
-pip install .
 python -m experiencemaker.em_service \
  --port=8001 \
  --llm='{"backend": "openai_compatible", "model_name": "qwen3-32b", "temperature": 0.6}' \
