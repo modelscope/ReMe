@@ -21,3 +21,4 @@ rag_nodes_index.jsonl
 alfworld_data
 beyondagent/dataset/appworld/data
 beyond*
+step_experiences/*
