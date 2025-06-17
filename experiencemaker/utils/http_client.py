@@ -4,7 +4,7 @@ from typing import Any
 
 import requests
 from loguru import logger
-from pydantic import BaseModel, Field, PrivateAttr
+from pydantic import BaseModel, Field, PrivateAttr, model_validator
 
 from experiencemaker.enumeration.http_enum import HttpEnum
 
@@ -24,9 +24,10 @@ class HttpClient(BaseModel):
 
     _client: Any = PrivateAttr()
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    @model_validator(mode="after")
+    def init_client(self):
         self._client = requests.Session() if self.keep_alive else requests
+        return self
 
     def __enter__(self):
         return self
