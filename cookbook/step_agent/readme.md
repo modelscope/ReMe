@@ -27,7 +27,7 @@ This module provides advanced step-level experience extraction and context gener
 
 ### StepSummarizer Parameters
 - `enable_step_segmentation`: Enable trajectory segmentation (default: False)
-- `enable_similarity_search`: Enable similarity search for comparison (default: False)
+- `enable_similar_comparison`: Enable similarity search for comparison (default: False)
 - `enable_experience_validation`: Enable experience validation (default: True)
 - `max_retries`: Maximum retries for LLM calls (default: 3)
 
@@ -66,7 +66,7 @@ summarizer_request = {
     #         "summarizer": {
     #             "backend": "step",
     #             "enable_step_segmentation": True,
-    #             "enable_similarity_search": True,
+    #             "enable_similar_comparison": True,
     #             "enable_experience_validation": True
     #         }
     #     }
