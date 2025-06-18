@@ -20,7 +20,6 @@ python -m experiencemaker.em_service \
     --llm='{"backend": "openai_compatible", "model_name": "qwen-max-2025-01-25", "temperature": 0.6}' \
     --embedding_model='{"backend": "openai_compatible", "model_name": "text-embedding-v4", "dimensions": 1024}' \
     --vector_store='{"backend": "local_file", "store_dir": "./step_experiences/"}' \
-    --agent_wrapper='{"backend": "simple"}' \
     --context_generator='{"backend": "step", "enable_llm_rerank": true, "enable_context_rewrite": true, "enable_score_filter": false, "vector_retrieve_top_k": 15, "final_top_k": 5, "min_score_threshold": 0.3}' \
     --summarizer='{"backend": "step", "enable_step_segmentation": false, "enable_similar_comparison": false, "enable_experience_validation": true, "max_retries": 3,"max_workers":16}'
 
