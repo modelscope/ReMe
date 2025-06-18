@@ -318,8 +318,7 @@ class StepContextGenerator(BaseContextGenerator, PromptMixin):
         if not experiences:
             return ""
 
-        context = "Previous Experience\n"
-
+        context = "Historical Experience\n"
         for exp in experiences:
             condition = exp.content
             experience_content = exp.metadata.get("experience", "")
@@ -328,9 +327,6 @@ class StepContextGenerator(BaseContextGenerator, PromptMixin):
                 continue
 
             context += f"- {condition} {experience_content}\n"
-
-        context += "Please consider the helpful parts from these in answering the question, to make the response more comprehensive and substantial."
-
         return context.strip()
 
     def _parse_json_response(self, response: str, key: str) -> str:
