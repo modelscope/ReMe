@@ -203,10 +203,12 @@ class EMService(BaseModel):
         else:
             assert self.context_generator is not None, "context_generator must be provided."
             context_generator = self.context_generator
-
+        logger.info(f"workspace_id={request.workspace_id} metadata={request.metadata} "
+                    f"trajectory=\n{request.trajectory.model_dump_json(indent=2)}")
         context_msg: ContextMessage = context_generator.execute(trajectory=request.trajectory,
                                                                 workspace_id=request.workspace_id,
                                                                 **request.metadata)
+        logger.info(f"workspace_id={request.workspace_id} context_msg={context_msg.model_dump_json(indent=2)}")
         return ContextGeneratorResponse(context_msg=context_msg)
 
     def call_summarizer(self, request: SummarizerRequest) -> SummarizerResponse:
@@ -219,9 +221,15 @@ class EMService(BaseModel):
             assert self.summarizer is not None, "summarizer must be provided."
             summarizer = self.summarizer
 
+        trajectories_content = "\n".join([x.model_dump_json(indent=2) for x in request.trajectories])
+        logger.info(f"workspace_id={request.workspace_id} metadata={request.metadata} "
+                    f"trajectories=\n{trajectories_content}")
         experiences: List[Experience] = summarizer.execute(trajectories=request.trajectories,
                                                            workspace_id=request.workspace_id,
                                                            **request.metadata)
+
+        experiences_content = "\n".join([x.model_dump_json(indent=2) for x in experiences])
+        logger.info(f"workspace_id={request.workspace_id} experiences_content=\n{experiences_content}")
         return SummarizerResponse(experiences=experiences)
 
 

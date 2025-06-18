@@ -1,0 +1,169 @@
+2025-06-18 14:30:26.301 | WARNING  | __main__:<module>:270 - skip key=origin_config info.annotation=<class 'dict'>
+2025-06-18 14:30:26.301 | INFO     | __main__:<module>:278 - service.kwargs={
+  "host": "0.0.0.0",
+  "port": 8001,
+  "timeout_keep_alive": 600000,
+  "limit_concurrency": 32,
+  "llm": {
+    "backend": "openai_compatible",
+    "model_name": "qwen-max-2025-01-25",
+    "temperature": 0.6
+  },
+  "embedding_model": {
+    "backend": "openai_compatible",
+    "model_name": "text-embedding-v4",
+    "dimensions": 1024
+  },
+  "vector_store": {
+    "backend": "local_file",
+    "store_dir": "./step_experiences/"
+  },
+  "context_generator": {
+    "backend": "step",
+    "enable_llm_rerank": true,
+    "enable_context_rewrite": true,
+    "enable_score_filter": false,
+    "vector_retrieve_top_k": 15,
+    "final_top_k": 5,
+    "min_score_threshold": 0.3
+  },
+  "summarizer": {
+    "backend": "step",
+    "enable_step_segmentation": false,
+    "enable_similar_comparison": false,
+    "enable_experience_validation": true,
+    "max_retries": 3,
+    "max_workers": 16
+  }
+}
+2025-06-18 14:30:26.335 | INFO     | __main__:init_llm:51 - llm is inited with backend=openai_compatible params={'model_name': 'qwen-max-2025-01-25', 'temperature': 0.6}
+2025-06-18 14:30:26.348 | INFO     | __main__:init_embedding_model:70 - embedding_model is inited with backend=openai_compatible params={'model_name': 'text-embedding-v4', 'dimensions': 1024}
+2025-06-18 14:30:26.349 | INFO     | __main__:init_vector_store:91 - vector_store is inited with backend=local_file params={'store_dir': './step_experiences/'}
+2025-06-18 14:30:26.350 | INFO     | experiencemaker.module.prompt.prompt_mixin:init_prompt:30 - add prompt_dict key=context_rewrite_prompt
+2025-06-18 14:30:26.350 | INFO     | experiencemaker.module.prompt.prompt_mixin:init_prompt:30 - add prompt_dict key=experience_rerank_prompt
+2025-06-18 14:30:26.350 | INFO     | experiencemaker.module.prompt.prompt_mixin:init_prompt:30 - add prompt_dict key=context_generation_prompt
+2025-06-18 14:30:26.350 | INFO     | __main__:init_context_generator:117 - context_generator is inited with backend=step params={'enable_llm_rerank': True, 'enable_context_rewrite': True, 'enable_score_filter': False, 'vector_retrieve_top_k': 15, 'final_top_k': 5, 'min_score_threshold': 0.3}
+2025-06-18 14:30:26.352 | INFO     | experiencemaker.module.prompt.prompt_mixin:init_prompt:30 - add prompt_dict key=success_step_experience_prompt
+2025-06-18 14:30:26.352 | INFO     | experiencemaker.module.prompt.prompt_mixin:init_prompt:30 - add prompt_dict key=failure_step_experience_prompt
+2025-06-18 14:30:26.352 | INFO     | experiencemaker.module.prompt.prompt_mixin:init_prompt:30 - add prompt_dict key=comparative_step_experience_prompt
+2025-06-18 14:30:26.352 | INFO     | experiencemaker.module.prompt.prompt_mixin:init_prompt:30 - add prompt_dict key=general_step_experience_prompt
+2025-06-18 14:30:26.352 | INFO     | experiencemaker.module.prompt.prompt_mixin:init_prompt:30 - add prompt_dict key=step_segmentation_prompt
+2025-06-18 14:30:26.352 | INFO     | experiencemaker.module.prompt.prompt_mixin:init_prompt:30 - add prompt_dict key=experience_validation_prompt
+2025-06-18 14:30:26.352 | INFO     | __main__:init_summarizer:132 - summarizer is inited with backend=step params={'enable_step_segmentation': False, 'enable_similar_comparison': False, 'enable_experience_validation': True, 'max_retries': 3, 'max_workers': 16}
+INFO:     Started server process [94237]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+2025-06-18 14:35:52.470 | INFO     | __main__:call_summarizer:225 - workspace_id=w_agent_enhanced metadata={} trajectories=
+{
+  "id": "6a7e7204439d45a593416c50f563116e",
+  "steps": [
+    {
+      "role": "user",
+      "content": "What is the capital of France?",
+      "reasoning_content": "",
+      "tool_calls": [],
+      "timestamp": "2025-06-18 14:35:52.464309",
+      "add_reasoning_content_when_content_is_empty": false,
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "Paris",
+      "reasoning_content": "",
+      "tool_calls": [],
+      "timestamp": "2025-06-18 14:35:52.464361",
+      "add_reasoning_content_when_content_is_empty": false,
+      "metadata": {}
+    }
+  ],
+  "is_terminated": false,
+  "reward": {
+    "outcome": 1.0,
+    "description": "Outcome 1 denotes success, and 0 denotes failure.",
+    "metadata": {}
+  },
+  "query": "What is the capital of France?",
+  "answer": "",
+  "metadata": {}
+}
+2025-06-18 14:35:52.470 | INFO     | experiencemaker.module.summarizer.step_summarizer:_extract_experiences:70 - Starting step-level experience extraction pipeline for 1 trajectories
+2025-06-18 14:35:52.470 | INFO     | experiencemaker.module.summarizer.step_summarizer:_async_extract_step_experiences_from_success:122 - Extracting step experiences from 1 successful trajectories
+2025-06-18 14:35:57.993 | INFO     | experiencemaker.module.summarizer.step_summarizer:_async_validate_experiences:331 - Validating 1 extracted experiences
+2025-06-18 14:36:13.472 | INFO     | experiencemaker.module.summarizer.step_summarizer:_async_validate_experiences:348 - Validated 1 out of 1 experiences
+2025-06-18 14:36:13.472 | INFO     | experiencemaker.module.summarizer.step_summarizer:_async_extract_experiences:116 - Extracted 1 validated step experiences
+2025-06-18 14:36:13.687 | INFO     | experiencemaker.storage.file_vector_store:update:111 - update w_agent_enhanced nodes.size=1 all.size=1 update_cnt=0
+2025-06-18 14:36:13.687 | INFO     | __main__:call_summarizer:232 - workspace_id=w_agent_enhanced experiences_content=
+{
+  "experience_id": "72b620febc7e4b30b94d200e3aa21f3b",
+  "experience_workspace_id": "w_agent_enhanced",
+  "experience_role": "",
+  "experience_desc": "When the query is a simple, fact-based question requiring a direct and concise answer.",
+  "experience_content": "The agent immediately provided the correct answer without unnecessary elaboration or additional steps. This worked well because the query was straightforward, and the response matched the user's expected level of detail, ensuring efficiency and clarity.",
+  "experience_function": null,
+  "experience_score": 0.0,
+  "experience_created_time": "2025-06-18 14:35:57",
+  "experience_modified_time": "2025-06-18 14:35:57",
+  "metadata": {
+    "when_to_use": "When the query is a simple, fact-based question requiring a direct and concise answer.",
+    "experience": "The agent immediately provided the correct answer without unnecessary elaboration or additional steps. This worked well because the query was straightforward, and the response matched the user's expected level of detail, ensuring efficiency and clarity.",
+    "tags": [
+      "fact-based",
+      "direct-answer",
+      "efficiency"
+    ],
+    "confidence": 0.95,
+    "step_type": "action",
+    "tools_used": [
+      "knowledge-base"
+    ]
+  }
+}
+INFO:     127.0.0.1:55361 - "POST /summarizer HTTP/1.1" 200 OK
+2025-06-18 14:36:13.694 | INFO     | __main__:call_context_generator:206 - workspace_id=w_agent_enhanced metadata={} trajectory=
+{
+  "id": "5d56ba6e010e4c6ea496ca006ccaf33d",
+  "steps": [
+    {
+      "role": "user",
+      "content": "What is the capital of France?",
+      "reasoning_content": "",
+      "tool_calls": [],
+      "timestamp": "2025-06-18 14:36:13.694224",
+      "add_reasoning_content_when_content_is_empty": false,
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "Paris",
+      "reasoning_content": "",
+      "tool_calls": [],
+      "timestamp": "2025-06-18 14:36:13.694256",
+      "add_reasoning_content_when_content_is_empty": false,
+      "metadata": {}
+    }
+  ],
+  "is_terminated": false,
+  "reward": {
+    "outcome": 1.0,
+    "description": "Outcome 1 denotes success, and 0 denotes failure.",
+    "metadata": {}
+  },
+  "query": "What is the capital of France?",
+  "answer": "",
+  "metadata": {}
+}
+2025-06-18 14:36:13.694 | INFO     | experiencemaker.module.context_generator.step_context_generator:_hybrid_retrieve:105 - Starting hybrid retrieval for query: 'What is the capital of France?'
+2025-06-18 14:36:13.885 | INFO     | experiencemaker.module.context_generator.step_context_generator:_vector_retrieve:138 - Vector retrieval found 1 candidates
+2025-06-18 14:36:20.455 | INFO     | experiencemaker.module.context_generator.step_context_generator:_hybrid_retrieve:124 - Hybrid retrieval completed: 1 experiences selected
+2025-06-18 14:36:39.916 | INFO     | experiencemaker.module.context_generator.step_context_generator:_rewrite_context:202 - Context successfully rewritten for current task
+2025-06-18 14:36:39.916 | INFO     | __main__:call_context_generator:211 - workspace_id=w_agent_enhanced context_msg={
+  "role": "context_assistant",
+  "content": "For the current task, which involves answering a straightforward, fact-based question about the capital of France, the guidance is to provide an accurate and concise response. The user seeks immediate clarity without additional elaboration or unrelated information. Drawing from past experiences with similar queries, prioritize delivering the correct answer—'Paris'—in a clear and direct manner. This approach ensures that the response is both useful and aligned with the user's expectations for simplicity and precision.",
+  "reasoning_content": "",
+  "tool_calls": [],
+  "timestamp": "2025-06-18 14:36:39.916579",
+  "add_reasoning_content_when_content_is_empty": false,
+  "metadata": {}
+}
+INFO:     127.0.0.1:55377 - "POST /context_generator HTTP/1.1" 200 OK
