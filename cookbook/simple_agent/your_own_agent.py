@@ -106,7 +106,7 @@ class YourOwnAgent(PromptMixin):
         return context.messages
 
 
-if __name__ == "__main__":
+def main():
     query = "Analyze Xiaomi Corporation."
     # query = "分析一下小米公司"
 
@@ -116,3 +116,6 @@ if __name__ == "__main__":
     logger.info(answer)
     with open("messages.jsonl", "w") as f:
         f.write(json.dumps([x.model_dump() for x in messages], indent=2, ensure_ascii=False))
+
+if __name__ == "__main__":
+    main()

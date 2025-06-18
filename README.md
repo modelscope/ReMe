@@ -29,7 +29,7 @@ class YourOwnAgent(...):
     def act(self, **kwargs):
         ...    
 
-    def run(self, query: str, previous_experience: str):
+    def run(self, query: str):
         ...
 ```
 
