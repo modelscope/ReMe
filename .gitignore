@@ -22,3 +22,5 @@ alfworld_data
 beyondagent/dataset/appworld/data
 beyond*
 step_experiences/*
+build/*
+*.egg-info/*

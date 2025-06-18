@@ -1,30 +1,29 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "beyond-agent"
-version = "0.1.1"
-description = "Agent "
+name = "ExperienceMaker"
+version = "0.1.0"
+description = "make experience from trajectory"
+authors = [{ name = "experiencemaker group", email = "experiencemaker@alibaba-inc.com" }]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
-    "beast-logger",
-    "anthropic>=0.45.1",
-    "argparse>=1.4.0",
-    "httpx>=0.28.1",
-    "mcp[cli]>=1.2.1",
-    "python-dotenv>=1.0.1",
-    "firecrawl-py>=1.14.1",
-    "loguru",
-    "pillow",
-    "regex",
-    "fastapi",
-    "arxiv",
-    "tqdm",
-    "requests_oauthlib",
-#    "teamwork-mcp>=0.2.1",
-    "agentscope",
-#    "beyond @ file:///${PROJECT_ROOT}/experiencemaker/third_party/beyond",
-    "astor",
+    "dashscope>=1.19.1",
+    "elasticsearch>=8.14.0",
+    "fastapi>=0.115.13",
+    "loguru>=0.7.3",
+    "mcp>=1.9.4",
+    "numpy>=2.3.0",
+    "openai>=1.88.0",
+    "pydantic>=2.11.7",
+    "PyYAML>=6.0.2",
+    "Requests>=2.32.4",
+    "uvicorn>=0.34.3",
+    "setuptools>=75.0",
 ]
 
-
 [tool.setuptools.packages.find]
-include = ["beyondagent"]
+where = ["."]
+include = ["experiencemaker*"]
