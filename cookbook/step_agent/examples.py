@@ -21,8 +21,7 @@ def create_sample_trajectory(query: str, steps: List[Message], done: bool = True
     trajectory = Trajectory(
         query=query,
         steps=steps,
-        done=done,
-        current_step=len(steps) - 1,
+        is_terminated=done,
         metadata={
             "domain": "coding",
             "task_type": "problem_solving"

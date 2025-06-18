@@ -15,5 +15,5 @@ class SimpleAgentWrapper(SimpleAgent, AgentWrapperMixin):
 
         trajectory.steps = messages
         trajectory.answer = messages[-1].content
-        trajectory.done = True
+        trajectory.is_terminated = True
         return trajectory

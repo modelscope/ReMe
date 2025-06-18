@@ -6,6 +6,7 @@ from uuid import uuid4
 from pydantic import BaseModel, Field, model_validator
 
 from experiencemaker.enumeration.role import Role
+from experiencemaker.schema.reward import Reward
 
 
 class ToolCall(BaseModel):
@@ -45,12 +46,7 @@ class ToolCall(BaseModel):
 
     @property
     def tool_text_result(self):
-        return f"""
-tool.{self.index}
-name={self.name}
-arguments={self.arguments}
-result={str(self.result)}
-""".strip()
+        return f"tool.{self.index}\nname={self.name}\narguments={self.arguments}\nresult={str(self.result)}".strip()
 
 
 class Message(BaseModel):
@@ -117,21 +113,19 @@ class Sample(BaseModel):
 class Trajectory(BaseModel):
     id: str = Field(default_factory=lambda: uuid4().hex)
     steps: List[Message] = Field(default_factory=list)
-    current_step: int = Field(default=0)
+    is_terminated: bool = Field(default=False)
+    reward: Reward = Field(default_factory=Reward)
 
-    done: bool = Field(default=False)
     query: str = Field(default="")
-    answer: Any = Field(default=None)
+    answer: str = Field(default="")
     metadata: dict = Field(default_factory=dict)
 
     def add_step(self, step: Message):
         self.steps.append(step)
 
     def reset(self):
-        self.id = uuid4().hex
-        self.steps.clear()
-        self.current_step = 0
-        self.done = False
-        self.query = ""
-        self.answer = ""
-        self.metadata.clear()
+        for name, field in self.model_fields.items():
+            if field.default is not None:
+                setattr(self, name, field.default)
+            elif field.default_factory is not None:
+                setattr(self, name, field.default_factory())

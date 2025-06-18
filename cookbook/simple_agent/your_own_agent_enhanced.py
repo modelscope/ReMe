@@ -20,7 +20,7 @@ class YourOwnAgentEnhanced(YourOwnAgent):
 
     def summary_experience(self, query: str):
         messages = self.run(query)
-        trajectory: Trajectory = Trajectory(query=query, steps=messages, answer=messages[-1].content, done=True)
+        trajectory: Trajectory = Trajectory(query=query, steps=messages, answer=messages[-1].content, is_terminated=True)
 
         request: SummarizerRequest = SummarizerRequest(trajectories=[trajectory], workspace_id=self.workspace_id)
         response: SummarizerResponse = self.em_client.call_summarizer(request)
@@ -40,7 +40,7 @@ class YourOwnAgentEnhanced(YourOwnAgent):
 
         trajectory.steps = messages
         trajectory.answer = messages[-1].content
-        trajectory.done = True
+        trajectory.is_terminated = True
         trajectory.metadata["experience"] = response.context_msg.content
         return trajectory
 

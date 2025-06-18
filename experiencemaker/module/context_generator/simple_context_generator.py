@@ -11,10 +11,7 @@ from experiencemaker.schema.vector_store_node import VectorStoreNode
 class SimpleContextGenerator(BaseContextGenerator):
 
     def _build_retrieve_query(self, trajectory: Trajectory, **kwargs) -> str:
-        query = ""
-        if trajectory.current_step == 0:
-            query = trajectory.query
-        return query
+        return trajectory.query
 
     def _retrieve_by_query(self, trajectory: Trajectory, query: str, workspace_id: str, retrieve_top_k: int,
                            **kwargs) -> List[VectorStoreNode]:

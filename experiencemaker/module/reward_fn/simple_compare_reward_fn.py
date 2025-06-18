@@ -55,7 +55,7 @@ class SimpleCompareRewardFn(BaseRewardFn, PromptMixin):
                 else:
                     logger.warning(f"no plan exists in result={result}")
 
-        reward_value = 0
+        outcome = 0
         if valid_cnt > 0:
-            reward_value = better_cnt / valid_cnt
-        return Reward(reward_value=reward_value)
+            outcome = better_cnt / valid_cnt
+        return Reward(outcome=outcome)

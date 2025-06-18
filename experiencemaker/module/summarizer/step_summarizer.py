@@ -80,8 +80,8 @@ class StepSummarizer(BaseSummarizer, PromptMixin):
         all_experiences = []
 
         # Classify trajectories based on trajectory.done
-        success_trajectories = [traj for traj in trajectories if traj.done]
-        failure_trajectories = [traj for traj in trajectories if not traj.done]
+        success_trajectories = [traj for traj in trajectories if traj.is_terminated]
+        failure_trajectories = [traj for traj in trajectories if not traj.is_terminated]
 
         # Process success and failure samples concurrently
         tasks = []
