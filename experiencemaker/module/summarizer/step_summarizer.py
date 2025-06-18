@@ -1,11 +1,9 @@
+import asyncio
 import json
 import re
-import uuid
-import asyncio
-from datetime import datetime
-from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from typing import List, Dict, Any, Tuple
 
 from loguru import logger
 from pydantic import Field
@@ -80,8 +78,8 @@ class StepSummarizer(BaseSummarizer, PromptMixin):
         all_experiences = []
 
         # Classify trajectories based on trajectory.done
-        success_trajectories = [traj for traj in trajectories if traj.is_terminated]
-        failure_trajectories = [traj for traj in trajectories if not traj.is_terminated]
+        success_trajectories = [traj for traj in trajectories if traj.reward.success]
+        failure_trajectories = [traj for traj in trajectories if not traj.reward.success]
 
         # Process success and failure samples concurrently
         tasks = []
