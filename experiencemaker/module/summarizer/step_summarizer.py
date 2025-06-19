@@ -445,7 +445,7 @@ class StepSummarizer(BaseSummarizer, PromptMixin):
         logger.error(f"Failed to extract experience after {self.max_retries} attempts")
         return []
 
-    # ========== Helper Methods (remain mostly unchanged) ==========
+    # ========== Helper Methods ==========
 
     def _parse_segmentation_response(self, response: str) -> List[int]:
         """Parse segmentation response to extract split point positions"""
