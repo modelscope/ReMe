@@ -30,7 +30,7 @@ class EMService(BaseModel):
     host: str = Field(default="0.0.0.0")
     port: int = Field(default=8001)
     timeout_keep_alive: int = Field(default=600000)
-    limit_concurrency: int = Field(default=32)
+    limit_concurrency: int = Field(default=128)
 
     llm: BaseLLM | None = Field(default=None)
     embedding_model: BaseEmbeddingModel | None = Field(default=None)
