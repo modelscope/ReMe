@@ -1,3 +1,4 @@
+import time
 from abc import ABC
 from typing import List, Literal
 
@@ -24,7 +25,7 @@ class BaseLLM(BaseModel, ABC):
     tool_choice: Literal["none", "auto", "required"] = Field(default="auto", description="tool choice")
     parallel_tool_calls: bool = Field(default=True)
 
-    max_retries: int = Field(default=3, description="max retries")
+    max_retries: int = Field(default=5, description="max retries")
     raise_exception: bool = Field(default=True, description="raise exception")
 
     def stream_chat(self, messages: List[Message], tools: List[BaseTool] = None, **kwargs):
@@ -104,6 +105,7 @@ class BaseLLM(BaseModel, ABC):
             except Exception as e:
                 # Log exceptions during the chat process
                 logger.exception(f"chat with model={self.model_name} encounter error with e={e.args}")
+                time.sleep(1 + i)
 
                 # If the maximum number of retries is reached and raise_exception is set to True, then re-throw the exception
                 if i == self.max_retries - 1 and self.raise_exception:
