@@ -291,7 +291,7 @@ class StepContextGenerator(BaseContextGenerator, PromptMixin):
             return [int(num) for num in numbers]
 
         except Exception as e:
-            logger.error(f"Error parsing rerank response: {e}")
+            logger.exception(f"Error parsing rerank response: {e}")
             return []
 
     def _format_experiences_for_context(self, experiences: List[VectorStoreNode]) -> str:

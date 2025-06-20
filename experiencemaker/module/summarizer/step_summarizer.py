@@ -362,7 +362,12 @@ class StepSummarizer(BaseSummarizer, PromptMixin):
             # Parse validation result
             is_valid = "valid" in response_content.lower() and "invalid" not in response_content.lower()
             score_match = re.search(r'score[:\s]*([0-9.]+)', response_content.lower())
-            score = float(score_match.group(1)) if score_match else 0.5
+
+            # add by jinli 0620
+            try:
+                score = float(score_match.group(1)) if score_match else 0.5
+            except Exception:
+                score = -1
 
             return {
                 "is_valid": is_valid and score > 0.3,
