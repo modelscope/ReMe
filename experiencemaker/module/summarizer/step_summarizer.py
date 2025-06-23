@@ -66,7 +66,7 @@ class StepSummarizer(BaseSummarizer, PromptMixin):
 
     def _extract_experiences(self, trajectories: List[Trajectory], workspace_id: str = None,
                              **kwargs) -> List[Experience]:
-        """Extract step-level experiences from trajectories (implements base class method)"""
+        """Extract step-level experiences from trajectories"""
         logger.info(f"Starting step-level experience extraction pipeline for {len(trajectories)} trajectories")
 
         # Run async extraction in event loop
@@ -77,7 +77,10 @@ class StepSummarizer(BaseSummarizer, PromptMixin):
         """Async version of experience extraction"""
         all_experiences = []
 
-        # Classify trajectories based on trajectory.done
+        # validate
+        trajectories = [traj for traj in trajectories if self._is_valid_trajectory(traj)]
+
+        # Classify trajectories based on trajectory.reeard
         success_trajectories = [traj for traj in trajectories if traj.reward.success]
         failure_trajectories = [traj for traj in trajectories if not traj.reward.success]
 
@@ -451,6 +454,19 @@ class StepSummarizer(BaseSummarizer, PromptMixin):
         return []
 
     # ========== Helper Methods ==========
+
+    def _is_valid_trajectory(self, traj: Trajectory) -> bool:
+        if traj is None:
+            return False
+        if not hasattr(traj, 'reward'):
+            return False
+        if traj.reward is None:
+            return False
+        if not hasattr(traj, 'steps'):
+            return False
+        if not traj.steps or len(traj.steps) == 0:
+            return False
+        return True
 
     def _parse_segmentation_response(self, response: str) -> List[int]:
         """Parse segmentation response to extract split point positions"""
