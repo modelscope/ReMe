@@ -11,14 +11,20 @@ class BaseResponse(BaseModel, ABC):
     success: bool = Field(default=True)
     metadata: dict = Field(default_factory=dict)
 
-
-class AgentWrapperResponse(BaseResponse):
-    trajectory: Trajectory = Field(default_factory=Trajectory)
+#
+# class AgentWrapperResponse(BaseResponse):
+#     trajectory: Trajectory = Field(default_factory=Trajectory)
 
 
 class ContextGeneratorResponse(BaseResponse):
-    context_msg: ContextMessage = Field(default_factory=ContextMessage)
+    experience: list[dict] = Field(default_factory=list)
+
+    merge_experience: str = Field(default="")
+
+    # when to use, experience, response
+
+
 
 
 class SummarizerResponse(BaseResponse):
-    experiences: List[Experience] = Field(default_factory=list)
+    experiences: List[dict] = Field(default_factory=list)

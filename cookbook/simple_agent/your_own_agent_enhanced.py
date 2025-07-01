@@ -3,7 +3,6 @@ from pydantic import Field, model_validator
 
 from cookbook.simple_agent.your_own_agent import YourOwnAgent
 from experiencemaker.em_client import EMClient
-from experiencemaker.model import OpenAICompatibleBaseLLM
 from experiencemaker.schema.request import ContextGeneratorRequest, SummarizerRequest
 from experiencemaker.schema.response import ContextGeneratorResponse, SummarizerResponse
 from experiencemaker.schema.trajectory import Trajectory
@@ -52,8 +51,20 @@ class YourOwnAgentEnhanced(YourOwnAgent):
 
 
 if __name__ == "__main__":
-    agent = YourOwnAgentEnhanced(workspace_id="w_agent_enhanced",
-                                 llm=OpenAICompatibleBaseLLM(model_name="qwen3-32b", temperature=0.00001))
-    traj = agent.execute()
-    logger.info(traj.model_dump_json(indent=2))
+    # agent = YourOwnAgentEnhanced(workspace_id="w_agent_enhanced",
+    #                              llm=OpenAICompatibleBaseLLM(model_name="qwen3-32b", temperature=0.00001))
+    # traj = agent.execute()
+    # logger.info(traj.model_dump_json(indent=2))
 
+    em_client = EMClient(base_url="http://0.0.0.0:8001")
+
+
+    request: ContextGeneratorRequest = ContextGeneratorRequest(trajectory=Trajectory(query="hello"),
+                                                               workspace_id="w123")
+    response = em_client.call_summarizer()
+    print(response)
+
+
+    request: ContextGeneratorRequest = ContextGeneratorRequest(trajectory=Trajectory(query="hello"), workspace_id="w123")
+    response = em_client.call_context_generator(request=request)
+    print(response)

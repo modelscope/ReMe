@@ -19,17 +19,28 @@ class ExperienceFunction(BaseModel):
     func_args: List[ExperienceFunctionArg] = Field(default_factory=list, description="function arguments")
 
 
-class Experience(BaseModel):
+class FunctionExperience(BaseModel):
+    experience_function: ExperienceFunction | None = Field(default=None, description="experience function(optional)")
+    # 前期作为文本放进来，后期会转换成function
+
+class TextExperience(BaseModel):
     experience_id: str = Field(default_factory=lambda: uuid4().hex, description="experience unique id")
     experience_workspace_id: str = Field(default="", description="unique workspace id")
-    experience_role: str = Field(default="", description="experience role")
-    experience_desc: str = Field(default="", description="use condition/purpose. It will be used in vector matching")
+
+    when_to_use_experience: str = Field(default="", description="use condition/purpose. It will be used in vector matching")
     experience_content: str | bytes = Field(default="", description="content of the experience")
-    experience_function: ExperienceFunction | None = Field(default=None, description="experience function(optional)")
     experience_score: float = Field(default=0.0, description="score of the experience")
+
+
+    metadata: dict = Field(default_factory=dict, description="additional metadata")
+    """
+    metadata
     experience_created_time: str = Field(default_factory=lambda: datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     experience_modified_time: str = Field(default_factory=lambda: datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    metadata: dict = Field(default_factory=dict, description="additional metadata")
+    experience_role: str = Field(default="", description="experience role")
+
+    """
+
 
     def to_vector_store_node(self) -> VectorStoreNode:
         metadata: dict = {
