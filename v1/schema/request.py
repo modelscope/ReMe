@@ -7,14 +7,14 @@ from v1.schema.message import Message, Trajectory
 
 
 class BaseRequest(BaseModel, ABC):
-    metadata: dict = Field(default_factory=dict)
     workspace_id: str = Field(default="")
+    params: dict = Field(default_factory=dict)
+    metadata: dict | None = Field(default=None)
 
 
 class RetrieverRequest(BaseRequest):
     query: str = Field(default="")
     messages: List[Message] = Field(default_factory=list)
-    top_k: int = Field(default=3)
 
 
 class SummarizerRequest(BaseRequest):
@@ -23,7 +23,6 @@ class SummarizerRequest(BaseRequest):
 
 class VectorStoreRequest(BaseRequest):
     action: str = Field(default="")
-    params: dict = Field(default_factory=dict)
 
 
 class AgentRequest(BaseRequest):

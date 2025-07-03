@@ -17,10 +17,10 @@ class ThreadPoolConfig:
 
 @dataclass
 class APIConfig:
-    retriever_pipeline: str = field(default="")
-    summarizer_pipeline: str = field(default="")
-    vector_store_pipeline: str = field(default="")
-    agent_pipeline: str = field(default="")
+    retriever: str = field(default="")
+    summarizer: str = field(default="")
+    vector_store: str = field(default="")
+    agent: str = field(default="")
 
 
 @dataclass

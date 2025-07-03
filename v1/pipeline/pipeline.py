@@ -1,9 +1,10 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed
 from itertools import zip_longest
-from typing import Dict, List
+from typing import List
 
 from loguru import logger
 
+from v1.op import OP_REGISTRY
 from v1.op.base_op import BaseOp
 from v1.pipeline.pipeline_context import PipelineContext
 from v1.utils.timer import Timer, timer
@@ -13,20 +14,9 @@ class Pipeline(object):
     seq_symbol: str = "->"
     parallel_symbol: str = "|"
 
-    def __init__(self,
-                 name: str,
-                 pipeline: str,
-                 op_config_dict: Dict[str, dict],
-                 op_registry: Dict[str, type[BaseOp]],
-                 context: PipelineContext,
-                 thread_pool: ThreadPoolExecutor):
-
-        self.name: str = name
+    def __init__(self, pipeline: str, context: PipelineContext):
         self.pipeline_list: List[str | List[str]] = self._parse_pipline(pipeline)
-        self.op_config_dict: Dict[str, dict] = op_config_dict
-        self.op_registry: Dict[str, type[BaseOp]] = op_registry
         self.context: PipelineContext = context
-        self.thread_pool: ThreadPoolExecutor = thread_pool
 
     def _parse_pipline(self, pipeline: str) -> List[str | List[str]]:
         pipeline_list: List[str | List[str]] = []
@@ -44,21 +34,22 @@ class Pipeline(object):
 
         return pipeline_list
 
-    def execute_sub_pipeline(self, pipeline: str, context: PipelineContext):
+    def _execute_sub_pipeline(self, pipeline: str):
+        op_config_dict = self.context.app_config.op
         for op in pipeline.split(self.seq_symbol):
             op = op.strip()
             if not op:
                 continue
 
-            assert op in self.op_config_dict, f"op({op}).config is missing!"
-            backend = self.op_config_dict.pop("backend", "")
-            assert backend in self.op_registry, f"op({op}).backend({backend}) is not registered!"
+            assert op in op_config_dict, f"op={op} config is missing!"
+            backend = op_config_dict[op].backend
+            assert backend in OP_REGISTRY, f"op={op} backend={backend} is not registered!"
 
-            op_cls = self.op_registry[backend]
-            op_obj: BaseOp = op_cls(**self.op_config_dict[op])
-            op_obj.execute_wrap(context)
+            op_cls = OP_REGISTRY[backend]
+            op_obj: BaseOp = op_cls(context=self.context, **op_config_dict[op].params)
+            op_obj.execute_wrap()
 
-    def parse_sub_pipeline(self, pipeline: str):
+    def _parse_sub_pipeline(self, pipeline: str):
         for op in pipeline.split(self.seq_symbol):
             op = op.strip()
             if not op:
@@ -66,17 +57,16 @@ class Pipeline(object):
 
             yield op
 
-    @timer()
     def print_pipeline(self):
         i: int = 0
         for pipeline in self.pipeline_list:
             if isinstance(pipeline, str):
-                for op in self.parse_sub_pipeline(pipeline):
+                for op in self._parse_sub_pipeline(pipeline):
                     i += 1
                     logger.info(f"stage_{i}: {op}")
 
             elif isinstance(pipeline, list):
-                for op_list in zip_longest(*[self.parse_sub_pipeline(x) for x in pipeline], fillvalue="-"):
+                for op_list in zip_longest(*[self._parse_sub_pipeline(x) for x in pipeline], fillvalue="-"):
                     i += 1
                     logger.info(f"stage{i}: {' | '.join(op_list)}")
 
@@ -84,18 +74,19 @@ class Pipeline(object):
                 raise ValueError(f"unknown pipeline.type={type(pipeline)}")
 
     @timer()
-    def execute_pipeline(self):
+    def execute_pipeline(self, enable_print: bool = True):
+        if enable_print:
+            self.print_pipeline()
+
         for i, pipeline in enumerate(self.pipeline_list):
             with Timer(f"step_{i}"):
                 if isinstance(pipeline, str):
-                    self.execute_sub_pipeline(pipeline, self.context)
+                    self._execute_sub_pipeline(pipeline)
 
                 else:
                     future_list = []
                     for sub_pipeline in pipeline:
-                        future = self.thread_pool.submit(self.execute_sub_pipeline,
-                                                         pipeline=sub_pipeline,
-                                                         context=self.context)
+                        future = self.context.thread_pool.submit(self._execute_sub_pipeline, pipeline=sub_pipeline)
                         future_list.append(future)
 
                     for future in as_completed(future_list):

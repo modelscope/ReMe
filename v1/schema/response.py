@@ -1,4 +1,3 @@
-from abc import ABC
 from typing import List
 
 from pydantic import BaseModel, Field
@@ -7,7 +6,7 @@ from v1.schema.experience import BaseExperienceNode
 from v1.schema.message import Message
 
 
-class BaseResponse(BaseModel, ABC):
+class BaseResponse(BaseModel):
     success: bool = Field(default=True)
     metadata: dict = Field(default_factory=dict)
 
@@ -22,9 +21,7 @@ class SummarizerResponse(BaseResponse):
 
 
 class VectorStoreResponse(BaseResponse):
-    action: str = Field(default="")
-    params: dict = Field(default_factory=dict)
-
+    ...
 
 class AgentResponse(BaseResponse):
     answer: str = Field(default="")

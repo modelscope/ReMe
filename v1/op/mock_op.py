@@ -2,12 +2,11 @@ import time
 
 from loguru import logger
 
-from v1.op import OPERATION_REGISTRY
+from v1.op import OP_REGISTRY
 from v1.op.base_op import BaseOp
-from v1.pipeline.pipeline_context import PipelineContext
 
 
-@OPERATION_REGISTRY.register("mock1")
+@OP_REGISTRY.register("mock1_op")
 class MockOp1(BaseOp):
 
     def __init__(self, a: int, b: str, **kwargs):
@@ -15,31 +14,31 @@ class MockOp1(BaseOp):
         self.a = a
         self.b = b
 
-    def execute(self, context: PipelineContext):
+    def execute(self):
         time.sleep(3)
         logger.info(f"enter class={self.__class__.__name__}. a={self.a} b={self.b}")
 
 
-@OPERATION_REGISTRY.register("mock2")
+@OP_REGISTRY.register("mock2_op")
 class MockOp2(MockOp1):
     ...
 
 
-@OPERATION_REGISTRY.register("mock3")
+@OP_REGISTRY.register("mock3_op")
 class MockOp3(MockOp1):
     ...
 
 
-@OPERATION_REGISTRY.register("mock4")
+@OP_REGISTRY.register("mock4_op")
 class MockOp4(MockOp1):
     ...
 
 
-@OPERATION_REGISTRY.register("mock5")
+@OP_REGISTRY.register("mock5_op")
 class MockOp5(MockOp1):
     ...
 
 
-@OPERATION_REGISTRY.register("mock6")
+@OP_REGISTRY.register("mock6_op")
 class MockOp6(MockOp1):
     ...

@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
-from experiencemaker.schema.vector_store_node import VectorStoreNode
+from v1.schema.vector_store_node import VectorStoreNode
 
 
 class ExperienceMeta(BaseModel):

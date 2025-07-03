@@ -1,29 +1,51 @@
-# main.py
-# config.py
-import json
-from dataclasses import dataclass, field, asdict
-from typing import List
+import sys
+from concurrent.futures.thread import ThreadPoolExecutor
 
-from omegaconf import OmegaConf
+import uvicorn
+from fastapi import FastAPI
+
+from v1.em_service import EMService
+from v1.schema.request import RetrieverRequest, SummarizerRequest, VectorStoreRequest, AgentRequest
+from v1.schema.response import RetrieverResponse, SummarizerResponse, VectorStoreResponse, AgentResponse
+from v1.utils.config_parser import ConfigParser
+
+app = FastAPI()
+config_parser = ConfigParser(sys.argv[1:])
+global_app_config = config_parser.get_app_config()
+thread_pool: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=global_app_config.thread_pool.max_workers)
 
 
-main()
+@app.post('/retriever', response_model=RetrieverResponse)
+def call_retriever(request: RetrieverRequest):
+    app_config = config_parser.get_app_config(**request.params)
+    ems = EMService(app_config=app_config, thread_pool=thread_pool)
+    return ems.call_retriever(request)
+
+
+@app.post('/summarizer', response_model=SummarizerResponse)
+def call_summarizer(request: SummarizerRequest):
+    app_config = config_parser.get_app_config(**request.params)
+    ems = EMService(app_config=app_config, thread_pool=thread_pool)
+    return ems.call_summarizer(request)
+
+
+@app.post('/vector_store', response_model=VectorStoreResponse)
+def call_vector_store(request: VectorStoreRequest):
+    app_config = config_parser.get_app_config(**request.params)
+    ems = EMService(app_config=app_config, thread_pool=thread_pool)
+    return ems.call_vector_store(request)
+
+
+@app.post('/agent', response_model=AgentResponse)
+def call_agent(request: AgentRequest):
+    app_config = config_parser.get_app_config(**request.params)
+    ems = EMService(app_config=app_config, thread_pool=thread_pool)
+    return ems.call_agent(request)
+
 
 if __name__ == "__main__":
-    default_cfg = OmegaConf.structured(AppConfig)
-
-    # 2. 从 YAML 文件加载
-    yaml_cfg = OmegaConf.load("config.yaml")
-
-    # 3. 合并（YAML 覆盖默认）
-    cfg = OmegaConf.merge(default_cfg, yaml_cfg)
-
-    # 4. 再合并命令行（命令行优先级最高）
-    cli_cfg = OmegaConf.from_cli()
-    cfg = OmegaConf.merge(cfg, cli_cfg)
-
-    # 5. 转为 dataclass 实例
-    cfg_obj: AppConfig = OmegaConf.to_object(cfg)  # 递归转为 dataclass
-
-    print(json.dumps(asdict(cfg_obj), indent=2))
-    # print(cfg_obj)  # 如果你需要 dataclass 实例
+    uvicorn.run(app=app,
+                host=global_app_config.http_service.host,
+                port=global_app_config.http_service.port,
+                timeout_keep_alive=global_app_config.http_service.timeout_keep_alive,
+                limit_concurrency=global_app_config.http_service.limit_concurrency)
