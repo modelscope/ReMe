@@ -21,10 +21,10 @@ class SummarizerRequest(BaseRequest):
     traj_list: List[Trajectory] = Field(default_factory=list)
 
 
-class VectorStoreRequest(BaseModel):
+class VectorStoreRequest(BaseRequest):
     action: str = Field(default="")
     params: dict = Field(default_factory=dict)
 
 
-class AgentRequest(BaseModel):
+class AgentRequest(BaseRequest):
     query: str = Field(default="")

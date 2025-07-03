@@ -3,28 +3,29 @@ from typing import List
 
 from pydantic import BaseModel, Field
 
-from experiencemaker.schema.experience import Experience
-from experiencemaker.schema.trajectory import Trajectory, ContextMessage
+from v1.schema.experience import BaseExperienceNode
+from v1.schema.message import Message
 
 
 class BaseResponse(BaseModel, ABC):
     success: bool = Field(default=True)
     metadata: dict = Field(default_factory=dict)
 
-#
-# class AgentWrapperResponse(BaseResponse):
-#     trajectory: Trajectory = Field(default_factory=Trajectory)
 
-
-class ContextGeneratorResponse(BaseResponse):
-    experience: list[dict] = Field(default_factory=list)
-
-    merge_experience: str = Field(default="")
-
-    # when to use, experience, response
-
-
+class RetrieverResponse(BaseResponse):
+    experience_nodes: list[BaseExperienceNode] = Field(default_factory=list)
+    experience_merged: str = Field(default="")
 
 
 class SummarizerResponse(BaseResponse):
-    experiences: List[dict] = Field(default_factory=list)
+    experience_nodes: list[BaseExperienceNode] = Field(default_factory=list)
+
+
+class VectorStoreResponse(BaseResponse):
+    action: str = Field(default="")
+    params: dict = Field(default_factory=dict)
+
+
+class AgentResponse(BaseResponse):
+    answer: str = Field(default="")
+    messages: List[Message] = Field(default_factory=list)
