@@ -317,12 +317,13 @@ def eval_agent(dataset_name: str):
 
 
 if __name__ == "__main__":
-    # run_agent(dataset_name="train")
-    # run_agent(dataset_name="dev")
-    # run_agent(dataset_name="test_normal")
-    # run_agent(dataset_name="test_challenge")
+    # pydantic 1.10.22,
+    run_agent(dataset_name="train")
+    run_agent(dataset_name="dev")
+    run_agent(dataset_name="test_normal")
+    run_agent(dataset_name="test_challenge")
 
-    eval_agent(dataset_name="train")
-    eval_agent(dataset_name="dev")
-    eval_agent(dataset_name="test_normal")
-    eval_agent(dataset_name="test_challenge")
+    # eval_agent(dataset_name="train")
+    # eval_agent(dataset_name="dev")
+    # eval_agent(dataset_name="test_normal")
+    # eval_agent(dataset_name="test_challenge")
