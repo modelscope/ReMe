@@ -1,14 +1,15 @@
 import os
-from typing import List, Tuple
+from typing import List, Tuple, Iterable
 
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
 from loguru import logger
 from pydantic import Field, PrivateAttr, model_validator
 
-from v1.model.openai_compatible_embedding_model import OpenAICompatibleEmbeddingModel
-from v1.schema.vector_store_node import VectorStoreNode
-from v1.storage.base_vector_store import BaseVectorStore, VECTOR_STORE_REGISTRY
+from v1.embedding_model.openai_compatible_embedding_model import OpenAICompatibleEmbeddingModel
+from v1.schema.vector_node import VectorNode
+from v1.vector_store import VECTOR_STORE_REGISTRY
+from v1.vector_store.base_vector_store import BaseVectorStore
 
 
 @VECTOR_STORE_REGISTRY.register("elasticsearch")
@@ -28,26 +29,14 @@ class EsVectorStore(BaseVectorStore):
         self._client = Elasticsearch(hosts=hosts, basic_auth=self.basic_auth)
         return self
 
-    def exist_index(self, index_name: str = None) -> bool:
-        if index_name is None:
-            index_name = self.index_name
-        return self._client.indices.exists(index=index_name)
+    def exist_workspace(self, workspace_id: str, **kwargs) -> bool:
+        return self._client.indices.exists(index=workspace_id)
 
-    def delete_index(self, index_name: str = None):
-        if index_name is None:
-            index_name = self.index_name
-        if self._client.indices.exists(index=index_name):
-            self._client.indices.delete(index=index_name)
+    def _delete_workspace(self, workspace_id: str, **kwargs):
+        self._client.indices.delete(index=workspace_id, **kwargs)
 
-    def create_index(self, index_name: str = None):
-        if index_name is None:
-            index_name = self.index_name
-
-        if self._client.indices.exists(index=index_name):
-            logger.warning(f"index_name={index_name} is already exists!")
-            return None
-
-        index = {
+    def _create_workspace(self, workspace_id: str, **kwargs):
+        body = {
             "mappings": {
                 "properties": {
                     "workspace_id": {"type": "keyword"},
@@ -61,32 +50,37 @@ class EsVectorStore(BaseVectorStore):
             }
         }
 
-        return self._client.indices.create(index=index_name, body=index)
+        return self._client.indices.create(index=workspace_id, body=body)
 
-    def refresh_index(self, index_name: str = None):
-        if index_name is None:
-            index_name = self.index_name
-        self._client.indices.refresh(index=index_name)
+    def _iter_workspace_nodes(self, workspace_id: str, max_size: int = 10000, **kwargs) -> Iterable[VectorNode]:
+        response = self._client.search(
+            index=workspace_id,
+            body={"query": {"match_all": {}}},
+            scroll='5m',
+            size=max_size
+        )
+
+        for doc in response['hits']['hits']:
+            yield self.doc2node(doc)
+
+    def refresh(self, workspace_id: str):
+        self._client.indices.refresh(index=workspace_id)
 
     @staticmethod
-    def doc2node(doc) -> VectorStoreNode:
-        node = VectorStoreNode(**doc["_source"])
+    def doc2node(doc) -> VectorNode:
+        node = VectorNode(**doc["_source"])
         node.unique_id = doc["_id"]
         if "_score" in doc:
             node.metadata["_score"] = doc["_score"] - 1
         return node
 
-    def exist_id(self, unique_id: str, index_name: str = None):
-        if index_name is None:
-            index_name = self.index_name
-        return self._client.exists(index=index_name, id=unique_id)
+    def exist_id(self, unique_id: str, workspace_id: str = None, **kwargs) -> bool:
+        response = self._client.exists(index=workspace_id, id=unique_id)
+        return response.body
 
-    def node2doc(self, node: VectorStoreNode, add_op_type: bool = False, index_name: str = None) -> dict:
-        if index_name is None:
-            index_name = self.index_name
-
+    def node2doc(self, node: VectorNode, add_op_type: bool = False) -> dict:
         doc: dict = {
-            "_index": index_name,
+            "_index": node.workspace_id,
             "_id": node.unique_id,
             "_source": {
                 "workspace_id": node.workspace_id,
@@ -97,7 +91,7 @@ class EsVectorStore(BaseVectorStore):
         }
 
         if add_op_type:
-            doc["_op_type"] = "update" if self.exist_id(node.unique_id, index_name) else "index",
+            doc["_op_type"] = "update" if self.exist_id(node.unique_id, node.workspace_id) else "index",
         return doc
 
     def add_term_filter(self, key: str, value):
@@ -119,84 +113,12 @@ class EsVectorStore(BaseVectorStore):
         self.retrieve_filters.clear()
         return self
 
-    def insert(self, nodes: VectorStoreNode | List[VectorStoreNode], refresh_index: bool = True, index_name: str = None,
-               **kwargs):
-        if index_name is None:
-            index_name = self.index_name
-
-        if not self.exist_index(index_name):
-            self.create_index(index_name)
-
-        if isinstance(nodes, VectorStoreNode):
-            nodes = [nodes]
-
-        embedded_nodes = [node for node in nodes if node.vector]
-        not_embedded_nodes = [node for node in nodes if not node.vector]
-        now_embedded_nodes = self.embedding_model.get_node_embeddings(not_embedded_nodes)
-
-        docs = [self.node2doc(node, False, index_name) for node in embedded_nodes + now_embedded_nodes]
-        status, error = bulk(self._client, docs, chunk_size=self.bulk_chunk_size, **kwargs)
-        logger.info(f"insert sample.size={len(nodes)} status={status} error={error}")
-
-        if refresh_index:
-            self.refresh_index(index_name)
-
-    def update(self, nodes: VectorStoreNode | List[VectorStoreNode], refresh_index: bool = True, index_name: str = None,
-               **kwargs):
-        if index_name is None:
-            index_name = self.index_name
-
-        if not self.exist_index(index_name):
-            self.create_index(index_name)
-
-        if isinstance(nodes, VectorStoreNode):
-            nodes = [nodes]
-
-        nodes = self.embedding_model.get_node_embeddings(nodes)
-        docs = [self.node2doc(node, True, index_name) for node in nodes]
-        status, error = bulk(self._client, docs, chunk_size=self.bulk_chunk_size, **kwargs)
-        update_size = sum([1 if doc["_op_type"] == "update" else 0 for doc in docs])
-        insert_size = len(docs) - update_size
-        logger.info(f"update update_size={update_size} insert_size={insert_size} status={status} error={error}")
-
-        if refresh_index:
-            self.refresh_index(index_name)
-
-    def delete_by_id(self, unique_id: str, index_name: str = None, **kwargs):
-        if index_name is None:
-            index_name = self.index_name
-
-        if not self.exist_index(index_name):
-            self.create_index(index_name)
-
-        return self._client.delete(index=index_name, id=unique_id, **kwargs)
-
-    def retrieve_by_id(self, unique_id: str, index_name: str = None, **kwargs) -> VectorStoreNode | None:
-        if index_name is None:
-            index_name = self.index_name
-
-        if not self.exist_index(index_name):
-            logger.warning(f"index_name={index_name} is not exists!")
-            return None
-
-        try:
-            doc = self._client.get(index=index_name, id=unique_id, **kwargs)
-            return self.doc2node(doc)
-
-        except Exception as e:
-            logger.warning(f"{index_name} retrieve_by_id unique_id={unique_id} is not found with error={e.args}")
-            return None
-
-    def retrieve_by_query(self, query: str, top_k: int = 1, index_name: str = None, **kwargs) -> List[VectorStoreNode]:
-        if index_name is None:
-            index_name = self.index_name
-
-        if not self.exist_index(index_name):
-            logger.warning(f"index_name={index_name} is not exists!")
+    def retrieve_by_query(self, query: str, workspace_id: str, top_k: int = 1, **kwargs) -> List[VectorNode]:
+        if not self.exist_workspace(workspace_id=workspace_id):
+            logger.warning(f"workspace_id={workspace_id} is not exists!")
             return []
 
         query_vector = self.embedding_model.get_embeddings(query)
-
         body = {
             "query": {
                 "script_score": {
@@ -209,51 +131,82 @@ class EsVectorStore(BaseVectorStore):
             },
             "size": top_k
         }
-        response = self._client.search(index=index_name, body=body, **kwargs)
+        response = self._client.search(index=workspace_id, body=body, **kwargs)
 
-        nodes: List[VectorStoreNode] = []
+        nodes: List[VectorNode] = []
         for doc in response['hits']['hits']:
             nodes.append(self.doc2node(doc))
 
         self.retrieve_filters.clear()
         return nodes
 
+    def insert(self, nodes: VectorNode | List[VectorNode], workspace_id: str, refresh: bool = True, **kwargs):
+        self.create_workspace(workspace_id=workspace_id)
+        if isinstance(nodes, VectorNode):
+            nodes = [nodes]
+
+        embedded_nodes = [node for node in nodes if node.vector]
+        not_embedded_nodes = [node for node in nodes if not node.vector]
+        now_embedded_nodes = self.embedding_model.get_node_embeddings(not_embedded_nodes)
+
+        docs = [self.node2doc(node, False) for node in embedded_nodes + now_embedded_nodes]
+        status, error = bulk(self._client, docs, chunk_size=self.bulk_chunk_size, **kwargs)
+        logger.info(f"insert sample.size={len(nodes)} status={status} error={error}")
+
+        if refresh:
+            self.refresh(workspace_id=workspace_id)
+
+    def update(self, nodes: VectorNode | List[VectorNode], workspace_id: str, refresh: bool = True, **kwargs):
+        self.create_workspace(workspace_id=workspace_id)
+        if isinstance(nodes, VectorNode):
+            nodes = [nodes]
+
+        nodes = self.embedding_model.get_node_embeddings(nodes)
+        docs = [self.node2doc(node, True) for node in nodes]
+        status, error = bulk(self._client, docs, chunk_size=self.bulk_chunk_size, **kwargs)
+        update_size = sum([1 if doc["_op_type"] == "update" else 0 for doc in docs])
+        insert_size = len(docs) - update_size
+        logger.info(f"update update_size={update_size} insert_size={insert_size} status={status} error={error}")
+
+        if refresh:
+            self.refresh(workspace_id=workspace_id)
 
 def main():
     from experiencemaker.utils.util_function import load_env_keys
     load_env_keys()
+    load_env_keys("../../.env")
 
     embedding_model = OpenAICompatibleEmbeddingModel(dimensions=1024)
-    index_name = "rag_nodes_index"
+    workspace_id = "rag_nodes_index"
     hosts = "http://11.160.132.46:8200"
-    es = EsVectorStore(hosts=hosts, embedding_model=embedding_model, index_name=index_name)
-    es.delete_index()
-    es.create_index()
+    es = EsVectorStore(hosts=hosts, embedding_model=embedding_model)
+    es.delete_workspace(workspace_id=workspace_id)
+    es.create_workspace(workspace_id=workspace_id)
 
     sample_nodes = [
-        VectorStoreNode(
-            workspace_id="w1",
+        VectorNode(
+            workspace_id=workspace_id,
             content="Artificial intelligence is a technology that simulates human intelligence.",
             metadata={
                 "node_type": "n1",
             }
         ),
-        VectorStoreNode(
-            workspace_id="w1",
+        VectorNode(
+            workspace_id=workspace_id,
             content="AI is the future of mankind.",
             metadata={
                 "node_type": "n1",
             }
         ),
-        VectorStoreNode(
-            workspace_id="w1",
+        VectorNode(
+            workspace_id=workspace_id,
             content="I want to eat fish!",
             metadata={
                 "node_type": "n2",
             }
         ),
-        VectorStoreNode(
-            workspace_id="w2",
+        VectorNode(
+            workspace_id=workspace_id,
             content="The bigger the storm, the more expensive the fish.",
             metadata={
                 "node_type": "n1",
@@ -261,28 +214,22 @@ def main():
         ),
     ]
 
-    es.insert(sample_nodes, refresh_index=True)
+    es.insert(sample_nodes, workspace_id=workspace_id, refresh=True)
 
     logger.info("=" * 20)
-    results = es.add_term_filter(key="workspace_id", value="w1") \
-        .add_term_filter(key="metadata.node_type", value="n1") \
-        .retrieve_by_query("What is AI?", top_k=5)
+    results = es.add_term_filter(key="metadata.node_type", value="n1") \
+        .retrieve_by_query("What is AI?", top_k=5, workspace_id=workspace_id)
     for r in results:
         logger.info(r.model_dump(exclude={"vector"}))
     logger.info("=" * 20)
 
     logger.info("=" * 20)
-    results = es.add_term_filter(key="workspace_id", value="w1") \
-        .retrieve_by_query("What is AI?", top_k=5)
+    results = es.retrieve_by_query("What is AI?", top_k=5, workspace_id=workspace_id)
     for r in results:
         logger.info(r.model_dump(exclude={"vector"}))
     logger.info("=" * 20)
 
-    logger.info("=" * 20)
-    results = es.retrieve_by_query("What is AI?", top_k=5)
-    for r in results:
-        logger.info(r.model_dump(exclude={"vector"}))
-    logger.info("=" * 20)
+    es.delete_workspace(workspace_id=workspace_id)
 
 
 if __name__ == "__main__":

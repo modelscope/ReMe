@@ -21,6 +21,7 @@ class BaseTool(BaseModel, ABC):
 
     def reset(self):
         self.arguments.clear()
+        self.cached_result.clear()
         self.success = True
 
     def _execute(self, **kwargs):
