@@ -12,12 +12,12 @@ class BaseResponse(BaseModel):
 
 
 class RetrieverResponse(BaseResponse):
-    experience_nodes: list[BaseExperienceNode] = Field(default_factory=list)
+    experience_nodes: List[BaseExperienceNode] = Field(default_factory=list)
     experience_merged: str = Field(default="")
 
 
 class SummarizerResponse(BaseResponse):
-    experience_nodes: list[BaseExperienceNode] = Field(default_factory=list)
+    experience_nodes: List[BaseExperienceNode] = Field(default_factory=list)
 
 
 class VectorStoreResponse(BaseResponse):

@@ -3,7 +3,7 @@ from uuid import uuid4
 from pydantic import BaseModel, Field
 
 
-class VectorStoreNode(BaseModel):
+class VectorNode(BaseModel):
     unique_id: str = Field(default_factory=lambda: uuid4().hex)
     workspace_id: str = Field(default="")
     content: str = Field(default="")

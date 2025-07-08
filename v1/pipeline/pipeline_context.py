@@ -16,3 +16,11 @@ class PipelineContext(object):
 
     def get_context(self, key: str):
         return self.context.get(key)
+
+    @property
+    def request(self):
+        return self.get_context("request")
+
+    @property
+    def response(self):
+        return self.get_context("response")

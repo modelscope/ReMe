@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
-from v1.schema.vector_store_node import VectorStoreNode
+from v1.schema.vector_node import VectorNode
 
 
 class ExperienceMeta(BaseModel):
@@ -14,26 +14,31 @@ class ExperienceMeta(BaseModel):
     modified_time: str = Field(default_factory=lambda: datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     extra_info: dict | None = Field(default=None)
 
+    def update_modified_time(self):
+        self.modified_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
 
 class BaseExperienceNode(BaseModel, ABC):
+    workspace_id: str = Field(default="")
+
     experience_id: str = Field(default_factory=lambda: uuid4().hex)
     experience_type: str = Field(default="text")
-    workspace_id: str = Field(default="")
-    experience_meta: ExperienceMeta | None = Field(default=None)
 
-    def to_vector_store_node(self) -> VectorStoreNode:
-        ...
-
-    @classmethod
-    def from_vector_store_node(cls, node: VectorStoreNode) -> "TextExperienceNode":
-        ...
-
-
-class TextExperienceNode(BaseExperienceNode):
-    experience_type: str = Field(default="text")
     when_to_use: str = Field(default="")
     content: str | bytes = Field(default="")
     score: float | None = Field(default=None)
+    metadata: ExperienceMeta = Field(default_factory=ExperienceMeta)
+
+    def to_vector_node(self) -> VectorNode:
+        raise NotImplementedError
+
+    @classmethod
+    def from_vector_node(cls, node: VectorNode) -> "BaseExperienceNode":
+        raise NotImplementedError
+
+
+class TextExperienceNode(BaseExperienceNode):
+    ...
 
 
 class FunctionArg(BaseModel):
@@ -49,28 +54,16 @@ class Function(BaseModel):
 
 
 class FuncExperienceNode(BaseExperienceNode):
-    """
-    TODO
-    """
-    experience_type: str = Field(default="func")
+    experience_type: str = Field(default="function")
     functions: List[Function] = Field(default_factory=list)
 
 
 class PersonalExperienceNode(BaseExperienceNode):
-    """
-    TODO: memory node from MemoryScope
-    """
     experience_type: str = Field(default="personal")
     person: str = Field(default="")
     topic: str = Field(default="")
-    content: str | bytes = Field(default="")
 
 
 class KnowledgeExperienceNode(BaseExperienceNode):
-    """
-    TODO
-    """
     experience_type: str = Field(default="knowledge")
     topic: str = Field(default="")
-    content: str | bytes = Field(default="")
-    score: float | None = Field(default=None)

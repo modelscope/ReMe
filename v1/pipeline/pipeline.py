@@ -10,7 +10,7 @@ from v1.pipeline.pipeline_context import PipelineContext
 from v1.utils.timer import Timer, timer
 
 
-class Pipeline(object):
+class Pipeline:
     seq_symbol: str = "->"
     parallel_symbol: str = "|"
 
@@ -66,7 +66,8 @@ class Pipeline(object):
                     logger.info(f"stage_{i}: {op}")
 
             elif isinstance(pipeline, list):
-                for op_list in zip_longest(*[self._parse_sub_pipeline(x) for x in pipeline], fillvalue="-"):
+                parallel_pipeline = [self._parse_sub_pipeline(x) for x in pipeline]
+                for op_list in zip_longest(*parallel_pipeline, fillvalue="-"):
                     i += 1
                     logger.info(f"stage{i}: {' | '.join(op_list)}")
 
@@ -74,7 +75,7 @@ class Pipeline(object):
                 raise ValueError(f"unknown pipeline.type={type(pipeline)}")
 
     @timer()
-    def execute_pipeline(self, enable_print: bool = True):
+    def __call__(self, enable_print: bool = True):
         if enable_print:
             self.print_pipeline()
 

@@ -7,8 +7,8 @@ from v1.schema.message import Message, Trajectory
 
 
 class BaseRequest(BaseModel, ABC):
-    workspace_id: str = Field(default="")
-    params: dict = Field(default_factory=dict)
+    workspace_id: str = Field(default=...)
+    config: dict = Field(default_factory=dict)
     metadata: dict | None = Field(default=None)
 
 

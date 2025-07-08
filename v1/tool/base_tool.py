@@ -49,10 +49,11 @@ class BaseTool(BaseModel, ABC):
 
         return None
 
-    # It may be in other different tool params formats; different versions are completed here.
 
-    @property
-    def simple_dict(self) -> dict:
+    def simple_dump(self) -> dict:
+        """
+        It may be in other different tool params formats; different versions are completed here.
+        """
         return {
             "type": self.tool_type,
             self.tool_type: {

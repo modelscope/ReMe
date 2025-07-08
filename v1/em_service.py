@@ -1,5 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 
+from loguru import logger
+
 from v1.pipeline.pipeline import Pipeline
 from v1.pipeline.pipeline_context import PipelineContext
 from v1.schema.app_config import AppConfig
@@ -33,30 +35,46 @@ class EMService(object):
         self.context.set_context("request", request)
         response = RetrieverResponse()
         self.context.set_context("response", response)
-        pipeline = Pipeline(pipeline=self.context.app_config.api.retriever, context=self.context)
-        pipeline.execute_pipeline()
+        try:
+            Pipeline(pipeline=self.context.app_config.api.retriever, context=self.context)()
+        except Exception as e:
+            logger.exception(f"call_retriever encounter error={e.args}")
+            response.success = False
+            response.metadata["error"] = str(e)
         return response
 
     def call_summarizer(self, request: SummarizerRequest) -> SummarizerResponse:
         self.context.set_context("request", request)
         response = SummarizerResponse()
         self.context.set_context("request", response)
-        pipeline = Pipeline(pipeline=self.context.app_config.api.summarizer, context=self.context)
-        pipeline.execute_pipeline()
+        try:
+            Pipeline(pipeline=self.context.app_config.api.summarizer, context=self.context)()
+        except Exception as e:
+            logger.exception(f"call_summarizer encounter error={e.args}")
+            response.success = False
+            response.metadata["error"] = str(e)
         return response
 
     def call_vector_store(self, request: VectorStoreRequest) -> VectorStoreResponse:
         self.context.set_context("request", request)
         response = VectorStoreResponse()
         self.context.set_context("request", response)
-        pipeline = Pipeline(pipeline=self.context.app_config.api.vector_store, context=self.context)
-        pipeline.execute_pipeline()
+        try:
+            Pipeline(pipeline=self.context.app_config.api.vector_store, context=self.context)()
+        except Exception as e:
+            logger.exception(f"call_vector_store encounter error={e.args}")
+            response.success = False
+            response.metadata["error"] = str(e)
         return response
 
     def call_agent(self, request: AgentRequest) -> AgentResponse:
         self.context.set_context("request", request)
         response = AgentResponse()
         self.context.set_context("request", response)
-        pipeline = Pipeline(pipeline=self.context.app_config.api.agent, context=self.context)
-        pipeline.execute_pipeline()
+        try:
+            Pipeline(pipeline=self.context.app_config.api.agent, context=self.context)()
+        except Exception as e:
+            logger.exception(f"call_agent encounter error={e.args}")
+            response.success = False
+            response.metadata["error"] = str(e)
         return response
