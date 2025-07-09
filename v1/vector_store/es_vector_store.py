@@ -53,12 +53,9 @@ class EsVectorStore(BaseVectorStore):
         return self._client.indices.create(index=workspace_id, body=body)
 
     def _iter_workspace_nodes(self, workspace_id: str, max_size: int = 10000, **kwargs) -> Iterable[VectorNode]:
-        response = self._client.search(
-            index=workspace_id,
-            body={"query": {"match_all": {}}},
-            scroll='5m',
-            size=max_size
-        )
+        response = self._client.search(index=workspace_id,
+                                       body={"query": {"match_all": {}}, "size": max_size},
+                                       scroll='5m')
 
         for doc in response['hits']['hits']:
             yield self.doc2node(doc)
@@ -228,7 +225,7 @@ def main():
     for r in results:
         logger.info(r.model_dump(exclude={"vector"}))
     logger.info("=" * 20)
-
+    es.dump_workspace(workspace_id=workspace_id)
     es.delete_workspace(workspace_id=workspace_id)
 
 

@@ -13,7 +13,7 @@ from v1.schema.vector_node import VectorNode
 
 
 class BaseVectorStore(BaseModel, ABC):
-    embedding_model: BaseEmbeddingModel = Field(default=...)
+    embedding_model: BaseEmbeddingModel | None = Field(default=None)
 
     @staticmethod
     def _load_from_path(path: str | Path, workspace_id: str, **kwargs) -> Iterable[VectorNode]:
