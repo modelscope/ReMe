@@ -5,15 +5,15 @@ from v1.schema.app_config import AppConfig
 from v1.vector_store.base_vector_store import BaseVectorStore
 
 
-class PipelineContext(object):
+class PipelineContext:
 
     def __init__(self, **kwargs):
         self._context: dict = {**kwargs}
 
-    def __getattr__(self, key: str, default=None):
+    def get_context(self, key: str, default=None):
         return self._context.get(key, default)
 
-    def __setattr__(self, key: str, value):
+    def set_context(self, key: str, value):
         self._context[key] = value
 
     @property

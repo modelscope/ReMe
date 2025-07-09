@@ -15,7 +15,7 @@ class BaseOp(ABC):
 
     @property
     def simple_name(self) -> str:
-        return self.__class__.__name__.lower().replace("op", "")
+        return self.__class__.__name__.lower()
 
     @abstractmethod
     def execute(self):

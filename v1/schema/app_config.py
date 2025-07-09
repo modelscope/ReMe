@@ -8,7 +8,6 @@ class HttpServiceConfig:
     port: int = field(default=8001)
     timeout_keep_alive: int = field(default=600)
     limit_concurrency: int = field(default=64)
-    workers: int | None = field(default=None)
 
 
 @dataclass
@@ -54,6 +53,7 @@ class VectorStoreConfig:
     params: dict = field(default_factory=dict)
 
 
+@dataclass
 class AppConfig:
     config_path: str = field(default="")
     http_service: HttpServiceConfig = field(default_factory=HttpServiceConfig)

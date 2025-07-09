@@ -5,26 +5,27 @@ http_service:
   port: 8001
   timeout_keep_alive: 600
   limit_concurrency: 64
-  workers: 2
 
 thread_pool:
-  max_workers: 20
+  max_workers: 10
 
 api:
-  step_retriever: mock1_op->mock2_op->mock3_op
-  step_summarizer: mock1_op->[mock4_op->mock2_op|mock5_op]->mock3_op
+  retriever: mock1_op->[mock4_op->mock2_op|mock5_op]->[mock3_op|mock6_op]
+  summarizer: mock1_op->[mock4_op->mock2_op|mock5_op]->mock3_op
   vector_store: mock6_op
 
 op:
   mock1_op:
     backend: mock1_op
-    a: 1
-    b: 2
     llm: default
     vector_store: default
+    params:
+      a: 1
+      b: 2
   mock2_op:
     backend: mock2_op
-    a: 1
+    params:
+      a: 1
   mock3_op:
     backend: mock3_op
   mock4_op:
@@ -37,18 +38,21 @@ op:
 llm:
   default:
     backend: openai_compatible
-    model_name: qwen3-32b
-    temperature: 0.6
+    model: qwen3-32b
+    params:
+      temperature: 0.6
 
 embedding_model:
   default:
     backend: openai_compatible
-    model_name: text-embedding-v4
-    dimensions: 1024
+    model: text-embedding-v4
+    params:
+      dimensions: 1024
 
 vector_store:
   default:
     backend: elasticsearch
     embedding_model: default
-    hosts: "http://localhost:9200"
+    params:
+      hosts: "http://localhost:9200"
 

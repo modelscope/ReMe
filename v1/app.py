@@ -1,11 +1,14 @@
 import sys
 
 import uvicorn
+from dotenv import load_dotenv
 from fastapi import FastAPI
 
 from v1.schema.request import RetrieverRequest, SummarizerRequest, VectorStoreRequest, AgentRequest
 from v1.schema.response import RetrieverResponse, SummarizerResponse, VectorStoreResponse, AgentResponse
 from v1.service.experience_maker_service import ExperienceMakerService
+
+load_dotenv()
 
 app = FastAPI()
 service = ExperienceMakerService(sys.argv[1:])
@@ -35,5 +38,4 @@ if __name__ == "__main__":
                 host=service.http_service_config.host,
                 port=service.http_service_config.port,
                 timeout_keep_alive=service.http_service_config.timeout_keep_alive,
-                limit_concurrency=service.http_service_config.limit_concurrency,
-                workers=service.http_service_config.workers)
+                limit_concurrency=service.http_service_config.limit_concurrency)

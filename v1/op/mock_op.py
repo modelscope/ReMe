@@ -9,7 +9,7 @@ from v1.op.base_op import BaseOp
 @OP_REGISTRY.register("mock1_op")
 class MockOp1(BaseOp):
 
-    def __init__(self, a: int, b: str, **kwargs):
+    def __init__(self, a: int = 1, b: str = "2", **kwargs):
         super().__init__(**kwargs)
         self.a = a
         self.b = b

@@ -14,14 +14,6 @@ class BaseEmbeddingModel(BaseModel, ABC):
     raise_exception: bool = Field(default=True, description="raise exception")
 
     def _get_embeddings(self, input_text: str | List[str]):
-        """
-        Get the embedding vector based on the input text.
-        This is an abstract method, and its concrete implementation must be provided in a subclass to generate the embedding vector for the given text.
-        Args:
-            input_text (str | List[str]): The input text, which can be a single string or a list of strings.
-        Raises:
-            NotImplementedError: If the method is not implemented in the subclass.
-        """
         raise NotImplementedError
 
     def get_embeddings(self, input_text: str | List[str]):

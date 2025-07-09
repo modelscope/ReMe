@@ -1,7 +1,7 @@
 import json
 from typing import List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from v1.enumeration.role import Role
 
@@ -48,6 +48,7 @@ class Message(BaseModel):
     metadata: dict = Field(default_factory=dict)
 
     def simple_dump(self, add_reason_when_empty: bool = True) -> dict:
+        result: dict
         if self.content:
             result = {"role": self.role.value, "content": self.content}
         elif add_reason_when_empty and self.reasoning_content:

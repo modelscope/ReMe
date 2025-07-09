@@ -28,10 +28,10 @@ class Pipeline:
                     continue
 
                 if self.parallel_symbol in sub_pipeline:
-                    self.pipeline_list.append(sub_pipeline.split(self.parallel_symbol))
+                    pipeline_list.append(sub_pipeline.split(self.parallel_symbol))
                 else:
-                    self.pipeline_list.append(sub_pipeline)
-
+                    pipeline_list.append(sub_pipeline)
+                logger.info(f"add sub_pipeline={sub_pipeline}")
         return pipeline_list
 
     def _execute_sub_pipeline(self, pipeline: str):
@@ -74,7 +74,7 @@ class Pipeline:
             else:
                 raise ValueError(f"unknown pipeline.type={type(pipeline)}")
 
-    @timer()
+    @timer(name="pipeline.execute")
     def __call__(self, enable_print: bool = True):
         if enable_print:
             self.print_pipeline()
