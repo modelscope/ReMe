@@ -33,7 +33,8 @@ class BaseOp(PromptMixin, ABC):
         if self.op_config.prompt_file_path:
             prompt_file_path = self.op_config.prompt_file_path
         else:
-            prompt_file_path = Path(__file__).parent / f"{self.simple_name}_prompt.yaml"
+            prompt_name = self.simple_name.replace("op", "").strip("_") + "_prompt.yaml"
+            prompt_file_path = Path(__file__).parent / prompt_name
 
         # Load custom prompts from prompt file
         self.load_prompt_by_file(prompt_file_path=prompt_file_path)

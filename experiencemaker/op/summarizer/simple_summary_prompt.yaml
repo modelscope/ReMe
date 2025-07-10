@@ -1,0 +1,41 @@
+summary_prompt: |
+  # Role
+  You are a helpful assistant.
+
+  # User Question
+  {query}
+
+  # Execution Process
+  {execution_process}
+
+  # Answer
+  {answer}
+
+  # Task
+  Reflect on what went well and what did not go well in the execution path based on the user's question.
+  The summarized experiences should be generalizable, providing assistance in solving similar types of problems in the future. 
+  They can include good suggestions or highlight areas to avoid and potential pitfalls.
+  The type of experience can be plain text or a piece of code that solves a specific problem.
+  If there are no experiences to summarize, output an empty list []. 
+  For each experience, first state the scenario when it is applicable (when to use), then provide the experience itself, with a maximum of three experiences summarized.
+  
+  # Output Format
+  {summary_example}
+
+summary_example: |
+  ``` json
+  [
+    {
+      "when_to_use": "...",
+      "experience": "..."
+    },
+    {
+      "when_to_use": "...",
+      "experience": "..."
+    },
+    {
+      "when_to_use": "...",
+      "experience": "..."
+    }
+  ]
+  ```
