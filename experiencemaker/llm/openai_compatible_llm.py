@@ -16,7 +16,6 @@ from experiencemaker.tool.base_tool import BaseTool
 
 @LLM_REGISTRY.register("openai_compatible")
 class OpenAICompatibleBaseLLM(BaseLLM):
-    model_name: str = Field(default="")
     api_key: str = Field(default_factory=lambda: os.getenv("LLM_API_KEY"), description="api key")
     base_url: str = Field(default_factory=lambda: os.getenv("LLM_BASE_URL"), description="base url")
     _client: OpenAI = PrivateAttr()

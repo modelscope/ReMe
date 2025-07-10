@@ -6,8 +6,8 @@ from experiencemaker.op import OP_REGISTRY
 from experiencemaker.op.base_op import BaseOp
 
 
-@OP_REGISTRY.register("mock1_op")
-class MockOp1(BaseOp):
+@OP_REGISTRY.register()
+class Mock1Op(BaseOp):
 
     def __init__(self, a: int = 1, b: str = "2", **kwargs):
         super().__init__(**kwargs)
@@ -19,26 +19,26 @@ class MockOp1(BaseOp):
         logger.info(f"enter class={self.__class__.__name__}. a={self.a} b={self.b}")
 
 
-@OP_REGISTRY.register("mock2_op")
-class MockOp2(MockOp1):
+@OP_REGISTRY.register()
+class Mock2Op(Mock1Op):
     ...
 
 
-@OP_REGISTRY.register("mock3_op")
-class MockOp3(MockOp1):
+@OP_REGISTRY.register()
+class Mock3Op(Mock1Op):
     ...
 
 
-@OP_REGISTRY.register("mock4_op")
-class MockOp4(MockOp1):
+@OP_REGISTRY.register()
+class Mock4Op(Mock1Op):
     ...
 
 
-@OP_REGISTRY.register("mock5_op")
-class MockOp5(MockOp1):
+@OP_REGISTRY.register()
+class Mock5Op(Mock1Op):
     ...
 
 
-@OP_REGISTRY.register("mock6_op")
-class MockOp6(MockOp1):
+@OP_REGISTRY.register()
+class Mock6Op(Mock1Op):
     ...

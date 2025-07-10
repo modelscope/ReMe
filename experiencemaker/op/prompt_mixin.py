@@ -6,34 +6,37 @@ from loguru import logger
 
 class PromptMixin:
 
-    def __init__(self, file_path: Path | str = None, prompt_dict: dict = None):
-        self.prompt_dict: dict = {}
-        self.prompt_dict.update(**self.load_prompt_by_file_path(file_path))
-        if prompt_dict:
-            for key, value in prompt_dict.items():
-                if isinstance(value, str):
-                    self.prompt_dict[key] = value
+    def __init__(self):
+        self._prompt_dict: dict = {}
+
+    def load_prompt_by_file(self, prompt_file_path: Path | str = None):
+        if prompt_file_path is None:
+            return
+
+        if isinstance(prompt_file_path, str):
+            prompt_file_path = Path(prompt_file_path)
+
+        if not prompt_file_path.exists():
+            return
+
+        with prompt_file_path.open() as f:
+            prompt_dict = yaml.load(f, yaml.FullLoader)
+            self.load_prompt_dict(prompt_dict)
+
+    def load_prompt_dict(self, prompt_dict: dict = None):
+        if not prompt_dict:
+            return
+
+        for key, value in prompt_dict.items():
+            if isinstance(value, str):
+                if key in self._prompt_dict:
+                    logger.warning(f"prompt_dict key={key} already exists")
+                else:
+                    self._prompt_dict[key] = value
                     logger.info(f"add prompt_dict key={key}")
 
-    @staticmethod
-    def load_prompt_by_file_path(file_path: Path | str = None):
-        prompt_dict = {}
-        if file_path is None:
-            return prompt_dict
-
-        if isinstance(file_path, str):
-            file_path = Path(file_path)
-
-        if not file_path.exists():
-            return prompt_dict
-
-        with file_path.open() as f:
-            prompt_dict = yaml.load(f, yaml.FullLoader)
-            logger.info(f"add prompt_dict keys={prompt_dict.keys()}")
-            return prompt_dict
-
     def prompt_format(self, prompt_name: str, **kwargs):
-        prompt = self.prompt_dict[prompt_name]
+        prompt = self._prompt_dict[prompt_name]
 
         flag_kwargs = {k: v for k, v in kwargs.items() if isinstance(v, bool)}
         other_kwargs = {k: v for k, v in kwargs.items() if not isinstance(v, bool)}

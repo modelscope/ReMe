@@ -42,11 +42,12 @@ class Pipeline:
                 continue
 
             assert op in op_config_dict, f"op={op} config is missing!"
-            backend = op_config_dict[op].backend
-            assert backend in OP_REGISTRY, f"op={op} backend={backend} is not registered!"
+            op_config = op_config_dict[op]
 
-            op_cls = OP_REGISTRY[backend]
-            op_obj: BaseOp = op_cls(context=self.context, **op_config_dict[op].params)
+            assert op_config.backend in OP_REGISTRY, f"op={op} backend={op_config.backend} is not registered!"
+            op_cls = OP_REGISTRY[op_config.backend]
+
+            op_obj: BaseOp = op_cls(context=self.context, op_config=op_config)
             op_obj.execute_wrap()
 
     def _parse_sub_pipeline(self, pipeline: str):

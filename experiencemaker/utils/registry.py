@@ -2,15 +2,17 @@ from typing import List
 
 from loguru import logger
 
+from experiencemaker.utils.common_utils import camel_to_snake
+
 
 class Registry(object):
     def __init__(self):
         self._registry = {}
 
-    def register(self, name: str = None):
+    def register(self, name: str = ""):
 
         def decorator(cls):
-            class_name = name if name is not None else cls.__name__
+            class_name = name if name else camel_to_snake(cls.__name__)
             if class_name in self._registry:
                 logger.warning(f"name={class_name} is already registered, will be overwritten.")
             self._registry[class_name] = cls

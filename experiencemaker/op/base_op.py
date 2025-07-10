@@ -1,22 +1,53 @@
-from abc import abstractmethod, ABCMeta
+from abc import abstractmethod, ABC
+from pathlib import Path
 
 from loguru import logger
 
+from experiencemaker.embedding_model import EMBEDDING_MODEL_REGISTRY
+from experiencemaker.embedding_model.base_embedding_model import BaseEmbeddingModel
+from experiencemaker.llm import LLM_REGISTRY
+from experiencemaker.llm.base_llm import BaseLLM
 from experiencemaker.op.prompt_mixin import PromptMixin
 from experiencemaker.pipeline.pipeline_context import PipelineContext
+from experiencemaker.schema.app_config import OpConfig, LLMConfig, EmbeddingModelConfig
+from experiencemaker.utils.common_utils import camel_to_snake
 from experiencemaker.utils.timer import Timer
+from experiencemaker.vector_store.base_vector_store import BaseVectorStore
 
 
-class BaseOp(PromptMixin, metaclass=ABCMeta):
+class BaseOp(PromptMixin, ABC):
 
-    def __init__(self, context: PipelineContext, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, context: PipelineContext, op_config: OpConfig):
+        super().__init__()
         self.context: PipelineContext = context
+        self.op_config: OpConfig = op_config
         self.timer = Timer(name=self.simple_name)
+
+        self._prepare_prompt()
+
+        self._llm: BaseLLM | None = None
+        self._embedding_model: BaseEmbeddingModel | None = None
+        self._vector_store: BaseVectorStore | None = None
+
+    def _prepare_prompt(self):
+        if self.op_config.prompt_file_path:
+            prompt_file_path = self.op_config.prompt_file_path
+        else:
+            prompt_file_path = Path(__file__).parent / f"{self.simple_name}_prompt.yaml"
+
+        # Load custom prompts from prompt file
+        self.load_prompt_by_file(prompt_file_path=prompt_file_path)
+
+        # Load custom prompts from config
+        self.load_prompt_dict(prompt_dict=self.op_config.prompt_dict)
 
     @property
     def simple_name(self) -> str:
-        return self.__class__.__name__.lower()
+        return camel_to_snake(self.__class__.__name__)
+
+    @property
+    def op_params(self) -> dict:
+        return self.op_config.params
 
     @abstractmethod
     def execute(self):
@@ -29,3 +60,46 @@ class BaseOp(PromptMixin, metaclass=ABCMeta):
 
         except Exception as e:
             logger.exception(f"op={self.simple_name} execute failed, error={e.args}")
+
+    @property
+    def llm(self) -> BaseLLM:
+        if self._llm is None:
+            llm_name: str = self.op_config.llm
+            assert llm_name in self.context.app_config.llm, f"llm={llm_name} not found in app_config.llm!"
+            llm_config: LLMConfig = self.context.app_config.llm[llm_name]
+
+            assert llm_config.backend in LLM_REGISTRY, f"llm.backend={llm_config.backend} not found in LLM_REGISTRY!"
+            llm_cls = LLM_REGISTRY[llm_config.backend]
+            self._llm = llm_cls(model_name=llm_config.model_name, **llm_config.params)
+
+        return self._llm
+
+    @property
+    def embedding_model(self):
+        if self._embedding_model is None:
+            embedding_model_name: str = self.op_config.embedding_model
+            assert embedding_model_name in self.context.app_config.embedding_model, \
+                f"embedding_model={embedding_model_name} not found in app_config.embedding_model!"
+            embedding_model_config: EmbeddingModelConfig = self.context.app_config.embedding_model[embedding_model_name]
+
+            assert embedding_model_config.backend in EMBEDDING_MODEL_REGISTRY, \
+                f"embedding_model.backend={embedding_model_config.backend} not found in EMBEDDING_MODEL_REGISTRY!"
+            embedding_model_cls = EMBEDDING_MODEL_REGISTRY[embedding_model_config.backend]
+            self._embedding_model = embedding_model_cls(model_name=embedding_model_config.model_name,
+                                                        **embedding_model_config.params)
+
+        return self._embedding_model
+
+    @property
+    def vector_store(self):
+        if self._vector_store is None:
+            vector_store_name: str = self.op_config.vector_store
+            assert vector_store_name in self.context.vector_store_dict, \
+                f"vector_store={vector_store_name} not found in vector_store_dict!"
+            self._vector_store = self.context.vector_store_dict[vector_store_name]
+
+        if self._vector_store.embedding_model is None:
+            logger.info(f"set embedding_model for vector_store={self.op_config.vector_store}")
+            self._vector_store.embedding_model = self.embedding_model
+
+        return self._vector_store

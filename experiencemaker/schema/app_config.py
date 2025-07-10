@@ -27,6 +27,8 @@ class APIConfig:
 class OpConfig:
     backend: str = field(default="")
     llm: str = field(default="")
+    prompt_file_path: str = field(default="")
+    prompt_dict: dict = field(default_factory=dict)
     embedding_model: str = field(default="")
     vector_store: str = field(default="")
     params: dict = field(default_factory=dict)
@@ -35,14 +37,14 @@ class OpConfig:
 @dataclass
 class LLMConfig:
     backend: str = field(default="")
-    model: str = field(default="")
+    model_name: str = field(default="")
     params: dict = field(default_factory=dict)
 
 
 @dataclass
 class EmbeddingModelConfig:
     backend: str = field(default="")
-    model: str = field(default="")
+    model_name: str = field(default="")
     params: dict = field(default_factory=dict)
 
 

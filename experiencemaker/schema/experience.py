@@ -1,5 +1,4 @@
 import datetime
-from abc import ABC
 from typing import List
 from uuid import uuid4
 
@@ -18,11 +17,11 @@ class ExperienceMeta(BaseModel):
         self.modified_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-class BaseExperienceNode(BaseModel, ABC):
+class BaseExperience(BaseModel):
     workspace_id: str = Field(default="")
 
     experience_id: str = Field(default_factory=lambda: uuid4().hex)
-    experience_type: str = Field(default="text")
+    experience_type: str = Field(default="")
 
     when_to_use: str = Field(default="")
     content: str | bytes = Field(default="")
@@ -30,15 +29,33 @@ class BaseExperienceNode(BaseModel, ABC):
     metadata: ExperienceMeta = Field(default_factory=ExperienceMeta)
 
     def to_vector_node(self) -> VectorNode:
-        raise NotImplementedError
+        return VectorNode(unique_id=self.experience_id,
+                          workspace_id=self.workspace_id,
+                          content=self.when_to_use,
+                          metadata={
+                              "experience_type": self.experience_type,
+                              "experience_content": self.content,
+                              "score": self.score,
+                              "metadata": self.metadata.model_dump(),
+                          })
 
     @classmethod
-    def from_vector_node(cls, node: VectorNode) -> "BaseExperienceNode":
+    def from_vector_node(cls, node: VectorNode):
         raise NotImplementedError
 
 
-class TextExperienceNode(BaseExperienceNode):
-    ...
+class TextExperience(BaseExperience):
+    experience_type: str = Field(default="text")
+
+    @classmethod
+    def from_vector_node(cls, node: VectorNode):
+        return cls(workspace_id=node.workspace_id,
+                   experience_id=node.unique_id,
+                   experience_type=node.metadata.get("experience_type"),
+                   when_to_use=node.content,
+                   content=node.metadata.get("experience_content"),
+                   score=node.metadata.get("score"),
+                   metadata=node.metadata.get("metadata"))
 
 
 class FunctionArg(BaseModel):
@@ -53,17 +70,50 @@ class Function(BaseModel):
     func_args: List[FunctionArg] = Field(default_factory=list)
 
 
-class FuncExperienceNode(BaseExperienceNode):
+class FuncExperience(BaseExperience):
     experience_type: str = Field(default="function")
     functions: List[Function] = Field(default_factory=list)
 
 
-class PersonalExperienceNode(BaseExperienceNode):
+class PersonalExperience(BaseExperience):
     experience_type: str = Field(default="personal")
     person: str = Field(default="")
     topic: str = Field(default="")
 
 
-class KnowledgeExperienceNode(BaseExperienceNode):
+class KnowledgeExperience(BaseExperience):
     experience_type: str = Field(default="knowledge")
     topic: str = Field(default="")
+
+
+def vector_node_to_experience(node: VectorNode) -> BaseExperience:
+    experience_type = node.metadata.get("experience_type")
+    if experience_type == "text":
+        return TextExperience.from_vector_node(node)
+
+    elif experience_type == "function":
+        return FuncExperience.from_vector_node(node)
+
+    elif experience_type == "personal":
+        return PersonalExperience.from_vector_node(node)
+
+    elif experience_type == "knowledge":
+        return KnowledgeExperience.from_vector_node(node)
+
+    else:
+        raise RuntimeError(f"experience type {experience_type} not supported")
+
+
+if __name__ == "__main__":
+    e1 = TextExperience(
+        workspace_id="w_1024",
+        experience_id="123",
+        when_to_use="test case use",
+        content="test content",
+        score=0.99,
+        metadata=ExperienceMeta(author="user"))
+    print(e1.model_dump_json(indent=2))
+    v1 = e1.to_vector_node()
+    print(v1.model_dump_json(indent=2))
+    e2 = vector_node_to_experience(v1)
+    print(e2.model_dump_json(indent=2))
