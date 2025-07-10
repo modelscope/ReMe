@@ -1,30 +1,28 @@
-from abc import ABC
 from typing import List
 
 from pydantic import BaseModel, Field
 
-from experiencemaker.schema.experience import Experience
-from experiencemaker.schema.trajectory import Trajectory, ContextMessage
+from experiencemaker.schema.experience import BaseExperienceNode
+from experiencemaker.schema.message import Message
 
 
-class BaseResponse(BaseModel, ABC):
+class BaseResponse(BaseModel):
     success: bool = Field(default=True)
     metadata: dict = Field(default_factory=dict)
 
-#
-# class AgentWrapperResponse(BaseResponse):
-#     trajectory: Trajectory = Field(default_factory=Trajectory)
 
-
-class ContextGeneratorResponse(BaseResponse):
-    experience: list[dict] = Field(default_factory=list)
-
-    merge_experience: str = Field(default="")
-
-    # when to use, experience, response
-
-
+class RetrieverResponse(BaseResponse):
+    experience_nodes: List[BaseExperienceNode] = Field(default_factory=list)
+    experience_merged: str = Field(default="")
 
 
 class SummarizerResponse(BaseResponse):
-    experiences: List[dict] = Field(default_factory=list)
+    experience_nodes: List[BaseExperienceNode] = Field(default_factory=list)
+
+
+class VectorStoreResponse(BaseResponse):
+    ...
+
+class AgentResponse(BaseResponse):
+    answer: str = Field(default="")
+    messages: List[Message] = Field(default_factory=list)
