@@ -2,9 +2,10 @@ import time
 from abc import ABC
 from typing import List, Literal
 
-from loguru import logger, Message
+from loguru import logger
 from pydantic import Field, BaseModel
 
+from v1.schema.message import Message
 from v1.tool.base_tool import BaseTool
 
 
@@ -31,21 +32,18 @@ class BaseLLM(BaseModel, ABC):
     def stream_print(self, messages: List[Message], tools: List[BaseTool] = None, **kwargs):
         raise NotImplementedError
 
-    def _chat(self, messages: List[Message], tools: List[BaseTool] = None, **kwargs) -> ActionMessage:
+    def _chat(self, messages: List[Message], tools: List[BaseTool] = None, **kwargs) -> Message:
         raise NotImplementedError
 
-    def chat(self, messages: List[Message], tools: List[BaseTool] = None, **kwargs) -> ActionMessage | None:
+    def chat(self, messages: List[Message], tools: List[BaseTool] = None, **kwargs) -> Message | None:
         for i in range(self.max_retries):
             try:
-                # Attempt to execute the chat logic
                 return self._chat(messages, tools, **kwargs)
 
             except Exception as e:
-                # Log exceptions during the chat process
                 logger.exception(f"chat with model={self.model_name} encounter error with e={e.args}")
                 time.sleep(1 + i)
 
-                # If the maximum number of retries is reached and raise_exception is set to True, then re-throw the exception
                 if i == self.max_retries - 1 and self.raise_exception:
                     raise e
 

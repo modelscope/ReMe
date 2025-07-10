@@ -1,12 +1,13 @@
-from abc import abstractmethod, ABC
+from abc import abstractmethod, ABCMeta
 
 from loguru import logger
 
+from v1.op.prompt_mixin import PromptMixin
 from v1.pipeline.pipeline_context import PipelineContext
 from v1.utils.timer import Timer
 
 
-class BaseOp(ABC):
+class BaseOp(PromptMixin, metaclass=ABCMeta):
 
     def __init__(self, context: PipelineContext, **kwargs):
         super().__init__(**kwargs)

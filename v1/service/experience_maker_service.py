@@ -19,7 +19,7 @@ class ExperienceMakerService:
         self.init_app_config: AppConfig = self.config_parser.get_app_config()
         self.thread_pool = ThreadPoolExecutor(max_workers=self.init_app_config.thread_pool.max_workers)
 
-        # The vectorstore is initialized at the very beginning and then used directly afterwards.
+        # The vectorstore is initialized at the very beginning and then used directly afterward.
         self.vector_store_dict: dict = {}
         for name, config in self.init_app_config.vector_store.items():
             assert config.backend in VECTOR_STORE_REGISTRY, f"backend={config.backend} is not existed"

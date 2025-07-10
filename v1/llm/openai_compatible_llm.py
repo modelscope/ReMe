@@ -1,37 +1,28 @@
 import os
 from typing import List
 
+from dotenv import load_dotenv
 from loguru import logger
 from openai import OpenAI
 from openai.types import CompletionUsage
 from pydantic import Field, PrivateAttr, model_validator
 
-from experiencemaker.enumeration.chunk_enum import ChunkEnum
-from experiencemaker.model.base_llm import BaseLLM, LLM_REGISTRY
-from experiencemaker.schema.trajectory import Message, ActionMessage, ToolCall
-from experiencemaker.tool.base_tool import BaseTool
+from v1.enumeration.chunk_enum import ChunkEnum
+from v1.llm import LLM_REGISTRY
+from v1.llm.base_llm import BaseLLM
+from v1.schema.message import Message, ToolCall
+from v1.tool.base_tool import BaseTool
 
 
 @LLM_REGISTRY.register("openai_compatible")
 class OpenAICompatibleBaseLLM(BaseLLM):
-    model_name: str = Field(default="qwen3-32b")
-    api_key: str = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY"), description="api key")
-    base_url: str = Field(default_factory=lambda: os.getenv("OPENAI_BASE_URL"), description="base url")
+    model_name: str = Field(default="")
+    api_key: str = Field(default_factory=lambda: os.getenv("LLM_API_KEY"), description="api key")
+    base_url: str = Field(default_factory=lambda: os.getenv("LLM_BASE_URL"), description="base url")
     _client: OpenAI = PrivateAttr()
 
     @model_validator(mode="after")
     def init_client(self):
-        """
-        Initialize the OpenAI client after model validation.
-
-        This method is called after the model's data has been validated,
-        ensuring that all necessary attributes are correctly set before
-        initializing the OpenAI client. It creates an instance of the OpenAI
-        client using the provided API key and base URL, storing it in the
-
-        Returns:
-            self: Returns the instance of the current class for method chaining.
-        """
         self._client = OpenAI(api_key=self.api_key, base_url=self.base_url)
         return self
 
@@ -40,14 +31,14 @@ class OpenAICompatibleBaseLLM(BaseLLM):
             try:
                 completion = self._client.chat.completions.create(
                     model=self.model_name,
-                    messages=[x.simple_dict for x in messages],
+                    messages=[x.simple_dump() for x in messages],
                     seed=self.seed,
                     top_p=self.top_p,
                     stream=True,
                     stream_options=self.stream_options,
                     temperature=self.temperature,
                     extra_body={"enable_thinking": self.enable_thinking},
-                    tools=[x.simple_dict for x in tools] if tools else None,
+                    tools=[x.simple_dump() for x in tools] if tools else None,
                     tool_choice=self.tool_choice,
                     parallel_tool_calls=self.parallel_tool_calls)
 
@@ -103,7 +94,7 @@ class OpenAICompatibleBaseLLM(BaseLLM):
                 else:
                     yield e.args, ChunkEnum.ERROR
 
-    def _chat(self, messages: List[Message], tools: List[BaseTool] = None, **kwargs) -> ActionMessage:
+    def _chat(self, messages: List[Message], tools: List[BaseTool] = None, **kwargs) -> Message:
         reasoning_content = ""
         answer_content = ""
         tool_calls = []
@@ -118,9 +109,7 @@ class OpenAICompatibleBaseLLM(BaseLLM):
             elif chunk_enum is ChunkEnum.TOOL:
                 tool_calls.append(chunk)
 
-        return ActionMessage(reasoning_content=reasoning_content,
-                             content=answer_content,
-                             tool_calls=tool_calls)
+        return Message(reasoning_content=reasoning_content, content=answer_content, tool_calls=tool_calls)
 
     def stream_print(self, messages: List[Message], tools: List[BaseTool] = None, **kwargs):
         enter_think = False
@@ -154,14 +143,12 @@ class OpenAICompatibleBaseLLM(BaseLLM):
 
 
 def main():
-    from experiencemaker.utils.util_function import load_env_keys
-    from experiencemaker.tool.dashscope_search_tool import DashscopeSearchTool
-    from experiencemaker.tool.code_tool import CodeTool
-    from experiencemaker.enumeration.role import Role
+    from v1.tool.dashscope_search_tool import DashscopeSearchTool
+    from v1.tool.code_tool import CodeTool
+    from v1.enumeration.role import Role
 
-    load_env_keys()
+    load_dotenv()
     model_name = "qwen-max-2025-01-25"
-    # model_name = "qwen3-32b"
     llm = OpenAICompatibleBaseLLM(model_name=model_name)
     tools: List[BaseTool] = [DashscopeSearchTool(), CodeTool()]
 

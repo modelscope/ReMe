@@ -17,28 +17,12 @@ class BaseEmbeddingModel(BaseModel, ABC):
         raise NotImplementedError
 
     def get_embeddings(self, input_text: str | List[str]):
-        """
-        Retrieves embeddings for the input text.
-
-        This function attempts to obtain embeddings for the given input text. It will retry a maximum number of times in case of failure.
-
-        Parameters:
-        - input_text (str | List[str]): The input text, which can be a single string or a list of strings.
-
-        Returns:
-        - embeddings: The embeddings for the input text. Returns None if the maximum number of retries is reached and no successful result is obtained.
-        """
-        # Attempt to get embeddings, with a maximum number of retries set
         for i in range(self.max_retries):
             try:
-                # Attempt to get embeddings, return immediately if successful
                 return self._get_embeddings(input_text)
 
             except Exception as e:
-                # Log exception information when an error occurs
                 logger.exception(f"embedding model name={self.model_name} encounter error with e={e.args}")
-
-                # If the maximum number of retries is reached and raise_exception is set to True, re-throw the exception
                 if i == self.max_retries - 1 and self.raise_exception:
                     raise e
 

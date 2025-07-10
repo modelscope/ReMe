@@ -1,17 +1,13 @@
 import json
 from pathlib import Path
-from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field, PrivateAttr
 
 
-class FileHandler(BaseModel):
-    file_path: str | Path = Field(default=...)
-    _obj: Any = PrivateAttr()
+class FileHandler:
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, file_path: str | Path):
+        self.file_path: Path = Path(file_path)
         suffix = Path(self.file_path).suffix
         if suffix == ".json":
             self._obj = json

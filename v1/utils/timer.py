@@ -1,5 +1,4 @@
 import time
-from typing import Optional
 
 from loguru import logger
 
@@ -16,7 +15,7 @@ class Timer(object):
 
     def __enter__(self, *args, **kwargs):
         self.time_start = time.time()
-        logger.info(f"========== {self.name} start ==========", stacklevel=self.stack_level)
+        logger.info(f"---------- enter {self.name} ----------", stacklevel=self.stack_level)
         return self
 
     def __exit__(self, *args):
@@ -27,7 +26,7 @@ class Timer(object):
         else:
             time_str = f"{self.time_cost:.3f}s"
 
-        logger.info(f"========== {self.name} end, time_cost={time_str} ==========", stacklevel=self.stack_level)
+        logger.info(f"---------- leave {self.name} [{time_str}] ----------", stacklevel=self.stack_level)
 
 
 def timer(name: str = None, use_ms: bool = False, stack_level: int = 2):

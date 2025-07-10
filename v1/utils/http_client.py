@@ -6,7 +6,7 @@ import requests
 from loguru import logger
 from pydantic import BaseModel, Field, PrivateAttr, model_validator
 
-from experiencemaker.enumeration.http_enum import HttpEnum
+from v1.enumeration.http_enum import HttpEnum
 
 
 class HttpClient(BaseModel):

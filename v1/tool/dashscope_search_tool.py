@@ -3,10 +3,11 @@ from typing import Literal
 
 import dashscope
 from dashscope.api_entities.dashscope_response import Message
+from dotenv import load_dotenv
 from loguru import logger
 from pydantic import Field
 
-from experiencemaker.tool.base_tool import BaseTool
+from v1.tool.base_tool import BaseTool
 
 
 class DashscopeSearchTool(BaseTool):
@@ -142,8 +143,7 @@ Extract the original content related to the user's question directly from the co
 
 
 def main():
-    from experiencemaker.utils.util_function import load_env_keys
-    load_env_keys()
+    load_dotenv()
     query = "What is artificial intelligence?"
 
     tool = DashscopeSearchTool(stream_print=True)
