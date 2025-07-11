@@ -1,5 +1,7 @@
 from typing import List
 
+from loguru import logger
+
 from experiencemaker.op import OP_REGISTRY
 from experiencemaker.op.base_op import BaseOp
 from experiencemaker.schema.experience import BaseExperience
@@ -22,7 +24,8 @@ class MergeExperienceOp(BaseOp):
                 continue
 
             content_collector.append(f"- when_to_use: {experience.when_to_use}\n"
-                                     f"content: {experience.experience_content}\n")
+                                     f"content: {experience.content}\n")
         content_collector.append("Please consider the helpful parts from these in answering the question, "
                                  "to make the response more comprehensive and substantial.")
         response.experience_merged = "\n".join(content_collector)
+        logger.info(f"experience_merged={response.experience_merged}")

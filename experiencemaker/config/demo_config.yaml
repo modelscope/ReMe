@@ -7,33 +7,35 @@ http_service:
   limit_concurrency: 64
 
 thread_pool:
-  max_workers: 10
+  max_workers: 64
 
 api:
-  retriever: mock1_op->[mock4_op->mock2_op|mock5_op]->[mock3_op|mock6_op]
-  summarizer: mock1_op->[mock4_op->mock2_op|mock5_op]->mock3_op
-  vector_store: mock6_op
+  retriever: build_query_op->recall_vector_store_op->merge_experience_op
+  summarizer: simple_summary_op->update_vector_store_op
+  vector_store: vector_store_action_op
 
 op:
-  mock1_op:
-    backend: mock1_op
+  build_query_op:
+    backend: build_query_op
     llm: default
+    params:
+      enable_llm_build: false
+  recall_vector_store_op:
+    backend: recall_vector_store_op
     vector_store: default
+  merge_experience_op:
+    backend: merge_experience_op
+  simple_summary_op:
+    backend: simple_summary_op
+    llm: default
     params:
-      a: 1
-      b: 2
-  mock2_op:
-    backend: mock2_op
-    params:
-      a: 1
-  mock3_op:
-    backend: mock3_op
-  mock4_op:
-    backend: mock4_op
-  mock5_op:
-    backend: mock5_op
-  mock6_op:
-    backend: mock6_op
+      success_score_threshold: 0.9
+  update_vector_store_op:
+    backend: update_vector_store_op
+    vector_store: default
+  vector_store_action_op:
+    backend: vector_store_action_op
+    vector_store: default
 
 llm:
   default:
@@ -53,6 +55,3 @@ vector_store:
   default:
     backend: elasticsearch
     embedding_model: default
-    params:
-      hosts: "http://localhost:9200"
-

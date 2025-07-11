@@ -25,5 +25,4 @@ class UpdateVectorStoreOp(BaseOp):
         insert_nodes: List[VectorNode] | None = self.context.get_context(self.INSERT_NODES)
         if insert_nodes:
             self.vector_store.insert(nodes=insert_nodes, workspace_id=request.workspace_id)
-            for node in insert_nodes:
-                logger.info(f"insert insert_node={node.model_dump_json(indent=2)}")
+            logger.info(f"insert insert_node.size={len(insert_nodes)}")

@@ -68,7 +68,7 @@ class Pipeline:
 
             elif isinstance(pipeline, list):
                 parallel_pipeline = [self._parse_sub_pipeline(x) for x in pipeline]
-                for op_list in zip_longest(*parallel_pipeline, fillvalue="-"):
+                for op_list in zip_longest(parallel_pipeline, fillvalue="-"):
                     i += 1
                     logger.info(f"stage{i}: {' | '.join(op_list)}")
 

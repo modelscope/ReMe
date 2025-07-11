@@ -4,9 +4,10 @@ from typing import List
 from loguru import logger
 
 from experiencemaker.config.config_parser import ConfigParser
+from experiencemaker.embedding_model import EMBEDDING_MODEL_REGISTRY
 from experiencemaker.pipeline.pipeline import Pipeline
 from experiencemaker.pipeline.pipeline_context import PipelineContext
-from experiencemaker.schema.app_config import AppConfig, HttpServiceConfig
+from experiencemaker.schema.app_config import AppConfig, HttpServiceConfig, EmbeddingModelConfig
 from experiencemaker.schema.request import SummarizerRequest, RetrieverRequest, VectorStoreRequest, AgentRequest, \
     BaseRequest
 from experiencemaker.schema.response import SummarizerResponse, RetrieverResponse, VectorStoreResponse, AgentResponse, \
@@ -26,7 +27,18 @@ class ExperienceMakerService:
         for name, config in self.init_app_config.vector_store.items():
             assert config.backend in VECTOR_STORE_REGISTRY, f"backend={config.backend} is not existed"
             vector_store_cls = VECTOR_STORE_REGISTRY[config.backend]
-            self.vector_store_dict[name] = vector_store_cls(**config.params)
+
+            assert config.embedding_model in self.init_app_config.embedding_model, \
+                f"embedding_model={config.embedding_model} is not existed"
+            embedding_model_config: EmbeddingModelConfig = self.init_app_config.embedding_model[config.embedding_model]
+
+            assert embedding_model_config.backend in EMBEDDING_MODEL_REGISTRY, \
+                f"embedding_model={embedding_model_config.backend} is not existed"
+            embedding_model_cls = EMBEDDING_MODEL_REGISTRY[embedding_model_config.backend]
+            embedding_model = embedding_model_cls(model_name=embedding_model_config.model_name,
+                                                  **embedding_model_config.params)
+
+            self.vector_store_dict[name] = vector_store_cls(embedding_model=embedding_model, **config.params)
 
     @property
     def http_service_config(self) -> HttpServiceConfig:

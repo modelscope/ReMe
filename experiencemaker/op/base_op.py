@@ -19,6 +19,7 @@ from experiencemaker.vector_store.base_vector_store import BaseVectorStore
 
 
 class BaseOp(PromptMixin, ABC):
+    current_path: str = __file__
 
     def __init__(self, context: PipelineContext, op_config: OpConfig):
         super().__init__()
@@ -39,7 +40,7 @@ class BaseOp(PromptMixin, ABC):
             prompt_file_path = self.op_config.prompt_file_path
         else:
             prompt_name = self.simple_name.replace("_op", "_prompt.yaml")
-            prompt_file_path = Path(__file__).parent / prompt_name
+            prompt_file_path = Path(self.current_path).parent / prompt_name
 
         # Load custom prompts from prompt file
         self.load_prompt_by_file(prompt_file_path=prompt_file_path)
@@ -115,9 +116,5 @@ class BaseOp(PromptMixin, ABC):
             assert vector_store_name in self.context.vector_store_dict, \
                 f"vector_store={vector_store_name} not found in vector_store_dict!"
             self._vector_store = self.context.vector_store_dict[vector_store_name]
-
-        if self._vector_store.embedding_model is None:
-            logger.info(f"set embedding_model for vector_store={self.op_config.vector_store}")
-            self._vector_store.embedding_model = self.embedding_model
 
         return self._vector_store

@@ -29,7 +29,7 @@ class ConfigParser:
         self.app_config = OmegaConf.merge(self.app_config, cli_config)
 
         app_config_dict = OmegaConf.to_container(self.app_config, resolve=True)
-        logger.info(f"app_config_str={json.dumps(app_config_dict, indent=2, ensure_ascii=False)}")
+        logger.info(f"app_config=\n{json.dumps(app_config_dict, indent=2, ensure_ascii=False)}")
 
     def get_app_config(self, **kwargs) -> AppConfig:
         app_config = self.app_config.copy()

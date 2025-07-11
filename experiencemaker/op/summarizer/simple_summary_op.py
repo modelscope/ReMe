@@ -14,10 +14,14 @@ from experiencemaker.utils.op_utils import merge_messages_content
 
 @OP_REGISTRY.register()
 class SimpleSummaryOp(BaseOp):
+    current_path: str = __file__
 
     def summary_trajectory(self, trajectory: Trajectory) -> List[BaseExperience]:
         execution_process = merge_messages_content(trajectory.messages)
-        execution_result = "success" if trajectory.score > 0.9 else "fail"
+        success_score_threshold: float = self.op_params.get("success_score_threshold", 0.9)
+        logger.info(f"success_score_threshold={success_score_threshold}")
+
+        execution_result = "success" if trajectory.score > success_score_threshold else "fail"
         summary_prompt = self.prompt_format(prompt_name="summary_prompt",
                                             execution_process=execution_process,
                                             execution_result=execution_result,
@@ -29,7 +33,7 @@ class SimpleSummaryOp(BaseOp):
             try:
                 content = content.split("```")[1].strip()
                 if content.startswith("json"):
-                    content.strip("json")
+                    content = content.strip("json")
 
                 for exp_dict in json.loads(content):
                     when_to_use = exp_dict.get("when_to_use", "").strip()
@@ -51,13 +55,7 @@ class SimpleSummaryOp(BaseOp):
     def execute(self):
         request: SummarizerRequest = self.context.request
         for trajectory in request.traj_list:
-            execution_process = merge_messages_content(trajectory.messages)
-            execution_result = "success" if trajectory.score > 0.9 else "fail"
-            summary_prompt = self.prompt_format(prompt_name="summary_prompt",
-                                                execution_process=execution_process,
-                                                execution_result=execution_result,
-                                                summary_example=self.get_prompt("summary_example"))
-            self.submit_task(self.llm.chat, messages=[Message(content=summary_prompt)])
+            self.submit_task(self.summary_trajectory, trajectory=trajectory)
 
         experience_list: List[BaseExperience] = []
         for task_result in self.join_task():
@@ -67,7 +65,7 @@ class SimpleSummaryOp(BaseOp):
         response: SummarizerResponse = self.context.response
         response.experience_list = experience_list
         for e in experience_list:
-            logger.info(f"add experience {e.when_to_use}\n{e.content}")
+            logger.info(f"add experience when_to_use={e.when_to_use}\ncontent={e.content}")
 
-        from experiencemaker.op.summarizer.insert_database_op import InsertDatabaseOp
-        self.context.set_context(InsertDatabaseOp.INSERT_NODES, [x.to_vector_node() for x in experience_list])
+        from experiencemaker.op.vector_store.update_vector_store_op import UpdateVectorStoreOp
+        self.context.set_context(UpdateVectorStoreOp.INSERT_NODES, [x.to_vector_node() for x in experience_list])

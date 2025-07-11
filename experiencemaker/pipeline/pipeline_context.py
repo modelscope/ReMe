@@ -2,8 +2,6 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Dict
 
 from experiencemaker.schema.app_config import AppConfig
-from experiencemaker.schema.request import BaseRequest
-from experiencemaker.schema.response import BaseResponse
 from experiencemaker.vector_store.base_vector_store import BaseVectorStore
 
 

@@ -8,7 +8,7 @@ from experiencemaker.utils.op_utils import merge_messages_content
 
 @OP_REGISTRY.register()
 class BuildQueryOp(BaseOp):
-    RETRIEVE_QUERY = "retrieve_query"
+    current_path: str = __file__
 
     def execute(self):
         request: RetrieverRequest = self.context.request
@@ -28,4 +28,5 @@ class BuildQueryOp(BaseOp):
 
         logger.info(f"build.query={query}")
 
-        self.context.set_context(self.RETRIEVE_QUERY, query)
+        from experiencemaker.op.vector_store.recall_vector_store_op import RecallVectorStoreOp
+        self.context.set_context(RecallVectorStoreOp.SEARCH_QUERY, query)

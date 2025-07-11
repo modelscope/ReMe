@@ -1,5 +1,6 @@
 from pydantic import Field
 
+from experiencemaker.schema.message import Trajectory, Message
 from experiencemaker.schema.request import RetrieverRequest, SummarizerRequest, VectorStoreRequest, AgentRequest
 from experiencemaker.schema.response import RetrieverResponse, SummarizerResponse, VectorStoreResponse, AgentResponse
 from experiencemaker.utils.http_client import HttpClient
@@ -27,5 +28,10 @@ class ExperienceMakerClient(HttpClient):
 
 if __name__ == "__main__":
     client = ExperienceMakerClient(base_url="http://0.0.0.0:8001")
-    response = client.call_retriever(RetrieverRequest(workspace_id="123", query="hello world"))
+    workspace_id = "t123"
+    response = client.call_summarizer(
+        SummarizerRequest(workspace_id=workspace_id,
+                          traj_list=[Trajectory(messages=[Message(content="hello world!")])]))
+    print(response.model_dump())
+    response = client.call_retriever(RetrieverRequest(workspace_id=workspace_id, query="hello world"))
     print(response.model_dump())
