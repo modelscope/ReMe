@@ -1,6 +1,6 @@
 import time
 from abc import ABC
-from typing import List, Literal
+from typing import List, Literal, Callable
 
 from loguru import logger
 from pydantic import Field, BaseModel
@@ -35,10 +35,14 @@ class BaseLLM(BaseModel, ABC):
     def _chat(self, messages: List[Message], tools: List[BaseTool] = None, **kwargs) -> Message:
         raise NotImplementedError
 
-    def chat(self, messages: List[Message], tools: List[BaseTool] = None, **kwargs) -> Message | None:
+    def chat(self, messages: List[Message], tools: List[BaseTool] = None, callback_fn: Callable = None, **kwargs):
         for i in range(self.max_retries):
             try:
-                return self._chat(messages, tools, **kwargs)
+                message: Message = self._chat(messages, tools, **kwargs)
+                if callback_fn:
+                    return callback_fn(message)
+                else:
+                    return message
 
             except Exception as e:
                 logger.exception(f"chat with model={self.model_name} encounter error with e={e.args}")

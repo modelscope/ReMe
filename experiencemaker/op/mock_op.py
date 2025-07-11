@@ -8,15 +8,11 @@ from experiencemaker.op.base_op import BaseOp
 
 @OP_REGISTRY.register()
 class Mock1Op(BaseOp):
-
-    def __init__(self, a: int = 1, b: str = "2", **kwargs):
-        super().__init__(**kwargs)
-        self.a = a
-        self.b = b
-
     def execute(self):
-        time.sleep(3)
-        logger.info(f"enter class={self.__class__.__name__}. a={self.a} b={self.b}")
+        time.sleep(1)
+        a: int = self.op_params["a"]
+        b: str = self.op_params["b"]
+        logger.info(f"enter class={self.__class__.__name__}. a={a} b={b}")
 
 
 @OP_REGISTRY.register()

@@ -1,7 +1,10 @@
 from abc import abstractmethod, ABC
+from concurrent.futures import Future
 from pathlib import Path
+from typing import List
 
 from loguru import logger
+from tqdm import tqdm
 
 from experiencemaker.embedding_model import EMBEDDING_MODEL_REGISTRY
 from experiencemaker.embedding_model.base_embedding_model import BaseEmbeddingModel
@@ -29,11 +32,13 @@ class BaseOp(PromptMixin, ABC):
         self._embedding_model: BaseEmbeddingModel | None = None
         self._vector_store: BaseVectorStore | None = None
 
+        self.task_list: List[Future] = []
+
     def _prepare_prompt(self):
         if self.op_config.prompt_file_path:
             prompt_file_path = self.op_config.prompt_file_path
         else:
-            prompt_name = self.simple_name.replace("op", "").strip("_") + "_prompt.yaml"
+            prompt_name = self.simple_name.replace("_op", "_prompt.yaml")
             prompt_file_path = Path(__file__).parent / prompt_name
 
         # Load custom prompts from prompt file
@@ -61,6 +66,18 @@ class BaseOp(PromptMixin, ABC):
 
         except Exception as e:
             logger.exception(f"op={self.simple_name} execute failed, error={e.args}")
+
+    def submit_task(self, fn, *args, **kwargs):
+        task = self.context.thread_pool.submit(fn, *args, **kwargs)
+        self.task_list.append(task)
+        return self
+
+    def join_task(self, task_desc: str = None) -> list:
+        result = []
+        for task in tqdm(self.task_list, desc=task_desc or (self.simple_name + ".join_task")):
+            result.append(task.result())
+        self.task_list.clear()
+        return result
 
     @property
     def llm(self) -> BaseLLM:

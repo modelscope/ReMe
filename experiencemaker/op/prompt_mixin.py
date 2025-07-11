@@ -30,7 +30,9 @@ class PromptMixin:
         for key, value in prompt_dict.items():
             if isinstance(value, str):
                 if key in self._prompt_dict:
-                    logger.warning(f"prompt_dict key={key} already exists")
+                    self._prompt_dict[key] = value
+                    logger.warning(f"prompt_dict key={key} overwrite!")
+
                 else:
                     self._prompt_dict[key] = value
                     logger.info(f"add prompt_dict key={key}")
@@ -67,3 +69,6 @@ class PromptMixin:
             prompt = prompt.format(**other_kwargs)
 
         return prompt
+
+    def get_prompt(self, key: str):
+        return self._prompt_dict[key]

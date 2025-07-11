@@ -1,67 +1,73 @@
-from pathlib import Path
+import json
 from typing import List
 
 from loguru import logger
-from pydantic import Field
 
-from experiencemaker.enumeration.role import Role
-from experiencemaker.module.prompt.prompt_mixin import PromptMixin
-from experiencemaker.module.summarizer.base_summarizer import BaseSummarizer, SUMMARIZER_REGISTRY
-from experiencemaker.schema.experience import Experience
-from experiencemaker.schema.trajectory import Trajectory, Message, ActionMessage
-from experiencemaker.utils.util_function import get_html_match_content
+from experiencemaker.op import OP_REGISTRY
+from experiencemaker.op.base_op import BaseOp
+from experiencemaker.schema.experience import TextExperience, ExperienceMeta, BaseExperience
+from experiencemaker.schema.message import Message, Trajectory
+from experiencemaker.schema.request import SummarizerRequest
+from experiencemaker.schema.response import SummarizerResponse
+from experiencemaker.utils.op_utils import merge_messages_content
 
 
-@SUMMARIZER_REGISTRY.register("simple")
-class SimpleSummarizer(BaseSummarizer, PromptMixin):
-    max_retries: int = Field(default=5, description="max retries")
-    prompt_file_path: Path = Path(__file__).parent / "simple_summarizer_prompt.yaml"
+@OP_REGISTRY.register()
+class SimpleSummaryOp(BaseOp):
 
-    def _extract_trajectory_experience(self, trajectory: Trajectory, workspace_id: str) -> Experience | None:
-        step_content_collector: List[str] = []
+    def summary_trajectory(self, trajectory: Trajectory) -> List[BaseExperience]:
+        execution_process = merge_messages_content(trajectory.messages)
+        execution_result = "success" if trajectory.score > 0.9 else "fail"
+        summary_prompt = self.prompt_format(prompt_name="summary_prompt",
+                                            execution_process=execution_process,
+                                            execution_result=execution_result,
+                                            summary_example=self.get_prompt("summary_example"))
 
-        for step in trajectory.steps:
-            step_index = len(step_content_collector)
+        def parse_content(message: Message):
+            content = message.content
+            experience_list = []
+            try:
+                content = content.split("```")[1].strip()
+                if content.startswith("json"):
+                    content.strip("json")
 
-            if step.role is Role.ASSISTANT:
-                line = f"### step.{step_index} role={step.role.value} content=\n{step.content}\n{step.reasoning_content}\n"
-                if step.tool_calls:
-                    for tool_call in step.tool_calls:
-                        line += f" - tool call={tool_call.name}\n   params={tool_call.arguments}\n"
-                step_content_collector.append(line)
+                for exp_dict in json.loads(content):
+                    when_to_use = exp_dict.get("when_to_use", "").strip()
+                    experience = exp_dict.get("experience", "").strip()
+                    if when_to_use and experience:
+                        experience_list.append(TextExperience(workspace_id=self.context.request.workspace_id,
+                                                              when_to_use=when_to_use,
+                                                              content=experience,
+                                                              metadata=ExperienceMeta(author=self.llm.model_name)))
 
-            elif step.role is Role.USER:
-                line = f"### step.{step_index} role={step.role.value} content=\n{step.content}\n"
-                step_content_collector.append(line)
+                return experience_list
 
-            elif step.role is Role.TOOL:
-                line = f"### step.{step_index} role={step.role.value} tool call result=\n{step.content}\n"
-                step_content_collector.append(line)
+            except Exception as e:
+                logger.exception(f"parse content failed!\n{content}")
+                raise e
 
-        prompt = self.prompt_format(prompt_name="summary_prompt",
-                                    query=trajectory.query,
-                                    execution_process="\n".join(step_content_collector).strip(),
-                                    answer=trajectory.answer)
+        return self.llm.chat(messages=[Message(content=summary_prompt)], callback_fn=parse_content)
 
-        for i in range(self.max_retries):
-            action_message: ActionMessage = self.llm.chat(messages=[Message(content=prompt)])
-            experience_str = get_html_match_content(action_message.content, key="experience")
-            condition_str = get_html_match_content(action_message.content, key="condition")
-            if experience_str and condition_str:
-                return Experience(experience_workspace_id=workspace_id,
-                                  experience_role=self.llm.model_name,
-                                  experience_desc=condition_str,
-                                  experience_content=experience_str)
-            else:
-                logger.warning(f"action_message.content={action_message.content} re.search failed.")
+    def execute(self):
+        request: SummarizerRequest = self.context.request
+        for trajectory in request.traj_list:
+            execution_process = merge_messages_content(trajectory.messages)
+            execution_result = "success" if trajectory.score > 0.9 else "fail"
+            summary_prompt = self.prompt_format(prompt_name="summary_prompt",
+                                                execution_process=execution_process,
+                                                execution_result=execution_result,
+                                                summary_example=self.get_prompt("summary_example"))
+            self.submit_task(self.llm.chat, messages=[Message(content=summary_prompt)])
 
-        return None
+        experience_list: List[BaseExperience] = []
+        for task_result in self.join_task():
+            if task_result:
+                experience_list.extend(task_result)
 
-    def _extract_experiences(self, trajectories: List[Trajectory], workspace_id: str = None,
-                             **kwargs) -> List[Experience]:
-        experiences: List[Experience] = []
-        for trajectory in trajectories:
-            experience: Experience = self._extract_trajectory_experience(trajectory, workspace_id=workspace_id)
-            if experience:
-                experiences.append(experience)
-        return experiences
+        response: SummarizerResponse = self.context.response
+        response.experience_list = experience_list
+        for e in experience_list:
+            logger.info(f"add experience {e.when_to_use}\n{e.content}")
+
+        from experiencemaker.op.summarizer.insert_database_op import InsertDatabaseOp
+        self.context.set_context(InsertDatabaseOp.INSERT_NODES, [x.to_vector_node() for x in experience_list])

@@ -7,8 +7,10 @@ from experiencemaker.config.config_parser import ConfigParser
 from experiencemaker.pipeline.pipeline import Pipeline
 from experiencemaker.pipeline.pipeline_context import PipelineContext
 from experiencemaker.schema.app_config import AppConfig, HttpServiceConfig
-from experiencemaker.schema.request import SummarizerRequest, RetrieverRequest, VectorStoreRequest, AgentRequest, BaseRequest
-from experiencemaker.schema.response import SummarizerResponse, RetrieverResponse, VectorStoreResponse, AgentResponse
+from experiencemaker.schema.request import SummarizerRequest, RetrieverRequest, VectorStoreRequest, AgentRequest, \
+    BaseRequest
+from experiencemaker.schema.response import SummarizerResponse, RetrieverResponse, VectorStoreResponse, AgentResponse, \
+    BaseResponse
 from experiencemaker.vector_store import VECTOR_STORE_REGISTRY
 
 
@@ -30,7 +32,7 @@ class ExperienceMakerService:
     def http_service_config(self) -> HttpServiceConfig:
         return self.init_app_config.http_service
 
-    def __call__(self, api: str, request: dict | BaseRequest) -> dict:
+    def __call__(self, api: str, request: dict | BaseRequest) -> BaseResponse:
         if isinstance(request, dict):
             request = BaseRequest(**request)
         app_config: AppConfig = self.config_parser.get_app_config(**request.config)
@@ -76,4 +78,4 @@ class ExperienceMakerService:
             response.success = False
             response.metadata["error"] = str(e)
 
-        return response.model_dump()
+        return response

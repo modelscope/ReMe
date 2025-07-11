@@ -11,12 +11,13 @@ class BuildQueryOp(BaseOp):
     RETRIEVE_QUERY = "retrieve_query"
 
     def execute(self):
+        # @jiaji
         request: RetrieverRequest = self.context.request
         if request.query:
             query = request.query
 
         elif request.messages:
-            if not self.op_params.get("enable_llm_build"):
+            if self.op_params.get("enable_llm_build") is True:
                 execution_process = merge_messages_content(request.messages)
                 query = self.prompt_format(prompt_name="query_build", execution_process=execution_process)
             else:
