@@ -8,12 +8,12 @@ from experiencemaker.schema.message import Message, Trajectory
 class BaseRequest(BaseModel):
     workspace_id: str = Field(default=...)
     config: dict = Field(default_factory=dict)
-    metadata: dict | None = Field(default=None)
 
 
 class RetrieverRequest(BaseRequest):
     query: str = Field(default="")
     messages: List[Message] = Field(default_factory=list)
+    top_k: int = Field(default=1)
 
 
 class SummarizerRequest(BaseRequest):
@@ -22,6 +22,8 @@ class SummarizerRequest(BaseRequest):
 
 class VectorStoreRequest(BaseRequest):
     action: str = Field(default="")
+    src_workspace_id: str = Field(default="")
+    path: str = Field(default="")
 
 
 class AgentRequest(BaseRequest):

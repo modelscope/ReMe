@@ -12,7 +12,7 @@ class Mock1Op(BaseOp):
         time.sleep(1)
         a: int = self.op_params["a"]
         b: str = self.op_params["b"]
-        logger.info(f"enter class={self.__class__.__name__}. a={a} b={b}")
+        logger.info(f"enter class={self.simple_name}. a={a} b={b}")
 
 
 @OP_REGISTRY.register()

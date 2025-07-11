@@ -9,20 +9,18 @@ from experiencemaker.schema.vector_node import VectorNode
 
 
 @OP_REGISTRY.register()
-class VectorRecallOp(BaseOp):
+class RecallVectorStoreOp(BaseOp):
 
     def execute(self):
         # get query
-        from experiencemaker.op.retriever.build_query_op import BuildQueryOp
-        query = self.context.get_context(BuildQueryOp.RETRIEVE_QUERY)
+        query = self.context.get_context("search_query")
         assert query, "query should be not empty!"
 
         # retrieve from vector store
         request: RetrieverRequest = self.context.request
-        top_k: int = int(request.metadata.get("top_k", 5))
-        nodes: List[VectorNode] = self.vector_store.retrieve_by_query(query=query,
-                                                                      workspace_id=request.workspace_id,
-                                                                      top_k=top_k)
+        nodes: List[VectorNode] = self.vector_store.search(query=query,
+                                                           workspace_id=request.workspace_id,
+                                                           top_k=request.top_k)
 
         # convert to experience, filter duplicate
         experience_list: List[BaseExperience] = []
@@ -36,7 +34,7 @@ class VectorRecallOp(BaseOp):
         # filter by score
         threshold_score: float | None = self.op_params.get("threshold_score", None)
         if threshold_score is not None:
-            experience_list = [e for e in experience_list if e.score >= threshold_score]
+            experience_list = [e for e in experience_list if e.score >= threshold_score or e.score is None]
 
         # set response
         request: RetrieverResponse = self.context.response

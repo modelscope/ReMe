@@ -26,20 +26,20 @@ class FileVectorStore(BaseVectorStore):
         return Path(self.store_dir)
 
     def exist_workspace(self, workspace_id: str, **kwargs) -> bool:
-        return (self.store_path / f"{workspace_id}.jsonl").exists()
+        workspace_path = self.store_path / f"{workspace_id}.jsonl"
+        return workspace_path.exists()
 
-    def _delete_workspace(self, workspace_id: str, **kwargs):
+    def delete_workspace(self, workspace_id: str, **kwargs):
         workspace_path = self.store_path / f"{workspace_id}.jsonl"
         if workspace_path.is_file():
             workspace_path.unlink()
 
-    def _create_workspace(self, workspace_id: str, **kwargs):
+    def create_workspace(self, workspace_id: str, **kwargs):
         self._dump_to_path(nodes=[], workspace_id=workspace_id, path=self.store_path, **kwargs)
 
-    def _iter_workspace_nodes(self, workspace_id: str, max_size: int = 10000, **kwargs) -> Iterable[VectorNode]:
+    def _iter_workspace_nodes(self, workspace_id: str, **kwargs) -> Iterable[VectorNode]:
         for i, node in enumerate(self._load_from_path(path=self.store_path, workspace_id=workspace_id, **kwargs)):
-            if i < max_size:
-                yield node
+            yield node
 
     @staticmethod
     def calculate_similarity(query_vector: List[float], node_vector: List[float]):
@@ -53,7 +53,7 @@ class FileVectorStore(BaseVectorStore):
         norm_v2 = math.sqrt(sum(y ** 2 for y in node_vector))
         return dot_product / (norm_v1 * norm_v2)
 
-    def retrieve_by_query(self, query: str, workspace_id: str, top_k: int = 1, **kwargs) -> List[VectorNode]:
+    def search(self, query: str, workspace_id: str, top_k: int = 1, **kwargs) -> List[VectorNode]:
         query_vector = self.embedding_model.get_embeddings(query)
         nodes: List[VectorNode] = []
         for node in self._load_from_path(path=self.store_path, workspace_id=workspace_id, **kwargs):
@@ -64,9 +64,6 @@ class FileVectorStore(BaseVectorStore):
         return nodes[:top_k]
 
     def insert(self, nodes: VectorNode | List[VectorNode], workspace_id: str, **kwargs):
-        return self.update(nodes=nodes, workspace_id=workspace_id, **kwargs)
-
-    def update(self, nodes: VectorNode | List[VectorNode], workspace_id: str, **kwargs):
         if isinstance(nodes, VectorNode):
             nodes = [nodes]
 
@@ -90,13 +87,28 @@ class FileVectorStore(BaseVectorStore):
         logger.info(f"update workspace_id={workspace_id} nodes.size={len(nodes)} all.size={len(all_node_dict)} "
                     f"update_cnt={update_cnt}")
 
+    def delete(self, node_ids: str | List[str], workspace_id: str, **kwargs):
+        if not self.exist_workspace(workspace_id=workspace_id):
+            logger.warning(f"workspace_id={workspace_id} is not exists!")
+            return
+
+        if isinstance(node_ids, str):
+            node_ids = [node_ids]
+
+        all_nodes: List[VectorNode] = list(self._load_from_path(path=self.store_path, workspace_id=workspace_id))
+        before_size = len(all_nodes)
+        all_nodes = [n for n in all_nodes if n.unique_id not in node_ids]
+        after_size = len(all_nodes)
+
+        self._dump_to_path(nodes=all_nodes, workspace_id=workspace_id, path=self.store_path, **kwargs)
+        logger.info(f"delete workspace_id={workspace_id} before_size={before_size} after_size={after_size}")
+
 
 def main():
-    from experiencemaker.utils.util_function import load_env_keys
-    load_env_keys()
-    load_env_keys("../../.env")
+    from dotenv import load_dotenv
+    load_dotenv()
 
-    embedding_model = OpenAICompatibleEmbeddingModel(dimensions=1024)
+    embedding_model = OpenAICompatibleEmbeddingModel(dimensions=64, model_name="text-embedding-v4")
     workspace_id = "rag_nodes_index"
     client = FileVectorStore(embedding_model=embedding_model)
     client.delete_workspace(workspace_id)
@@ -136,13 +148,13 @@ def main():
     client.insert(sample_nodes, workspace_id)
 
     logger.info("=" * 20)
-    results = client.retrieve_by_query("What is AI?", workspace_id=workspace_id, top_k=5)
+    results = client.search("What is AI?", workspace_id=workspace_id, top_k=5)
     for r in results:
         logger.info(r.model_dump(exclude={"vector"}))
     logger.info("=" * 20)
+    client.dump_workspace(workspace_id)
 
     client.delete_workspace(workspace_id)
-    client.dump_workspace(workspace_id)
 
 
 if __name__ == "__main__":

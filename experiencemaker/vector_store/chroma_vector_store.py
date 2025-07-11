@@ -31,17 +31,17 @@ class ChromaVectorStore(BaseVectorStore):
     def exist_workspace(self, workspace_id: str, **kwargs) -> bool:
         return workspace_id in [c.name for c in self._client.list_collections()]
 
-    def _delete_workspace(self, workspace_id: str, **kwargs):
+    def delete_workspace(self, workspace_id: str, **kwargs):
         self._client.delete_collection(workspace_id)
         if workspace_id in self.collections:
             del self.collections[workspace_id]
 
-    def _create_workspace(self, workspace_id: str, **kwargs):
+    def create_workspace(self, workspace_id: str, **kwargs):
         self.collections[workspace_id] = self._client.get_or_create_collection(workspace_id)
 
-    def _iter_workspace_nodes(self, workspace_id: str, max_size: int = 10000, **kwargs) -> Iterable[VectorNode]:
+    def _iter_workspace_nodes(self, workspace_id: str, **kwargs) -> Iterable[VectorNode]:
         collection: Collection = self._get_collection(workspace_id)
-        results = collection.peek(limit=max_size)
+        results = collection.get()
         for i in range(len(results["ids"])):
             node = VectorNode(workspace_id=workspace_id,
                               unique_id=results["ids"][i],
@@ -49,8 +49,9 @@ class ChromaVectorStore(BaseVectorStore):
                               metadata=results["metadatas"][i])
             yield node
 
-    def retrieve_by_query(self, query: str, workspace_id: str, top_k: int = 1, **kwargs) -> List[VectorNode]:
-        if not self.exist_workspace(workspace_id):
+    def search(self, query: str, workspace_id: str, top_k: int = 1, **kwargs) -> List[VectorNode]:
+        if not self.exist_workspace(workspace_id=workspace_id):
+            logger.warning(f"workspace_id={workspace_id} is not exists!")
             return []
 
         collection: Collection = self._get_collection(workspace_id)
@@ -65,7 +66,10 @@ class ChromaVectorStore(BaseVectorStore):
             nodes.append(node)
         return nodes
 
-    def insert(self, nodes: VectorNode | List[VectorNode], workspace_id: str, refresh: bool = True, **kwargs):
+    def insert(self, nodes: VectorNode | List[VectorNode], workspace_id: str, **kwargs):
+        if not self.exist_workspace(workspace_id=workspace_id):
+            self.create_workspace(workspace_id=workspace_id)
+
         if isinstance(nodes, VectorNode):
             nodes = [nodes]
 
@@ -80,20 +84,23 @@ class ChromaVectorStore(BaseVectorStore):
                        documents=[n.content for n in all_nodes],
                        metadatas=[n.metadata for n in all_nodes])
 
-    def update(self, nodes: VectorNode | List[VectorNode], workspace_id: str, refresh: bool = True, **kwargs):
-        if isinstance(nodes, VectorNode):
-            nodes = [nodes]
+    def delete(self, node_ids: str | List[str], workspace_id: str, **kwargs):
+        if not self.exist_workspace(workspace_id=workspace_id):
+            logger.warning(f"workspace_id={workspace_id} is not exists!")
+            return
+
+        if isinstance(node_ids, str):
+            node_ids = [node_ids]
+
         collection: Collection = self._get_collection(workspace_id)
-        collection.delete(ids=[node.unique_id for node in nodes])
-        self.insert(nodes, workspace_id, refresh=refresh)
+        collection.delete(ids=node_ids)
 
 
 def main():
-    from experiencemaker.utils.util_function import load_env_keys
-    load_env_keys()
-    load_env_keys("../../.env")
+    from dotenv import load_dotenv
+    load_dotenv()
 
-    embedding_model = OpenAICompatibleEmbeddingModel(dimensions=1024)  # OpenAI text-embedding-ada-002的维度
+    embedding_model = OpenAICompatibleEmbeddingModel(dimensions=64, model_name="text-embedding-v4")
     workspace_id = "chroma_test_index"
 
     chroma_store = ChromaVectorStore(
@@ -147,7 +154,7 @@ def main():
     chroma_store.insert(sample_nodes, workspace_id=workspace_id)
 
     logger.info("=" * 20)
-    results = chroma_store.retrieve_by_query("What is AI?", top_k=5, workspace_id=workspace_id)
+    results = chroma_store.search("What is AI?", top_k=5, workspace_id=workspace_id)
     for r in results:
         logger.info(r.model_dump(exclude={"vector"}))
     logger.info("=" * 20)
@@ -162,10 +169,11 @@ def main():
             "updated": True
         }
     )
-    chroma_store.update(node2_update, workspace_id=workspace_id)
+    chroma_store.delete(node2_update.unique_id, workspace_id=workspace_id)
+    chroma_store.insert(node2_update, workspace_id=workspace_id)
 
     logger.info("Updated Result:")
-    results = chroma_store.retrieve_by_query("fish?", top_k=10, workspace_id=workspace_id)
+    results = chroma_store.search("fish?", top_k=10, workspace_id=workspace_id)
     for r in results:
         logger.info(r.model_dump(exclude={"vector"}))
     logger.info("=" * 20)
