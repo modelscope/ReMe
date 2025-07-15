@@ -1,111 +1,67 @@
-# Quick Start
+# ExperienceMaker
 
-## Hello Experience Maker
-Here is a simple user guide for ExperienceMaker.
+## 🌟 What is ExperienceMaker?
+ExperienceMaker provides agents with robust capabilities for experience generation and reuse. 
+By summarizing agents' past trajectories into experiences, it enables these experiences to be applied to subsequent tasks. 
+Through the continuous accumulation of experience, agents can keep learning and progressively become more skilled in performing tasks.
 
-### Step0: Preparation Work
+### Core Features
+- **Experience Generation**: Generate successful or failed experiences by summarizing the agent's historical trajectories.
+- **Experience Reuse**: Apply experiences to new tasks by retrieving them from a vector store, helping the agent improve through practice. During RL training, Experience allows the agent to maintain state information, enabling more efficient rollouts.
+- **Experience Management**: Provides direct management of experiences, such as loading, dumping, clearing historical experiences, and other flexible database operations.
 
-#### Prepare LLM & EMBEDDING_MODEL
-We need to prepare the API services for the LLM and the Embedding model. 
-Since we are using an OpenAI-compatible service, we only need to write the `OPENAI_API_KEY` and `OPENAI_BASE_URL` into the environment.
+### Core Advantages
+- **Ease of Use**: An HTTP POST interface is provided, allowing one-click startup via the command line. Configuration can be quickly updated using configuration files and command-line arguments.
+- **Flexibility**: A rich library of operations is included. By composing atomic ops into pipelines, users can flexibly implement any summarization or retrieval task.
+- **Experience Store**: Ready-to-use out of the box — there's no need for you to manually summarize experiences. You can directly leverage existing, comprehensive experience datasets to greatly enhance your agent’s capabilities.
+
+
+### Framework
+
+💾 VectorStore: MemoryScope is equipped with a vector database (default is *ElasticSearch*) to store all memory fragments recorded in the system.
+
+🔧 Worker Library: MemoryScope atomizes the capabilities of long-term memory into individual workers, including over 20 workers for tasks such as query information filtering, observation extraction, and insight updating.
+
+🛠️ Operation Library: Based on the worker pipeline, it constructs the operations for memory services, realizing key capabilities such as memory retrieval and memory consolidation.
+
+- Memory Retrieval: Upon arrival of a user query, this operation returns the semantically related memory pieces 
+and/or those from the corresponding time if the query involves reference to time.
+- Memory Consolidation: This operation takes in a batch of user queries and returns important user information
+extracted from the queries as consolidated *observations* to be stored in the memory database.
+- Reflection and Re-consolidation: At regular intervals, this operation performs reflection upon newly recorded *observations*
+to form and update *insights*. Then, memory re-consolidation is performed to ensure contradictions and repetitions
+among memory pieces are properly handled.
+
+# install
+
+
+## quick start
+
+
+
+## 💡 Contribute
+
+Contributions are always encouraged!
+
+We highly recommend install pre-commit hooks in this repo before committing pull requests.
+These hooks are small house-keeping scripts executed every time you make a git commit,
+which will take care of the formatting and linting automatically.
 ```shell
-export OPENAI_API_KEY="sk-xxx"
-export OPENAI_BASE_URL="xxx"
+pip install -e .
 ```
 
-#### Prepare Vector Store
-If you want to use vector store, you need to set up a vector database. Don't forget to set up the `ES_HOSTS`.
-- Elasticsearch [quick start](../vector_store/elasticsearch.md)
+Please refer to our [Contribution Guide](./docs/contribution.md) for more details.
 
-#### Prepare Your Own Agent
-Assume you have a runnable agent.
-Here, we use a basic LLM combined with a simple react framework including three tools(code, web_search, terminate) as an example.
-```python
-class YourOwnAgent(...):
-    ...
-    def think(self, **kwargs) -> bool:
-        ...
+## 📖 Citation
 
-    def act(self, **kwargs):
-        ...    
+Reference to cite if you use ExperiperienceMaker in a paper:
 
-    def run(self, query: str):
-        ...
 ```
-
-Here is an [example code](./your_own_agent.py) with [prompt](./your_own_agent_prompt.yaml). To use this simple agent, you will need to set up `DASHSCOPE_API_KEY`.
-```shell
-export DASHSCOPE_API_KEY="sk-xxx"
+@software{ExperiperienceMaker,
+author = {///},
+month = {0715},
+title = {{ExperiperienceMaker}},
+url = {https://github.com/modelscope/ExperiperienceMaker},
+year = {2025}
+}
 ```
-
-### Step1: Start ExperienceMaker Http Service
-- Install dependencies.
-```shell
-pip install .
-```
-
-- We start our context and summary services in `simple` mode. Next, you can use standard HTTP interfaces to call the services.
-```shell
-python -m experiencemaker.em_service \
- --port=8001 \
- --llm='{"backend": "openai_compatible", "model_name": "qwen3-32b", "temperature": 0.6}' \
- --embedding_model='{"backend": "openai_compatible", "model_name": "text-embedding-v4", "dimensions": 1024}' \
- --vector_store='{"backend": "elasticsearch"}' \
- --context_generator='{"backend": "simple"}' \
- --summarizer='{"backend": "simple"}'
-```
-
-- You can also use the more comprehensive StepSummarizer and StepContextGenerator, which provide more fine-grained functionality for processing trajectories (for more comprehensive documentation, see: cookbook/step_agent/readme.md)
-```shell
-python -m experiencemaker.em_service \
---port=8001 \
---llm='{"backend": "openai_compatible", "model_name": "qwen-max-2025-01-25", "temperature": 0.6}' \
---embedding_model='{"backend": "openai_compatible", "model_name": "text-embedding-v4", "dimensions": 1024}' \
---vector_store='{"backend": "elasticsearch"}' \
---agent_wrapper='{"backend": "simple"}' \
---context_generator='{"backend": "step", "enable_llm_rerank": true, "enable_context_rewrite": true, "enable_score_filter": false, "vector_retrieve_top_k": 15, "final_top_k": 5, "min_score_threshold": 0.3}' \
---summarizer='{"backend": "step", "enable_step_segmentation": false, "enable_similar_comparison": false, "enable_experience_validation": true, "max_retries": 3,"max_workers":16}'
-
-# Parameter Description
-
-## StepSummarizer
-### enable_step_segmentation: Segment trajectories into meaningful step sequences
-### enable_similar_comparison: Compare similar sequences between success/failure
-### enable_experience_validation: Validate experience quality before storage
-
-## StepContextGenerator
-### enable_llm_rerank: Rerank retrieved experiences by relevance using LLM
-### enable_context_rewrite: Rewrite context to be more task-specific
-### enable_score_filter: Filter experiences by quality scores
-```
-
-
-### Step2: Enhance Your Own Agent
-
-Call the capabilities of ContextGenerator and Summarizer through `EMClient`.
-
-```python
-from experiencemaker.em_client import EMClient
-
-em_client = EMClient(base_url="http://0.0.0.0:8001")
-```
-
-Assume you have a list of messages generated by an agent; you can use the summarizer to generate experiences from them.
-
-```python
-request = SummarizerRequest(trajectories=[Trajectory(query=query, steps=messages, answer=messages[-1].content, done=True)], workspace_id="w_1234")
-response = em_client.call_summarizer(request)
-for experience in response.experiences:
-    print(experience.model_dump_json())
-```
-
-Assume you have a query; you can use the context generator to generate a new query from the query and the related
-experiences.
-
-```python
-request = ContextGeneratorRequest(trajectory=Trajectory(query=query), retrieve_top_k=1, workspace_id="w_1234")
-response = em_client.call_context_generator(request)
-new_query = f"{response.context_msg.content}\n\nUser Question\n{query}"
-```
-
-The complete code can be found in the implementation of [YourOwnAgentEnhanced](./your_own_agent_enhanced.py).
