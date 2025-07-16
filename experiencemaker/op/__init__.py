@@ -6,6 +6,21 @@ from experiencemaker.op.mock_op import Mock1Op, Mock2Op, Mock3Op, Mock4Op, Mock5
 from experiencemaker.op.retriever.build_query_op import BuildQueryOp
 from experiencemaker.op.retriever.merge_experience_op import MergeExperienceOp
 from experiencemaker.op.summarizer.simple_summary_op import SimpleSummaryOp
+
+from experiencemaker.op.summarizer.trajectory_preprocess_op import TrajectoryPreprocessOp
+from experiencemaker.op.summarizer.comparative_extraction_op import ComparativeExtractionOp
+from experiencemaker.op.summarizer.success_extraction_op import SuccessExtractionOp
+from experiencemaker.op.summarizer.failure_extraction_op import FailureExtractionOp
+from experiencemaker.op.summarizer.experience_validation_op import ExperienceValidationOp
+from experiencemaker.op.summarizer.experience_deduplication_op import ExperienceDeduplicationOp
+from experiencemaker.op.summarizer.experience_validation_op import ExperienceValidationOp
+from experiencemaker.op.summarizer.trajectory_segmentation_op import TrajectorySegmentationOp
+from experiencemaker.op.summarizer.experience_storage_op import ExperienceStorageOp
+
+from experiencemaker.op.retriever.recall_experience_op import RecallExperienceOp
+from experiencemaker.op.retriever.rerank_experience_op import RerankExperienceOp
+from experiencemaker.op.retriever.rewrite_experience_op import RewriteExperienceOp
+
 from experiencemaker.op.vector_store.update_vector_store_op import UpdateVectorStoreOp
 from experiencemaker.op.vector_store.recall_vector_store_op import RecallVectorStoreOp
 from experiencemaker.op.vector_store.vector_store_action_op import VectorStoreActionOp

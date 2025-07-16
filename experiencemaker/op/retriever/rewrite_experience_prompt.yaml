@@ -1,0 +1,77 @@
+experience_rewrite_prompt: |
+  You are an expert AI assistant tasked with rewriting and reorganizing context content to make it more relevant and actionable for the current task.
+  
+  Your task is to take the original context (containing multiple experiences) and rewrite it as a cohesive, task-specific guidance that directly addresses the current situation.
+  
+  REWRITING GUIDELINES:
+  ● RELEVANCE FOCUS: Emphasize the most relevant aspects of each experience. Prioritize the most relevant experiences. Use clear, direct language.
+  ● ACTIONABLE INSIGHTS: Extract specific, actionable guidance. Make the context immediately actionable
+  ● COHERENT NARRATIVE: Create a flowing narrative rather than disconnected tips
+  ● SITUATIONAL AWARENESS: Adapt the guidance to the current situation
+  
+  # Current Task/Query
+  {current_query}
+  
+  # Current Trajectory
+  {current_context}
+  
+  # Original Context Content (Multiple Experiences)
+  {original_context}
+  
+  OUTPUT FORMAT:
+  Provide the rewritten context:
+  ```json
+  {{
+    "rewritten_context": "A cohesive, task-specific context message that reorganizes and adapts the original experiences for the current task. This should be written as a unified guidance rather than separate experience items.",
+  }}
+  ```
+  
+  Guidelines:
+  - Rewrite as a unified, flowing guidance
+  - Adapt terminology and examples to match the current task domain
+  - Consolidate overlapping insights into coherent recommendations
+  - Prioritize experiences most relevant to the current situation
+  - Make the guidance feel custom-written for this specific task
+
+context_generation_prompt: |
+  You are an expert AI assistant tasked with synthesizing retrieved experiences into actionable context for an AI agent.
+  
+  Your task is to create a coherent, actionable context message that helps the agent leverage relevant past experiences.
+  
+  SYNTHESIS GUIDELINES:
+  ● RELEVANCE FOCUS: Emphasize the most relevant aspects of each experience
+  ● ACTIONABLE INSIGHTS: Extract specific, actionable guidance
+  ● COHERENT NARRATIVE: Create a flowing narrative rather than disconnected tips
+  ● SITUATIONAL AWARENESS: Adapt the guidance to the current situation
+  
+  # Current Query/Task
+  {query}
+  
+  # Current Step Info
+  {context}
+  
+  # Retrieved Experiences ({num_experiences} total)
+  {experiences}
+  
+  OUTPUT FORMAT:
+  Create a synthesized context message:
+  ```json
+  {{
+    "context": "A coherent, actionable context message that synthesizes the relevant experiences and provides specific guidance for the current task",
+    "key_insights": [
+      "Key pattern from successful approaches",
+      "Common pitfall to avoid",
+      "Specific technique that worked well"
+    ],
+    "recommended_actions": [
+      "Specific action recommendation based on experiences",
+      "Decision point with recommended choice"
+    ]
+  }}
+  ```
+  
+  Guidelines:
+  - Make the context immediately actionable
+  - Prioritize the most relevant experiences
+  - Use clear, direct language
+  - Focus on practical guidance rather than abstract principles
