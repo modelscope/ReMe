@@ -1,9 +1,11 @@
 import sys
 from io import StringIO
 
+from experiencemaker.tool import TOOL_REGISTRY
 from experiencemaker.tool.base_tool import BaseTool
 
 
+@TOOL_REGISTRY.register()
 class CodeTool(BaseTool):
     name: str = "python_execute"
     description: str = "Execute python code can be used in scenarios such as analysis or calculation, and the final result can be printed using the `print` function."

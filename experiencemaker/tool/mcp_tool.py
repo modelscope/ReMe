@@ -5,9 +5,11 @@ from mcp import ClientSession
 from mcp.client.sse import sse_client
 from pydantic import Field, model_validator
 
+from experiencemaker.tool import TOOL_REGISTRY
 from experiencemaker.tool.base_tool import BaseTool
 
 
+@TOOL_REGISTRY.register()
 class MCPTool(BaseTool):
     server_url: str = Field(..., description="MCP server URL")
     tool_name_list: List[str] = Field(default_factory=list)

@@ -1,5 +1,10 @@
 # ExperienceMaker
 
+
+
+
+
+
 # 🌟 What is ExperienceMaker?
 ExperienceMaker provides agents with robust capabilities for experience generation and reuse. 
 By summarizing agents' past trajectories into experiences, it enables these experiences to be applied to subsequent tasks. 
@@ -38,19 +43,7 @@ pip install .
 pip install experiencemaker
 ```
 
-## quick start
-
-## vector store
-ExperienceMaker is equipped with a vector database. 
-If you just want to try out ExperienceMaker, you can use `backend=local_file` for testing purposes. Please note that this method may become time-consuming when dealing with large amounts of data. You can skip this step.
-If you are planning to deploy ExperienceMaker or expect a significant QPS (queries per second), we recommend using `backend=elasticsearch`.
-To set up [Elasticsearch](https://www.elastic.co/docs/solutions/search/run-elasticsearch-locally) and Kibana locally, run the start-local script in the command line:
-```shell
-curl -fsSL https://elastic.co/start-local | sh
-```
-- Elasticsearch [quick start](../vector_store/elasticsearch.md)
-- chroma
-
+# Quick Start
 
 ## Environment Variables
 ```shell
@@ -59,6 +52,32 @@ export LLM_BASE_URL="xxx"
 export EMBEDDING_MODEL_API_KEY="sk-xxx"
 export EMBEDDING_MODEL_BASE_URL="xxx"
 ```
+If you are using Elasticsearch's vector database, you need to add the following environment variables:
+```shell
+ES_HOSTS=http://0.0.0.0:9200
+```
+
+## Start Service
+```shell
+experiencemaker \
+  llm.default.model_name=qwen-max-2025-01-25 \
+  embedding_model.default.model_name=text-embedding-v4 \
+  vector_store.default.backend=elasticsearch \
+```
+
+### Start Vector Store Service(optional)
+ExperienceMaker is equipped with a vector database. 
+If you just want to try out ExperienceMaker, you can use `backend=local_file` for testing purposes. Please note that this method may become time-consuming when dealing with large amounts of data. You can skip this step.
+If you are planning to deploy ExperienceMaker or expect a significant QPS (queries per second), we recommend using `backend=elasticsearch`.
+To set up [Elasticsearch](https://www.elastic.co/docs/solutions/search/run-elasticsearch-locally) and Kibana locally, run the start-local script in the command line:
+```shell
+curl -fsSL https://elastic.co/start-local | sh
+```
+- Elasticsearch [quick start](./cookbook/)
+- chroma
+
+## Call
+
 
 
 

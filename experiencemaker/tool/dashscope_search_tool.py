@@ -7,9 +7,11 @@ from dotenv import load_dotenv
 from loguru import logger
 from pydantic import Field
 
+from experiencemaker.tool import TOOL_REGISTRY
 from experiencemaker.tool.base_tool import BaseTool
 
 
+@TOOL_REGISTRY.register()
 class DashscopeSearchTool(BaseTool):
     name: str = "web_search"
     description: str = "Use search keywords to retrieve relevant information from the internet. " \

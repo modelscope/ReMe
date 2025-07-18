@@ -8,7 +8,6 @@ from experiencemaker.schema.app_config import AppConfig
 
 
 class ConfigParser:
-    default_config_name: str = "demo_config.yaml"
 
     def __init__(self, args: list):
         # step1: default config
@@ -20,7 +19,8 @@ class ConfigParser:
         if config_path:
             config_path = Path(config_path)
         else:
-            config_path = Path(__file__).parent / self.default_config_name
+            pre_defined_config = cli_config.get("pre_defined_config")
+            config_path = Path(__file__).parent / (pre_defined_config + ".yaml")
         logger.info(f"load config from path={config_path}")
         yaml_config = OmegaConf.load(config_path)
         self.app_config = OmegaConf.merge(self.app_config, yaml_config)

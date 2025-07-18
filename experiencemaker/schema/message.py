@@ -1,5 +1,5 @@
 import json
-from typing import List
+from typing import List, Any
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -39,12 +39,12 @@ class ToolCall(BaseModel):
             "index": self.index,
         }
 
-
 class Message(BaseModel):
     role: Role = Field(default=Role.USER)
     content: str | bytes = Field(default="")
     reasoning_content: str = Field(default="")
     tool_calls: List[ToolCall] = Field(default_factory=list)
+    tool_call_id: str = Field(default="")
     metadata: dict = Field(default_factory=dict)
 
     def simple_dump(self, add_reason_when_empty: bool = True) -> dict:

@@ -7,7 +7,7 @@ from experiencemaker.utils.http_client import HttpClient
 
 
 class ExperienceMakerClient(HttpClient):
-    base_url: str = Field(default=...)
+    base_url: str = Field(default="http://0.0.0.0:8001")
 
     def call_retriever(self, request: RetrieverRequest):
         self.url = self.base_url + "/retriever"
@@ -27,7 +27,7 @@ class ExperienceMakerClient(HttpClient):
 
 
 if __name__ == "__main__":
-    client = ExperienceMakerClient(base_url="http://0.0.0.0:8001")
+    client = ExperienceMakerClient()
     workspace_id = "t123"
     response = client.call_summarizer(
         SummarizerRequest(workspace_id=workspace_id,
