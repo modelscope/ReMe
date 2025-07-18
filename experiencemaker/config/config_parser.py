@@ -15,12 +15,14 @@ class ConfigParser:
 
         # step2: load from config yaml file
         cli_config: DictConfig = OmegaConf.from_dotlist(args)
-        config_path = cli_config.get("config_path")
-        if config_path:
-            config_path = Path(config_path)
+        temp_config: AppConfig = OmegaConf.to_object(OmegaConf.merge(self.app_config, cli_config))
+        if temp_config.config_path:
+            config_path = Path(temp_config.config_path)
         else:
-            pre_defined_config = cli_config.get("pre_defined_config")
-            config_path = Path(__file__).parent / (pre_defined_config + ".yaml")
+            pre_defined_config = temp_config.pre_defined_config
+            if not pre_defined_config.endswith(".yaml"):
+                pre_defined_config += ".yaml"
+            config_path = Path(__file__).parent / pre_defined_config
         logger.info(f"load config from path={config_path}")
         yaml_config = OmegaConf.load(config_path)
         self.app_config = OmegaConf.merge(self.app_config, yaml_config)
