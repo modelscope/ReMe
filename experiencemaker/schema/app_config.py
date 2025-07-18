@@ -57,6 +57,7 @@ class VectorStoreConfig:
 
 @dataclass
 class AppConfig:
+    default_config: str = field(default="demo_config")
     config_path: str = field(default="")
     http_service: HttpServiceConfig = field(default_factory=HttpServiceConfig)
     thread_pool: ThreadPoolConfig = field(default_factory=ThreadPoolConfig)

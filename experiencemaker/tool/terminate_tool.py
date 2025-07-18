@@ -1,6 +1,8 @@
+from experiencemaker.tool import TOOL_REGISTRY
 from experiencemaker.tool.base_tool import BaseTool
 
 
+@TOOL_REGISTRY.register()
 class TerminateTool(BaseTool):
     name: str = "terminate"
     description: str = "If you can answer the user's question based on the context, be sure to use the **terminate** tool."

@@ -13,6 +13,7 @@ api:
   retriever: build_query_op->recall_vector_store_op->merge_experience_op
   summarizer: simple_summary_op->update_vector_store_op
   vector_store: vector_store_action_op
+  agent: react_op
 
 op:
   build_query_op:
@@ -36,11 +37,14 @@ op:
   vector_store_action_op:
     backend: vector_store_action_op
     vector_store: default
+  react_op:
+    backend: react_v1_op
+    llm: default
 
 llm:
   default:
     backend: openai_compatible
-    model_name: qwen3-32b
+    model_name: qwen-max-2025-01-25
     params:
       temperature: 0.6
 

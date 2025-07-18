@@ -6,7 +6,7 @@ from experiencemaker.schema.message import Message, Trajectory
 
 
 class BaseRequest(BaseModel):
-    workspace_id: str = Field(default=...)
+    workspace_id: str = Field(default="default")
     config: dict = Field(default_factory=dict)
 
 
@@ -28,3 +28,5 @@ class VectorStoreRequest(BaseRequest):
 
 class AgentRequest(BaseRequest):
     query: str = Field(default="")
+    messages: List[Message] = Field(default_factory=list)
+
