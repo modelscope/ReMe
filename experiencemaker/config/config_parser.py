@@ -19,7 +19,8 @@ class ConfigParser:
         if config_path:
             config_path = Path(config_path)
         else:
-            config_path = Path(__file__).parent / (AppConfig().default_config + ".yaml")
+            pre_defined_config = cli_config.get("pre_defined_config")
+            config_path = Path(__file__).parent / (pre_defined_config + ".yaml")
         logger.info(f"load config from path={config_path}")
         yaml_config = OmegaConf.load(config_path)
         self.app_config = OmegaConf.merge(self.app_config, yaml_config)
