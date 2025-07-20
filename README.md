@@ -97,9 +97,7 @@ pip install -e .
 Please refer to our [Contribution Guide](./docs/contribution.md) for more details.
 
 ## 📖 Citation
-
-Reference to cite if you use ExperiperienceMaker in a paper:
-
+Reference to cite if you use ExperienceMaker in a paper:
 ```
 @software{ExperiperienceMaker,
 author = {///},

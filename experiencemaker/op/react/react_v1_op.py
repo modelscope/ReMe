@@ -23,28 +23,41 @@ class ReactV1Op(BaseOp):
         response: AgentResponse = self.context.response
 
         max_steps: int = int(self.op_params.get("max_steps", 10))
-        tool_names = self.op_params.get("tool_names", "code_tool,dashscope_search_tool")
+        tool_names = self.op_params.get("tool_names", "code_tool,dashscope_search_tool,terminate_tool")
         tools: List[BaseTool] = [TOOL_REGISTRY[x.strip()]() for x in tool_names.split(",") if x]
         tool_dict: Dict[str, BaseTool] = {x.name: x for x in tools}
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        has_terminate_tool = False
 
-        system_prompt = self.prompt_format(prompt_name="role_prompt",
-                                           time=now_time,
-                                           tools=",".join([x.name for x in tools]))
-        logger.info(f"system_prompt={system_prompt}")
-
-        messages: List[Message] = [
-            Message(role=Role.SYSTEM, content=system_prompt),
-            Message(role=Role.USER, content=request.query)
-        ]
+        user_prompt = self.prompt_format(prompt_name="role_prompt",
+                                         time=now_time,
+                                         tools=",".join([x.name for x in tools]),
+                                         query=request.query)
+        messages: List[Message] = [Message(role=Role.USER, content=user_prompt)]
+        logger.info(f"step.0 user_prompt={user_prompt}")
 
         for i in range(max_steps):
-            assistant_message: Message = self.llm.chat(messages, tools=tools)
+            if has_terminate_tool:
+                assistant_message: Message = self.llm.chat(messages)
+            else:
+                assistant_message: Message = self.llm.chat(messages, tools=tools)
             messages.append(assistant_message)
-            logger.info(f"assistant.{i}.content={assistant_message.content}")
+            logger.info(f"assistant.{i}.reasoning_content={assistant_message.reasoning_content}\n"
+                        f"content={assistant_message.content}\n"
+                        f"tool.size={len(assistant_message.tool_calls)}")
 
-            if not assistant_message.tool_calls:
+            if has_terminate_tool:
                 break
+
+            if "terminate" in assistant_message.content:
+                logger.warning(f"【bugfix】step={i} find terminate content, break.")
+                has_terminate_tool = True
+
+            for tool in assistant_message.tool_calls:
+                if tool.name == "terminate":
+                    has_terminate_tool = True
+                    logger.info(f"step={i} find terminate tool, break.")
+                    break
 
             for j, tool_call in enumerate(assistant_message.tool_calls):
                 logger.info(f"submit step={i} tool_calls.name={tool_call.name} argument_dict={tool_call.argument_dict}")
@@ -55,12 +68,19 @@ class ReactV1Op(BaseOp):
                 self.submit_task(tool_dict[tool_call.name].execute, **tool_call.argument_dict)
                 time.sleep(1)
 
-            for tool_result, tool_call in zip(self.join_task(), assistant_message.tool_calls):
-                logger.info(f"submit step={i} tool_calls.name={tool_call.name} tool_result={tool_result}")
+            if not has_terminate_tool:
+                user_content_list = []
+                for tool_result, tool_call in zip(self.join_task(), assistant_message.tool_calls):
+                    logger.info(f"submit step={i} tool_calls.name={tool_call.name} tool_result={tool_result}")
+                    assert isinstance(tool_result, str)
+                    user_content_list.append(f"<tool_response>\n{tool_result}\n</tool_response>")
+                user_content_list.append(self.prompt_format(prompt_name="next_prompt"))
+                assistant_message.tool_calls.clear()
+                messages.append(Message(role=Role.USER, content="\n".join(user_content_list)))
 
-                assert isinstance(tool_result, str)
-                tool_message = Message(role=Role.TOOL, content=tool_result, tool_call_id=tool_call.id)
-                messages.append(tool_message)
+            else:
+                assistant_message.tool_calls.clear()
+                messages.append(Message(role=Role.USER, content=self.prompt_format(prompt_name="final_prompt")))
 
         response.messages = messages
         response.answer = response.messages[-1].content

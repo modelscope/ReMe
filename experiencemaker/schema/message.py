@@ -1,5 +1,5 @@
 import json
-from typing import List, Any
+from typing import List
 
 from pydantic import BaseModel, Field, model_validator
 
