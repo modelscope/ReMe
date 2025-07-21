@@ -6,7 +6,6 @@ role_prompt: |
   Try calling the same tool multiple times with different parameters to obtain information from various perspectives.
   Please determine the response language based on the language of the user's question.
   
-  # User's Question
   {query}
 
 # write a complete and rigorous report to answer user's questions based on the context.
@@ -19,11 +18,10 @@ next_prompt: |
     Please first provide the reasoning process, then give the tool call name and parameters.
   
   - If the current context is sufficient to answer the user's question, use the **terminate** tool.
-    Please determine the response language based on the language of the user's question.
 
+#   Please determine the response language based on the language of the user's question.
 final_prompt: |
   Please integrate the context and provide a complete answer to the user's question.
-  Please determine the response language based on the language of the user's question.
 
   # User's Question
   {query}

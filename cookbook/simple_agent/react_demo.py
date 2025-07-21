@@ -5,11 +5,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 base_url = "http://0.0.0.0:8001/"
-workspace_id = "test_workspace"
+workspace_id = "test_workspace1"
 
 
 def run_agent(query: str, dump_messages: bool = False):
-    query = "Analyze Xiaomi Corporation"
 
     response = requests.post(url=base_url + "agent", json={"query": query})
     if response.status_code != 200:
@@ -30,7 +29,7 @@ def run_agent(query: str, dump_messages: bool = False):
 
 
 def run_summary(messages: list, dump_experience: bool = True):
-    response = requests.post(url=base_url + "summary", json={
+    response = requests.post(url=base_url + "summarizer", json={
         "workspace_id": workspace_id,
         "traj_list": [
             {"messages": messages, "score": 1.0}
@@ -65,8 +64,8 @@ def run_retriever(query: str):
 
 
 def run_agent_with_experience(query_first: str, query_second: str, dump_experience: bool = True):
-    messages = run_agent(query=query_second)
-    run_summary(messages, dump_experience)
+    # messages = run_agent(query=query_second)
+    # run_summary(messages, dump_experience)
     experience_merged = run_retriever(query_first)
     messages = run_agent(query=f"{experience_merged}\n\nUser Question:\n{query_first}")
     return messages
