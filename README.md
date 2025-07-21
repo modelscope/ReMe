@@ -1,9 +1,22 @@
 # ExperienceMaker
+<p align="center">
+ <img src="cookbook/material/ExperienceMaker.png" alt="ExperienceMakerLogo" width="50%">
+</p>
 
-# 🌟 What is ExperienceMaker?
+[![](https://img.shields.io/badge/python-3.12+-blue)](https://pypi.org/project/experiencemaker/)
+[![](https://img.shields.io/badge/pypi-v0.1.0-blue?logo=pypi)](https://pypi.org/project/experiencemaker/)
+[![](https://img.shields.io/badge/license-Apache--2.0-black)](./LICENSE)
+
+----
+## 📰 News
+- **[2025-08]** We release ExperienceMaker v0.1.0 now, which is also available in [PyPI](https://pypi.org/simple/experiencemaker/)!
+
+----
+## 🌟 What is ExperienceMaker?
 ExperienceMaker provides agents with robust capabilities for experience generation and reuse. 
 By summarizing agents' past trajectories into experiences, it enables these experiences to be applied to subsequent tasks. 
 Through the continuous accumulation of experience, agents can keep learning and progressively become more skilled in performing tasks.
+
 
 ### Core Features
 - **Experience Generation**: Generate successful or failed experiences by summarizing the agent's historical trajectories.
@@ -70,35 +83,74 @@ curl -fsSL https://elastic.co/start-local | sh
 ```
 - Elasticsearch [quick start](./cookbook/)
 - chroma
+-
 
-## Call
+## Call Summarizer Service
+
+```python
+import json
+
+import requests
+
+base_url = "http://0.0.0.0:8001/"
+workspace_id = "test_workspace1"
 
 
+def run_summary(messages: list, dump_experience: bool = True):
+  response = requests.post(url=base_url + "summarizer", json={
+    "workspace_id": workspace_id,
+    "traj_list": [
+      {"messages": messages, "score": 1.0}
+    ]
+  })
 
+  if response.status_code != 200:
+    print(response.text)
+    return
 
-
-
-## 💡 Contribute
-
-Contributions are always encouraged!
-
-We highly recommend install pre-commit hooks in this repo before committing pull requests.
-These hooks are small house-keeping scripts executed every time you make a git commit,
-which will take care of the formatting and linting automatically.
-```shell
-pip install -e .
+  response = response.json()
+  experience_list = response["experience_list"]
+  if dump_experience:
+    with open("experience.jsonl", "w") as f:
+      f.write(json.dumps(experience_list, indent=2, ensure_ascii=False))
 ```
 
-Please refer to our [Contribution Guide](./docs/contribution.md) for more details.
+## Call Summarizer Service
+
+```python
+import requests
+
+base_url = "http://0.0.0.0:8001/"
+workspace_id = "test_workspace1"
+
+
+def run_retriever(query: str):
+  response = requests.post(url=base_url + "retriever", json={
+    "workspace_id": workspace_id,
+    "query": query,
+  })
+
+  if response.status_code != 200:
+    print(response.text)
+    return ""
+
+  response = response.json()
+  experience_merged: str = response["experience_merged"]
+  print(f"experience_merged={experience_merged}")
+  return experience_merged
+```
+
+For more details, please refer to the simple_demo
 
 ## 📖 Citation
-Reference to cite if you use ExperienceMaker in a paper:
+
+Reference to cite if you use `ExperienceMaker` in a paper:
 ```
-@software{ExperiperienceMaker,
-author = {///},
-month = {0715},
-title = {{ExperiperienceMaker}},
+@software{
+title = {ExperiperienceMaker},
+author = {The ExperiperienceMaker Team},
 url = {https://github.com/modelscope/ExperiperienceMaker},
+month = {08},
 year = {2025}
 }
 ```
