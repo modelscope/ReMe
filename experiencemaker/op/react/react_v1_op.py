@@ -41,6 +41,7 @@ class ReactV1Op(BaseOp):
                 assistant_message: Message = self.llm.chat(messages)
             else:
                 assistant_message: Message = self.llm.chat(messages, tools=tools)
+
             messages.append(assistant_message)
             logger.info(f"assistant.{i}.reasoning_content={assistant_message.reasoning_content}\n"
                         f"content={assistant_message.content}\n"
@@ -49,15 +50,15 @@ class ReactV1Op(BaseOp):
             if has_terminate_tool:
                 break
 
-            if "terminate" in assistant_message.content:
-                logger.warning(f"【bugfix】step={i} find terminate content, break.")
-                has_terminate_tool = True
-
             for tool in assistant_message.tool_calls:
                 if tool.name == "terminate":
                     has_terminate_tool = True
                     logger.info(f"step={i} find terminate tool, break.")
                     break
+
+            if not has_terminate_tool and not assistant_message.tool_calls:
+                logger.warning(f"【bugfix】step={i} no tools, break.")
+                has_terminate_tool = True
 
             for j, tool_call in enumerate(assistant_message.tool_calls):
                 logger.info(f"submit step={i} tool_calls.name={tool_call.name} argument_dict={tool_call.argument_dict}")

@@ -1,10 +1,5 @@
 # ExperienceMaker
 
-
-
-
-
-
 # 🌟 What is ExperienceMaker?
 ExperienceMaker provides agents with robust capabilities for experience generation and reuse. 
 By summarizing agents' past trajectories into experiences, it enables these experiences to be applied to subsequent tasks. 

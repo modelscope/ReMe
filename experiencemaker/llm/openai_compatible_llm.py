@@ -8,6 +8,7 @@ from openai.types import CompletionUsage
 from pydantic import Field, PrivateAttr, model_validator
 
 from experiencemaker.enumeration.chunk_enum import ChunkEnum
+from experiencemaker.enumeration.role import Role
 from experiencemaker.llm import LLM_REGISTRY
 from experiencemaker.llm.base_llm import BaseLLM
 from experiencemaker.schema.message import Message, ToolCall
@@ -108,7 +109,10 @@ class OpenAICompatibleBaseLLM(BaseLLM):
             elif chunk_enum is ChunkEnum.TOOL:
                 tool_calls.append(chunk)
 
-        return Message(reasoning_content=reasoning_content, content=answer_content, tool_calls=tool_calls)
+        return Message(role=Role.ASSISTANT,
+                       reasoning_content=reasoning_content,
+                       content=answer_content,
+                       tool_calls=tool_calls)
 
     def stream_print(self, messages: List[Message], tools: List[BaseTool] = None, **kwargs):
         enter_think = False
