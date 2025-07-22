@@ -61,7 +61,6 @@ ExperienceMaker changes this by:
 - **REST API Interface**: Easy integration with existing systems
 - **Modular Pipeline Design**: Compose custom workflows from atomic operations
 - **Flexible Configuration**: YAML files and command-line overrides
-- **Comprehensive Monitoring**: Built-in logging and performance metrics
 
 ### 🏗️ Framework Architecture
 <p align="center">
@@ -95,83 +94,74 @@ simple_summary_op->update_vector_store_op
 
 ## 🛠️ Installation
 
-### Prerequisites
-- Python 3.12+
-- LLM API access (openAI compatible models)
-- Embedding model API access
-
-### Quick Install
+### Option 1: Install from PyPI (Recommended)
 
 ```bash
-# Install from PyPI (recommended)
 pip install experiencemaker
+```
 
-# Or install from source
+### Option 2: Install from Source
+
+```bash
 git clone https://github.com/modelscope/ExperienceMaker.git
 cd ExperienceMaker
 pip install .
 ```
 
----
+## ⚙️ Environment Setup
 
-## ⚡ Quick Start
-
-### 1. Environment Setup
-
-Configure your API credentials:
+Create a `.env` file in your project directory:
 
 ```bash
-# LLM Configuration
-export LLM_API_KEY="your-api-key-here"
-export LLM_BASE_URL="https://xxxx.com/v1"
+# Required: LLM API configuration
+LLM_API_KEY="sk-xxx"
+LLM_BASE_URL="https://xxx.com/v1"
 
-# Embedding Model Configuration  
-export EMBEDDING_MODEL_API_KEY="your-api-key-here"
-export EMBEDDING_MODEL_BASE_URL="https://xxxx.com/v1"
+# Required: Embedding model configuration  
+EMBEDDING_MODEL_API_KEY="sk-xxx"
+EMBEDDING_MODEL_BASE_URL="https://xxx.com/v1"
 
-# Optional: Elasticsearch
-export ES_HOSTS="http://localhost:9200"
+# Optional: Elasticsearch configuration (if using Elasticsearch backend)
+
 ```
 
-### 2. Launch ExperienceMaker Service
+## 🚀 Start the Service
 
-Start with a single command:
-
+For testing, use the `local_file` backend:
 ```bash
 experiencemaker \
-  llm.default.model_name=gpt-4o \
-  embedding_model.default.model_name=text-embedding-3-small \
+  llm.default.model_name=qwen3-32b \
+  embedding_model.default.model_name=text-embedding-v4 \
   vector_store.default.backend=local_file
 ```
-> 📚 **Need Help?** Check our [Services Params Documentation](./doc/service_params.md) for detailed instructions.
+Refer to [Advanced Guide](./doc/advanced_guide.md) for more details.
+This guide covers advanced configuration topics including custom pipelines, operation parameters, and configuration methods.
 
+The service will start on `http://localhost:8001`
 
-### 3. Vector Store Setup(Optional)
-if you want to use Elasticsearch as your vector store, you can follow these steps:
-
+### Elasticsearch Backend
 ```bash
-vector_store.default.backend=elasticsearch
+experiencemaker \
+  llm.default.model_name=qwen3-32b \
+  embedding_model.default.model_name=text-embedding-v4 \
+  vector_store.default.backend=elasticsearch
 ```
 
+**Setup Elasticsearch:**
 ```bash
-# Quick setup (recommended)
+export ES_HOSTS="http://localhost:9200"
+# Quick setup using Elastic's official script
 curl -fsSL https://elastic.co/start-local | sh
-
-# Verify connection
-curl http://localhost:9200/_cluster/health
 ```
+Refer to [Vector Store Setup](./doc/vector_store_setup.md) for more details.
 
-> 📚 **Need Help?** Check our [Vector Store Setup Guide](./doc/vector_store_quick_start.md) for detailed instructions.
-
----
-
-## 🎯 Usage Examples
+## 📝 Your First ExperienceMaker Script
+Here, load_dotenv is used to load environment variables from the .env file, or you can manually export them to the environment. 
+`base_url` is the address of the ExperienceMaker service mentioned above, and workspace_id is the name of the current workspace for storing experiences. 
+Experiences in different workspace_ids are not shared or accessible across workspaces.
 
 ### Call Summarizer Examples
-
 ```python
-import json
-
 import requests
 from dotenv import load_dotenv
 
@@ -180,7 +170,7 @@ base_url = "http://0.0.0.0:8001/"
 workspace_id = "test_workspace"
 
 
-def run_summary(messages: list, dump_experience: bool = True):
+def run_summary(messages: list):
     response = requests.post(url=base_url + "summarizer", json={
         "workspace_id": workspace_id,
         "traj_list": [
@@ -190,9 +180,8 @@ def run_summary(messages: list, dump_experience: bool = True):
 
     response = response.json()
     experience_list = response["experience_list"]
-    if dump_experience:
-        with open("experience.jsonl", "w") as f:
-            f.write(json.dumps(experience_list, indent=2, ensure_ascii=False))
+    for experience in experience_list:
+        print(experience)
 ```
 
 ### Call Retriever Examples
@@ -215,245 +204,90 @@ def run_retriever(query: str):
     response = response.json()
     experience_merged: str = response["experience_merged"]
     print(f"experience_merged={experience_merged}")
-    return experience_merged
 ```
 
-### Vector Store Management
+### Dump Experiences From Vector Store
 
 ```python
-def manage_vector_store(action: str, workspace_id: str, **params):
-    """Comprehensive vector store management"""
-    response = requests.post(
-        f"{BASE_URL}/vector_store",
-        json={
-            "workspace_id": workspace_id,
-            "action": action,
-            **params
-        }
-    )
-    
-    if response.status_code == 200:
-        return response.json()
-    else:
-        print(f"❌ Action '{action}' failed: {response.text}")
-        return None
+import requests
+from dotenv import load_dotenv
 
-# Example operations
-workspace = "production_workspace"
+load_dotenv()
+base_url = "http://0.0.0.0:8001/"
+workspace_id = "test_workspace1"
 
-# Create workspace
-manage_vector_store("create", workspace)
 
-# Check workspace stats
-stats = manage_vector_store("stats", workspace)
-if stats:
-    print(f"Workspace '{workspace}': {stats['total_experiences']} experiences")
-
-# Backup experiences
-manage_vector_store("dump", workspace, path="./backup/experiences.jsonl")
-
-# Restore from backup
-manage_vector_store("load", workspace, path="./backup/experiences.jsonl")
-
-# Clean up workspace
-manage_vector_store("clear", workspace)
+def dump_experience():
+    response = requests.post(url=base_url + "vector_store", json={
+        "workspace_id": workspace_id,
+        "action": "dump",
+        "path": "./",
+    })
+    print(response.json())
 ```
 
-
-### Advanced: Custom Pipeline Configuration
+### Load Experiences To Vector Store
 
 ```python
-# Create custom configuration file
-config = """
-http_service:
-  host: "0.0.0.0"
-  port: 8001
+import requests
+from dotenv import load_dotenv
 
-# Custom retrieval pipeline
-api:
-  retriever: "build_query_op->recall_experience_op->rerank_experience_op->rewrite_experience_op"
-  summarizer: "trajectory_preprocess_op->success_extraction_op->experience_validation_op->experience_storage_op"
+load_dotenv()
+base_url = "http://0.0.0.0:8001/"
+workspace_id = "test_workspace1"
 
-# LLM Configuration
-llm:
-  default:
-    backend: openai_compatible
-    model_name: gpt-4o
-    params:
-      temperature: 0.7
-      max_tokens: 4000
 
-# Embedding Configuration
-embedding_model:
-  default:
-    backend: openai_compatible
-    model_name: text-embedding-3-small
+def load_experience():
+    response = requests.post(url=base_url + "vector_store", json={
+        "workspace_id": "test_workspace1",
+        "action": "load",
+        "path": "./",
+    })
 
-# Vector Store Configuration
-vector_store:
-  default:
-    backend: elasticsearch
-    embedding_model: default
-
-# Operation-specific parameters
-op:
-  recall_experience_op:
-    params:
-      retrieve_top_k: 10
-      query_enhancement: true
-  
-  rerank_experience_op:
-    params:
-      enable_llm_rerank: true
-      top_k: 5
-      min_score_threshold: 0.3
-  
-  experience_validation_op:
-    params:
-      validation_threshold: 0.4
-"""
-
-# Save and use custom configuration
-with open("custom_config.yaml", "w") as f:
-    f.write(config)
-
-# Launch with custom configuration
-# experiencemaker config_path=custom_config.yaml
+    print(response.json())
 ```
 
+Here, we have prepared a [simple react agent](./cookbook/simple_demo/simple_demo.py) to demonstrate how to enhance its
+capabilities by integrating a summarizer and a retriever, thereby achieving better performance.
+---
+
+## Experiment
+
+### Experiment on Appworld
+
+TODO
+
+### Experiment on BFCL-V3
+
+TODO
+
+---
+
+## Future RoadMap
+
+TODO
 
 
 ---
 
-## 🔧 Configuration
+## Ready-made Experience Store
 
-ExperienceMaker offers flexible configuration through YAML files and command-line parameters:
-
-### Configuration Methods
-
-1. **Default Configuration**: Built-in sensible defaults
-2. **YAML Configuration**: Structured configuration files
-3. **Environment Variables**: Runtime configuration
-4. **Command-line Overrides**: Dynamic parameter adjustment
-
-### Key Configuration Areas
-
-| Category | Description | Example |
-|----------|-------------|---------|
-| **HTTP Service** | Server host, port, timeouts | `http_service.port=8080` |
-| **LLM Models** | Model names, parameters, endpoints | `llm.default.model_name=gpt-4o` |
-| **Embedding Models** | Embedding services and dimensions | `embedding_model.default.model_name=text-embedding-3-small` |
-| **Vector Stores** | Backend type, connection settings | `vector_store.default.backend=elasticsearch` |
-| **Operations** | Pipeline configurations, thresholds | `op.rerank_experience_op.params.top_k=5` |
-
-### Example Configuration Commands
-
-```bash
-# Basic setup
-experiencemaker llm.default.model_name=gpt-4o vector_store.default.backend=chroma
-
-# Advanced configuration
-experiencemaker \
-  config_path=my_config.yaml \
-  http_service.port=8002 \
-  op.recall_experience_op.params.retrieve_top_k=15 \
-  op.rerank_experience_op.params.enable_llm_rerank=true \
-  vector_store.default.backend=elasticsearch
-```
-
-> 📖 **Complete Reference**: See our [Configuration Guide](./doc/global_params.md) for all available parameters.
+TODO
 
 ---
 
-## 🏢 Production Deployment
+## 📚 Additional Resources
 
-### Docker Deployment
-
-```dockerfile
-# Dockerfile
-FROM python:3.12-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-RUN pip install .
-
-EXPOSE 8001
-
-CMD ["experiencemaker", "http_service.host=0.0.0.0", "vector_store.default.backend=elasticsearch"]
-```
-
-### Kubernetes Configuration
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: experiencemaker
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: experiencemaker
-  template:
-    metadata:
-      labels:
-        app: experiencemaker
-    spec:
-      containers:
-      - name: experiencemaker
-        image: experiencemaker:latest
-        ports:
-        - containerPort: 8001
-        env:
-        - name: LLM_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: api-keys
-              key: llm-api-key
-        - name: ES_HOSTS
-          value: "http://elasticsearch:9200"
-        command: ["experiencemaker"]
-        args: 
-        - "vector_store.default.backend=elasticsearch"
-        - "http_service.host=0.0.0.0"
-```
-
-### Performance Considerations
-
-- **Elasticsearch**: Recommended for >100K experiences
-- **ChromaDB**: Suitable for <1M experiences  
-- **Load Balancing**: Multiple service instances for high availability
-- **Caching**: Redis for frequently accessed experiences
-- **Monitoring**: Integrate with Prometheus/Grafana
-
----
-
-## 📚 Documentation & Resources
-
-### 📖 **Core Documentation**
-- [📋 Operations Reference](./doc/operations.md) - Complete list of all available operations
-- [⚙️ Configuration Guide](./doc/global_params.md) - Detailed parameter documentation  
-- [🗄️ Vector Store Setup](./doc/vector_store_quick_start.md) - Backend setup instructions
-- [🧪 Quick Start Examples](./cookbook/simple_demo/) - Working code samples
-
-### 🎓 **Learning Resources**
-- [📘 Cookbook Examples](./cookbook/) - Real-world use cases and patterns
-- [🚀 Best Practices](./cookbook/) - Production deployment guidelines
-- [🔧 Troubleshooting](./cookbook/) - Common issues and solutions
-
-### 🔗 **API Reference**
-- **Retriever API**: Experience search and retrieval
-- **Summarizer API**: Trajectory processing and storage
-- **Vector Store API**: Database management operations
-- **Agent API**: ReAct-based agent execution
+- **[Vector Store Setup](./doc/vector_store_setup.md)**: Production deployment guide
+- **[Configuration Guide](./doc/configuration_guide.md)**: Advanced configuration options
+- **[Advanced Guide](./doc/advanced_guide.md)**: custom pipelines, operation parameters, and configuration methods.
+- **[Operations Documentation](./doc/operations_documentation.md)**: Advanced operations configuration
+- **[Example Collection](./cookbook)**: More practical examples
+- **[Future RoadMap](./doc/future_roadmap.md)**: Our future plans
 
 ---
 
 ## 🤝 Contributing
-
 We welcome contributions from the community! Here's how you can help:
 
 ### 🐛 **Report Issues**
@@ -475,66 +309,20 @@ We welcome contributions from the community! Here's how you can help:
 **Getting Started**: Fork the repository, create a feature branch, and submit a pull request. Please follow our coding standards and include tests for new functionality.
 
 ---
-
-## 🎯 Use Cases & Success Stories
-
-### 🤖 **AI Agent Development**
-- **Code Generation Agents**: Learn successful coding patterns and avoid common bugs
-- **Research Assistants**: Build domain expertise through accumulated research experiences  
-- **Customer Support**: Improve response quality using past successful interactions
-
-### 🏢 **Enterprise Applications**
-- **Knowledge Management**: Capture and reuse organizational expertise
-- **Process Automation**: Learn optimal workflows from successful completions
-- **Decision Support**: Leverage historical decision outcomes for better choices
-
-### 📊 **Data Science & Analytics**
-- **Model Development**: Learn from past experimentation results
-- **Feature Engineering**: Reuse successful feature combinations
-- **Pipeline Optimization**: Apply proven processing strategies
-
----
-
 ## 📄 Citation
-
 If you use ExperienceMaker in your research or projects, please cite:
-
 ```bibtex
 @software{ExperienceMaker,
   title = {ExperienceMaker: A Comprehensive Framework for AI Agent Experience Generation and Reuse},
   author = {The ExperienceMaker Team},
   url = {https://github.com/modelscope/ExperienceMaker},
-  month = {January},
+  month = {08},
   year = {2025},
-  note = {Version 0.1.0}
 }
 ```
 
 ---
-
 ## ⚖️ License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](./LICENSE) file for details.
-
 ---
-
-## 🙏 Acknowledgments
-
-ExperienceMaker is built with ❤️ by the team at ModelScope. Special thanks to:
-
-- The open-source community for valuable feedback and contributions
-- Research teams advancing the field of AI agent learning
-- Early adopters providing real-world usage insights
-
----
-
-<p align="center">
-  <strong>Ready to supercharge your AI agents with experience? 🚀</strong><br>
-  <a href="#-installation">Get Started Now</a> · 
-  <a href="./doc/">Read the Docs</a> · 
-  <a href="https://github.com/modelscope/ExperienceMaker">Star on GitHub</a>
-</p>
-
-<p align="center">
-  Made with ❤️ by the <strong>ExperienceMaker Team</strong>
-</p>

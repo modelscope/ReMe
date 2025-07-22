@@ -68,8 +68,13 @@ export ES_HOSTS="http://localhost:9200"
 # Quick setup using Elastic's official script
 curl -fsSL https://elastic.co/start-local | sh
 ```
+Refer to [Vector Store Setup](./doc/vector_store_setup.md) for more details.
+
 
 ## 📝 Your First ExperienceMaker Script
+Here, load_dotenv is used to load environment variables from the .env file, or you can manually export them to the environment. 
+`base_url` is the address of the ExperienceMaker service mentioned above, and workspace_id is the name of the current workspace for storing experiences. 
+Experiences in different workspace_ids are not shared or accessible across workspaces.
 
 ### Call Summarizer Examples
 ```python
@@ -160,13 +165,6 @@ def load_experience():
 
 Here, we have prepared a [simple react agent](../cookbook/simple_demo/simple_demo.py) to demonstrate how to enhance its
 capabilities by integrating a summarizer and a retriever, thereby achieving better performance.
-
-## 📚 Additional Resources
-
-- **[Vector Store Setup](vector_store_setup.md)**: Production deployment guide
-- **[Configuration Guide](configuration_guide.md)**: Advanced configuration options
-- **[Operations Documentation](operations_documentation.md)**: Advanced operations configuration
-- **[Example Collection](../cookbook)**: More practical examples
 
 ## 🐛 Common Issues
 
