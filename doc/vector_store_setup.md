@@ -254,18 +254,4 @@ for result in results:
     print(f"Metadata: {result.metadata}")
 ```
 
-## 📊 Comparison Matrix
-
-| Feature              | FileVectorStore | ChromaVectorStore | EsVectorStore       |
-|----------------------|-----------------|-------------------|---------------------|
-| **Setup Complexity** | ⭐ Very Easy     | ⭐⭐ Easy           | ⭐⭐⭐⭐ Complex        |
-| **Scalability**      | < 10K vectors   | < 1M vectors      | 10M+ vectors        |
-| **Concurrency**      | Single user     | Moderate          | High                |
-| **Persistence**      | JSONL files     | SQLite/DuckDB     | Distributed         |
-| **Filtering**        | Basic           | Advanced          | Enterprise          |
-| **Performance**      | Good for small  | Good for medium   | Excellent for large |
-| **Resource Usage**   | Minimal         | Low-Medium        | High                |
-| **Maintenance**      | None            | Low               | High                |
-| **Production Ready** | ❌               | ⚠️ Limited        | ✅ Yes               |
-
 🎉 This guide provides everything you need to get started with vector stores in ExperienceMaker. Choose the implementation that best fits your use case and scale up as needed! ✨ 

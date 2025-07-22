@@ -23,6 +23,9 @@
 - **[2025-07]** 📚 Complete documentation and quick start guides released
 - **[2025-07]** 🚀 Multi-backend vector store support (Elasticsearch & ChromaDB)
 
+## 📰 What's Next
+TODO
+
 ---
 
 ## 🌟 What is ExperienceMaker?
@@ -35,7 +38,6 @@ ExperienceMaker changes this paradigm by:
 - **🧠 Learning from History**: Automatically extract actionable insights from both successful and failed attempts
 - **🔄 Intelligent Reuse**: Apply relevant past experiences to solve new, similar challenges more effectively
 - **📈 Continuous Improvement**: Build a growing knowledge base that makes agents progressively smarter
-- **⚡ Faster Problem Solving**: Dramatically reduce trial-and-error by leveraging proven strategies
 
 ### ✨ Core Capabilities
 
@@ -49,7 +51,7 @@ ExperienceMaker changes this paradigm by:
 - **Semantic Search**: Find relevant experiences using advanced embedding models and semantic understanding
 - **Context-Aware Ranking**: Prioritize the most applicable experiences for current task contexts
 - **Dynamic Rewriting**: Intelligently adapt past experiences to fit new situations and requirements
-- **Multi-modal Support**: Handle various input types including queries, conversations, and trajectories
+- **Multi-modal Support**: Handle various input types including query, messages
 
 #### 🗄️ **Scalable Experience Management**
 - **Multiple Storage Backends**: Choose from Elasticsearch (production-ready), ChromaDB (development), or file-based storage (testing)
@@ -68,21 +70,13 @@ ExperienceMaker changes this paradigm by:
 </p>
 
 ExperienceMaker follows a modular, production-ready architecture designed for scalability:
-#### �� **API Layer**
+#### ⚙️ **API Layer**
 - **🔍 Retriever API**: Query-based and conversation-based experience retrieval with intelligent matching
 - **📊 Summarizer API**: Trajectory-to-experience conversion and automated storage management
 - **🗄️ Vector Store API**: Database management and workspace operations with full CRUD support
-- **🤖 Agent API**: ReAct-based agent execution enhanced with experience-driven decision making
+
 #### ⚙️ **Processing Pipeline**
-Our atomic operations can be seamlessly composed into powerful processing pipelines:
-**Retrieval Pipeline**:
-```
-build_query_op->recall_vector_store_op->merge_experience_op
-```
-**Summarization Pipeline**:
-```
-simple_summary_op->update_vector_store_op
-```
+Our atomic operations can be seamlessly composed into powerful processing pipelines: custom1_op->custom2_op...
 
 #### 🔌 **Extensible Components**
 - **LLM Integration**: OpenAI-compatible APIs with flexible model switching and provider support
@@ -207,6 +201,7 @@ def run_retriever(query: str):
 ```
 
 ### 💾 Dump Experiences From Vector Store
+Dump the experience with workspace_id from the vector store into the {path}/{workspace_id}.jsonl file.
 
 ```python
 import requests
@@ -227,6 +222,7 @@ def dump_experience():
 ```
 
 ### 📥 Load Experiences To Vector Store
+Load the {path}/{workspace_id}.jsonl file into the vector store, workspace_id={workspace_id}.
 
 ```python
 import requests
@@ -278,7 +274,7 @@ Pre-built experience collections for common domains and use cases are coming soo
 ## 📚 Additional Resources
 
 - **[Vector Store Setup](./doc/vector_store_setup.md)**: Complete production deployment guide
-- **[Configuration Guide](./doc/configuration_guide.md)**: Advanced configuration options and best practices
+- **[Configuration Guide](./doc/configuration_guide.md)**: Describes all available command-line parameters for ExperienceMaker Service
 - **[Advanced Guide](./doc/advanced_guide.md)**: Custom pipelines, operation parameters, and advanced configuration methods
 - **[Operations Documentation](./doc/operations_documentation.md)**: Comprehensive operations configuration reference
 - **[Example Collection](./cookbook)**: Practical examples and use cases
