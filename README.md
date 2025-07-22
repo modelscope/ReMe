@@ -159,6 +159,10 @@ Here's how to get started!
   isolated and cannot access each other.
 
 ### 📊 Call Summarizer Examples
+Batch summarize the trajectory list, where each trajectory consists of a message and a score. 
+- The message is the conversation history.
+- The score represents the rating between 0 and 1, with 0 typically indicating failure and 1 indicating success.
+
 ```python
 import requests
 from dotenv import load_dotenv
@@ -183,6 +187,8 @@ def run_summary(messages: list):
 ```
 
 ### 🔍 Call Retriever Examples
+Retrieve the top_k={top_k} experiences related to {query} in workspace=test_workspace, and finally accept the assembled context. 
+Alternatively, you can also accept the raw experience_list parameter and assemble the context yourself.
 
 ```python
 import requests
@@ -197,6 +203,7 @@ def run_retriever(query: str):
     response = requests.post(url=base_url + "retriever", json={
         "workspace_id": workspace_id,
         "query": query,
+        "top_k": 1,
     })
 
     response = response.json()

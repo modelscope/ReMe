@@ -48,6 +48,7 @@ EMBEDDING_MODEL_BASE_URL="https://xxx.com/v1"
 For testing, use the `local_file` backend:
 ```bash
 experiencemaker \
+  http_service.port=8001 \
   llm.default.model_name=qwen3-32b \
   embedding_model.default.model_name=text-embedding-v4 \
   vector_store.default.backend=local_file
@@ -68,8 +69,7 @@ export ES_HOSTS="http://localhost:9200"
 # Quick setup using Elastic's official script
 curl -fsSL https://elastic.co/start-local | sh
 ```
-Refer to [Vector Store Setup](./doc/vector_store_setup.md) for more details.
-
+📖 **Need Help?** Refer to [Vector Store Setup](./doc/vector_store_setup.md) for comprehensive deployment guidance.
 
 ## 📝 Your First ExperienceMaker Script
 
@@ -81,6 +81,10 @@ Here's how to get started!
   isolated and cannot access each other.
 
 ### Call Summarizer Examples
+Batch summarize the trajectory list, where each trajectory consists of a message and a score. 
+- The message is the conversation history.
+- The score represents the rating between 0 and 1, with 0 typically indicating failure and 1 indicating success.
+
 ```python
 import requests
 from dotenv import load_dotenv
@@ -105,6 +109,8 @@ def run_summary(messages: list):
 ```
 
 ### Call Retriever Examples
+Retrieve the top_k={top_k} experiences related to {query} in workspace=test_workspace, and finally accept the assembled context. 
+Alternatively, you can also accept the raw experience_list parameter and assemble the context yourself.
 
 ```python
 import requests
@@ -127,6 +133,7 @@ def run_retriever(query: str):
 ```
 
 ### Dump Experiences
+Dump the experience with workspace_id from the vector store into the {path}/{workspace_id}.jsonl file.
 
 ```python
 import requests
@@ -147,6 +154,7 @@ def dump_experience():
 ```
 
 ### Load Experiences
+Load the {path}/{workspace_id}.jsonl file into the vector store, workspace_id={workspace_id}.
 
 ```python
 import requests
@@ -167,8 +175,7 @@ def load_experience():
     print(response.json())
 ```
 
-Here, we have prepared a [simple react agent](../cookbook/simple_demo/simple_demo.py) to demonstrate how to enhance its
-capabilities by integrating a summarizer and a retriever, thereby achieving better performance.
+🎭 **Want to See It in Action?** We've prepared a [simple react agent](./cookbook/simple_demo/simple_demo.py) that demonstrates how to enhance agent capabilities by integrating summarizer and retriever components, achieving significantly better performance.
 
 ## 🐛 Common Issues
 
