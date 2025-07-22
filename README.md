@@ -26,7 +26,7 @@
 ---
 
 ## 🌟 What is ExperienceMaker?
-ExperienceMaker is a revolutionary framework that transforms how AI agents learn and improve through **experience-driven intelligence**. 
+ExperienceMaker is a framework that transforms how AI agents learn and improve through **experience-driven intelligence**. 
 By automatically extracting, storing, and intelligently reusing experiences from agent trajectories, it enables continuous learning and progressive skill enhancement.
 
 ### 💡 Why ExperienceMaker?
