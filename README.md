@@ -26,55 +26,55 @@
 ---
 
 ## 🌟 What is ExperienceMaker?
-ExperienceMaker is a framework that revolutionizes how AI agents learn and improve through **experience-driven intelligence**. 
-By automatically extracting, storing, and reusing experiences from agent trajectories, it enables continuous learning and progressive skill enhancement.
+ExperienceMaker is a revolutionary framework that transforms how AI agents learn and improve through **experience-driven intelligence**. 
+By automatically extracting, storing, and intelligently reusing experiences from agent trajectories, it enables continuous learning and progressive skill enhancement.
 
-### 🚀 Why ExperienceMaker?
+### 💡 Why ExperienceMaker?
 Traditional AI agents start from scratch with every new task, wasting valuable learning opportunities. 
-ExperienceMaker changes this by:
-- **🧠 Learning from History**: Automatically extract actionable insights from successful and failed attempts
-- **🔄 Intelligent Reuse**: Apply relevant past experiences to solve new, similar problems
-- **📈 Continuous Improvement**: Build a growing knowledge base that makes agents smarter over time
-- **⚡ Faster Problem Solving**: Reduce trial-and-error by leveraging proven strategies
+ExperienceMaker changes this paradigm by:
+- **🧠 Learning from History**: Automatically extract actionable insights from both successful and failed attempts
+- **🔄 Intelligent Reuse**: Apply relevant past experiences to solve new, similar challenges more effectively
+- **📈 Continuous Improvement**: Build a growing knowledge base that makes agents progressively smarter
+- **⚡ Faster Problem Solving**: Dramatically reduce trial-and-error by leveraging proven strategies
 
 ### ✨ Core Capabilities
 
 #### 🔍 **Intelligent Experience Summarizer**
-- **Success Pattern Recognition**: Identify what works and why
-- **Failure Analysis**: Learn from mistakes to avoid repetition
-- **Comparative Insights**: Understand the difference between successful and failed approaches
-- **Multi-step Trajectory Processing**: Break down complex tasks into learnable segments
+- **Success Pattern Recognition**: Identify what works and understand the underlying principles
+- **Failure Analysis**: Learn from mistakes to avoid repeating them in future tasks
+- **Comparative Insights**: Understand the critical differences between successful and failed approaches
+- **Multi-step Trajectory Processing**: Break down complex tasks into learnable, actionable segments
 
 #### 🎯 **Smart Experience Retriever**
-- **Semantic Search**: Find relevant experiences using advanced embedding models
-- **Context-Aware Ranking**: Prioritize the most applicable experiences for current tasks
-- **Dynamic Rewriting**: Adapt past experiences to fit new contexts
-- **Multi-modal Support**: Handle various input types (queries, conversations, trajectories)
+- **Semantic Search**: Find relevant experiences using advanced embedding models and semantic understanding
+- **Context-Aware Ranking**: Prioritize the most applicable experiences for current task contexts
+- **Dynamic Rewriting**: Intelligently adapt past experiences to fit new situations and requirements
+- **Multi-modal Support**: Handle various input types including queries, conversations, and trajectories
 
 #### 🗄️ **Scalable Experience Management**
-- **Multiple Storage Backends**: Choose from Elasticsearch (production), ChromaDB (development), or file-based (testing)
-- **Workspace Isolation**: Organize experiences by projects, domains, or teams
-- **Deduplication & Validation**: Ensure high-quality, unique experience storage
-- **Batch Operations**: Efficiently handle large-scale experience processing
+- **Multiple Storage Backends**: Choose from Elasticsearch (production-ready), ChromaDB (development), or file-based storage (testing)
+- **Workspace Isolation**: Organize experiences by projects, domains, or teams with complete separation
+- **Deduplication & Validation**: Ensure high-quality, unique experience storage with automated quality control
+- **Batch Operations**: Efficiently handle large-scale experience processing with optimized performance
 
 #### 🔧 **Developer-Friendly Architecture**
-- **REST API Interface**: Easy integration with existing systems
-- **Modular Pipeline Design**: Compose custom workflows from atomic operations
-- **Flexible Configuration**: YAML files and command-line overrides
+- **REST API Interface**: Seamless integration with existing systems through clean API design
+- **Modular Pipeline Design**: Compose custom workflows from atomic operations with maximum flexibility
+- **Flexible Configuration**: YAML files and command-line overrides for easy customization
 
 ### 🏗️ Framework Architecture
 <p align="center">
  <img src="doc/framework.png" alt="ExperienceMaker Architecture" width="70%">
 </p>
 
-ExperienceMaker follows a modular, scalable architecture designed for production use:
-#### 🌐 **API Layer**
-- **🔍 Retriever API**: Query-based and conversation-based experience retrieval
-- **📊 Summarizer API**: Trajectory-to-experience conversion and storage  
-- **🗄️ Vector Store API**: Database management and workspace operations
-- **🤖 Agent API**: ReAct-based agent execution with experience enhancement
+ExperienceMaker follows a modular, production-ready architecture designed for scalability:
+#### �� **API Layer**
+- **🔍 Retriever API**: Query-based and conversation-based experience retrieval with intelligent matching
+- **📊 Summarizer API**: Trajectory-to-experience conversion and automated storage management
+- **🗄️ Vector Store API**: Database management and workspace operations with full CRUD support
+- **🤖 Agent API**: ReAct-based agent execution enhanced with experience-driven decision making
 #### ⚙️ **Processing Pipeline**
-Our atomic operations can be composed into powerful pipelines:
+Our atomic operations can be seamlessly composed into powerful processing pipelines:
 **Retrieval Pipeline**:
 ```
 build_query_op->recall_vector_store_op->merge_experience_op
@@ -85,10 +85,10 @@ simple_summary_op->update_vector_store_op
 ```
 
 #### 🔌 **Extensible Components**
-- **LLM Integration**: OpenAI-compatible APIs with flexible model switching
-- **Embedding Models**: Pluggable embedding providers for semantic search
-- **Vector Stores**: Multiple backends for different deployment scenarios
-- **Tools & Operators**: Extensible library of processing operations
+- **LLM Integration**: OpenAI-compatible APIs with flexible model switching and provider support
+- **Embedding Models**: Pluggable embedding providers for sophisticated semantic search capabilities
+- **Vector Stores**: Multiple backends optimized for different deployment scenarios and scales
+- **Tools & Operators**: Comprehensive, extensible library of processing operations
 
 ---
 
@@ -125,21 +125,21 @@ EMBEDDING_MODEL_BASE_URL="https://xxx.com/v1"
 
 ```
 
-## 🚀 Start the Service
+## 🚀 Quick Start
 
-For testing, use the `local_file` backend:
+For testing and development, use the `local_file` backend:
 ```bash
 experiencemaker \
+  http_service.port=8001 \
   llm.default.model_name=qwen3-32b \
   embedding_model.default.model_name=text-embedding-v4 \
   vector_store.default.backend=local_file
 ```
-Refer to [Advanced Guide](./doc/advanced_guide.md) for more details.
-This guide covers advanced configuration topics including custom pipelines, operation parameters, and configuration methods.
+💡 **Pro Tip**: Check out our [Advanced Guide](./doc/advanced_guide.md) for detailed configuration topics including custom pipelines, operation parameters, and advanced configuration methods.
 
 The service will start on `http://localhost:8001`
 
-### Elasticsearch Backend
+### 🔍 Production Setup with Elasticsearch Backend
 ```bash
 experiencemaker \
   llm.default.model_name=qwen3-32b \
@@ -153,14 +153,14 @@ export ES_HOSTS="http://localhost:9200"
 # Quick setup using Elastic's official script
 curl -fsSL https://elastic.co/start-local | sh
 ```
-Refer to [Vector Store Setup](./doc/vector_store_setup.md) for more details.
+📖 **Need Help?** Refer to [Vector Store Setup](./doc/vector_store_setup.md) for comprehensive deployment guidance.
 
 ## 📝 Your First ExperienceMaker Script
-Here, load_dotenv is used to load environment variables from the .env file, or you can manually export them to the environment. 
-`base_url` is the address of the ExperienceMaker service mentioned above, and workspace_id is the name of the current workspace for storing experiences. 
-Experiences in different workspace_ids are not shared or accessible across workspaces.
+Here's how to get started! The `load_dotenv()` function loads environment variables from your `.env` file, or you can manually export them. 
+The `base_url` points to your ExperienceMaker service, and `workspace_id` serves as your experience storage namespace. 
+Experiences in different workspaces remain completely isolated and cannot access each other.
 
-### Call Summarizer Examples
+### 📊 Call Summarizer Examples
 ```python
 import requests
 from dotenv import load_dotenv
@@ -184,7 +184,7 @@ def run_summary(messages: list):
         print(experience)
 ```
 
-### Call Retriever Examples
+### 🔍 Call Retriever Examples
 
 ```python
 import requests
@@ -206,7 +206,7 @@ def run_retriever(query: str):
     print(f"experience_merged={experience_merged}")
 ```
 
-### Dump Experiences From Vector Store
+### 💾 Dump Experiences From Vector Store
 
 ```python
 import requests
@@ -226,7 +226,7 @@ def dump_experience():
     print(response.json())
 ```
 
-### Load Experiences To Vector Store
+### 📥 Load Experiences To Vector Store
 
 ```python
 import requests
@@ -247,66 +247,66 @@ def load_experience():
     print(response.json())
 ```
 
-Here, we have prepared a [simple react agent](./cookbook/simple_demo/simple_demo.py) to demonstrate how to enhance its
-capabilities by integrating a summarizer and a retriever, thereby achieving better performance.
----
-
-## Experiment
-
-### Experiment on Appworld
-
-TODO
-
-### Experiment on BFCL-V3
-
-TODO
+🎭 **Want to See It in Action?** We've prepared a [simple react agent](./cookbook/simple_demo/simple_demo.py) that demonstrates how to enhance agent capabilities by integrating summarizer and retriever components, achieving significantly better performance.
 
 ---
 
-## Future RoadMap
+## 🧪 Experiments
 
-TODO
+### 🌍 Experiment on Appworld
 
+Coming Soon! Stay tuned for comprehensive evaluation results.
+
+### 🔧 Experiment on BFCL-V3
+
+Detailed benchmarking results and performance analysis coming soon.
 
 ---
 
-## Ready-made Experience Store
+## 🛣️ Future Roadmap
 
-TODO
+Exciting features and improvements are on the horizon! Check out our detailed [Future Roadmap](./doc/future_roadmap.md) for upcoming enhancements.
+
+---
+
+## 🏪 Ready-made Experience Store
+
+Pre-built experience collections for common domains and use cases are coming soon. This will include ready-to-use experiences for web automation, data processing, API interactions, and more.
 
 ---
 
 ## 📚 Additional Resources
 
-- **[Vector Store Setup](./doc/vector_store_setup.md)**: Production deployment guide
-- **[Configuration Guide](./doc/configuration_guide.md)**: Advanced configuration options
-- **[Advanced Guide](./doc/advanced_guide.md)**: custom pipelines, operation parameters, and configuration methods.
-- **[Operations Documentation](./doc/operations_documentation.md)**: Advanced operations configuration
-- **[Example Collection](./cookbook)**: More practical examples
-- **[Future RoadMap](./doc/future_roadmap.md)**: Our future plans
+- **[Vector Store Setup](./doc/vector_store_setup.md)**: Complete production deployment guide
+- **[Configuration Guide](./doc/configuration_guide.md)**: Advanced configuration options and best practices
+- **[Advanced Guide](./doc/advanced_guide.md)**: Custom pipelines, operation parameters, and advanced configuration methods
+- **[Operations Documentation](./doc/operations_documentation.md)**: Comprehensive operations configuration reference
+- **[Example Collection](./cookbook)**: Practical examples and use cases
+- **[Future RoadMap](./doc/future_roadmap.md)**: Our vision and upcoming features
 
 ---
 
 ## 🤝 Contributing
-We welcome contributions from the community! Here's how you can help:
+We warmly welcome contributions from the community! Here's how you can help make ExperienceMaker even better:
 
 ### 🐛 **Report Issues**
-- Bug reports and feature requests
-- Documentation improvements
-- Performance optimization suggestions
+- Bug reports with detailed reproduction steps
+- Feature requests and enhancement suggestions
+- Documentation improvements and clarifications
+- Performance optimization ideas
 
 ### 💻 **Code Contributions**
-- New operations and tools
-- Backend implementations
-- API enhancements
-- Test coverage improvements
+- New operations and tools development
+- Backend implementations and optimizations
+- API enhancements and new endpoints
+- Test coverage improvements and quality assurance
 
 ### 📝 **Documentation**
-- Usage examples and tutorials
-- Best practices and patterns
-- Translation and localization
+- Usage examples and comprehensive tutorials
+- Best practices guides and design patterns
+- Translation and localization efforts
 
-**Getting Started**: Fork the repository, create a feature branch, and submit a pull request. Please follow our coding standards and include tests for new functionality.
+**Getting Started**: Fork the repository, create a feature branch, and submit a pull request. Please follow our coding standards and include comprehensive tests for new functionality.
 
 ---
 ## 📄 Citation
