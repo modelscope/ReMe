@@ -74,105 +74,80 @@ curl -fsSL https://elastic.co/start-local | sh
 ## 📝 Your First ExperienceMaker Script
 
 Here's how to get started!
-
 - The `load_dotenv()` function loads environment variables from your `.env` file, or you can manually export them.
 - The `base_url` points to your ExperienceMaker service.
 - The `workspace_id` serves as your experience storage namespace. Experiences in different workspaces remain completely
   isolated and cannot access each other.
 
-### Call Summarizer Examples
-Batch summarize the trajectory list, where each trajectory consists of a message and a score. 
+```python
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+base_url = "http://0.0.0.0:8001/"
+workspace_id = "test_workspace"
+```
+
+### 📊 Call Summarizer Examples
+
+Batch summarize the trajectory list, where each trajectory consists of a message and a score.
+
 - The message is the conversation history.
 - The score represents the rating between 0 and 1, with 0 typically indicating failure and 1 indicating success.
 
 ```python
-import requests
-from dotenv import load_dotenv
+response = requests.post(url=base_url + "summarizer", json={
+  "workspace_id": workspace_id,
+  "traj_list": [
+    {"messages": messages, "score": 1.0}
+  ]
+})
 
-load_dotenv()
-base_url = "http://0.0.0.0:8001/"
-workspace_id = "test_workspace"
-
-
-def run_summary(messages: list):
-    response = requests.post(url=base_url + "summarizer", json={
-        "workspace_id": workspace_id,
-        "traj_list": [
-            {"messages": messages, "score": 1.0}
-        ]
-    })
-
-    response = response.json()
-    experience_list = response["experience_list"]
-    for experience in experience_list:
-        print(experience)
+response = response.json()
+experience_list = response["experience_list"]
+for experience in experience_list:
+  print(experience)
 ```
 
-### Call Retriever Examples
+### 🔍 Call Retriever Examples
 Retrieve the top_k={top_k} experiences related to {query} in workspace=test_workspace, and finally accept the assembled context. 
 Alternatively, you can also accept the raw experience_list parameter and assemble the context yourself.
 
 ```python
-import requests
-from dotenv import load_dotenv
+response = requests.post(url=base_url + "retriever", json={
+  "workspace_id": workspace_id,
+  "query": query,
+  "top_k": 1,
+})
 
-load_dotenv()
-base_url = "http://0.0.0.0:8001/"
-workspace_id = "test_workspace"
-
-
-def run_retriever(query: str):
-    response = requests.post(url=base_url + "retriever", json={
-        "workspace_id": workspace_id,
-        "query": query,
-    })
-
-    response = response.json()
-    experience_merged: str = response["experience_merged"]
-    print(f"experience_merged={experience_merged}")
+response = response.json()
+experience_merged: str = response["experience_merged"]
+print(f"experience_merged={experience_merged}")
 ```
 
-### Dump Experiences
+### 💾 Dump Experiences From Vector Store
 Dump the experience with workspace_id from the vector store into the {path}/{workspace_id}.jsonl file.
 
 ```python
-import requests
-from dotenv import load_dotenv
-
-load_dotenv()
-base_url = "http://0.0.0.0:8001/"
-workspace_id = "test_workspace1"
-
-
-def dump_experience():
-    response = requests.post(url=base_url + "vector_store", json={
-        "workspace_id": workspace_id,
-        "action": "dump",
-        "path": "./",
-    })
-    print(response.json())
+response = requests.post(url=base_url + "vector_store", json={
+  "workspace_id": workspace_id,
+  "action": "dump",
+  "path": "./",
+})
+print(response.json())
 ```
 
-### Load Experiences
+### 📥 Load Experiences To Vector Store
 Load the {path}/{workspace_id}.jsonl file into the vector store, workspace_id={workspace_id}.
 
 ```python
-import requests
-from dotenv import load_dotenv
+response = requests.post(url=base_url + "vector_store", json={
+  "workspace_id": "test_workspace1",
+  "action": "load",
+  "path": "./",
+})
 
-load_dotenv()
-base_url = "http://0.0.0.0:8001/"
-workspace_id = "test_workspace1"
-
-
-def load_experience():
-    response = requests.post(url=base_url + "vector_store", json={
-        "workspace_id": "test_workspace2",
-        "action": "load",
-        "path": "./",
-    })
-
-    print(response.json())
+print(response.json())
 ```
 
 🎭 **Want to See It in Action?** We've prepared a [simple react agent](./cookbook/simple_demo/simple_demo.py) that demonstrates how to enhance agent capabilities by integrating summarizer and retriever components, achieving significantly better performance.
