@@ -1,19 +1,14 @@
 # 🚀 Vector Store Quick Start Guide
-
 This comprehensive guide covers all available vector store implementations in ExperienceMaker, their differences, use cases, and setup instructions.
 
 ## 📋 Overview
-
 ExperienceMaker supports multiple vector store backends for different use cases and deployment scenarios:
-
 - **FileVectorStore** (`backend=local_file`) - 📁 Local file-based storage for development and small datasets
 - **ChromaVectorStore** (`backend=chroma`) - 🔮 Embedded vector database for local development and moderate scale
 - **EsVectorStore** (`backend=elasticsearch`) - 🔍 Elasticsearch-based storage for production and large scale
 
 ## ⚡ Vector Store Implementations
-
 ### 1. 📁 FileVectorStore (`backend=local_file`)
-
 A simple file-based vector store that saves data to local JSONL files. Perfect for development, testing, and small datasets.
 
 #### 💡 When to Use
@@ -35,10 +30,7 @@ A simple file-based vector store that saves data to local JSONL files. Perfect f
 from experiencemaker.vector_store import FileVectorStore
 from experiencemaker.embedding_model.openai_compatible_embedding_model import OpenAICompatibleEmbeddingModel
 
-embedding_model = OpenAICompatibleEmbeddingModel(
-    dimensions=1536,
-    model_name="text-embedding-3-small"
-)
+embedding_model = OpenAICompatibleEmbeddingModel(dimensions=1024, model_name="text-embedding-v4")
 
 vector_store = FileVectorStore(
     embedding_model=embedding_model,
@@ -97,10 +89,7 @@ An embedded vector database that provides persistent storage with advanced featu
 from experiencemaker.vector_store import ChromaVectorStore
 from experiencemaker.embedding_model.openai_compatible_embedding_model import OpenAICompatibleEmbeddingModel
 
-embedding_model = OpenAICompatibleEmbeddingModel(
-    dimensions=1536,
-    model_name="text-embedding-3-small"
-)
+embedding_model = OpenAICompatibleEmbeddingModel(dimensions=1024, model_name="text-embedding-v4")
 
 vector_store = ChromaVectorStore(
     embedding_model=embedding_model,
@@ -193,10 +182,7 @@ from experiencemaker.vector_store import EsVectorStore
 from experiencemaker.embedding_model.openai_compatible_embedding_model import OpenAICompatibleEmbeddingModel
 import os
 
-embedding_model = OpenAICompatibleEmbeddingModel(
-    dimensions=1536,
-    model_name="text-embedding-3-small"
-)
+embedding_model = OpenAICompatibleEmbeddingModel(dimensions=1024, model_name="text-embedding-v4")
 
 vector_store = EsVectorStore(
     embedding_model=embedding_model,
@@ -228,7 +214,6 @@ vector_store.clear_filter()
 
 #### 💻 Example Usage
 ```python
-import os
 from experiencemaker.schema.vector_node import VectorNode
 
 # Configure connection
@@ -271,16 +256,16 @@ for result in results:
 
 ## 📊 Comparison Matrix
 
-| Feature | FileVectorStore | ChromaVectorStore | EsVectorStore |
-|---------|----------------|------------------|---------------|
-| **Setup Complexity** | ⭐ Very Easy | ⭐⭐ Easy | ⭐⭐⭐⭐ Complex |
-| **Scalability** | < 10K vectors | < 1M vectors | 10M+ vectors |
-| **Concurrency** | Single user | Moderate | High |
-| **Persistence** | JSONL files | SQLite/DuckDB | Distributed |
-| **Filtering** | Basic | Advanced | Enterprise |
-| **Performance** | Good for small | Good for medium | Excellent for large |
-| **Resource Usage** | Minimal | Low-Medium | High |
-| **Maintenance** | None | Low | High |
-| **Production Ready** | ❌ | ⚠️ Limited | ✅ Yes |
+| Feature              | FileVectorStore | ChromaVectorStore | EsVectorStore       |
+|----------------------|-----------------|-------------------|---------------------|
+| **Setup Complexity** | ⭐ Very Easy     | ⭐⭐ Easy           | ⭐⭐⭐⭐ Complex        |
+| **Scalability**      | < 10K vectors   | < 1M vectors      | 10M+ vectors        |
+| **Concurrency**      | Single user     | Moderate          | High                |
+| **Persistence**      | JSONL files     | SQLite/DuckDB     | Distributed         |
+| **Filtering**        | Basic           | Advanced          | Enterprise          |
+| **Performance**      | Good for small  | Good for medium   | Excellent for large |
+| **Resource Usage**   | Minimal         | Low-Medium        | High                |
+| **Maintenance**      | None            | Low               | High                |
+| **Production Ready** | ❌               | ⚠️ Limited        | ✅ Yes               |
 
 🎉 This guide provides everything you need to get started with vector stores in ExperienceMaker. Choose the implementation that best fits your use case and scale up as needed! ✨ 

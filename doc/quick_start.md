@@ -117,139 +117,56 @@ def run_retriever(query: str):
     print(f"experience_merged={experience_merged}")
 ```
 
-## 🎯 Step-by-Step Walkthrough
-
-### Step 1: Run Your First Agent
-
-```bash
-python demo.py
-```
-
-This will:
-1. Send a query to the agent
-2. Get an analysis of Tesla's business model
-3. Save the conversation messages
-
-### Step 2: Understand the Experience Generation
-
-The agent's conversation will be processed to extract:
-- **Success patterns**: What worked well in the analysis
-- **Key insights**: Important findings and methodologies
-- **Failure cases**: What didn't work or could be improved
-
-### Step 3: Experience Retrieval in Action
-
-When you ask about Apple, the system will:
-1. Search for relevant experiences (Tesla analysis)
-2. Find similar business analysis patterns
-3. Apply learned methodologies to the new query
-
-## 🔧 Advanced Usage
-
-### Custom Workspace Management
+### Dump Experiences
 
 ```python
-def manage_workspace(action: str):
-    """Manage vector store workspace"""
-    response = requests.post(
-        url=f"{base_url}/vector_store",
-        json={
-            "workspace_id": workspace_id,
-            "action": action
-        }
-    )
-    return response.json()
+import requests
+from dotenv import load_dotenv
 
-# Create a new workspace
-manage_workspace("create")
+load_dotenv()
+base_url = "http://0.0.0.0:8001/"
+workspace_id = "test_workspace1"
 
-# Clear all experiences
-manage_workspace("clear")
 
-# Dump experiences to file
-requests.post(
-    url=f"{base_url}/vector_store",
-    json={
+def dump_experience():
+    response = requests.post(url=base_url + "vector_store", json={
         "workspace_id": workspace_id,
         "action": "dump",
-        "path": "./backup/experiences.jsonl"
-    }
-)
+        "path": "./",
+    })
+    print(response.json())
 ```
 
-### Batch Experience Processing
+### Load Experiences
 
 ```python
-def batch_process_experiences(queries: list):
-    """Process multiple queries and build experience base"""
-    all_experiences = []
-    
-    for i, query in enumerate(queries):
-        print(f"Processing query {i+1}/{len(queries)}: {query}")
-        
-        # Run agent
-        messages = run_agent(query)
-        
-        # Generate experiences
-        run_summary(messages, dump_experience=False)
-        
-    print(f"Processed {len(queries)} queries and built experience base")
+import requests
+from dotenv import load_dotenv
 
-# Example: Build experience base for financial analysis
-financial_queries = [
-    "Analyze Tesla's revenue streams",
-    "Evaluate Apple's market position", 
-    "Assess Microsoft's competitive advantages"
-]
+load_dotenv()
+base_url = "http://0.0.0.0:8001/"
+workspace_id = "test_workspace1"
 
-batch_process_experiences(financial_queries)
+
+def load_experience():
+    response = requests.post(url=base_url + "vector_store", json={
+        "workspace_id": "test_workspace2",
+        "action": "load",
+        "path": "./",
+    })
+
+    print(response.json())
 ```
 
-## 🔍 Monitoring and Debugging
-
-### Check Service Status
-
-```python
-def check_service_health():
-    """Check if ExperienceMaker service is running"""
-    try:
-        response = requests.get(f"{base_url}/health")
-        return response.status_code == 200
-    except:
-        return False
-
-if not check_service_health():
-    print("❌ ExperienceMaker service is not running")
-    print("Start it with: experiencemaker vector_store.default.backend=local_file")
-else:
-    print("✅ ExperienceMaker service is running")
-```
-
-### View Generated Files
-
-After running the demo, you'll have:
-
-- `messages.jsonl`: Raw conversation data
-- `experience.jsonl`: Structured experiences extracted from conversations
-
-## 🎉 What's Next?
-
-Now that you have ExperienceMaker running:
-
-1. **Explore Different Domains**: Try queries in different areas (technical analysis, creative writing, problem-solving)
-
-2. **Build Domain-Specific Experience**: Create workspaces for specific use cases
-
-3. **Integration**: Integrate ExperienceMaker into your existing agent workflows
-
-4. **Production Deployment**: Switch to Elasticsearch for production workloads
+Here, we have prepared a [simple react agent](../cookbook/simple_demo/simple_demo.py) to demonstrate how to enhance its
+capabilities by integrating a summarizer and a retriever, thereby achieving better performance.
 
 ## 📚 Additional Resources
 
-- **[Full Documentation](./README.md)**: Complete feature reference
-- **[Vector Store Setup](./doc/vector_store_quick_start.md)**: Production deployment guide  
-- **[Configuration Guide](./doc/global_params.md)**: Advanced configuration options
-- **[Example Collection](./cookbook/)**: More practical examples
+- **[Vector Store Setup](vector_store_setup.md)**: Production deployment guide
+- **[Configuration Guide](configuration_guide.md)**: Advanced configuration options
+- **[Operations Documentation](operations_documentation.md)**: Advanced operations configuration
+- **[Example Collection](../cookbook)**: More practical examples
 
 ## 🐛 Common Issues
 

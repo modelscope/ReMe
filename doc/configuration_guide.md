@@ -1,8 +1,8 @@
 # Services Params Documentation
 
-This document describes all available command-line parameters for ExperienceMaker. The application
-uses [OmegaConf](https://omegaconf.readthedocs.io/) for configuration management, supporting both YAML files and
-command-line overrides.
+This document describes all available command-line parameters for ExperienceMaker Service.
+The application uses [OmegaConf](https://omegaconf.readthedocs.io/) for configuration management, supporting both YAML
+files and command-line overrides.
 
 ## Basic Usage
 
@@ -46,22 +46,21 @@ experiencemaker [parameter1=value1] [parameter2=value2] ...
 | `api.retriever`    | string | `""`          | Pipeline definition for retriever API    | `api.retriever="build_query_op->recall_vector_store_op"`     |
 | `api.summarizer`   | string | `""`          | Pipeline definition for summarizer API   | `api.summarizer="simple_summary_op->update_vector_store_op"` |
 | `api.vector_store` | string | `""`          | Pipeline definition for vector store API | `api.vector_store="vector_store_action_op"`                  |
-| `api.agent`        | string | `""`          | Pipeline definition for agent API        | `api.agent="react_op"`                                       |
 
 ## Operation Configuration
 
 Operations are configured using the pattern `op.{operation_name}.{parameter}`. Each operation can have the following
 parameters:
 
-| Parameter                    | Type   | Default Value | Description                                | Example                                                    |
-|------------------------------|--------|---------------|--------------------------------------------|------------------------------------------------------------|
-| `op.{name}.backend`          | string | `""`          | Backend implementation class name          | `op.build_query_op.backend=build_query_op`                 |
-| `op.{name}.prompt_file_path` | string | `""`          | Path to prompt template file               | `op.react_op.prompt_file_path=/path/to/prompt.yaml`        |
-| `op.{name}.prompt_dict`      | dict   | `{}`          | Direct prompt configuration dictionary     | `op.react_op.prompt_dict.system="You are an AI assistant"` |
-| `op.{name}.llm`              | string | `""`          | Reference to LLM configuration             | `op.react_op.llm=default`                                  |
-| `op.{name}.embedding_model`  | string | `""`          | Reference to embedding model configuration | `op.recall_op.embedding_model=default`                     |
-| `op.{name}.vector_store`     | string | `""`          | Reference to vector store configuration    | `op.recall_op.vector_store=default`                        |
-| `op.{name}.params.{param}`   | any    | `{}`          | Operation-specific parameters              | `op.build_query_op.params.enable_llm_build=false`          |
+| Parameter                    | Type   | Default Value | Description                                | Example                                                                                  |
+|------------------------------|--------|---------------|--------------------------------------------|------------------------------------------------------------------------------------------|
+| `op.{name}.backend`          | string | `""`          | Backend implementation class name          | `op.build_query_op.backend=build_query_op`                                               |
+| `op.{name}.prompt_file_path` | string | `""`          | Path to prompt template file               | `op.react_op.prompt_file_path=/path/to/prompt.yaml`                                      |
+| `op.{name}.prompt_dict`      | dict   | `{}`          | Direct prompt configuration dictionary     | `op.react_op.prompt_dict.system="You are an AI assistant"`                               |
+| `op.{name}.llm`              | string | `""`          | Reference to LLM configuration             | `op.react_op.llm=default`                                                                |
+| `op.{name}.embedding_model`  | string | `""`          | Reference to embedding model configuration | `op.recall_op.embedding_model=default`                                                   |
+| `op.{name}.vector_store`     | string | `""`          | Reference to vector store configuration    | `op.recall_op.vector_store=default`                                                      |
+| `op.{name}.params.{param}`   | any    | `{}`          | Operation-specific parameters              | The parameter reference is in [operations_documentation.md](operations_documentation.md) |
 
 ## LLM Configuration
 
@@ -109,11 +108,11 @@ experiencemaker \
 
 You can also create a YAML configuration file and override specific parameters:
 
-1. Create a custom configuration file (`my_config.yaml`)
+1. Create a custom configuration file (`xxx/my_config.yaml`)
 2. Use it with command-line overrides:
 
 ```bash
-experiencemaker config_path=my_config.yaml llm.default.model_name=qwen3-32b http_service.port=8080
+experiencemaker config_path=xxx/my_config.yaml llm.default.model_name=qwen3-32b http_service.port=8080
 ```
 
 ## Parameter Validation
