@@ -72,9 +72,13 @@ Refer to [Vector Store Setup](./doc/vector_store_setup.md) for more details.
 
 
 ## 📝 Your First ExperienceMaker Script
-Here, load_dotenv is used to load environment variables from the .env file, or you can manually export them to the environment. 
-`base_url` is the address of the ExperienceMaker service mentioned above, and workspace_id is the name of the current workspace for storing experiences. 
-Experiences in different workspace_ids are not shared or accessible across workspaces.
+
+Here's how to get started!
+
+- The `load_dotenv()` function loads environment variables from your `.env` file, or you can manually export them.
+- The `base_url` points to your ExperienceMaker service.
+- The `workspace_id` serves as your experience storage namespace. Experiences in different workspaces remain completely
+  isolated and cannot access each other.
 
 ### Call Summarizer Examples
 ```python

@@ -150,9 +150,13 @@ curl -fsSL https://elastic.co/start-local | sh
 📖 **Need Help?** Refer to [Vector Store Setup](./doc/vector_store_setup.md) for comprehensive deployment guidance.
 
 ## 📝 Your First ExperienceMaker Script
-Here's how to get started! The `load_dotenv()` function loads environment variables from your `.env` file, or you can manually export them. 
-The `base_url` points to your ExperienceMaker service, and `workspace_id` serves as your experience storage namespace. 
-Experiences in different workspaces remain completely isolated and cannot access each other.
+
+Here's how to get started!
+
+- The `load_dotenv()` function loads environment variables from your `.env` file, or you can manually export them.
+- The `base_url` points to your ExperienceMaker service.
+- The `workspace_id` serves as your experience storage namespace. Experiences in different workspaces remain completely
+  isolated and cannot access each other.
 
 ### 📊 Call Summarizer Examples
 ```python
