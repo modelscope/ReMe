@@ -16,3 +16,13 @@
 7. 设计理念 + RoadMAP @jiaji
    1. 金融experience
    2. making tools
+
+
+# 兆洋
+1. bedrock代码扫一下上下文管理
+2. 和亮哥合作 固话sop
+3. Experience列大纲，future工作
+4. 周四下午和兆洋对一下
+
+# 锦鲤
+1. LOGO更加简洁 agent <-> experience

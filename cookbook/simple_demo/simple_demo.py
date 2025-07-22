@@ -71,9 +71,39 @@ def run_agent_with_experience(query_first: str, query_second: str, dump_experien
     return messages
 
 
+def dump_experience():
+    response = requests.post(url=base_url + "vector_store", json={
+        "workspace_id": workspace_id,
+        "action": "dump",
+        "path": "./",
+    })
+
+    if response.status_code != 200:
+        print(response.text)
+        return
+
+    print(response.json())
+
+
+def load_experience():
+    response = requests.post(url=base_url + "vector_store", json={
+        "workspace_id": "test_workspace2",
+        "action": "load",
+        "path": "./",
+    })
+
+    if response.status_code != 200:
+        print(response.text)
+        return
+
+    print(response.json())
+
+
 if __name__ == "__main__":
     query1 = "Analyze Xiaomi Corporation"
     query2 = "Analyze the company Tesla."
 
     # run_agent(query=query1, dump_messages=True)
-    run_agent_with_experience(query_first=query1, query_second=query2)
+    # run_agent_with_experience(query_first=query1, query_second=query2)
+    # dump_experience()
+    load_experience()

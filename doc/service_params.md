@@ -1,4 +1,4 @@
-# Global Params Documentation
+# Services Params Documentation
 
 This document describes all available command-line parameters for ExperienceMaker. The application
 uses [OmegaConf](https://omegaconf.readthedocs.io/) for configuration management, supporting both YAML files and

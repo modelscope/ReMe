@@ -1,96 +1,115 @@
 # ExperienceMaker
 
 <p align="center">
- <img src="cookbook/material/logo_v2.png" alt="ExperienceMakerLogo" width="50%">
+ <img src="doc/logo_v2.png" alt="ExperienceMaker Logo" width="50%">
 </p>
-
-[![](https://img.shields.io/badge/python-3.12+-blue)](https://pypi.org/project/experiencemaker/)
-[![](https://img.shields.io/badge/pypi-v0.1.0-blue?logo=pypi)](https://pypi.org/project/experiencemaker/)
-[![](https://img.shields.io/badge/license-Apache--2.0-black)](./LICENSE)
-
-----
-
-## 📰 News
-
-- **[2025-01]** We release ExperienceMaker v0.1.0 now, which is also available in [PyPI](https://pypi.org/simple/experiencemaker/)!
-
-----
-
-## 🌟 What is ExperienceMaker?
-
-ExperienceMaker is a comprehensive framework that provides AI agents with robust capabilities for **experience generation and reuse**. By summarizing agents' past trajectories into structured experiences, it enables these experiences to be intelligently applied to subsequent tasks. Through the continuous accumulation and application of experience, agents can keep learning and progressively become more skilled in performing complex tasks.
-
-### 🚀 Core Features
-
-- **🧠 Experience Generation**: Automatically generate successful or failed experiences by summarizing the agent's historical trajectories using advanced LLM-powered extraction techniques.
-
-- **🔄 Experience Reuse**: Intelligently apply relevant experiences to new tasks by retrieving them from a vector store, helping agents improve through practice and reduce trial-and-error.
-
-- **📊 Experience Management**: Comprehensive management of experiences with operations including loading, dumping, clearing historical experiences, deduplication, validation, and flexible database operations.
-
-- **🔍 Multi-Modal Retrieval**: Support both query-based and conversation-based experience retrieval with advanced reranking and rewriting capabilities.
-
-### ⚡ Core Advantages
-
-- **🎯 Ease of Use**: HTTP REST API interface with one-click startup via command line. Configuration can be quickly updated using YAML files and command-line arguments.
-
-- **🔧 Flexibility**: Rich library of atomic operations that can be composed into pipelines. Users can flexibly implement any summarization or retrieval workflow by combining operators.
-
-- **🗄️ Multiple Vector Store Backends**: Support for Elasticsearch (production), ChromaDB (local development), and file-based storage (testing) to fit different deployment scenarios.
-
-- **📚 Experience Store**: Ready-to-use out of the box — leverage existing, comprehensive experience datasets to enhance your agent's capabilities without manual experience creation.
-
-- **⚙️ Modular Architecture**: Pluggable components for LLMs, embedding models, vector stores, and operators, making it easy to customize and extend.
-
-### 🏗️ Framework Architecture
 
 <p align="center">
- <img src="cookbook/material/framework.png" alt="ExperienceMakerFramework" width="60%">
+  <a href="https://pypi.org/project/experiencemaker/"><img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python Version"></a>
+  <a href="https://pypi.org/project/experiencemaker/"><img src="https://img.shields.io/badge/pypi-v0.1.0-blue?logo=pypi" alt="PyPI Version"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black" alt="License"></a>
+  <a href="https://github.com/modelscope/ExperienceMaker"><img src="https://img.shields.io/github/stars/modelscope/ExperienceMaker?style=social" alt="GitHub Stars"></a>
 </p>
 
-ExperienceMaker follows a modular architecture with the following key components:
+<p align="center">
+  <strong>A comprehensive framework for AI agent experience generation and reuse</strong><br>
+  <em>Empowering agents to learn from the past and excel in the future</em>
+</p>
 
-#### 🌐 API Layer
-- **Retriever API**: Interface for experience retrieval. Input can be a query or conversation messages, output includes retrieved experiences and merged contextual content.
-- **Summarizer API**: Interface for experience summarization. Input is agent's historical trajectories, output is structured experiences stored in vector store.
-- **Vector Store API**: Interface for experience database management with operations like dump/load, create/delete workspaces, and batch operations.
-- **Agent API**: Interface for running agents with experience-enhanced prompts using ReAct framework.
+---
 
-#### 🔄 Pipeline & Operators
-ExperienceMaker abstracts experience capabilities into atomic operators that can be composed into flexible pipelines:
+## 📰 What's New
+- **[2025-08]** 🎉 ExperienceMaker v0.1.0 is now available on [PyPI](https://pypi.org/project/experiencemaker/)!
+- **[2025-07]** 📚 Complete documentation and quick start guides released
+- **[2025-07]** 🚀 Multi-backend vector store support (Elasticsearch & ChromaDB)
 
-- **Retrieval Operators**: Query building, experience recall, reranking, rewriting
-- **Summarization Operators**: Success/failure extraction, comparative analysis, validation, deduplication
-- **Vector Store Operators**: CRUD operations, workspace management, batch processing
+---
 
-#### 🗃️ Vector Store Backends
-- **Elasticsearch**: Production-ready, high-performance, supports complex filtering
-- **ChromaDB**: Local development, embedded database, good for prototyping
-- **File Store**: Simple file-based storage for testing and small datasets
+## 🌟 What is ExperienceMaker?
+ExperienceMaker is a framework that revolutionizes how AI agents learn and improve through **experience-driven intelligence**. 
+By automatically extracting, storing, and reusing experiences from agent trajectories, it enables continuous learning and progressive skill enhancement.
 
-#### 🤖 LLM & Embedding Integration
-- **OpenAI-Compatible LLMs**: Support for any OpenAI-compatible API endpoint
-- **Embedding Models**: Configurable embedding models for semantic search
-- **Model Registry**: Pluggable architecture for easy model switching
+### 🚀 Why ExperienceMaker?
+Traditional AI agents start from scratch with every new task, wasting valuable learning opportunities. 
+ExperienceMaker changes this by:
+- **🧠 Learning from History**: Automatically extract actionable insights from successful and failed attempts
+- **🔄 Intelligent Reuse**: Apply relevant past experiences to solve new, similar problems
+- **📈 Continuous Improvement**: Build a growing knowledge base that makes agents smarter over time
+- **⚡ Faster Problem Solving**: Reduce trial-and-error by leveraging proven strategies
+
+### ✨ Core Capabilities
+
+#### 🔍 **Intelligent Experience Summarizer**
+- **Success Pattern Recognition**: Identify what works and why
+- **Failure Analysis**: Learn from mistakes to avoid repetition
+- **Comparative Insights**: Understand the difference between successful and failed approaches
+- **Multi-step Trajectory Processing**: Break down complex tasks into learnable segments
+
+#### 🎯 **Smart Experience Retriever**
+- **Semantic Search**: Find relevant experiences using advanced embedding models
+- **Context-Aware Ranking**: Prioritize the most applicable experiences for current tasks
+- **Dynamic Rewriting**: Adapt past experiences to fit new contexts
+- **Multi-modal Support**: Handle various input types (queries, conversations, trajectories)
+
+#### 🗄️ **Scalable Experience Management**
+- **Multiple Storage Backends**: Choose from Elasticsearch (production), ChromaDB (development), or file-based (testing)
+- **Workspace Isolation**: Organize experiences by projects, domains, or teams
+- **Deduplication & Validation**: Ensure high-quality, unique experience storage
+- **Batch Operations**: Efficiently handle large-scale experience processing
+
+#### 🔧 **Developer-Friendly Architecture**
+- **REST API Interface**: Easy integration with existing systems
+- **Modular Pipeline Design**: Compose custom workflows from atomic operations
+- **Flexible Configuration**: YAML files and command-line overrides
+- **Comprehensive Monitoring**: Built-in logging and performance metrics
+
+### 🏗️ Framework Architecture
+<p align="center">
+ <img src="doc/framework.png" alt="ExperienceMaker Architecture" width="70%">
+</p>
+
+ExperienceMaker follows a modular, scalable architecture designed for production use:
+#### 🌐 **API Layer**
+- **🔍 Retriever API**: Query-based and conversation-based experience retrieval
+- **📊 Summarizer API**: Trajectory-to-experience conversion and storage  
+- **🗄️ Vector Store API**: Database management and workspace operations
+- **🤖 Agent API**: ReAct-based agent execution with experience enhancement
+#### ⚙️ **Processing Pipeline**
+Our atomic operations can be composed into powerful pipelines:
+**Retrieval Pipeline**:
+```
+build_query_op->recall_vector_store_op->merge_experience_op
+```
+**Summarization Pipeline**:
+```
+simple_summary_op->update_vector_store_op
+```
+
+#### 🔌 **Extensible Components**
+- **LLM Integration**: OpenAI-compatible APIs with flexible model switching
+- **Embedding Models**: Pluggable embedding providers for semantic search
+- **Vector Stores**: Multiple backends for different deployment scenarios
+- **Tools & Operators**: Extensible library of processing operations
 
 ---
 
 ## 🛠️ Installation
 
-### Install from Source
+### Prerequisites
+- Python 3.12+
+- LLM API access (openAI compatible models)
+- Embedding model API access
 
-```shell
+### Quick Install
+
+```bash
+# Install from PyPI (recommended)
+pip install experiencemaker
+
+# Or install from source
 git clone https://github.com/modelscope/ExperienceMaker.git
 cd ExperienceMaker
-
-# Install the package
 pip install .
-```
-
-### Install from PyPI
-
-```shell
-pip install experiencemaker
 ```
 
 ---
@@ -99,130 +118,113 @@ pip install experiencemaker
 
 ### 1. Environment Setup
 
-First, configure the required environment variables for LLM and embedding model services:
+Configure your API credentials:
 
-```shell
-# Required: LLM API configuration
-export LLM_API_KEY="sk-xxx"
-export LLM_BASE_URL="https://api.openai.com/v1"
+```bash
+# LLM Configuration
+export LLM_API_KEY="your-api-key-here"
+export LLM_BASE_URL="https://xxxx.com/v1"
 
-# Required: Embedding model configuration  
-export EMBEDDING_MODEL_API_KEY="sk-xxx"
-export EMBEDDING_MODEL_BASE_URL="https://api.openai.com/v1"
+# Embedding Model Configuration  
+export EMBEDDING_MODEL_API_KEY="your-api-key-here"
+export EMBEDDING_MODEL_BASE_URL="https://xxxx.com/v1"
 
-# Optional: Elasticsearch configuration (if using Elasticsearch backend)
+# Optional: Elasticsearch
 export ES_HOSTS="http://localhost:9200"
 ```
 
-### 2. Start ExperienceMaker Service
+### 2. Launch ExperienceMaker Service
 
-Start the service with a single command:
+Start with a single command:
 
-```shell
+```bash
 experiencemaker \
-  llm.default.model_name=gpt-4 \
+  llm.default.model_name=gpt-4o \
   embedding_model.default.model_name=text-embedding-3-small \
-  vector_store.default.backend=elasticsearch
+  vector_store.default.backend=local_file
+```
+> 📚 **Need Help?** Check our [Services Params Documentation](./doc/service_params.md) for detailed instructions.
+
+
+### 3. Vector Store Setup(Optional)
+if you want to use Elasticsearch as your vector store, you can follow these steps:
+
+```bash
+vector_store.default.backend=elasticsearch
 ```
 
-**Backend Options:**
-- `elasticsearch` - Production deployment (recommended)
-- `chroma` - Local development and medium scale
-- `local_file` - Testing and small datasets
-
-### 3. Vector Store Setup (Optional)
-
-#### For Production (Elasticsearch)
-
-ExperienceMaker uses Elasticsearch as the default vector store for production environments. To set up Elasticsearch locally:
-
-```shell
-# Quick setup using Elastic's official script
+```bash
+# Quick setup (recommended)
 curl -fsSL https://elastic.co/start-local | sh
+
+# Verify connection
+curl http://localhost:9200/_cluster/health
 ```
 
-For detailed setup instructions, see our [Vector Store Guide](./cookbook/material/vector_store_quick_start.md).
-
-#### For Development (ChromaDB or File Store)
-
-For quick testing, you can use the file-based backend:
-
-```shell
-experiencemaker vector_store.default.backend=local_file
-```
+> 📚 **Need Help?** Check our [Vector Store Setup Guide](./doc/vector_store_quick_start.md) for detailed instructions.
 
 ---
 
-## 📚 API Usage
+## 🎯 Usage Examples
 
-### Experience Summarization
-
-Convert agent trajectories into structured experiences:
+### Call Summarizer Examples
 
 ```python
 import json
+
 import requests
+from dotenv import load_dotenv
 
-base_url = "http://localhost:8001"
-workspace_id = "my_workspace"
+load_dotenv()
+base_url = "http://0.0.0.0:8001/"
+workspace_id = "test_workspace"
 
-def summarize_experience(messages: list, score: float = 1.0):
-    """Summarize agent trajectory into experiences"""
-    response = requests.post(
-        url=f"{base_url}/summarizer",
-        json={
-            "workspace_id": workspace_id,
-            "traj_list": [
-                {"messages": messages, "score": score}
-            ]
-        }
-    )
-    
-    if response.status_code == 200:
-        result = response.json()
-        print(f"Generated {len(result['experience_list'])} experiences")
-        return result["experience_list"]
-    else:
-        print(f"Error: {response.text}")
-        return []
+
+def run_summary(messages: list, dump_experience: bool = True):
+    response = requests.post(url=base_url + "summarizer", json={
+        "workspace_id": workspace_id,
+        "traj_list": [
+            {"messages": messages, "score": 1.0}
+        ]
+    })
+
+    response = response.json()
+    experience_list = response["experience_list"]
+    if dump_experience:
+        with open("experience.jsonl", "w") as f:
+            f.write(json.dumps(experience_list, indent=2, ensure_ascii=False))
 ```
 
-### Experience Retrieval
-
-Retrieve relevant experiences for new tasks:
+### Call Retriever Examples
 
 ```python
-def retrieve_experience(query: str, top_k: int = 5):
-    """Retrieve relevant experiences for a query"""
-    response = requests.post(
-        url=f"{base_url}/retriever", 
-        json={
-            "workspace_id": workspace_id,
-            "query": query,
-            "top_k": top_k
-        }
-    )
-    
-    if response.status_code == 200:
-        result = response.json()
-        return {
-            "experiences": result["experience_list"],
-            "merged_context": result["experience_merged"]
-        }
-    else:
-        print(f"Error: {response.text}")
-        return {}
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+base_url = "http://0.0.0.0:8001/"
+workspace_id = "test_workspace"
+
+
+def run_retriever(query: str):
+    response = requests.post(url=base_url + "retriever", json={
+        "workspace_id": workspace_id,
+        "query": query,
+    })
+
+    response = response.json()
+    experience_merged: str = response["experience_merged"]
+    print(f"experience_merged={experience_merged}")
+    return experience_merged
 ```
 
 ### Vector Store Management
 
-Manage experience databases:
-
 ```python
-def manage_vector_store(action: str, **params):
-    """Manage vector store operations"""
+def manage_vector_store(action: str, workspace_id: str, **params):
+    """Comprehensive vector store management"""
     response = requests.post(
-        url=f"{base_url}/vector_store",
+        f"{BASE_URL}/vector_store",
         json={
             "workspace_id": workspace_id,
             "action": action,
@@ -230,190 +232,281 @@ def manage_vector_store(action: str, **params):
         }
     )
     
-    return response.json() if response.status_code == 200 else None
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"❌ Action '{action}' failed: {response.text}")
+        return None
 
-# Examples:
+# Example operations
+workspace = "production_workspace"
+
 # Create workspace
-manage_vector_store("create")
+manage_vector_store("create", workspace)
 
-# Dump experiences to file
-manage_vector_store("dump", path="./backup/experiences.jsonl")
+# Check workspace stats
+stats = manage_vector_store("stats", workspace)
+if stats:
+    print(f"Workspace '{workspace}': {stats['total_experiences']} experiences")
 
-# Load experiences from file  
-manage_vector_store("load", path="./backup/experiences.jsonl")
+# Backup experiences
+manage_vector_store("dump", workspace, path="./backup/experiences.jsonl")
+
+# Restore from backup
+manage_vector_store("load", workspace, path="./backup/experiences.jsonl")
+
+# Clean up workspace
+manage_vector_store("clear", workspace)
 ```
 
----
 
-## 🎯 Complete Example
-
-Here's a comprehensive example showing the full experience lifecycle:
+### Advanced: Custom Pipeline Configuration
 
 ```python
-import json
-import requests
-from typing import List, Dict
+# Create custom configuration file
+config = """
+http_service:
+  host: "0.0.0.0"
+  port: 8001
 
-class ExperienceMakerClient:
-    def __init__(self, base_url: str = "http://localhost:8001"):
-        self.base_url = base_url
-    
-    def run_agent_with_experience(self, query: str, workspace_id: str) -> Dict:
-        """Run agent with experience enhancement"""
-        
-        # Step 1: Retrieve relevant experiences
-        print("🔍 Retrieving relevant experiences...")
-        experience_response = requests.post(
-            url=f"{self.base_url}/retriever",
-            json={"workspace_id": workspace_id, "query": query}
-        )
-        
-        experience_context = ""
-        if experience_response.status_code == 200:
-            experience_context = experience_response.json()["experience_merged"]
-        
-        # Step 2: Run agent with enhanced prompt
-        print("🤖 Running agent with experience context...")
-        enhanced_query = f"""
-Previous Experience Context:
-{experience_context}
+# Custom retrieval pipeline
+api:
+  retriever: "build_query_op->recall_experience_op->rerank_experience_op->rewrite_experience_op"
+  summarizer: "trajectory_preprocess_op->success_extraction_op->experience_validation_op->experience_storage_op"
 
-Current Task:
-{query}
+# LLM Configuration
+llm:
+  default:
+    backend: openai_compatible
+    model_name: gpt-4o
+    params:
+      temperature: 0.7
+      max_tokens: 4000
+
+# Embedding Configuration
+embedding_model:
+  default:
+    backend: openai_compatible
+    model_name: text-embedding-3-small
+
+# Vector Store Configuration
+vector_store:
+  default:
+    backend: elasticsearch
+    embedding_model: default
+
+# Operation-specific parameters
+op:
+  recall_experience_op:
+    params:
+      retrieve_top_k: 10
+      query_enhancement: true
+  
+  rerank_experience_op:
+    params:
+      enable_llm_rerank: true
+      top_k: 5
+      min_score_threshold: 0.3
+  
+  experience_validation_op:
+    params:
+      validation_threshold: 0.4
 """
-        
-        agent_response = requests.post(
-            url=f"{self.base_url}/agent",
-            json={"query": enhanced_query}
-        )
-        
-        if agent_response.status_code == 200:
-            agent_result = agent_response.json()
-            
-            # Step 3: Summarize new experience
-            print("📝 Summarizing new experience...")
-            summary_response = requests.post(
-                url=f"{self.base_url}/summarizer",
-                json={
-                    "workspace_id": workspace_id,
-                    "traj_list": [
-                        {"messages": agent_result["messages"], "score": 1.0}
-                    ]
-                }
-            )
-            
-            return {
-                "answer": agent_result["answer"],
-                "messages": agent_result["messages"],
-                "new_experiences": summary_response.json()["experience_list"] if summary_response.status_code == 200 else []
-            }
-        
-        return {"error": "Failed to run agent"}
 
-# Usage example
-if __name__ == "__main__":
-    client = ExperienceMakerClient()
-    
-    # Example queries
-    queries = [
-        "Analyze Tesla's financial performance",
-        "Create a market analysis report for Apple Inc.",
-        "Research renewable energy trends in 2024"
-    ]
-    
-    workspace_id = "financial_analysis"
-    
-    for query in queries:
-        print(f"\n{'='*50}")
-        print(f"Query: {query}")
-        print(f"{'='*50}")
-        
-        result = client.run_agent_with_experience(query, workspace_id)
-        
-        if "answer" in result:
-            print(f"Answer: {result['answer'][:200]}...")
-            print(f"Generated {len(result['new_experiences'])} new experiences")
-        else:
-            print(f"Error: {result.get('error', 'Unknown error')}")
+# Save and use custom configuration
+with open("custom_config.yaml", "w") as f:
+    f.write(config)
+
+# Launch with custom configuration
+# experiencemaker config_path=custom_config.yaml
 ```
 
-For more examples and advanced usage, see the [cookbook](./cookbook/) directory.
+
 
 ---
 
 ## 🔧 Configuration
 
-ExperienceMaker supports flexible configuration through YAML files and command-line arguments:
+ExperienceMaker offers flexible configuration through YAML files and command-line parameters:
 
-### YAML Configuration
+### Configuration Methods
 
-```yaml
-# config.yaml
-http_service:
-  host: "0.0.0.0"
-  port: 8001
+1. **Default Configuration**: Built-in sensible defaults
+2. **YAML Configuration**: Structured configuration files
+3. **Environment Variables**: Runtime configuration
+4. **Command-line Overrides**: Dynamic parameter adjustment
 
-api:
-  retriever: recall_experience_op->rerank_experience_op->rewrite_experience_op
-  summarizer: success_extraction_op->experience_validation_op->experience_storage_op
+### Key Configuration Areas
 
-llm:
-  default:
-    backend: openai_compatible
-    model_name: gpt-4
-    params:
-      temperature: 0.7
+| Category | Description | Example |
+|----------|-------------|---------|
+| **HTTP Service** | Server host, port, timeouts | `http_service.port=8080` |
+| **LLM Models** | Model names, parameters, endpoints | `llm.default.model_name=gpt-4o` |
+| **Embedding Models** | Embedding services and dimensions | `embedding_model.default.model_name=text-embedding-3-small` |
+| **Vector Stores** | Backend type, connection settings | `vector_store.default.backend=elasticsearch` |
+| **Operations** | Pipeline configurations, thresholds | `op.rerank_experience_op.params.top_k=5` |
 
-embedding_model:
-  default:
-    backend: openai_compatible  
-    model_name: text-embedding-3-small
+### Example Configuration Commands
 
-vector_store:
-  default:
-    backend: elasticsearch
-    embedding_model: default
-```
+```bash
+# Basic setup
+experiencemaker llm.default.model_name=gpt-4o vector_store.default.backend=chroma
 
-### Command Line Override
-
-```shell
+# Advanced configuration
 experiencemaker \
-  --config config.yaml \
-  llm.default.model_name=gpt-4-turbo \
-  vector_store.default.backend=chroma \
-  http_service.port=8002
+  config_path=my_config.yaml \
+  http_service.port=8002 \
+  op.recall_experience_op.params.retrieve_top_k=15 \
+  op.rerank_experience_op.params.enable_llm_rerank=true \
+  vector_store.default.backend=elasticsearch
 ```
+
+> 📖 **Complete Reference**: See our [Configuration Guide](./doc/global_params.md) for all available parameters.
 
 ---
 
-## 📖 Documentation
+## 🏢 Production Deployment
 
-- **[Quick Start Guide](./cookbook/react/quick_start.md)** - Get started with ExperienceMaker
-- **[Vector Store Guide](./cookbook/material/vector_store_quick_start.md)** - Comprehensive vector store setup
-- **[API Documentation](./cookbook/)** - Detailed API reference
-- **[Configuration Reference](./cookbook/)** - All configuration options
-- **[Examples](./cookbook/simple_demo/)** - Working code examples
+### Docker Deployment
+
+```dockerfile
+# Dockerfile
+FROM python:3.12-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+RUN pip install .
+
+EXPOSE 8001
+
+CMD ["experiencemaker", "http_service.host=0.0.0.0", "vector_store.default.backend=elasticsearch"]
+```
+
+### Kubernetes Configuration
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: experiencemaker
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: experiencemaker
+  template:
+    metadata:
+      labels:
+        app: experiencemaker
+    spec:
+      containers:
+      - name: experiencemaker
+        image: experiencemaker:latest
+        ports:
+        - containerPort: 8001
+        env:
+        - name: LLM_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: llm-api-key
+        - name: ES_HOSTS
+          value: "http://elasticsearch:9200"
+        command: ["experiencemaker"]
+        args: 
+        - "vector_store.default.backend=elasticsearch"
+        - "http_service.host=0.0.0.0"
+```
+
+### Performance Considerations
+
+- **Elasticsearch**: Recommended for >100K experiences
+- **ChromaDB**: Suitable for <1M experiences  
+- **Load Balancing**: Multiple service instances for high availability
+- **Caching**: Redis for frequently accessed experiences
+- **Monitoring**: Integrate with Prometheus/Grafana
+
+---
+
+## 📚 Documentation & Resources
+
+### 📖 **Core Documentation**
+- [📋 Operations Reference](./doc/operations.md) - Complete list of all available operations
+- [⚙️ Configuration Guide](./doc/global_params.md) - Detailed parameter documentation  
+- [🗄️ Vector Store Setup](./doc/vector_store_quick_start.md) - Backend setup instructions
+- [🧪 Quick Start Examples](./cookbook/simple_demo/) - Working code samples
+
+### 🎓 **Learning Resources**
+- [📘 Cookbook Examples](./cookbook/) - Real-world use cases and patterns
+- [🚀 Best Practices](./cookbook/) - Production deployment guidelines
+- [🔧 Troubleshooting](./cookbook/) - Common issues and solutions
+
+### 🔗 **API Reference**
+- **Retriever API**: Experience search and retrieval
+- **Summarizer API**: Trajectory processing and storage
+- **Vector Store API**: Database management operations
+- **Agent API**: ReAct-based agent execution
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our contributing guidelines for more information.
+We welcome contributions from the community! Here's how you can help:
+
+### 🐛 **Report Issues**
+- Bug reports and feature requests
+- Documentation improvements
+- Performance optimization suggestions
+
+### 💻 **Code Contributions**
+- New operations and tools
+- Backend implementations
+- API enhancements
+- Test coverage improvements
+
+### 📝 **Documentation**
+- Usage examples and tutorials
+- Best practices and patterns
+- Translation and localization
+
+**Getting Started**: Fork the repository, create a feature branch, and submit a pull request. Please follow our coding standards and include tests for new functionality.
+
+---
+
+## 🎯 Use Cases & Success Stories
+
+### 🤖 **AI Agent Development**
+- **Code Generation Agents**: Learn successful coding patterns and avoid common bugs
+- **Research Assistants**: Build domain expertise through accumulated research experiences  
+- **Customer Support**: Improve response quality using past successful interactions
+
+### 🏢 **Enterprise Applications**
+- **Knowledge Management**: Capture and reuse organizational expertise
+- **Process Automation**: Learn optimal workflows from successful completions
+- **Decision Support**: Leverage historical decision outcomes for better choices
+
+### 📊 **Data Science & Analytics**
+- **Model Development**: Learn from past experimentation results
+- **Feature Engineering**: Reuse successful feature combinations
+- **Pipeline Optimization**: Apply proven processing strategies
 
 ---
 
 ## 📄 Citation
 
-If you use ExperienceMaker in your research, please cite:
+If you use ExperienceMaker in your research or projects, please cite:
 
 ```bibtex
 @software{ExperienceMaker,
-  title = {ExperienceMaker},
+  title = {ExperienceMaker: A Comprehensive Framework for AI Agent Experience Generation and Reuse},
   author = {The ExperienceMaker Team},
   url = {https://github.com/modelscope/ExperienceMaker},
-  month = {01},
-  year = {2025}
+  month = {January},
+  year = {2025},
+  note = {Version 0.1.0}
 }
 ```
 
@@ -421,10 +514,27 @@ If you use ExperienceMaker in your research, please cite:
 
 ## ⚖️ License
 
-This project is licensed under the Apache 2.0 License - see the [LICENSE](./LICENSE) file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](./LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+ExperienceMaker is built with ❤️ by the team at ModelScope. Special thanks to:
+
+- The open-source community for valuable feedback and contributions
+- Research teams advancing the field of AI agent learning
+- Early adopters providing real-world usage insights
 
 ---
 
 <p align="center">
-Made with ❤️ by the ExperienceMaker Team
+  <strong>Ready to supercharge your AI agents with experience? 🚀</strong><br>
+  <a href="#-installation">Get Started Now</a> · 
+  <a href="./doc/">Read the Docs</a> · 
+  <a href="https://github.com/modelscope/ExperienceMaker">Star on GitHub</a>
+</p>
+
+<p align="center">
+  Made with ❤️ by the <strong>ExperienceMaker Team</strong>
 </p>
