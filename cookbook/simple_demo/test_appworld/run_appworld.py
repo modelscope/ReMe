@@ -1,13 +1,15 @@
 import os
 
+import ray
+from ray import logger
+from tqdm import tqdm
+
 os.environ["APPWORLD_ROOT"] = "."
 from dotenv import load_dotenv
 
 load_dotenv("../../../.env")
 
 import json
-import time
-from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 from appworld import load_task_ids
@@ -15,29 +17,40 @@ from appworld import load_task_ids
 from appworld_react_agent import AppworldReactAgent
 
 
-def run_agent(dataset_name: str, max_workers: int, experiment_suffix: str):
+def run_agent(dataset_name: str, experiment_suffix: str, multi_thread: bool = False):
     experiment_name = dataset_name + "_" + experiment_suffix
     path: Path = Path(f"./exp_result")
     path.mkdir(parents=True, exist_ok=True)
 
     task_ids = load_task_ids(dataset_name)
     result: list = []
-    with ProcessPoolExecutor(max_workers=max_workers) as executor:
-        task_list: list = []
+
+    def dump_file():
+        with open(path / f"{experiment_name}.jsonl", "w") as f:
+            for x in result:
+                f.write(json.dumps(x) + "\n")
+
+    if multi_thread:
+        future_list: list = []
         for index, task_id in enumerate(task_ids):
-            agent = AppworldReactAgent(task_id, experiment_name)
-            task = executor.submit(agent.execute)
-            task_list.append(task)
-            time.sleep(1)
+            actor = AppworldReactAgent.remote(index=index, task_id=task_id, experiment_name=experiment_name)
+            future = actor.execute.remote()
+            future_list.append(future)
+        logger.info("submit complete")
 
-        for task in task_list:
-            result.append(task.result(timeout=600))
+        for future in future_list:
+            result.append(ray.get(future))
+            dump_file()
 
-    with open(path / f"{experiment_name}.jsonl", "w") as f:
-        for result_item in result:
-            f.write(json.dumps(result_item) + "\n")
+    else:
+        for index, task_id in enumerate(task_ids):
+            agent = AppworldReactAgent(index=index, task_id=task_id, experiment_name=experiment_name)
+            result.append(agent.execute())
+            dump_file()
+
 
 
 if __name__ == "__main__":
-    run_agent(dataset_name="train", experiment_suffix="v1", max_workers=1)
-    # run_agent(dataset_name="dev", experiment_suffix="v1", max_workers=1)
+    # ray.init(num_cpus=8)
+    run_agent(dataset_name="train", experiment_suffix="v2")
+    # run_agent(dataset_name="dev", experiment_suffix="v2")

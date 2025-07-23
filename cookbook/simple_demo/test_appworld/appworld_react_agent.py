@@ -1,4 +1,3 @@
-import json
 import os
 
 os.environ["APPWORLD_ROOT"] = "."
@@ -8,6 +7,7 @@ load_dotenv("../../../.env")
 
 import re
 import time
+import json
 
 from appworld import AppWorld, load_task_ids
 from jinja2 import Template
@@ -16,18 +16,21 @@ from openai import OpenAI
 
 from prompt import PROMPT_TEMPLATE
 
-@ray.remote
+
+# @ray.remote
 class AppworldReactAgent:
     """A minimal ReAct Agent for AppWorld tasks."""
 
     def __init__(self,
+                 index: int,
                  task_id: str,
                  experiment_name: str,
                  model_name: str = "qwen3-8b",
                  temperature: float = 0.9,
-                 max_interactions: int = 50,
+                 max_interactions: int = 30,
                  max_response_size: int = 2000):
 
+        self.index: int = index
         self.task_id: str = task_id
         self.experiment_name: str = experiment_name
         self.model_name: str = model_name
@@ -47,7 +50,6 @@ class AppworldReactAgent:
                     model=self.model_name,
                     messages=messages,
                     temperature=self.temperature,
-                    max_tokens=400,
                     extra_body={"enable_thinking": False},
                     seed=0)
 
@@ -109,9 +111,9 @@ class AppworldReactAgent:
                     output = self.next_step(code)
                     self.history.append({"role": "user", "content": output})
 
-                    logger.info(f"task_id={self.task_id} iteration={i} "
-                                f"code=\n{code}\n output=\n{output}\n "
-                                f"score={self.get_reward():.4f}")
+                    logger.info(f"index={self.index} task_id={self.task_id} iteration={i} ")
+                    # f"code=\n{code}\n output=\n{output}\n "
+                    # f"score={self.get_reward():.4f}")
 
                     if self.world.task_completed():
                         break
@@ -127,7 +129,8 @@ class AppworldReactAgent:
                     "uplift_score": uplift_score,
                     "task_history": self.history,
                 }
-
+                # logger.info(f"result={json.dumps(result)}")
+                # p_bar.close()
                 return result
 
         except Exception as e:
@@ -138,7 +141,7 @@ class AppworldReactAgent:
 def main():
     dataset_name = "train"
     task_ids = load_task_ids(dataset_name)
-    agent = AppworldReactAgent(task_id=task_ids[0], experiment_name=f"jinli_{dataset_name}")
+    agent = AppworldReactAgent(index=0, task_id=task_ids[0], experiment_name=f"jinli_{dataset_name}")
     result = agent.execute()
     logger.info(f"result={json.dumps(result)}")
 

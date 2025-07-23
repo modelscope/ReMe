@@ -26,3 +26,4 @@ build/*
 *.egg-info/*
 cookbook/simple_demo/test_appworld/data/*
 cookbook/simple_demo/test_appworld/experiments/*
+cookbook/simple_demo/test_appworld/exp_result/*
