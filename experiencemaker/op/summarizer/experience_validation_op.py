@@ -7,6 +7,8 @@ from experiencemaker.op.base_op import BaseOp
 from experiencemaker.schema.experience import BaseExperience
 from experiencemaker.schema.message import Message
 from experiencemaker.enumeration.role import Role
+import re
+import json
 
 
 @OP_REGISTRY.register()
@@ -15,7 +17,7 @@ class ExperienceValidationOp(BaseOp):
 
     def execute(self):
         """Validate quality of extracted experiences"""
-        experiences: List[BaseExperience] = self.context.get_context("extracted_experiences", [])
+        experiences: List[BaseExperience] = self.context.response.experience_list
         
         if not experiences:
             logger.info("No experiences found for validation")
@@ -41,11 +43,13 @@ class ExperienceValidationOp(BaseOp):
         logger.info(f"Validated {len(validated_experiences)} out of {len(experiences)} experiences")
         
         # Update context
-        self.context.set_context("validated_experiences", validated_experiences)
+        self.context.response.experience_list = validated_experiences
 
     def _validate_single_experience(self, experience: BaseExperience) -> Dict[str, Any]:
         """Validate single experience"""
-        return self._llm_validate_experience(experience)
+        validation_info = self._llm_validate_experience(experience)
+        logger.info(f"Validating: {validation_info}")
+        return validation_info
 
     def _llm_validate_experience(self, experience: BaseExperience) -> Dict[str, Any]:
         """Validate experience using LLM"""
@@ -61,23 +65,26 @@ class ExperienceValidationOp(BaseOp):
                     response_content = message.content
                     
                     # Parse validation result
-                    is_valid = "valid" in response_content.lower() and "invalid" not in response_content.lower()
-                    
-                    # Extract score
-                    score_match = re.search(r'score[:\s]*([0-9.]+)', response_content.lower())
-                    try:
-                        score = float(score_match.group(1)) if score_match else 0.5
-                    except (ValueError, AttributeError):
-                        score = 0.5
+                    # Extract JSON blocks
+                    json_pattern = r'```json\s*([\s\S]*?)\s*```'
+                    json_blocks = re.findall(json_pattern, response_content)
+
+                    if json_blocks:
+                        parsed = json.loads(json_blocks[0])
+                    else:
+                        parsed = {}
+
+                    is_valid = parsed.get("is_valid",True)
+                    score = parsed.get("score",0.5)
 
                     # Set validation threshold
-                    validation_threshold = self.op_params.get("validation_threshold", 0.3)
+                    validation_threshold = self.op_params.get("validation_threshold", 0.5)
                     
                     return {
-                        "is_valid": is_valid and score > validation_threshold,
+                        "is_valid": is_valid and score >= validation_threshold,
                         "score": score,
                         "feedback": response_content,
-                        "reason": "" if (is_valid and score > validation_threshold) else f"Low validation score ({score:.2f}) or marked as invalid"
+                        "reason": "" if (is_valid and score >= validation_threshold) else f"Low validation score ({score:.2f}) or marked as invalid"
                     }
                     
                 except Exception as e:

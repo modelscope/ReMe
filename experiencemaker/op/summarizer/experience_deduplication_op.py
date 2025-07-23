@@ -13,10 +13,8 @@ class ExperienceDeduplicationOp(BaseOp):
     def execute(self):
         """Remove duplicate experiences"""
         # Get experiences to deduplicate
-        experiences: List[BaseExperience] = self.context.get_context("validated_experiences", [])
-        if not experiences:
-            experiences = self.context.get_context("extracted_experiences", [])
-        
+        experiences: List[BaseExperience] = self.context.response.experience_list
+
         if not experiences:
             logger.info("No experiences found for deduplication")
             return
@@ -24,12 +22,12 @@ class ExperienceDeduplicationOp(BaseOp):
         logger.info(f"Starting deduplication for {len(experiences)} experiences")
 
         # Perform deduplication
-        unique_experiences = self._deduplicate_experiences(experiences)
+        deduplicated_experiences = self._deduplicate_experiences(experiences)
 
-        logger.info(f"Deduplication complete: {len(unique_experiences)} unique experiences out of {len(experiences)}")
+        logger.info(f"Deduplication complete: {len(deduplicated_experiences)} deduplicated experiences out of {len(experiences)}")
         
         # Update context
-        self.context.set_context("deduplicated_experiences", unique_experiences)
+        self.context.response.experience_list = deduplicated_experiences
 
     def _deduplicate_experiences(self, experiences: List[BaseExperience]) -> List[BaseExperience]:
         """Remove duplicate experiences"""
@@ -76,7 +74,7 @@ class ExperienceDeduplicationOp(BaseOp):
 
             # Query existing experience nodes
             existing_nodes = self.vector_store.search(
-                query="",  # Empty query to get all
+                query="...",  # Empty query to get all
                 workspace_id=workspace_id,
                 top_k=self.op_params.get("max_existing_experiences", 1000)
             )

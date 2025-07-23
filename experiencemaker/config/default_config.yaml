@@ -10,17 +10,19 @@ thread_pool:
   max_workers: 64
 
 api:
-  retriever: recall_experience_op->rerank_experience_op->rewrite_experience_op
-  summarizer: trajectory_preprocess_op->[success_extraction_op|failure_extraction_op|comparative_extraction_op]->experience_validation_op->experience_deduplication_op->experience_storage_op
+  retriever: build_query_op->recall_vector_store_op->rerank_experience_op->rewrite_experience_op
+  summarizer: trajectory_preprocess_op->[success_extraction_op|failure_extraction_op|comparative_extraction_op]->experience_validation_op->experience_deduplication_op->update_vector_store_op
   vector_store: vector_store_action_op
 
 op:
   # retriever ops
-  recall_experience_op:
-    backend: recall_experience_op
+  build_query_op:
+    backend: build_query_op
     vector_store: default
-    params:
-      retrieve_top_k: 15
+
+  recall_vector_store_op:
+    backend: recall_vector_store_op
+    vector_store: default
 
   rerank_experience_op:
     backend: rerank_experience_op
@@ -75,6 +77,11 @@ op:
   vector_store_action_op:
     backend: vector_store_action_op
     vector_store: default
+
+  update_vector_store_op:
+    backend: update_vector_store_op
+    vector_store: default
+
 
 llm:
   default:

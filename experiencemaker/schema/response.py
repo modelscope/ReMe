@@ -18,6 +18,7 @@ class RetrieverResponse(BaseResponse):
 
 class SummarizerResponse(BaseResponse):
     experience_list: List[BaseExperience] = Field(default_factory=list)
+    deleted_experience_ids: List[str] = Field(default_factory=list)
 
 
 class VectorStoreResponse(BaseResponse):

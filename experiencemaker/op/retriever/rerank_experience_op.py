@@ -6,10 +6,11 @@ from pydantic import Field
 
 from experiencemaker.op import OP_REGISTRY
 from experiencemaker.op.base_op import BaseOp
+from experiencemaker.schema.experience import BaseExperience
 from experiencemaker.schema.message import Message
 from experiencemaker.schema.vector_node import VectorNode
 from experiencemaker.enumeration.role import Role
-
+from experiencemaker.op.vector_store.recall_vector_store_op import RecallVectorStoreOp
 
 @OP_REGISTRY.register()
 class RerankExperienceOp(BaseOp):
@@ -21,44 +22,46 @@ class RerankExperienceOp(BaseOp):
     def execute(self):
 
         """Execute rerank operation"""
-        recalled_experiences: List[VectorNode] = self.context.get_context("recalled_experiences", [])
-        retrieval_query: str = self.context.get_context("retrieval_query", "")
+
+        experiences: List[BaseExperience] = self.context.response.experience_list
+        retrieval_query: str = self.context.get_context(RecallVectorStoreOp.SEARCH_QUERY, "")
         enable_llm_rerank = self.op_params.get("enable_llm_rerank", True)
         enable_score_filter = self.op_params.get("enable_score_filter", False)
         min_score_threshold = self.op_params.get("min_score_threshold", 0.3)
         top_k = self.op_params.get("top_k", 5)
+
         logger.info(f"top_k: {top_k}")
 
-        if not recalled_experiences:
+        if not experiences:
             logger.info("No recalled experiences to rerank")
-            self.context.set_context("reranked_experiences", [])
+            self.context.response.experience_list = []
             return
 
         try:
-            logger.info(f"Reranking {len(recalled_experiences)} experiences")
+            logger.info(f"Reranking {len(experiences)} experiences")
 
             # Step 1: LLM reranking (optional)
             if enable_llm_rerank:
-                recalled_experiences = self._llm_rerank(retrieval_query, recalled_experiences)
-                logger.info(f"After LLM reranking: {len(recalled_experiences)} experiences")
+                experiences = self._llm_rerank(retrieval_query, experiences)
+                logger.info(f"After LLM reranking: {len(experiences)} experiences")
 
             # Step 2: Score-based filtering (optional)
             if enable_score_filter:
-                recalled_experiences = self._score_based_filter(recalled_experiences, min_score_threshold)
-                logger.info(f"After score filtering: {len(recalled_experiences)} experiences")
+                experiences = self._score_based_filter(experiences, min_score_threshold)
+                logger.info(f"After score filtering: {len(experiences)} experiences")
 
             # Step 3: Return top-k results
-            final_results = recalled_experiences[:top_k]
-            logger.info(f"Final reranked results: {len(final_results)} experiences")
+            renranked_experiences = experiences[:top_k]
+            logger.info(f"Final reranked results: {len(renranked_experiences)} experiences")
 
             # Store results in context
-            self.context.set_context("reranked_experiences", final_results)
+            self.context.response.experience_list = renranked_experiences
 
         except Exception as e:
             logger.error(f"Error in rerank operation: {e}")
-            self.context.set_context("reranked_experiences", recalled_experiences[:top_k])
+            self.context.response.experience_list = renranked_experiences[:top_k]
 
-    def _llm_rerank(self, query: str, candidates: List[VectorNode]) -> List[VectorNode]:
+    def _llm_rerank(self, query: str, candidates: List[BaseExperience]) -> List[BaseExperience]:
         """LLM-based reranking of candidate experiences"""
         if not candidates:
             return candidates
@@ -100,14 +103,14 @@ class RerankExperienceOp(BaseOp):
             logger.error(f"Error in LLM reranking: {e}")
             return candidates
 
-    def _score_based_filter(self, experiences: List[VectorNode], min_score: float) -> List[VectorNode]:
+    def _score_based_filter(self, experiences: List[BaseExperience], min_score: float) -> List[BaseExperience]:
         """Filter experiences based on quality scores"""
         filtered_experiences = []
 
         for exp in experiences:
             # Get confidence score from metadata
             confidence = exp.metadata.get("confidence", 0.5)
-            validation_score = exp.metadata.get("validation_score", 0.5)
+            validation_score = exp.score
 
             # Calculate combined score
             combined_score = (confidence + validation_score) / 2
@@ -120,21 +123,17 @@ class RerankExperienceOp(BaseOp):
         logger.info(f"Score filtering: {len(filtered_experiences)}/{len(experiences)} experiences retained")
         return filtered_experiences
 
-    def _format_candidates_for_rerank(self, candidates: List[VectorNode]) -> str:
+    def _format_candidates_for_rerank(self, candidates: List[BaseExperience]) -> str:
         """Format candidates for LLM reranking"""
         formatted_candidates = []
 
         for i, candidate in enumerate(candidates):
-            condition = candidate.content
-            experience = candidate.metadata.get("experience", "")
-            tags = candidate.metadata.get("tags", [])
-            confidence = candidate.metadata.get("confidence", 0.5)
+            condition = candidate.when_to_use
+            content = candidate.content
 
             candidate_text = f"Candidate {i}:\n"
             candidate_text += f"Condition: {condition}\n"
-            candidate_text += f"Experience: {experience}\n"
-            candidate_text += f"Tags: {', '.join(tags) if tags else 'None'}\n"
-            candidate_text += f"Confidence: {confidence}\n"
+            candidate_text += f"Experience: {content}\n"
 
             formatted_candidates.append(candidate_text)
 

@@ -6,11 +6,12 @@ from pydantic import Field
 
 from experiencemaker.op import OP_REGISTRY
 from experiencemaker.op.base_op import BaseOp
-from experiencemaker.schema.experience import TextExperience
+from experiencemaker.schema.experience import TextExperience, BaseExperience
 from experiencemaker.schema.message import Message
 from experiencemaker.schema.vector_node import VectorNode
 from experiencemaker.enumeration.role import Role
 from experiencemaker.schema.response import RetrieverResponse
+from experiencemaker.op.vector_store.recall_vector_store_op import RecallVectorStoreOp
 
 
 @OP_REGISTRY.register()
@@ -22,38 +23,36 @@ class RewriteExperienceOp(BaseOp):
 
     def execute(self):
         """Execute rewrite operation"""
-        reranked_experiences: List[VectorNode] = self.context.get_context("reranked_experiences", [])
-        query: str = self.context.get_context("query", "")
+        experiences: List[BaseExperience] = self.context.response.experience_list
+        query: str = self.context.get_context(RecallVectorStoreOp.SEARCH_QUERY, "")
         messages: List[Message] = self.context.get_context("messages", [])
-        retrieval_query: str = self.context.get_context("retrieval_query", "")
 
-        if not reranked_experiences:
+        if not experiences:
             logger.info("No reranked experiences to rewrite")
-            self.context.set_context("context_message", Message(content=""))
+            self.context.response.experience_merged = ""
             return
 
-        logger.info(f"Generating context from {len(reranked_experiences)} experiences")
+        logger.info(f"Generating context from {len(experiences)} experiences")
 
         # Generate initial context message
-        context_message = self._generate_context_message(query, messages, reranked_experiences, retrieval_query)
+        context_message = self._generate_context_message(query, messages, experiences)
 
         # Store results in context
         self.context.set_context("context_message", context_message)
 
         response: RetrieverResponse = self.context.response
-        response.experience_list = [TextExperience.from_vector_node(node) for node in reranked_experiences]
         response.experience_merged = context_message
 
 
-    def _generate_context_message(self, query: str, messages: List[Message], nodes: List[VectorNode],
-                                  retrieval_query: str) -> str:
+    def _generate_context_message(self, query: str, messages: List[Message], experiences: List[BaseExperience],
+                                  ) -> str:
         """Generate context message from retrieved experiences"""
-        if not nodes:
+        if not experiences:
             return ""
 
         try:
             # Format retrieved experiences
-            formatted_experiences = self._format_experiences_for_context(nodes)
+            formatted_experiences = self._format_experiences_for_context(experiences)
 
             if self.op_params.get("enable_llm_rewrite", True):
                 context_content = self._rewrite_context(query, formatted_experiences, messages)
@@ -64,7 +63,7 @@ class RewriteExperienceOp(BaseOp):
 
         except Exception as e:
             logger.error(f"Error generating context message: {e}")
-            return self._format_experiences_for_context(nodes)
+            return self._format_experiences_for_context(experiences)
 
     def _rewrite_context(self, query: str, context_content: str, messages: List[Message]) -> str:
         """LLM-based context rewriting to make experiences more relevant and actionable"""
@@ -97,13 +96,13 @@ class RewriteExperienceOp(BaseOp):
             logger.error(f"Error in context rewriting: {e}")
             return context_content
 
-    def _format_experiences_for_context(self, experiences: List[VectorNode]) -> str:
+    def _format_experiences_for_context(self, experiences: List[BaseExperience]) -> str:
         """Format experiences for context generation"""
         formatted_experiences = []
 
         for i, exp in enumerate(experiences, 1):
-            condition = exp.content
-            experience_content = exp.metadata.get("experience_content", "")
+            condition = exp.when_to_use
+            experience_content = exp.content
             exp_text = f"Experience {i} :\n When to use: {condition}\n Content: {experience_content}\n"
 
             formatted_experiences.append(exp_text)
