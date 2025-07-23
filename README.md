@@ -66,6 +66,7 @@ ExperienceMaker changes this paradigm by:
 - **REST API Interface**: Seamless integration with existing systems through clean API design
 - **Modular Pipeline Design**: Compose custom workflows from atomic operations with maximum flexibility
 - **Flexible Configuration**: YAML files and command-line overrides for easy customization
+- **Experience Store**: Ready-to-use out of the box — there’s no need for you to manually summarize experiences. You can directly leverage existing, comprehensive experience datasets to greatly enhance your agent’s capabilities.
 
 ### 🏗️ Framework Architecture
 <p align="center">
