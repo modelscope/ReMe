@@ -28,3 +28,5 @@
 1. LOGO更加简洁 agent <-> experience
 2. default等名字的说明
 3. 查看所有的op代码
+4. ba增加client
+5. 在appworld上跑

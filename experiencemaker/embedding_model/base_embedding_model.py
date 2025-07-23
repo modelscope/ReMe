@@ -12,6 +12,7 @@ class BaseEmbeddingModel(BaseModel, ABC):
     dimensions: int = Field(default=..., description="dimensions")
     max_retries: int = Field(default=3, description="max retries")
     raise_exception: bool = Field(default=True, description="raise exception")
+    max_batch_size: int = Field(default=10, description="text-embedding-v4 batch size should not be larger than 10")
 
     def _get_embeddings(self, input_text: str | List[str]):
         raise NotImplementedError
@@ -34,9 +35,9 @@ class BaseEmbeddingModel(BaseModel, ABC):
             return nodes
 
         elif isinstance(nodes, list):
-            max_batch_size = 10 # text-embedding-v4 batch size should not be larger than 10
-            embeddings = [emb for i in range(0, len(nodes), max_batch_size) for emb in
-                          self.get_embeddings(input_text=[node.content for node in nodes[i:i + max_batch_size]])]
+
+            embeddings = [emb for i in range(0, len(nodes), self.max_batch_size) for emb in
+                          self.get_embeddings(input_text=[node.content for node in nodes[i:i + self.max_batch_size]])]
             if len(embeddings) != len(nodes):
                 logger.warning(f"embeddings.size={len(embeddings)} <> nodes.size={len(nodes)}")
             else:

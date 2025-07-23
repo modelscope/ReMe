@@ -1,11 +1,12 @@
-import re
 import json
-from typing import List, Dict, Any
+import re
+from typing import List
+
 from loguru import logger
+
 from experiencemaker.op import OP_REGISTRY
 from experiencemaker.op.base_op import BaseOp
 from experiencemaker.schema.message import Message, Trajectory
-from experiencemaker.enumeration.role import Role
 
 
 @OP_REGISTRY.register()
@@ -30,14 +31,11 @@ class TrajectorySegmentationOp(BaseOp):
         # Add segmentation info to trajectories
         segmented_count = 0
         for trajectory in target_trajectories:
-            segments = self._segment_trajectory(trajectory)
-            trajectory.segments = segments
+            segments = self._llm_segment_trajectory(trajectory)
+            trajectory.metadata["segments"] = segments
             segmented_count += 1
 
         logger.info(f"Segmented {segmented_count} trajectories")
-
-        # Update context with segmented trajectories
-        self.context.set_context("segmented_trajectories", target_trajectories)
 
     def _get_target_trajectories(self, all_trajectories: List[Trajectory],
                                  success_trajectories: List[Trajectory],
@@ -52,55 +50,38 @@ class TrajectorySegmentationOp(BaseOp):
         else:
             return all_trajectories
 
-    def _segment_trajectory(self, trajectory: Trajectory) -> List[List[Message]]:
-        """Segment trajectory into step sequences using LLM"""
-        try:
-            return self._llm_segment_trajectory(trajectory)
-        except Exception as e:
-            logger.error(f"Error segmenting trajectory: {e}")
-            return [trajectory.messages]
-
     def _llm_segment_trajectory(self, trajectory: Trajectory) -> List[List[Message]]:
         """Use LLM for trajectory segmentation"""
-        try:
-            trajectory_content = self._format_trajectory_content(trajectory)
+        trajectory_content = self._format_trajectory_content(trajectory)
 
-            prompt = self.prompt_format(
-                prompt_name="step_segmentation_prompt",
-                query=trajectory.metadata.get('query', ''),
-                trajectory_content=trajectory_content,
-                total_steps=len(trajectory.messages)
-            )
+        prompt = self.prompt_format(
+            prompt_name="step_segmentation_prompt",
+            query=trajectory.metadata.get('query', ''),
+            trajectory_content=trajectory_content,
+            total_steps=len(trajectory.messages)
+        )
 
-            def parse_segmentation(message: Message) -> List[List[Message]]:
-                try:
-                    content = message.content
-                    segment_points = self._parse_segmentation_response(content)
+        def parse_segmentation(message: Message) -> List[List[Message]]:
+            content = message.content
+            segment_points = self._parse_segmentation_response(content)
 
-                    # Segment trajectory based on segmentation points
-                    segments = []
-                    start_idx = 0
+            # Segment trajectory based on segmentation points
+            segments = []
+            start_idx = 0
 
-                    for end_idx in segment_points:
-                        if start_idx < end_idx <= len(trajectory.messages):
-                            segments.append(trajectory.messages[start_idx:end_idx])
-                            start_idx = end_idx
+            for end_idx in segment_points:
+                if start_idx < end_idx <= len(trajectory.messages):
+                    segments.append(trajectory.messages[start_idx:end_idx])
+                    start_idx = end_idx
 
-                    # Add remaining steps
-                    if start_idx < len(trajectory.messages):
-                        segments.append(trajectory.messages[start_idx:])
+            # Add remaining steps
+            if start_idx < len(trajectory.messages):
+                segments.append(trajectory.messages[start_idx:])
 
-                    return segments if segments else [trajectory.messages]
+            return segments if segments else [trajectory.messages]
 
-                except Exception as e:
-                    logger.error(f"Error parsing segmentation: {e}")
-                    return [trajectory.messages]
-
-            return self.llm.chat(messages=[Message(content=prompt)], callback_fn=parse_segmentation)
-
-        except Exception as e:
-            logger.error(f"LLM segmentation failed: {e}")
-            return [trajectory.messages]
+        return self.llm.chat(messages=[Message(content=prompt)], callback_fn=parse_segmentation,
+                             default_value=[trajectory.messages])
 
     def _format_trajectory_content(self, trajectory: Trajectory) -> str:
         """Format trajectory content for LLM processing"""

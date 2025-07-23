@@ -76,7 +76,12 @@ class BaseOp(PromptMixin, ABC):
     def join_task(self, task_desc: str = None) -> list:
         result = []
         for task in tqdm(self.task_list, desc=task_desc or (self.simple_name + ".join_task")):
-            result.append(task.result())
+            t_result = task.result()
+            if t_result:
+                if isinstance(t_result, list):
+                    result.extend(t_result)
+                else:
+                    result.append(t_result)
         self.task_list.clear()
         return result
 

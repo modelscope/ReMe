@@ -1,5 +1,7 @@
 from typing import List, Dict
+
 from loguru import logger
+
 from experiencemaker.op import OP_REGISTRY
 from experiencemaker.op.base_op import BaseOp
 from experiencemaker.schema.message import Trajectory
@@ -13,25 +15,9 @@ class TrajectoryPreprocessOp(BaseOp):
     def execute(self):
         """Preprocess trajectories: validate and classify"""
         request: SummarizerRequest = self.context.request
-        if request.traj_list:
-            self.context.set_context("trajectories", request.traj_list)
-        elif request.trajectories:
-            self.context.set_context("trajectories", request.trajectories)
-        else:
-            logger.error("No trajectories is recognized. Please send requests containing traj_list.")
-
-        trajectories: List[Trajectory] = self.context.get_context("trajectories", [])
-        
-        if not trajectories:
-            logger.warning("No trajectories found in context")
-            return
-
-        # Validate trajectories
-        valid_trajectories = self._validate_trajectories(trajectories)
-        logger.info(f"Validated {len(valid_trajectories)} out of {len(trajectories)} trajectories")
 
         # Classify trajectories
-        classified = self._classify_trajectories(valid_trajectories)
+        classified = self._classify_trajectories(request.traj_list)
         logger.info(f"Classified trajectories - Success: {len(classified['success'])}, "
                    f"Failure: {len(classified['failure'])}, All: {len(classified['all'])}")
 
@@ -39,28 +25,6 @@ class TrajectoryPreprocessOp(BaseOp):
         self.context.set_context("success_trajectories", classified['success'])
         self.context.set_context("failure_trajectories", classified['failure'])
         self.context.set_context("all_trajectories", classified['all'])
-
-    def _validate_trajectories(self, trajectories: List[Trajectory]) -> List[Trajectory]:
-        """Validate trajectory validity"""
-        valid_trajectories = []
-        
-        for traj in trajectories:
-            if self._is_valid_trajectory(traj):
-                valid_trajectories.append(traj)
-            else:
-                logger.debug("Invalid trajectory filtered out")
-                
-        return valid_trajectories
-
-    def _is_valid_trajectory(self, traj: Trajectory) -> bool:
-        """Check if trajectory is valid"""
-        if traj is None:
-            return False
-        if not hasattr(traj, 'score') or traj.score is None:
-            return False
-        if not hasattr(traj, 'messages') or not traj.messages or len(traj.messages) == 0:
-            return False
-        return True
 
     def _classify_trajectories(self, trajectories: List[Trajectory]) -> Dict[str, List[Trajectory]]:
         """Classify trajectories based on score threshold"""

@@ -1,13 +1,15 @@
 import json
 import re
 from typing import List
+
 from loguru import logger
 
+from experiencemaker.enumeration.role import Role
 from experiencemaker.op import OP_REGISTRY
 from experiencemaker.op.base_op import BaseOp
 from experiencemaker.schema.experience import TextExperience, ExperienceMeta
 from experiencemaker.schema.message import Message, Trajectory
-from experiencemaker.enumeration.role import Role
+from experiencemaker.schema.response import SummarizerResponse
 
 
 @OP_REGISTRY.register()
@@ -26,31 +28,27 @@ class SuccessExtractionOp(BaseOp):
 
         # Use thread pool for parallel processing
         for trajectory in success_trajectories:
-            if hasattr(trajectory, 'segments') and trajectory.segments:
+            if "segments" in trajectory.metadata:
                 # Process segmented step sequences
-                for segment in trajectory.segments:
-                    self.submit_task(self._extract_success_experience_from_steps, 
-                                   steps=segment, trajectory=trajectory)
+                for segment in trajectory.metadata["segments"]:
+                    self.submit_task(self._extract_success_experience_from_steps, steps=segment, trajectory=trajectory)
             else:
                 # Process entire trajectory
-                self.submit_task(self._extract_success_experience_from_steps, 
-                               steps=trajectory.messages, trajectory=trajectory)
+                self.submit_task(self._extract_success_experience_from_steps,
+                                 steps=trajectory.messages, trajectory=trajectory)
 
         # Collect all experiences
-        all_experiences = []
-        for task_result in self.join_task():
-            if task_result:
-                all_experiences.extend(task_result)
+        all_experiences = self.join_task()
 
         logger.info(f"Extracted {len(all_experiences)} success experiences")
         
         # Add experiences to context
-        existing_experiences = self.context.get_context("extracted_experiences", [])
-        existing_experiences.extend(all_experiences)
-        self.context.set_context("extracted_experiences", existing_experiences)
+        response: SummarizerResponse = self.context.response
+        response.experience_list.extend(all_experiences)
 
     def _extract_success_experience_from_steps(self, steps: List[Message], trajectory: Trajectory) -> List[TextExperience]:
         """Extract experience from successful step sequences"""
+        # TODO remove try catch
         try:
             step_content = self._format_step_sequence(steps)
             context = self._get_trajectory_context(trajectory, steps)
@@ -92,7 +90,7 @@ class SuccessExtractionOp(BaseOp):
     def _format_step_sequence(self, steps: List[Message]) -> str:
         """Format step sequence to string"""
         step_content_collector = []
-        
+        # TODO merge_messages_content
         for step in steps:
             step_index = len(step_content_collector)
             

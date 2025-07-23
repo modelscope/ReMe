@@ -24,7 +24,7 @@ class BaseLLM(BaseModel, ABC):
     parallel_tool_calls: bool = Field(default=True)
 
     max_retries: int = Field(default=5, description="max retries")
-    raise_exception: bool = Field(default=True, description="raise exception")
+    raise_exception: bool = Field(default=False, description="raise exception")
 
     def stream_chat(self, messages: List[Message], tools: List[BaseTool] = None, **kwargs):
         raise NotImplementedError
@@ -35,7 +35,8 @@ class BaseLLM(BaseModel, ABC):
     def _chat(self, messages: List[Message], tools: List[BaseTool] = None, **kwargs) -> Message:
         raise NotImplementedError
 
-    def chat(self, messages: List[Message], tools: List[BaseTool] = None, callback_fn: Callable = None, **kwargs):
+    def chat(self, messages: List[Message], tools: List[BaseTool] = None, callback_fn: Callable = None,
+             default_value=None, **kwargs):
         for i in range(self.max_retries):
             try:
                 message: Message = self._chat(messages, tools, **kwargs)
@@ -48,7 +49,10 @@ class BaseLLM(BaseModel, ABC):
                 logger.exception(f"chat with model={self.model_name} encounter error with e={e.args}")
                 time.sleep(1 + i)
 
-                if i == self.max_retries - 1 and self.raise_exception:
-                    raise e
+                if i == self.max_retries - 1:
+                    if self.raise_exception:
+                        raise e
+                    else:
+                        return default_value
 
         return None

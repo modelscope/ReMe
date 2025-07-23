@@ -46,7 +46,7 @@ class RewriteExperienceOp(BaseOp):
 
 
     def _generate_context_message(self, query: str, messages: List[Message], nodes: List[VectorNode],
-                                  retrieval_query: str) -> Message:
+                                  retrieval_query: str) -> str:
         """Generate context message from retrieved experiences"""
         if not nodes:
             return ""
