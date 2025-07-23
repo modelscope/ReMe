@@ -24,7 +24,10 @@
 - **[2025-07]** 🚀 Multi-backend vector store support (Elasticsearch & ChromaDB)
 
 ## 📰 What's Next
-TODO
+- **Pre-built Experience Libraries**: Domain repositories (finance/coding/education/research) + community marketplace
+- **Rich Experience Formats**: Executable code/tool configs/pipeline templates/workflows
+- **Experience Validation**: Quality analysis + cross-task effectiveness + auto-refinement
+- **Universal Trajectory Extraction**: Raw logs/multimodal data/execution traces → experiences
 
 ---
 
