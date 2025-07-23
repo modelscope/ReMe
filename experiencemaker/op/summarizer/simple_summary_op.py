@@ -54,15 +54,14 @@ class SimpleSummaryOp(BaseOp):
 
     def execute(self):
         request: SummarizerRequest = self.context.request
+        response: SummarizerResponse = self.context.response
+
         for trajectory in request.traj_list:
             self.submit_task(self.summary_trajectory, trajectory=trajectory)
 
-        experience_list: List[BaseExperience] = self.join_task()
-
-        response: SummarizerResponse = self.context.response
-        response.experience_list = experience_list
-        for e in experience_list:
+        response.experience_list = self.join_task()
+        for e in response.experience_list:
             logger.info(f"add experience when_to_use={e.when_to_use}\ncontent={e.content}")
 
         from experiencemaker.op.vector_store.update_vector_store_op import UpdateVectorStoreOp
-        self.context.set_context(UpdateVectorStoreOp.INSERT_EXPERIENCE_LIST, [x.to_vector_node() for x in experience_list])
+        self.context.set_context(UpdateVectorStoreOp.INSERT_EXPERIENCE_LIST, response.experience_list)
