@@ -20,8 +20,17 @@ class BuildQueryOp(BaseOp):
             if enable_llm_build and enable_llm_build.lower() == "true":
                 execution_process = merge_messages_content(request.messages)
                 query = self.prompt_format(prompt_name="query_build", execution_process=execution_process)
+
             else:
-                query = request.messages[-1].content
+                context_parts = []
+                message_summaries = []
+                for message in request.messages[-3:]:  # Last 3 messages
+                    content = message.content[:200] + "..." if len(message.content) > 200 else message.content
+                    message_summaries.append(f"- {message.role.value}: {content}")
+                if message_summaries:
+                    context_parts.append("Recent messages:\n" + "\n".join(message_summaries))
+
+                query = "\n\n".join(context_parts)
 
         else:
             raise RuntimeError("query or messages is required!")
@@ -30,3 +39,4 @@ class BuildQueryOp(BaseOp):
 
         from experiencemaker.op.vector_store.recall_vector_store_op import RecallVectorStoreOp
         self.context.set_context(RecallVectorStoreOp.SEARCH_QUERY, query)
+        self.context.set_context(RecallVectorStoreOp.SEARCH_MESSAGE, request.messages)

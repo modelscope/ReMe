@@ -13,6 +13,7 @@ from experiencemaker.schema.vector_node import VectorNode
 @OP_REGISTRY.register()
 class RecallVectorStoreOp(BaseOp):
     SEARCH_QUERY = "search_query"
+    SEARCH_MESSAGE = "search_message"
 
     def execute(self):
         # get query
@@ -43,5 +44,5 @@ class RecallVectorStoreOp(BaseOp):
             logger.info(f"after filter by threshold_score size={len(experience_list)}")
 
         # set response
-        request: RetrieverResponse = self.context.response
-        request.experience_list = experience_list
+        response: RetrieverResponse = self.context.response
+        response.experience_list = experience_list
