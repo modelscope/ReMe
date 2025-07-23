@@ -52,5 +52,5 @@ def run_agent(dataset_name: str, experiment_suffix: str, multi_thread: bool = Fa
 
 if __name__ == "__main__":
     # ray.init(num_cpus=8)
-    run_agent(dataset_name="train", experiment_suffix="v2")
-    # run_agent(dataset_name="dev", experiment_suffix="v2")
+    # run_agent(dataset_name="train", experiment_suffix="v2")
+    run_agent(dataset_name="dev", experiment_suffix="v2")
