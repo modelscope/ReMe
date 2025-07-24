@@ -64,7 +64,7 @@ def main():
     if max_workers > 1:
         ray.init(num_cpus=8)
     run_agent(dataset_name="train", experiment_suffix="v2", max_workers=max_workers)
-    # run_agent(dataset_name="dev", experiment_suffix="v2")
+    run_agent(dataset_name="dev", experiment_suffix="v2", max_workers=max_workers)
 
 
 if __name__ == "__main__":
