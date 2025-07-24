@@ -8,6 +8,7 @@ load_dotenv("../../../.env")
 import re
 import time
 import json
+import ray
 
 from appworld import AppWorld, load_task_ids
 from jinja2 import Template
@@ -17,7 +18,7 @@ from openai import OpenAI
 from prompt import PROMPT_TEMPLATE
 
 
-# @ray.remote
+@ray.remote
 class AppworldReactAgent:
     """A minimal ReAct Agent for AppWorld tasks."""
 
@@ -25,7 +26,7 @@ class AppworldReactAgent:
                  index: int,
                  task_id: str,
                  experiment_name: str,
-                 model_name: str = "qwen3-8b",
+                 model_name: str = "qwen3-32b",
                  temperature: float = 0.9,
                  max_interactions: int = 30,
                  max_response_size: int = 2000):
@@ -111,9 +112,7 @@ class AppworldReactAgent:
                     output = self.next_step(code)
                     self.history.append({"role": "user", "content": output})
 
-                    logger.info(f"index={self.index} task_id={self.task_id} iteration={i} ")
-                    # f"code=\n{code}\n output=\n{output}\n "
-                    # f"score={self.get_reward():.4f}")
+                    logger.info(f"index={self.index} task_id={self.task_id} iteration={i}")
 
                     if self.world.task_completed():
                         break

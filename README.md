@@ -15,19 +15,21 @@
   <strong>A comprehensive framework for AI agent experience generation and reuse</strong><br>
   <em>Empowering agents to learn from the past and excel in the future</em>
 </p>
-
 ---
 
 ## 📰 What's New
 - **[2025-08]** 🎉 ExperienceMaker v0.1.0 is now available on [PyPI](https://pypi.org/project/experiencemaker/)!
 - **[2025-07]** 📚 Complete documentation and quick start guides released
 - **[2025-07]** 🚀 Multi-backend vector store support (Elasticsearch & ChromaDB)
+---
 
 ## 📰 What's Next
-- **Pre-built Experience Libraries**: Domain repositories (finance/coding/education/research) + community marketplace
+- **Pre-built Experience Libraries**: Domain repositories (Finance/Coding/Education/Research) + community marketplace
 - **Rich Experience Formats**: Executable code/tool configs/pipeline templates/workflows
 - **Experience Validation**: Quality analysis + cross-task effectiveness + auto-refinement
 - **Universal Trajectory Extraction**: Raw logs/multimodal data/execution traces → experiences
+
+Exciting features and improvements are on the horizon! Check out our detailed [Future Roadmap](./doc/future_roadmap.md) for upcoming enhancements.
 
 ---
 
@@ -251,13 +253,7 @@ We test ExperienceMaker on Appworld with qwen3-8b:
 
 ### 🔧 Experiment on BFCL-V3
 
-Detailed benchmarking results and performance analysis coming soon.
-
----
-
-## 🛣️ Future Roadmap
-
-Exciting features and improvements are on the horizon! Check out our detailed [Future Roadmap](./doc/future_roadmap.md) for upcoming enhancements.
+Coming Soon! Stay tuned for comprehensive evaluation results.
 
 ---
 
@@ -297,8 +293,6 @@ We warmly welcome contributions from the community! Here's how you can help make
 - Usage examples and comprehensive tutorials
 - Best practices guides and design patterns
 - Translation and localization efforts
-
-**Getting Started**: Fork the repository, create a feature branch, and submit a pull request. Please follow our coding standards and include comprehensive tests for new functionality.
 
 ---
 ## 📄 Citation
