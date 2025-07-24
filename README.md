@@ -161,14 +161,16 @@ curl -fsSL https://elastic.co/start-local | sh
 ## 📝 Your First ExperienceMaker Script
 
 Here's how to get started!
-Note the `workspace_id` serves as your experience storage namespace. Experiences in different workspaces remain completely
-  isolated and cannot access each other.
-
+Note the `workspace_id` serves as your experience storage namespace. Experiences in different workspaces remain completely isolated and cannot access each other.
 
 ### 📊 Call Summarizer Examples
-Batch summarize the trajectory list, where each trajectory consists of a message and a score. 
-- The message is the conversation history.
-- The score represents the rating between 0 and 1, with 0 typically indicating failure and 1 indicating success.
+
+Transform conversation trajectories into valuable experiences using batch summarization. Each trajectory contains:
+
+- **Message**: Complete conversation history between user and agent
+- **Score**: Performance rating (0-1 scale, where 0=failure, 1=success)
+
+The summarizer analyzes these trajectories to extract actionable insights and patterns for future interactions.
 
 <details open>
 <summary><b>Python</b></summary>
@@ -248,8 +250,12 @@ callSummarizer();
 </details>
 
 ### 🔍 Call Retriever Examples
-Retrieve the top_k={top_k} experiences related to {query} in workspace=test_workspace, and finally accept the assembled context. 
-Alternatively, you can also accept the raw experience_list parameter and assemble the context yourself.
+
+Intelligently search and retrieve the most relevant experiences from your workspace to enhance decision-making. The retriever:
+
+- **Finds** the top-k most similar experiences based on semantic similarity to your query
+- **Returns** pre-assembled context ready for immediate use, or raw experience data for custom processing
+- **Leverages** your workspace's accumulated knowledge to provide contextually relevant insights
 
 <details open>
 <summary><b>Python</b></summary>
@@ -317,7 +323,12 @@ callRetriever();
 </details>
 
 ### 💾 Dump Experiences From Vector Store
-Dump the experience with workspace_id from the vector store into the {path}/{workspace_id}.jsonl file.
+
+Export and backup your valuable experience data for archival, analysis, or migration purposes. This operation:
+
+- **Extracts** all experiences from the specified workspace in the vector store
+- **Saves** them to a structured JSONL file at `{path}/{workspace_id}.jsonl`
+- **Preserves** complete experience metadata and embeddings for future restoration
 
 <details open>
 <summary><b>Python</b></summary>
@@ -381,7 +392,12 @@ dumpExperiences();
 </details>
 
 ### 📥 Load Experiences To Vector Store
-Load the {path}/{workspace_id}.jsonl file into the vector store, workspace_id={workspace_id}.
+
+Import and restore previously exported experience data to populate your workspace with existing knowledge. This operation:
+
+- **Reads** experience data from the JSONL file located at `{path}/{workspace_id}.jsonl`
+- **Reconstructs** the vector embeddings and indexes them in the specified workspace
+- **Enables** immediate access to imported experiences for retrieval and decision-making
 
 <details open>
 <summary><b>Python</b></summary>
@@ -478,6 +494,7 @@ Pre-built experience collections for common domains and use cases are coming soo
 
 ## 📚 Additional Resources
 
+- **[Quick Start](./cookbook/simple_demo/quick_start.md)**: This guide will help you get started with ExperienceMaker quickly using practical examples.
 - **[Vector Store Setup](./doc/vector_store_setup.md)**: Complete production deployment guide
 - **[Configuration Guide](./doc/configuration_guide.md)**: Describes all available command-line parameters for ExperienceMaker Service
 - **[Advanced Guide](./doc/advanced_guide.md)**: Custom pipelines, operation parameters, and advanced configuration methods
