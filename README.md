@@ -110,7 +110,7 @@ pip install .
 
 ## ⚙️ Environment Setup
 
-Create a `.env` file in your project directory:
+Create a `.env` file in your project root directory:
 
 ```bash
 # Required: LLM API configuration
@@ -142,6 +142,7 @@ The service will start on `http://localhost:8001`
 ### 🔍 Production Setup with Elasticsearch Backend
 ```bash
 experiencemaker \
+  http_service.port=8001 \
   llm.default.model_name=qwen3-32b \
   embedding_model.default.model_name=text-embedding-v4 \
   vector_store.default.backend=elasticsearch
@@ -186,6 +187,8 @@ response = requests.post(url=base_url + "summarizer", json={
 })
 
 response = response.json()
+print(response)
+
 experience_list = response["experience_list"]
 for experience in experience_list:
   print(experience)
@@ -203,12 +206,53 @@ response = requests.post(url=base_url + "retriever", json={
 })
 
 response = response.json()
+print(response)
+
 experience_merged: str = response["experience_merged"]
 print(f"experience_merged={experience_merged}")
 ```
 
 ### 💾 Dump Experiences From Vector Store
 Dump the experience with workspace_id from the vector store into the {path}/{workspace_id}.jsonl file.
+
+<div class="tab">
+  <button class="tablinks" onclick="openLanguage(event, 'Python')">Python</button>
+  <button class="tablinks" onclick="openLanguage(event, 'Java')">Java</button>
+</div>
+
+<div id="Python" class="tabcontent">
+```python
+def hello_world():
+    print("Hello, World!")
+```
+</div>
+
+<div id="Java" class="tabcontent">
+```java
+public class Main {
+public static void main(String[] args) {
+System.out.println("Hello, World!");
+}
+}
+```
+</div>
+
+<script>
+function openLanguage(evt, languageName) {
+var i, tabcontent, tablinks;
+tabcontent = document.getElementsByClassName("tabcontent");
+for (i = 0; i < tabcontent.length; i++) {
+tabcontent[i].style.display = "none";
+}
+tablinks = document.getElementsByClassName("tablinks");
+for (i = 0; i < tablinks.length; i++) {
+tablinks[i].className = tablinks[i].className.replace(" active", "");
+}
+document.getElementById(languageName).style.display = "block";
+evt.currentTarget.className += " active";
+}
+</script>
+
 
 ```python
 response = requests.post(url=base_url + "vector_store", json={

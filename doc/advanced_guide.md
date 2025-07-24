@@ -92,7 +92,7 @@ api:
 ```yaml
 op:
   custom_operation:
-    backend: custom_backend_name
+    backend: custom_operation       # 
     llm: default                    # Reference to LLM configuration
     vector_store: default           # Reference to vector store
     params: # Custom parameters for this operation
