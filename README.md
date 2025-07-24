@@ -238,7 +238,16 @@ print(response.json())
 
 ### 🌍 Experiment on Appworld
 
-Coming Soon! Stay tuned for comprehensive evaluation results.
+# Qwen3-8B Experimental Results
+
+We test ExperienceMaker on Appworld with qwen3-8b:
+
+| Method                                   | best@1 | best@2   | best@4     |
+|------------------------------------------|--------|----------|------------|
+| w/o ExperienceMaker (baseline)           | 0.3561 | 0.4052   | 0.4536     |
+| **w ExperienceMaker**                    |        |          |            |
+| [1] extract + compare + recall           | **0.4069** | 	**0.5066**	 | 0.618      |
+| [2] extract + compare + recall + rewrite | 0.3910 | 0.5038   | **0.6211** |
 
 ### 🔧 Experiment on BFCL-V3
 
