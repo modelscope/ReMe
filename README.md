@@ -224,7 +224,7 @@ Load the {path}/{workspace_id}.jsonl file into the vector store, workspace_id={w
 
 ```python
 response = requests.post(url=base_url + "vector_store", json={
-  "workspace_id": "test_workspace1",
+  "workspace_id": workspace_id,
   "action": "load",
   "path": "./",
 })
@@ -244,12 +244,12 @@ print(response.json())
 
 We test ExperienceMaker on Appworld with qwen3-8b:
 
-| Method                                   | best@1 | best@2   | best@4     |
-|------------------------------------------|--------|----------|------------|
-| w/o ExperienceMaker (baseline)           | 0.3561 | 0.4052   | 0.4536     |
-| **w ExperienceMaker**                    |        |          |            |
+| Method                                   | best@1     | best@2       | best@4     |
+|------------------------------------------|------------|--------------|------------|
+| w/o ExperienceMaker (baseline)           | 0.3561     | 0.4052       | 0.4536     |
+| **w ExperienceMaker**                    |            |              |            |
 | [1] extract + compare + recall           | **0.4069** | 	**0.5066**	 | 0.618      |
-| [2] extract + compare + recall + rewrite | 0.3910 | 0.5038   | **0.6211** |
+| [2] extract + compare + recall + rewrite | 0.3910     | 0.5038       | **0.6211** |
 
 ### 🔧 Experiment on BFCL-V3
 

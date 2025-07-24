@@ -142,7 +142,7 @@ Load the {path}/{workspace_id}.jsonl file into the vector store, workspace_id={w
 
 ```python
 response = requests.post(url=base_url + "vector_store", json={
-  "workspace_id": "test_workspace1",
+  "workspace_id": workspace_id,
   "action": "load",
   "path": "./",
 })

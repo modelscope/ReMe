@@ -1,4 +1,7 @@
 import os
+from typing import List
+
+from tqdm import tqdm
 
 os.environ["APPWORLD_ROOT"] = "."
 from dotenv import load_dotenv
@@ -24,7 +27,7 @@ class AppworldReactAgent:
 
     def __init__(self,
                  index: int,
-                 task_id: str,
+                 task_ids: List[str],
                  experiment_name: str,
                  model_name: str = "qwen3-32b",
                  temperature: float = 0.9,
@@ -32,22 +35,19 @@ class AppworldReactAgent:
                  max_response_size: int = 2000):
 
         self.index: int = index
-        self.task_id: str = task_id
+        self.task_ids: List[str] = task_ids
         self.experiment_name: str = experiment_name
         self.model_name: str = model_name
         self.temperature: float = temperature
         self.max_interactions: int = max_interactions
         self.max_response_size: int = max_response_size
 
-        self.world: AppWorld = AppWorld(task_id=task_id, experiment_name=experiment_name)
-        self.history: list[dict] = self.prompt_messages()
+        self.llm_client = OpenAI()
 
     def call_llm(self, messages: list) -> str:
         for i in range(100):
             try:
-                client = OpenAI()
-                # Change this function to modify the base llm
-                response = client.chat.completions.create(
+                response = self.llm_client.chat.completions.create(
                     model=self.model_name,
                     messages=messages,
                     temperature=self.temperature,
@@ -62,10 +62,10 @@ class AppworldReactAgent:
 
         return "call llm error"
 
-    def prompt_messages(self) -> list[dict]:
-        dictionary = {"supervisor": self.world.task.supervisor, "instruction": self.world.task.instruction}
+    @staticmethod
+    def prompt_messages(world: AppWorld) -> list[dict]:
+        dictionary = {"supervisor": world.task.supervisor, "instruction": world.task.instruction}
         prompt = Template(PROMPT_TEMPLATE.lstrip()).render(dictionary)
-        # Extract and return the OpenAI JSON formatted messages from the prompt
         messages: list[dict] = []
         last_start = 0
         for match in re.finditer("(USER|ASSISTANT|SYSTEM):\n", prompt):
@@ -83,64 +83,57 @@ class AppworldReactAgent:
         messages[-1]["content"] = prompt[last_start:]
         return messages
 
-    def next_code_block(self) -> str:
-        return self.call_llm(self.history)
-
-    def next_step(self, code: str) -> str:
-        output = self.world.execute(code)
-        if len(output) > self.max_response_size:
-            logger.warning(f"output exceed max size={len(output)}")
-            output = output[:self.max_response_size]
-        return output
-
-    def get_reward(self) -> float:
-        tracker = self.world.evaluate()
+    @staticmethod
+    def get_reward(world) -> float:
+        tracker = world.evaluate()
         num_passes = len(tracker.passes)
         num_failures = len(tracker.failures)
         return num_passes / (num_passes + num_failures)
 
     def execute(self):
-        try:
-            with self.world:
-                before_score = self.get_reward()
-                logger.info(f"instruction={self.world.task.instruction} before_score={before_score:.4f}")
+        result = []
+        for task_index, task_id in enumerate(tqdm(self.task_ids, desc=f"ray_index={self.index}")):
+            with AppWorld(task_id=task_id, experiment_name=self.experiment_name) as world:
+                history = self.prompt_messages(world=world)
+                before_score = self.get_reward(world)
+                logger.info(f"ray_id={self.index} task_index={task_index} instruction={world.task.instruction} "
+                            f"before_score={before_score:.4f}")
 
                 for i in range(self.max_interactions):
-                    code = self.next_code_block()
-                    self.history.append({"role": "assistant", "content": code})
+                    code = self.call_llm(history)
+                    history.append({"role": "assistant", "content": code})
 
-                    output = self.next_step(code)
-                    self.history.append({"role": "user", "content": output})
+                    output = world.execute(code)
+                    if len(output) > self.max_response_size:
+                        logger.warning(f"output exceed max size={len(output)}")
+                        output = output[:self.max_response_size]
+                    history.append({"role": "user", "content": output})
 
-                    logger.info(f"index={self.index} task_id={self.task_id} iteration={i}")
+                    logger.info(f"ray_id={self.index} task_index={task_index} step={i} complete~")
 
-                    if self.world.task_completed():
+                    if world.task_completed():
                         break
 
-                after_score = self.get_reward()
+                after_score = self.get_reward(world)
                 uplift_score = after_score - before_score
-                result = {
-                    "task_id": self.task_id,
+                t_result = {
+                    "task_id": world.task_id,
                     "experiment_name": self.experiment_name,
-                    "task_completed": self.world.task_completed(),
+                    "task_completed": world.task_completed(),
                     "before_score": before_score,
                     "after_score": after_score,
                     "uplift_score": uplift_score,
-                    "task_history": self.history,
+                    "task_history": history,
                 }
-                # logger.info(f"result={json.dumps(result)}")
-                # p_bar.close()
-                return result
+                result.append(t_result)
 
-        except Exception as e:
-            logger.exception(f"encounter error with {e.args}")
-            return {}
+        return result
 
 
 def main():
     dataset_name = "train"
     task_ids = load_task_ids(dataset_name)
-    agent = AppworldReactAgent(index=0, task_id=task_ids[0], experiment_name=f"jinli_{dataset_name}")
+    agent = AppworldReactAgent(index=0, task_ids=task_ids[0:1], experiment_name=f"jinli_{dataset_name}")
     result = agent.execute()
     logger.info(f"result={json.dumps(result)}")
 
