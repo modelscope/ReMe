@@ -15,12 +15,14 @@
   <strong>A comprehensive framework for AI agent experience generation and reuse</strong><br>
   <em>Empowering agents to learn from the past and excel in the future</em>
 </p>
+
 ---
 
 ## 📰 What's New
 - **[2025-08]** 🎉 ExperienceMaker v0.1.0 is now available on [PyPI](https://pypi.org/project/experiencemaker/)!
 - **[2025-07]** 📚 Complete documentation and quick start guides released
 - **[2025-07]** 🚀 Multi-backend vector store support (Elasticsearch & ChromaDB)
+
 ---
 
 ## 📰 What's Next
@@ -159,122 +161,289 @@ curl -fsSL https://elastic.co/start-local | sh
 ## 📝 Your First ExperienceMaker Script
 
 Here's how to get started!
-- The `load_dotenv()` function loads environment variables from your `.env` file, or you can manually export them.
-- The `base_url` points to your ExperienceMaker service.
-- The `workspace_id` serves as your experience storage namespace. Experiences in different workspaces remain completely
+Note the `workspace_id` serves as your experience storage namespace. Experiences in different workspaces remain completely
   isolated and cannot access each other.
 
-```python
-import requests
-from dotenv import load_dotenv
-
-load_dotenv()
-base_url = "http://0.0.0.0:8001/"
-workspace_id = "test_workspace"
-```
 
 ### 📊 Call Summarizer Examples
 Batch summarize the trajectory list, where each trajectory consists of a message and a score. 
 - The message is the conversation history.
 - The score represents the rating between 0 and 1, with 0 typically indicating failure and 1 indicating success.
 
+<details open>
+<summary><b>Python</b></summary>
+
 ```python
-response = requests.post(url=base_url + "summarizer", json={
-  "workspace_id": workspace_id,
+import requests
+
+response = requests.post(url="http://0.0.0.0:8001/summarizer", json={
+  "workspace_id": "test_workspace",
   "traj_list": [
-    {"messages": messages, "score": 1.0}
+    {"messages": [{"role": "user", "content": "hello world"}], "score": 1.0}
   ]
 })
 
-response = response.json()
-print(response)
-
-experience_list = response["experience_list"]
+experience_list = response.json()["experience_list"]
 for experience in experience_list:
   print(experience)
 ```
+</details>
+
+<details>
+<summary><b>curl</b></summary>
+
+```bash
+curl -X POST "http://0.0.0.0:8001/summarizer" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "test_workspace",
+    "traj_list": [
+      {
+        "messages": [{"role": "user", "content": "hello world"}],
+        "score": 1.0
+      }
+    ]
+  }'
+```
+</details>
+
+<details>
+<summary><b>Node.js</b></summary>
+
+```javascript
+const fetch = require('node-fetch');
+// or: import fetch from 'node-fetch';
+
+async function callSummarizer() {
+  try {
+    const response = await fetch('http://0.0.0.0:8001/summarizer', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        workspace_id: "test_workspace",
+        traj_list: [
+          {
+            messages: [{ role: "user", content: "hello world" }],
+            score: 1.0
+          }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    const experienceList = data.experience_list;
+    
+    experienceList.forEach(experience => {
+      console.log(experience);
+    });
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+callSummarizer();
+```
+</details>
 
 ### 🔍 Call Retriever Examples
 Retrieve the top_k={top_k} experiences related to {query} in workspace=test_workspace, and finally accept the assembled context. 
 Alternatively, you can also accept the raw experience_list parameter and assemble the context yourself.
 
+<details open>
+<summary><b>Python</b></summary>
+
 ```python
-response = requests.post(url=base_url + "retriever", json={
-  "workspace_id": workspace_id,
-  "query": query,
+import requests
+
+response = requests.post(url="http://0.0.0.0:8001/retriever", json={
+  "workspace_id": "test_workspace",
+  "query": "what is the meaning of life?",
   "top_k": 1,
 })
 
-response = response.json()
-print(response)
-
-experience_merged: str = response["experience_merged"]
+experience_merged: str = response.json()["experience_merged"]
 print(f"experience_merged={experience_merged}")
 ```
+</details>
+
+<details>
+<summary><b>curl</b></summary>
+
+```bash
+curl -X POST "http://0.0.0.0:8001/retriever" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "test_workspace",
+    "query": "what is the meaning of life?",
+    "top_k": 1
+  }'
+```
+</details>
+
+<details>
+<summary><b>Node.js</b></summary>
+
+```javascript
+const fetch = require('node-fetch');
+// or: import fetch from 'node-fetch';
+
+async function callRetriever() {
+  try {
+    const response = await fetch('http://0.0.0.0:8001/retriever', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        workspace_id: "test_workspace",
+        query: "what is the meaning of life?",
+        top_k: 1
+      })
+    });
+
+    const data = await response.json();
+    const experienceMerged = data.experience_merged;
+    
+    console.log(`experience_merged=${experienceMerged}`);
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+callRetriever();
+```
+</details>
 
 ### 💾 Dump Experiences From Vector Store
 Dump the experience with workspace_id from the vector store into the {path}/{workspace_id}.jsonl file.
 
-<div class="tab">
-  <button class="tablinks" onclick="openLanguage(event, 'Python')">Python</button>
-  <button class="tablinks" onclick="openLanguage(event, 'Java')">Java</button>
-</div>
-
-<div id="Python" class="tabcontent">
-```python
-def hello_world():
-    print("Hello, World!")
-```
-</div>
-
-<div id="Java" class="tabcontent">
-```java
-public class Main {
-public static void main(String[] args) {
-System.out.println("Hello, World!");
-}
-}
-```
-</div>
-
-<script>
-function openLanguage(evt, languageName) {
-var i, tabcontent, tablinks;
-tabcontent = document.getElementsByClassName("tabcontent");
-for (i = 0; i < tabcontent.length; i++) {
-tabcontent[i].style.display = "none";
-}
-tablinks = document.getElementsByClassName("tablinks");
-for (i = 0; i < tablinks.length; i++) {
-tablinks[i].className = tablinks[i].className.replace(" active", "");
-}
-document.getElementById(languageName).style.display = "block";
-evt.currentTarget.className += " active";
-}
-</script>
-
+<details open>
+<summary><b>Python</b></summary>
 
 ```python
-response = requests.post(url=base_url + "vector_store", json={
-  "workspace_id": workspace_id,
+import requests
+
+response = requests.post(url="http://0.0.0.0:8001/vector_store", json={
+  "workspace_id": "test_workspace",
   "action": "dump",
   "path": "./",
 })
 print(response.json())
 ```
+</details>
+
+<details>
+<summary><b>curl</b></summary>
+
+```bash
+curl -X POST "http://0.0.0.0:8001/vector_store" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "test_workspace",
+    "action": "dump",
+    "path": "./"
+  }'
+```
+</details>
+
+<details>
+<summary><b>Node.js</b></summary>
+
+```javascript
+const fetch = require('node-fetch');
+// or: import fetch from 'node-fetch';
+
+async function dumpExperiences() {
+  try {
+    const response = await fetch('http://0.0.0.0:8001/vector_store', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        workspace_id: "test_workspace",
+        action: "dump",
+        path: "./"
+      })
+    });
+
+    const data = await response.json();
+    console.log(data);
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+dumpExperiences();
+```
+</details>
 
 ### 📥 Load Experiences To Vector Store
 Load the {path}/{workspace_id}.jsonl file into the vector store, workspace_id={workspace_id}.
 
+<details open>
+<summary><b>Python</b></summary>
+
 ```python
-response = requests.post(url=base_url + "vector_store", json={
-  "workspace_id": workspace_id,
+import requests
+
+response = requests.post(url="http://0.0.0.0:8001/vector_store", json={
+  "workspace_id": "test_workspace",
   "action": "load",
   "path": "./",
 })
 
 print(response.json())
 ```
+</details>
+
+<details>
+<summary><b>curl</b></summary>
+
+```bash
+curl -X POST "http://0.0.0.0:8001/vector_store" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "test_workspace",
+    "action": "load",
+    "path": "./"
+  }'
+```
+</details>
+
+<details>
+<summary><b>Node.js</b></summary>
+
+```javascript
+const fetch = require('node-fetch');
+// or: import fetch from 'node-fetch';
+
+async function loadExperiences() {
+  try {
+    const response = await fetch('http://0.0.0.0:8001/vector_store', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        workspace_id: "test_workspace",
+        action: "load",
+        path: "./"
+      })
+    });
+
+    const data = await response.json();
+    console.log(data);
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+loadExperiences();
+```
+</details>
 
 🎭 **Want to See It in Action?** We've prepared a [simple react agent](./cookbook/simple_demo/simple_demo.py) that demonstrates how to enhance agent capabilities by integrating summarizer and retriever components, achieving significantly better performance.
 
