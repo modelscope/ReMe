@@ -1,7 +1,7 @@
 # ExperienceMaker
 
 <p align="center">
- <img src="doc/figure/logo_v2.png" alt="ExperienceMaker Logo" width="50%">
+ <img src="doc/figure/logo_v3.png" alt="ExperienceMaker Logo" width="50%">
 </p>
 
 <p align="center">
