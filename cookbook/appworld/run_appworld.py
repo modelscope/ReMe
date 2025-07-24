@@ -7,7 +7,7 @@ from ray import logger
 os.environ["APPWORLD_ROOT"] = "."
 from dotenv import load_dotenv
 
-load_dotenv("../../../.env")
+load_dotenv("../../.env")
 
 import json
 from pathlib import Path
@@ -63,7 +63,7 @@ def main():
     max_workers = 8
     if max_workers > 1:
         ray.init(num_cpus=8)
-    run_agent(dataset_name="train", experiment_suffix="v2", max_workers=max_workers)
+    # run_agent(dataset_name="train", experiment_suffix="v2", max_workers=max_workers)
     run_agent(dataset_name="dev", experiment_suffix="v2", max_workers=max_workers)
 
 
