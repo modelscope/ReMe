@@ -64,8 +64,8 @@ def run_retriever(query: str):
 
 
 def run_agent_with_experience(query_first: str, query_second: str, dump_experience: bool = True):
-    # messages = run_agent(query=query_second)
-    # run_summary(messages, dump_experience)
+    messages = run_agent(query=query_second)
+    run_summary(messages, dump_experience)
     experience_merged = run_retriever(query_first)
     messages = run_agent(query=f"{experience_merged}\n\nUser Question:\n{query_first}")
     return messages
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     query1 = "Analyze Xiaomi Corporation"
     query2 = "Analyze the company Tesla."
 
-    # run_agent(query=query1, dump_messages=True)
-    # run_agent_with_experience(query_first=query1, query_second=query2)
-    # dump_experience()
+    run_agent(query=query1, dump_messages=True)
+    run_agent_with_experience(query_first=query1, query_second=query2)
+    dump_experience()
     load_experience()

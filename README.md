@@ -25,7 +25,7 @@
 
 ---
 
-## 📰 What's Next
+## 🚀 What's Next
 - **Pre-built Experience Libraries**: Domain repositories (Finance/Coding/Education/Research) + community marketplace
 - **Rich Experience Formats**: Executable code/tool configs/pipeline templates/workflows
 - **Experience Validation**: Quality analysis + cross-task effectiveness + auto-refinement
@@ -43,7 +43,7 @@ By automatically extracting, storing, and intelligently reusing experiences from
 Traditional AI agents start from scratch with every new task, wasting valuable learning opportunities. 
 ExperienceMaker changes this paradigm by:
 - **🧠 Learning from History**: Automatically extract actionable insights from both successful and failed attempts
-- **🔄 Intelligent Reuse**: Apply relevant past experiences to solve new, similar challenges more effectively
+- **🔄 Intelligent Reuse**: Apply relevant experiences to solve new, similar challenges more effectively
 - **📈 Continuous Improvement**: Build a growing knowledge base that makes agents progressively smarter
 
 ### ✨ Core Capabilities
@@ -52,12 +52,12 @@ ExperienceMaker changes this paradigm by:
 - **Success Pattern Recognition**: Identify what works and understand the underlying principles
 - **Failure Analysis**: Learn from mistakes to avoid repeating them in future tasks
 - **Comparative Insights**: Understand the critical differences between successful and failed approaches
-- **Multi-step Trajectory Processing**: Break down complex tasks into learnable, actionable segments
+- **Multistep Trajectory Processing**: Break down complex tasks into learnable, actionable segments
 
 #### 🎯 **Smart Experience Retriever**
 - **Semantic Search**: Find relevant experiences using advanced embedding models and semantic understanding
 - **Context-Aware Ranking**: Prioritize the most applicable experiences for current task contexts
-- **Dynamic Rewriting**: Intelligently adapt past experiences to fit new situations and requirements
+- **Dynamic Rewriting**: Intelligently adapt experiences to fit new situations and requirements
 - **Multi-modal Support**: Handle various input types including query, messages
 
 #### 🗄️ **Scalable Experience Management**
@@ -84,7 +84,12 @@ ExperienceMaker follows a modular, production-ready architecture designed for sc
 - **🗄️ Vector Store API**: Database management and workspace operations with full CRUD support
 
 #### ⚙️ **Processing Pipeline**
-Our atomic operations can be seamlessly composed into powerful processing pipelines: custom1_op->custom2_op...
+
+Our atomic operations can be seamlessly composed into powerful processing pipelines:
+
+```
+custom1_op->custom2_op...
+```
 
 #### 🔌 **Extensible Components**
 - **LLM Integration**: OpenAI-compatible APIs with flexible model switching and provider support
@@ -137,7 +142,9 @@ experiencemaker \
   embedding_model.default.model_name=text-embedding-v4 \
   vector_store.default.backend=local_file
 ```
-💡 **Pro Tip**: Check out our [Advanced Guide](./doc/advanced_guide.md) for detailed configuration topics including custom pipelines, operation parameters, and advanced configuration methods.
+
+💡 **Pro Tip**: Check out our [Configuration Guide](./doc/configuration_guide.md) for detailed configuration topics
+including custom pipelines, operation parameters, and advanced configuration methods.
 
 The service will start on `http://localhost:8001`
 
@@ -461,6 +468,10 @@ loadExperiences();
 ```
 </details>
 
+💡 **Need More Advanced Operations?** For additional workspace management features(e.g. delete_workspace,
+copy_workspace), advanced configuration options, and troubleshooting guidance, check out our
+comprehensive [Quick Start Guide](./cookbook/simple_demo/quick_start.md).
+
 🎭 **Want to See It in Action?** We've prepared a [simple react agent](./cookbook/simple_demo/simple_demo.py) that demonstrates how to enhance agent capabilities by integrating summarizer and retriever components, achieving significantly better performance.
 
 ---
@@ -488,7 +499,52 @@ Coming Soon! Stay tuned for comprehensive evaluation results.
 
 ## 🏪 Ready-made Experience Store
 
-Pre-built experience collections for common domains and use cases are coming soon. This will include ready-to-use experiences for web automation, data processing, API interactions, and more.
+ExperienceMaker provides pre-built experience libraries to jumpstart your agent's capabilities.
+You can directly load these curated experiences into your workspace and start benefiting from accumulated knowledge
+immediately.
+
+### 📦 Available Experience Libraries
+
+- **`appworld_v1.jsonl`**: Comprehensive experiences from Appworld agent interactions, covering complex task planning
+  and execution patterns
+- **`bfcl_v1.jsonl`**: Function calling experiences from Berkeley Function-Calling Leaderboard tasks
+
+### 🚀 Quick Start with Pre-built Experiences
+
+Here's how to load and use the Appworld experience library:
+
+#### Step 1: Load Pre-built Experiences
+
+```python
+import requests
+
+# Load Appworld experiences into your workspace
+response = requests.post(url="http://0.0.0.0:8001/vector_store", json={
+    "workspace_id": "appworld_v1",
+    "action": "load",
+    "path": "./experience_library/",
+})
+
+print(f"loading result result={response.json()}")
+```
+
+#### Step 2: Retrieve Relevant Experiences
+
+Now you can query the loaded experiences to get contextual guidance for your tasks:
+
+```python
+import requests
+
+# Query for app interaction experiences
+response = requests.post(url="http://0.0.0.0:8001/retriever", json={
+    "workspace_id": "appworld_v1",
+    "query": "How to navigate to settings and update user profile information?",
+    "top_k": 1,
+})
+
+experience_merged = response.json()["experience_merged"]
+print(f"Retrieved experiences: {experience_merged}")
+```
 
 ---
 
@@ -497,7 +553,6 @@ Pre-built experience collections for common domains and use cases are coming soo
 - **[Quick Start](./cookbook/simple_demo/quick_start.md)**: This guide will help you get started with ExperienceMaker quickly using practical examples.
 - **[Vector Store Setup](./doc/vector_store_setup.md)**: Complete production deployment guide
 - **[Configuration Guide](./doc/configuration_guide.md)**: Describes all available command-line parameters for ExperienceMaker Service
-- **[Advanced Guide](./doc/advanced_guide.md)**: Custom pipelines, operation parameters, and advanced configuration methods
 - **[Operations Documentation](./doc/operations_documentation.md)**: Comprehensive operations configuration reference
 - **[Example Collection](./cookbook)**: Practical examples and use cases
 - **[Future RoadMap](./doc/future_roadmap.md)**: Our vision and upcoming features

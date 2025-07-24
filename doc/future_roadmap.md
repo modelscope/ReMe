@@ -49,10 +49,10 @@ Enable AI to naturally become stronger through everyday work, rather than wastin
 - [ ] cook_book-bfcl-v3 op @zouyin delay 0730
 - [x] fix multi-process bug @jinli
 - [ ] logo optimize @jiaji
-- [ ] Ready-made Experience Store @jinli, add appworld/bfcl-v3 default experience store @jiaji
+- [x] Ready-made Experience Store @jinli, add appworld/bfcl-v3 default experience store @jiaji
 - [ ] op config make up @jiaji
-- [ ] config make up, easy to understand @jinli
-- [ ] refine readme @jinli
+- [x] config make up, easy to understand @jinli
+- [x] refine readme @jinli
 
-- [ ] integrate into beyond-agent @jinli
-- [ ] rm workspace_id in code
+- [x] integrate into beyond-agent @jinli
+- [ ] rm workspace_id in code @jinli
