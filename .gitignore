@@ -27,3 +27,4 @@ build/*
 cookbook/appworld/data/*
 cookbook/appworld/experiments/*
 cookbook/appworld/exp_result/*
+file_vector_store/*

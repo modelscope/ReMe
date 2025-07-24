@@ -65,7 +65,7 @@ class FailureExtractionOp(BaseOp):
             experiences = []
 
             for exp_data in experiences_data:
-                experience = BaseExperience(
+                experience: BaseExperience = TextExperience(
                     workspace_id=self.context.request.workspace_id,
                     when_to_use=exp_data.get("when_to_use", exp_data.get("condition", "")),
                     content=exp_data.get("experience", ""),

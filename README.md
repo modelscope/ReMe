@@ -21,7 +21,7 @@
 ## 📰 What's New
 - **[2025-08]** 🎉 ExperienceMaker v0.1.0 is now available on [PyPI](https://pypi.org/project/experiencemaker/)!
 - **[2025-07]** 📚 Complete documentation and quick start guides released
-- **[2025-07]** 🚀 Multi-backend vector store support (Elasticsearch & ChromaDB)
+- **[2025-06]** 🚀 Multi-backend vector store support (Elasticsearch & ChromaDB)
 
 ---
 

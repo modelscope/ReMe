@@ -55,3 +55,4 @@ Enable AI to naturally become stronger through everyday work, rather than wastin
 - [ ] refine readme @jinli
 
 - [ ] integrate into beyond-agent @jinli
+- [ ] rm workspace_id in code

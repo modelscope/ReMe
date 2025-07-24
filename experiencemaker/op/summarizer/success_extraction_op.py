@@ -7,7 +7,7 @@ from loguru import logger
 from experiencemaker.enumeration.role import Role
 from experiencemaker.op import OP_REGISTRY
 from experiencemaker.op.base_op import BaseOp
-from experiencemaker.schema.experience import BaseExperience, ExperienceMeta
+from experiencemaker.schema.experience import BaseExperience, ExperienceMeta, TextExperience
 from experiencemaker.schema.message import Message, Trajectory
 from experiencemaker.schema.response import SummarizerResponse
 from experiencemaker.utils.op_utils import merge_messages_content, parse_json_experience_response, get_trajectory_context
@@ -59,12 +59,12 @@ class SuccessExtractionOp(BaseOp):
             outcome="successful"
         )
 
-        def parse_experiences(message: Message) -> List[BaseExperience]:
+        def parse_experiences(message: Message) -> List[TextExperience]:
             experiences_data = parse_json_experience_response(message.content)
             experiences = []
 
             for exp_data in experiences_data:
-                experience = BaseExperience(
+                experience = TextExperience(
                     workspace_id=self.context.request.workspace_id,
                     when_to_use=exp_data.get("when_to_use", exp_data.get("condition", "")),
                     content=exp_data.get("experience", ""),
