@@ -4,12 +4,6 @@ This document describes all available parameters for ExperienceMaker Service.
 The application uses [OmegaConf](https://omegaconf.readthedocs.io/) for configuration management, supporting both YAML
 files and command-line overrides.
 
-## Basic Usage
-
-```bash
-experiencemaker [parameter1=value1] [parameter2=value2] ...
-```
-
 ## Configuration Loading Priority
 
 1. Default values from `AppConfig` dataclass
@@ -24,6 +18,12 @@ ExperienceMaker uses a layered configuration system with the following priority 
 1. **Default Configuration** (lowest priority)
 2. **YAML Configuration File**
 3. **Command Line Arguments** (highest priority)
+
+## Basic Bash Usage
+
+```bash
+experiencemaker [parameter1=value1] [parameter2=value2] ...
+```
 
 ## 🧩 YAML Configuration Composition
 
@@ -81,18 +81,26 @@ op:
     vector_store: default            # References the declared vector store object
 ```
 
-### 4. Pipeline Composition
+### 4. Pipeline
 
-Finally, using the declared operations, you can compose complex pipelines through nested structures and parallel
-execution patterns:
+Pipeline configurations use a special syntax to define operation flows:
+
+- `->`: Sequential execution
+- `[]`: Parallel execution group
+- `|`: Alternative operations within parallel group
+
+### Examples
 
 ```yaml
+# Sequential pipeline
 api:
-  # Complex summarizer chain with parallel operations
-  summarizer: trajectory_preprocess_op->[success_extraction_op|failure_extraction_op]->experience_validation_op
+  retriever: op1->op2->op3
 
-  # Nested retriever pipeline  
-  retriever: recall_experience_op->rerank_experience_op->rewrite_experience_op
+  # Parallel execution
+  summarizer: op1->[op2|op3|op4]->op5
+
+  # Complex pipeline with nested parallel operations
+  vector_store: preprocess_op->[recall_op->rerank_op|backup_op]->merge_op
 ```
 
 This compositional approach enables:
@@ -149,31 +157,7 @@ vector_store:
     embedding_model: default
 ```
 
-## 🔧 Pipeline Configuration
-
-### Pipeline Syntax
-
-Pipeline configurations use a special syntax to define operation flows:
-
-- `->`: Sequential execution
-- `[]`: Parallel execution group
-- `|`: Alternative operations within parallel group
-
-### Examples
-
-```yaml
-# Sequential pipeline
-api:
-  retriever: op1->op2->op3
-
-  # Parallel execution
-  summarizer: op1->[op2|op3|op4]->op5
-
-  # Complex pipeline with nested parallel operations
-  vector_store: preprocess_op->[recall_op->rerank_op|backup_op]->merge_op
-```
-
-## Basic Configuration Parameters
+## Detailed Configuration Parameters
 
 | Parameter            | Type   | Default Value   | Description                                                          | Example                                   |
 |----------------------|--------|-----------------|----------------------------------------------------------------------|-------------------------------------------|
@@ -242,124 +226,10 @@ parameters:
 | `vector_store.{name}.embedding_model` | string | `""`          | Reference to embedding model configuration | `vector_store.default.embedding_model=default`            |
 | `vector_store.{name}.params.{param}`  | any    | `{}`          | Vector store-specific parameters           | `vector_store.default.params.store_dir=file_vector_store` |
 
-## ⚙️ Custom Operation Parameters
-
-### Operation Configuration Structure
-
-```yaml
-op:
-  custom_operation:
-    backend: custom_operation       # The backend names are registered through `@OP_REGISTRY.register()` decorator, typically converting camel-case class names to underscore format
-    llm: default                    # Reference to LLM configuration
-    vector_store: default           # Reference to vector store
-    params: # Custom parameters for this operation
-      retrieve_top_k: 15           # Number of top results to retrieve
-      similarity_threshold: 0.8     # Similarity threshold for filtering
-      enable_rerank: true          # Enable reranking functionality
-      custom_param: "custom_value" # Any custom parameter
-```
-
-### Common Operation Parameters
-
-**Retrieval Operations:**
-
-```yaml
-recall_experience_op:
-  params:
-    retrieve_top_k: 15
-    similarity_threshold: 0.5
-
-rerank_experience_op:
-  params:
-    enable_llm_rerank: true
-    enable_score_filter: false
-    top_k: 5
-```
-
-**Extraction Operations:**
-
-```yaml
-success_extraction_op:
-  params:
-    extraction_mode: "detailed"
-    include_context: true
-
-experience_validation_op:
-  params:
-    validation_threshold: 0.5
-    strict_mode: false
-```
-
-## 🚀 Configuration Methods
-
-### Method 1: Custom Configuration File
-
-**Step 1:** Create your configuration file
-
-```yaml
-# my_custom_config.yaml
-api:
-  retriever: custom_recall_op->custom_rerank_op
-
-op:
-  custom_recall_op:
-    backend: recall_experience_op
-    params:
-      retrieve_top_k: 20
-      similarity_threshold: 0.7
-
-llm:
-  default:
-    model_name: gpt-4
-    params:
-      temperature: 0.3
-```
-
-**Step 2:** Use the custom configuration
-
-```bash
-experiencemaker config_path=/path/to/my_custom_config.yaml
-```
-
-### Method 2: Command Line Parameters
-
-Override any configuration parameter using dot notation:
-
-```bash
-# Basic parameter override
-experiencemaker \
-  llm.default.model_name=gpt-4 \
-  embedding_model.default.model_name=text-embedding-3-large
-
-# Operation parameters
-experiencemaker \
-  op.recall_experience_op.params.retrieve_top_k=20 \
-  op.rerank_experience_op.params.top_k=8
-
-# Service configuration
-experiencemaker \
-  http_service.port=8080 \
-  thread_pool.max_workers=32
-
-# Pipeline configuration  
-experiencemaker \
-  api.retriever="custom_op1->custom_op2"
-```
-
-### Method 3: Hybrid Approach
-
-Combine configuration file with command line overrides:
-
-```bash
-experiencemaker \
-  config_path=/path/to/base_config.yaml \
-  llm.default.model_name=gpt-4 \
-  op.recall_experience_op.params.retrieve_top_k=25
-```
 
 ## 🎯 Practical Examples
 
-### Example 1: High-Performance Configuration
+### Example 1
 
 ```bash
 experiencemaker \
@@ -370,7 +240,7 @@ experiencemaker \
   llm.default.params.temperature=0.1
 ```
 
-### Example 2: Development Configuration
+### Example 2
 
 ```yaml
 # dev_config.yaml
