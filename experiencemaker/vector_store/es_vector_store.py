@@ -51,14 +51,15 @@ class EsVectorStore(BaseVectorStore):
     def _iter_workspace_nodes(self, workspace_id: str, **kwargs) -> Iterable[VectorNode]:
         response = self._client.search(index=workspace_id, body={"query": {"match_all": {}}})
         for doc in response['hits']['hits']:
-            yield self.doc2node(doc)
+            yield self.doc2node(doc, workspace_id)
 
     def refresh(self, workspace_id: str):
         self._client.indices.refresh(index=workspace_id)
 
     @staticmethod
-    def doc2node(doc) -> VectorNode:
+    def doc2node(doc, workspace_id: str) -> VectorNode:
         node = VectorNode(**doc["_source"])
+        node.workspace_id = workspace_id
         node.unique_id = doc["_id"]
         if "_score" in doc:
             node.metadata["_score"] = doc["_score"] - 1
@@ -105,7 +106,7 @@ class EsVectorStore(BaseVectorStore):
 
         nodes: List[VectorNode] = []
         for doc in response['hits']['hits']:
-            nodes.append(self.doc2node(doc))
+            nodes.append(self.doc2node(doc, workspace_id))
 
         self.retrieve_filters.clear()
         return nodes
@@ -124,10 +125,10 @@ class EsVectorStore(BaseVectorStore):
         docs = [
             {
                 "_op_type": "index",
-                "_index": node.workspace_id,
+                "_index": workspace_id,
                 "_id": node.unique_id,
                 "_source": {
-                    "workspace_id": node.workspace_id,
+                    "workspace_id": workspace_id,
                     "content": node.content,
                     "metadata": node.metadata,
                     "vector": node.vector

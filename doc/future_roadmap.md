@@ -13,7 +13,6 @@ Just as financial analysts develop analytical frameworks, senior engineers estab
     - [ ] Coding
     - [ ] Education
     - [ ] Research
-    - etc
 - [ ] Experience marketplace: community-driven experience sharing and exchange
 
 ## P0 - Support for Rich Experience Formats
@@ -23,6 +22,14 @@ Expert knowledge extends beyond text to include debugged code, fine-tuned toolch
 - [ ] **Executable Code**: Functions, code files, and scripts
 - [ ] **Tool Integration**: APIs, MCP configurations, and tool setups
 - [ ] **Pipeline Templates**: Agent execution pipelines and multi-step tool combinations
+
+## P0 - MCP Integration
+
+Modernize our API architecture by migrating three core APIs to the Model Context Protocol (MCP) standard for improved interoperability and standardization.
+
+- [ ] Summarizer API
+- [ ] Retriever API
+- [ ] Vector Store API
 
 ## P1 - Experience Validation & Optimization
 
@@ -42,14 +49,26 @@ Transform valuable experience data from daily work into usable insights:
 
 Enable AI to naturally become stronger through everyday work, rather than wasting real-world experience data due to format limitations.
 
+## P2 - Open Source Experience Libraries
+
+Democratize AI experience sharing by making curated experience libraries publicly available on Hugging Face, enabling the broader AI community to benefit from and contribute to professional experience repositories.
+
+- [ ] **Hugging Face Integration**: Upload and maintain experience libraries on Hugging Face Hub
+- [ ] **Community Contributions**: Enable community-driven experience library improvements and additions
+- [ ] **Standardized Formats**: Establish standard formats for experience sharing across different domains
+- [ ] **Version Control**: Implement versioning system for experience library updates and improvements
+
 ## Current TODO
 
-- [x] op dev & test ready
-- [ ] integrate into beyond-agent @jinli
+- [x] op dev & test ready @jiaji
 - [ ] cook_book-appworld code & readme @jiaji
 - [ ] cook_book-bfcl-v3 op @zouyin delay 0730
-- [ ] fix multi-process bug @jinli
+- [x] fix multi-process bug @jinli
 - [ ] logo optimize @jiaji
-- [ ] Ready-made Experience Store @jinli, add appworld/bfcl-v3 default experience store @jiaji
+- [x] Ready-made Experience Store @jinli, add appworld/bfcl-v3 default experience store @jiaji
 - [ ] op config make up @jiaji
-- [ ] config make up, easy to understand @jinli
+- [x] config make up, easy to understand @jinli
+- [x] refine readme @jinli
+
+- [x] integrate into beyond-agent @jinli
+- [ ] rm workspace_id in code @jinli

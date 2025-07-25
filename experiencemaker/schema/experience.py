@@ -1,7 +1,9 @@
 import datetime
+from abc import ABC
 from typing import List
 from uuid import uuid4
 
+from loguru import logger
 from pydantic import BaseModel, Field
 
 from experiencemaker.schema.vector_node import VectorNode
@@ -17,7 +19,7 @@ class ExperienceMeta(BaseModel):
         self.modified_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-class BaseExperience(BaseModel):
+class BaseExperience(BaseModel, ABC):
     workspace_id: str = Field(default="")
 
     experience_id: str = Field(default_factory=lambda: uuid4().hex)
@@ -101,8 +103,8 @@ def vector_node_to_experience(node: VectorNode) -> BaseExperience:
         return KnowledgeExperience.from_vector_node(node)
 
     else:
-        raise RuntimeError(f"experience type {experience_type} not supported")
-
+        logger.warning(f"experience type {experience_type} not supported")
+        return TextExperience.from_vector_node(node)
 
 if __name__ == "__main__":
     e1 = TextExperience(
