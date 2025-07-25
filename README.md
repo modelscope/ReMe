@@ -513,6 +513,9 @@ Here's how to load and use the Appworld experience library:
 
 #### Step 1: Load Pre-built Experiences
 
+<details open>
+<summary><b>Python</b></summary>
+
 ```python
 import requests
 
@@ -525,10 +528,28 @@ response = requests.post(url="http://0.0.0.0:8001/vector_store", json={
 
 print(f"loading result result={response.json()}")
 ```
+</details>
+
+<details>
+<summary><b>curl</b></summary>
+
+```bash
+curl -X POST "http://0.0.0.0:8001/vector_store" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "appworld_v1",
+    "action": "load",
+    "path": "./experience_library/"
+  }'
+```
+</details>
 
 #### Step 2: Retrieve Relevant Experiences
 
 Now you can query the loaded experiences to get contextual guidance for your tasks:
+
+<details open>
+<summary><b>Python</b></summary>
 
 ```python
 import requests
@@ -543,6 +564,21 @@ response = requests.post(url="http://0.0.0.0:8001/retriever", json={
 experience_merged = response.json()["experience_merged"]
 print(f"Retrieved experiences: {experience_merged}")
 ```
+</details>
+
+<details>
+<summary><b>curl</b></summary>
+
+```bash
+curl -X POST "http://0.0.0.0:8001/retriever" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "appworld_v1",
+    "query": "How to navigate to settings and update user profile information?",
+    "top_k": 1
+  }'
+```
+</details>
 
 ---
 
