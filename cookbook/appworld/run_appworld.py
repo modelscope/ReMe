@@ -17,7 +17,7 @@ from appworld import load_task_ids
 from appworld_react_agent import AppworldReactAgent
 
 
-def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int, use_experience: bool=False):
+def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int, num_runs: int = 1, use_experience: bool = False):
     experiment_name = dataset_name + "_" + experiment_suffix
     path: Path = Path(f"./exp_result")
     path.mkdir(parents=True, exist_ok=True)
@@ -33,9 +33,12 @@ def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int, use_e
     if max_workers > 1:
         future_list: list = []
         for i in range(max_workers):
+            # Assign tasks to each worker, ensuring each task runs num_runs times
+            worker_task_ids = task_ids[i::max_workers]
             actor = AppworldReactAgent.remote(index=i,
-                                              task_ids=task_ids[i::max_workers],
+                                              task_ids=worker_task_ids,
                                               experiment_name=experiment_name,
+                                              num_runs=num_runs,
                                               use_experience=use_experience)
             future = actor.execute.remote()
             future_list.append(future)
@@ -50,22 +53,31 @@ def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int, use_e
                 else:
                     result.append(t_result)
 
-            logger.info(f"{i + 1}/{len(task_ids)} complete")
+            logger.info(f"worker {i + 1}/{max_workers} complete")
             dump_file()
 
     else:
         for index, task_id in enumerate(task_ids):
-            agent = AppworldReactAgent(index=index, task_ids=[task_id], experiment_name=experiment_name, use_experience=use_experience)
-            result.append(agent.execute())
+            agent = AppworldReactAgent(index=index,
+                                     task_ids=[task_id],
+                                     experiment_name=experiment_name,
+                                     num_runs=num_runs,
+                                     use_experience=use_experience)
+            task_results = agent.execute()
+            if isinstance(task_results, list):
+                result.extend(task_results)
+            else:
+                result.append(task_results)
             dump_file()
 
 
 def main():
-    max_workers = 2
+    max_workers = 4
+    num_runs = 4  # Run each task 4 times
     if max_workers > 1:
-        ray.init(num_cpus=max_workers)
-    # run_agent(dataset_name="train", experiment_suffix="v2", max_workers=max_workers)
-    run_agent(dataset_name="dev", experiment_suffix="add-exp", max_workers=max_workers, use_experience=True)
+        ray.init(num_cpus=4)
+    # run_agent(dataset_name="train", experiment_suffix="v2", max_workers=max_workers, num_runs=num_runs)
+    run_agent(dataset_name="dev", experiment_suffix="add-exp", max_workers=max_workers, num_runs=num_runs, use_experience=True)
 
 
 if __name__ == "__main__":

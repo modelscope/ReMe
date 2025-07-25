@@ -35,6 +35,7 @@ class AppworldReactAgent:
                  temperature: float = 0.9,
                  max_interactions: int = 30,
                  max_response_size: int = 2000,
+                 num_runs: int = 1,
                  use_experience: bool = False):
 
         self.index: int = index
@@ -44,6 +45,7 @@ class AppworldReactAgent:
         self.temperature: float = temperature
         self.max_interactions: int = max_interactions
         self.max_response_size: int = max_response_size
+        self.num_runs: int = num_runs
         self.use_experience: bool = use_experience
 
         self.llm_client = OpenAI()
@@ -104,39 +106,42 @@ class AppworldReactAgent:
     def execute(self):
         result = []
         for task_index, task_id in enumerate(tqdm(self.task_ids, desc=f"ray_index={self.index}")):
-            with AppWorld(task_id=task_id, experiment_name=self.experiment_name) as world:
-                history = self.prompt_messages(world=world)
-                before_score = self.get_reward(world)
-                logger.info(f"ray_id={self.index} task_index={task_index} instruction={world.task.instruction} "
-                            f"before_score={before_score:.4f}")
+            # Run each task num_runs times
+            for run_id in range(self.num_runs):
+                with AppWorld(task_id=task_id, experiment_name=f"{self.experiment_name}_run_{run_id}") as world:
+                    history = self.prompt_messages(world=world)
+                    before_score = self.get_reward(world)
+                    logger.info(f"ray_id={self.index} task_index={task_index} run_id={run_id} "
+                                f"instruction={world.task.instruction} before_score={before_score:.4f}")
 
-                for i in range(self.max_interactions):
-                    code = self.call_llm(history)
-                    history.append({"role": "assistant", "content": code})
+                    for i in range(self.max_interactions):
+                        code = self.call_llm(history)
+                        history.append({"role": "assistant", "content": code})
 
-                    output = world.execute(code)
-                    if len(output) > self.max_response_size:
-                        logger.warning(f"output exceed max size={len(output)}")
-                        output = output[:self.max_response_size]
-                    history.append({"role": "user", "content": output})
+                        output = world.execute(code)
+                        if len(output) > self.max_response_size:
+                            logger.warning(f"output exceed max size={len(output)}")
+                            output = output[:self.max_response_size]
+                        history.append({"role": "user", "content": output})
 
-                    logger.info(f"ray_id={self.index} task_index={task_index} step={i} complete~")
+                        logger.info(f"ray_id={self.index} task_index={task_index} run_id={run_id} step={i} complete~")
 
-                    if world.task_completed():
-                        break
+                        if world.task_completed():
+                            break
 
-                after_score = self.get_reward(world)
-                uplift_score = after_score - before_score
-                t_result = {
-                    "task_id": world.task_id,
-                    "experiment_name": self.experiment_name,
-                    "task_completed": world.task_completed(),
-                    "before_score": before_score,
-                    "after_score": after_score,
-                    "uplift_score": uplift_score,
-                    "task_history": history,
-                }
-                result.append(t_result)
+                    after_score = self.get_reward(world)
+                    uplift_score = after_score - before_score
+                    t_result = {
+                        "task_id": world.task_id,
+                        "run_id": run_id,  # Add run_id field
+                        "experiment_name": self.experiment_name,
+                        "task_completed": world.task_completed(),
+                        "before_score": before_score,
+                        "after_score": after_score,
+                        "uplift_score": uplift_score,
+                        "task_history": history,
+                    }
+                    result.append(t_result)
 
         return result
 
@@ -164,7 +169,7 @@ class AppworldReactAgent:
 def main():
     dataset_name = "train"
     task_ids = load_task_ids(dataset_name)
-    agent = AppworldReactAgent(index=0, task_ids=task_ids[0:1], experiment_name=f"jinli_{dataset_name}")
+    agent = AppworldReactAgent(index=0, task_ids=task_ids[0:1], experiment_name=dataset_name, num_runs=4)
     result = agent.execute()
     logger.info(f"result={json.dumps(result)}")
 
