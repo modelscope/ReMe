@@ -64,11 +64,12 @@ Democratize AI experience sharing by making curated experience libraries publicl
 - [ ] cook_book-appworld code & readme @jiaji
 - [ ] cook_book-bfcl-v3 op @zouyin delay 0730
 - [x] fix multi-process bug @jinli
-- [ ] logo optimize @jiaji
+- [x] logo optimize @jiaji
 - [x] Ready-made Experience Store @jinli, add appworld/bfcl-v3 default experience store @jiaji
-- [ ] op config make up @jiaji
+- [ ] op config make up @jinli
 - [x] config make up, easy to understand @jinli
 - [x] refine readme @jinli
+- [ ] bugfix dump/load experience @jinli dump@jiaji
 
 - [x] integrate into beyond-agent @jinli
-- [ ] rm workspace_id in code @jinli
+- [x] rm workspace_id in code @jinli

@@ -17,7 +17,7 @@ class BaseVectorStore(BaseModel, ABC):
     batch_size: int = Field(default=1024)
 
     @staticmethod
-    def _load_from_path(workspace_id: str, path: str | Path, **kwargs) -> Iterable[VectorNode]:
+    def _load_from_path(workspace_id: str, path: str | Path, callback_fn=None, **kwargs) -> Iterable[VectorNode]:
         workspace_path = Path(path) / f"{workspace_id}.jsonl"
         if not workspace_path.exists():
             logger.warning(f"workspace_path={workspace_path} is not exists!")
@@ -28,7 +28,11 @@ class BaseVectorStore(BaseModel, ABC):
             try:
                 for line in tqdm(f, desc="load from path"):
                     if line.strip():
-                        node = VectorNode(**json.loads(line.strip(), **kwargs))
+                        node_dict = json.loads(line.strip())
+                        if callback_fn:
+                            node = callback_fn(node_dict)
+                        else:
+                            node = VectorNode(**node_dict, **kwargs)
                         node.workspace_id = workspace_id
                         yield node
 
@@ -36,7 +40,7 @@ class BaseVectorStore(BaseModel, ABC):
                 fcntl.flock(f, fcntl.LOCK_UN)
 
     @staticmethod
-    def _dump_to_path(nodes: Iterable[VectorNode], workspace_id: str, path: str | Path = "",
+    def _dump_to_path(nodes: Iterable[VectorNode], workspace_id: str, path: str | Path = "", callback_fn=None,
                       ensure_ascii: bool = False, **kwargs):
         dump_path: Path = Path(path)
         dump_path.mkdir(parents=True, exist_ok=True)
@@ -48,7 +52,12 @@ class BaseVectorStore(BaseModel, ABC):
             try:
                 for node in tqdm(nodes, desc="dump to path"):
                     node.workspace_id = workspace_id
-                    f.write(json.dumps(node.model_dump(), ensure_ascii=ensure_ascii, **kwargs))
+                    if callback_fn:
+                        node_dict = callback_fn(node)
+                    else:
+                        node_dict = node.model_dump()
+                    assert isinstance(node_dict, dict)
+                    f.write(json.dumps(node_dict, ensure_ascii=ensure_ascii, **kwargs))
                     f.write("\n")
                     count += 1
 
@@ -68,16 +77,19 @@ class BaseVectorStore(BaseModel, ABC):
     def _iter_workspace_nodes(self, workspace_id: str, **kwargs) -> Iterable[VectorNode]:
         raise NotImplementedError
 
-    def dump_workspace(self, workspace_id: str, path: str | Path = "", **kwargs):
+    def dump_workspace(self, workspace_id: str, path: str | Path = "", callback_fn=None, **kwargs):
         if not self.exist_workspace(workspace_id=workspace_id, **kwargs):
             logger.warning(f"workspace_id={workspace_id} is not exist!")
             return {}
 
         return self._dump_to_path(nodes=self._iter_workspace_nodes(workspace_id=workspace_id, **kwargs),
-                           workspace_id=workspace_id,
-                           path=path, **kwargs)
+                                  workspace_id=workspace_id,
+                                  path=path,
+                                  callback_fn=callback_fn,
+                                  **kwargs)
 
-    def load_workspace(self, workspace_id: str, path: str | Path = "", nodes: List[VectorNode] = None, **kwargs):
+    def load_workspace(self, workspace_id: str, path: str | Path = "", nodes: List[VectorNode] = None, callback_fn=None,
+                       **kwargs):
         if self.exist_workspace(workspace_id, **kwargs):
             self.delete_workspace(workspace_id=workspace_id, **kwargs)
             logger.info(f"delete workspace_id={workspace_id}")
@@ -87,7 +99,7 @@ class BaseVectorStore(BaseModel, ABC):
         all_nodes: List[VectorNode] = []
         if nodes:
             all_nodes.extend(nodes)
-        for node in self._load_from_path(path=path, workspace_id=workspace_id, **kwargs):
+        for node in self._load_from_path(path=path, workspace_id=workspace_id, callback_fn=callback_fn, **kwargs):
             all_nodes.append(node)
         self.insert(nodes=all_nodes, workspace_id=workspace_id, **kwargs)
         return {"size": len(all_nodes)}

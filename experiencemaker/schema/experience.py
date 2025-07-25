@@ -31,6 +31,17 @@ class BaseExperience(BaseModel, ABC):
     metadata: ExperienceMeta = Field(default_factory=ExperienceMeta)
 
     def to_vector_node(self) -> VectorNode:
+        raise NotImplementedError
+
+    @classmethod
+    def from_vector_node(cls, node: VectorNode):
+        raise NotImplementedError
+
+
+class TextExperience(BaseExperience):
+    experience_type: str = Field(default="text")
+
+    def to_vector_node(self) -> VectorNode:
         return VectorNode(unique_id=self.experience_id,
                           workspace_id=self.workspace_id,
                           content=self.when_to_use,
@@ -40,14 +51,6 @@ class BaseExperience(BaseModel, ABC):
                               "score": self.score,
                               "metadata": self.metadata.model_dump(),
                           })
-
-    @classmethod
-    def from_vector_node(cls, node: VectorNode):
-        raise NotImplementedError
-
-
-class TextExperience(BaseExperience):
-    experience_type: str = Field(default="text")
 
     @classmethod
     def from_vector_node(cls, node: VectorNode):
@@ -105,6 +108,26 @@ def vector_node_to_experience(node: VectorNode) -> BaseExperience:
     else:
         logger.warning(f"experience type {experience_type} not supported")
         return TextExperience.from_vector_node(node)
+
+
+def dict_to_experience(experience_dict: dict) -> BaseExperience:
+    experience_type = experience_dict.get("experience_type", "text")
+    if experience_type == "text":
+        return TextExperience(**experience_dict)
+
+    elif experience_type == "function":
+        return FuncExperience(**experience_dict)
+
+    elif experience_type == "personal":
+        return PersonalExperience(**experience_dict)
+
+    elif experience_type == "knowledge":
+        return KnowledgeExperience(**experience_dict)
+
+    else:
+        logger.warning(f"experience type {experience_type} not supported")
+        return TextExperience(**experience_dict)
+
 
 if __name__ == "__main__":
     e1 = TextExperience(
