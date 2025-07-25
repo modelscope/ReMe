@@ -66,10 +66,10 @@ Democratize AI experience sharing by making curated experience libraries publicl
 - [x] fix multi-process bug @jinli
 - [x] logo optimize @jiaji
 - [x] Ready-made Experience Store @jinli, add appworld/bfcl-v3 default experience store @jiaji
-- [ ] op config make up @jinli
+- [x] op config make up @jinli
 - [x] config make up, easy to understand @jinli
 - [x] refine readme @jinli
-- [ ] bugfix dump/load experience @jinli dump@jiaji
+- [x] bugfix dump/load experience @jinli dump@jiaji
 
 - [x] integrate into beyond-agent @jinli
 - [x] rm workspace_id in code @jinli
