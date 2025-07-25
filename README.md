@@ -480,8 +480,6 @@ comprehensive [Quick Start Guide](./cookbook/simple_demo/quick_start.md).
 
 ### 🌍 Experiment on Appworld
 
-# Qwen3-8B Experimental Results
-
 We test ExperienceMaker on Appworld with qwen3-8b:
 
 | Method                                   | best@1     | best@2       | best@4     |
