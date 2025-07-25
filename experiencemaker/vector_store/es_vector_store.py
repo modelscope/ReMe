@@ -48,8 +48,8 @@ class EsVectorStore(BaseVectorStore):
         }
         return self._client.indices.create(index=workspace_id, body=body)
 
-    def _iter_workspace_nodes(self, workspace_id: str, **kwargs) -> Iterable[VectorNode]:
-        response = self._client.search(index=workspace_id, body={"query": {"match_all": {}}})
+    def _iter_workspace_nodes(self, workspace_id: str, max_size: int = 10000, **kwargs) -> Iterable[VectorNode]:
+        response = self._client.search(index=workspace_id, body={"query": {"match_all": {}}, "size": max_size})
         for doc in response['hits']['hits']:
             yield self.doc2node(doc, workspace_id)
 
