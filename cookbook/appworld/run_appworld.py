@@ -17,7 +17,7 @@ from appworld import load_task_ids
 from appworld_react_agent import AppworldReactAgent
 
 
-def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int):
+def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int, use_experience: bool=False):
     experiment_name = dataset_name + "_" + experiment_suffix
     path: Path = Path(f"./exp_result")
     path.mkdir(parents=True, exist_ok=True)
@@ -35,7 +35,8 @@ def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int):
         for i in range(max_workers):
             actor = AppworldReactAgent.remote(index=i,
                                               task_ids=task_ids[i::max_workers],
-                                              experiment_name=experiment_name)
+                                              experiment_name=experiment_name,
+                                              use_experience=use_experience)
             future = actor.execute.remote()
             future_list.append(future)
             time.sleep(1)
@@ -54,17 +55,17 @@ def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int):
 
     else:
         for index, task_id in enumerate(task_ids):
-            agent = AppworldReactAgent(index=index, task_ids=[task_id], experiment_name=experiment_name)
+            agent = AppworldReactAgent(index=index, task_ids=[task_id], experiment_name=experiment_name, use_experience=use_experience)
             result.append(agent.execute())
             dump_file()
 
 
 def main():
-    max_workers = 8
+    max_workers = 2
     if max_workers > 1:
-        ray.init(num_cpus=8)
+        ray.init(num_cpus=max_workers)
     # run_agent(dataset_name="train", experiment_suffix="v2", max_workers=max_workers)
-    run_agent(dataset_name="dev", experiment_suffix="v2", max_workers=max_workers)
+    run_agent(dataset_name="dev", experiment_suffix="add-exp", max_workers=max_workers, use_experience=True)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import os
 from typing import List
 
+from oauthlib.uri_validate import query
 from tqdm import tqdm
 
 os.environ["APPWORLD_ROOT"] = "."
@@ -12,13 +13,14 @@ import re
 import time
 import json
 import ray
+import requests
 
 from appworld import AppWorld, load_task_ids
 from jinja2 import Template
 from loguru import logger
 from openai import OpenAI
 
-from prompt import PROMPT_TEMPLATE
+from prompt import PROMPT_TEMPLATE, PROMPT_TEMPLATE_WITH_EXPERIENCE
 
 
 @ray.remote
@@ -32,7 +34,8 @@ class AppworldReactAgent:
                  model_name: str = "qwen3-32b",
                  temperature: float = 0.9,
                  max_interactions: int = 30,
-                 max_response_size: int = 2000):
+                 max_response_size: int = 2000,
+                 use_experience: bool = False):
 
         self.index: int = index
         self.task_ids: List[str] = task_ids
@@ -41,6 +44,7 @@ class AppworldReactAgent:
         self.temperature: float = temperature
         self.max_interactions: int = max_interactions
         self.max_response_size: int = max_response_size
+        self.use_experience: bool = use_experience
 
         self.llm_client = OpenAI()
 
@@ -62,25 +66,32 @@ class AppworldReactAgent:
 
         return "call llm error"
 
-    @staticmethod
-    def prompt_messages(world: AppWorld) -> list[dict]:
-        dictionary = {"supervisor": world.task.supervisor, "instruction": world.task.instruction}
-        prompt = Template(PROMPT_TEMPLATE.lstrip()).render(dictionary)
+    def prompt_messages(self,world: AppWorld) -> list[dict]:
+        logger.info(f"use experience: {self.use_experience}")
+        if self.use_experience:
+            experience = self.get_experience(world.task.instruction)
+            logger.info(f"loaded experience: {experience}")
+            dictionary = {"supervisor": world.task.supervisor, "instruction": world.task.instruction, "experience": experience}
+        else:
+            dictionary = {"supervisor": world.task.supervisor, "instruction": world.task.instruction ,"experience": ""}
+        print(dictionary)
+        prompt = Template(PROMPT_TEMPLATE_WITH_EXPERIENCE.lstrip()).render(dictionary)
         messages: list[dict] = []
         last_start = 0
-        for match in re.finditer("(USER|ASSISTANT|SYSTEM):\n", prompt):
-            last_end = match.span()[0]
-            if len(messages) == 0:
-                if last_end != 0:
-                    raise ValueError(
-                        f"Start of the prompt has no assigned role: {prompt[:last_end]}"
-                    )
-            else:
-                messages[-1]["content"] = prompt[last_start:last_end]
-            role_type = match.group(1).lower()
-            messages.append({"role": role_type, "content": None})
-            last_start = match.span()[1]
-        messages[-1]["content"] = prompt[last_start:]
+        # for match in re.finditer("(USER|ASSISTANT|SYSTEM):\n", prompt):
+        #     last_end = match.span()[0]
+        #     if len(messages) == 0:
+        #         if last_end != 0:
+        #             raise ValueError(
+        #                 f"Start of the prompt has no assigned role: {prompt[:last_end]}"
+        #             )
+        #     else:
+        #         messages[-1]["content"] = prompt[last_start:last_end]
+        #     role_type = match.group(1).lower()
+        #     messages.append({"role": role_type, "content": None})
+        #     last_start = match.span()[1]
+        # messages[-1]["content"] = prompt[last_start:]
+        messages.append({"role":"user", "content":prompt})
         return messages
 
     @staticmethod
@@ -128,6 +139,26 @@ class AppworldReactAgent:
                 result.append(t_result)
 
         return result
+
+    def get_experience(self, query: str):
+        base_url = "http://0.0.0.0:8001/"
+        workspace_id = "appworld_8b_0724"
+        response = requests.post(url=base_url + "retriever", json={
+            "workspace_id": workspace_id,
+            "query": query,
+            "top_k": 5
+        })
+        logger.info(f"query:{query}")
+
+        if response.status_code != 200:
+            print(response.text)
+            return ""
+
+        response = response.json()
+        print(response)
+        experience_merged: str = response["experience_merged"]
+        print(f"experience_merged={experience_merged}")
+        return experience_merged
 
 
 def main():
