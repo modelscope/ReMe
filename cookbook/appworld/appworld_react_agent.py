@@ -36,7 +36,8 @@ class AppworldReactAgent:
                  max_interactions: int = 30,
                  max_response_size: int = 2000,
                  num_runs: int = 1,
-                 use_experience: bool = False):
+                 use_experience: bool = False,
+                 make_experience: bool = False):
 
         self.index: int = index
         self.task_ids: List[str] = task_ids
@@ -47,6 +48,7 @@ class AppworldReactAgent:
         self.max_response_size: int = max_response_size
         self.num_runs: int = num_runs
         self.use_experience: bool = use_experience
+        self.make_experience: bool = make_experience
 
         self.llm_client = OpenAI()
 
