@@ -28,7 +28,9 @@ class BaseVectorStore(BaseModel, ABC):
             try:
                 for line in tqdm(f, desc="load from path"):
                     if line.strip():
-                        yield VectorNode(**json.loads(line.strip(), **kwargs))
+                        node = VectorNode(**json.loads(line.strip(), **kwargs))
+                        node.workspace_id = workspace_id
+                        yield node
 
             finally:
                 fcntl.flock(f, fcntl.LOCK_UN)
@@ -45,6 +47,7 @@ class BaseVectorStore(BaseModel, ABC):
             fcntl.flock(f, fcntl.LOCK_EX)
             try:
                 for node in tqdm(nodes, desc="dump to path"):
+                    node.workspace_id = workspace_id
                     f.write(json.dumps(node.model_dump(), ensure_ascii=ensure_ascii, **kwargs))
                     f.write("\n")
                     count += 1

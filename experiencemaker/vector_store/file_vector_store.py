@@ -84,6 +84,7 @@ class FileVectorStore(BaseVectorStore):
                            workspace_id=workspace_id,
                            path=self.store_path,
                            **kwargs)
+
         logger.info(f"update workspace_id={workspace_id} nodes.size={len(nodes)} all.size={len(all_node_dict)} "
                     f"update_cnt={update_cnt}")
 
