@@ -31,7 +31,7 @@ class AppworldReactAgent:
                  index: int,
                  task_ids: List[str],
                  experiment_name: str,
-                 model_name: str = "qwen3-32b",
+                 model_name: str = "qwen3-8b",
                  temperature: float = 0.9,
                  max_interactions: int = 30,
                  max_response_size: int = 2000,
@@ -143,6 +143,9 @@ class AppworldReactAgent:
                     }
                     result.append(t_result)
 
+        if self.make_experience:
+            self.make_experience(result)
+
         return result
 
     def get_experience(self, query: str):
@@ -164,6 +167,9 @@ class AppworldReactAgent:
         experience_merged: str = response["experience_merged"]
         print(f"experience_merged={experience_merged}")
         return experience_merged
+
+    def make_experience(self, result):
+        pass
 
 
 def main():
