@@ -34,11 +34,11 @@ class AppworldReactAgent:
                  model_name: str = "qwen3-8b",
                  temperature: float = 0.9,
                  max_interactions: int = 30,
-                 max_response_size: int = 4096,
+                 max_response_size: int = 2048,
                  num_runs: int = 1,
                  use_experience: bool = False,
                  make_experience: bool = False,
-                 base_url: str = "http://0.0.0.0:8001/",
+                 exp_url: str = "http://0.0.0.0:8001/",
                  workspace_id: str="appworld_8b_0725"):
 
         self.index: int = index
@@ -51,7 +51,7 @@ class AppworldReactAgent:
         self.num_runs: int = num_runs
         self.use_experience: bool = use_experience
         self.make_experience: bool = make_experience
-        self.base_url = base_url
+        self.exp_url = exp_url
         self.workspace_id = workspace_id
 
         self.llm_client = OpenAI()
@@ -150,7 +150,7 @@ class AppworldReactAgent:
         return result
 
     def get_experience(self, query: str):
-        response = requests.post(url=self.base_url + "retriever", json={
+        response = requests.post(url=self.exp_url + "retriever", json={
             "workspace_id": self.workspace_id,
             "query": query,
             "top_k": 5
