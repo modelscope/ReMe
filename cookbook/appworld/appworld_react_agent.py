@@ -34,10 +34,12 @@ class AppworldReactAgent:
                  model_name: str = "qwen3-8b",
                  temperature: float = 0.9,
                  max_interactions: int = 30,
-                 max_response_size: int = 2000,
+                 max_response_size: int = 4096,
                  num_runs: int = 1,
                  use_experience: bool = False,
-                 make_experience: bool = False):
+                 make_experience: bool = False,
+                 base_url: str = "http://0.0.0.0:8001/",
+                 workspace_id: str="appworld_8b_0725"):
 
         self.index: int = index
         self.task_ids: List[str] = task_ids
@@ -49,6 +51,8 @@ class AppworldReactAgent:
         self.num_runs: int = num_runs
         self.use_experience: bool = use_experience
         self.make_experience: bool = make_experience
+        self.base_url = base_url
+        self.workspace_id = workspace_id
 
         self.llm_client = OpenAI()
 
@@ -71,7 +75,6 @@ class AppworldReactAgent:
         return "call llm error"
 
     def prompt_messages(self,world: AppWorld) -> list[dict]:
-        logger.info(f"use experience: {self.use_experience}")
         if self.use_experience:
             experience = self.get_experience(world.task.instruction)
             logger.info(f"loaded experience: {experience}")
@@ -113,8 +116,6 @@ class AppworldReactAgent:
                 with AppWorld(task_id=task_id, experiment_name=f"{self.experiment_name}_run_{run_id}") as world:
                     history = self.prompt_messages(world=world)
                     before_score = self.get_reward(world)
-                    logger.info(f"ray_id={self.index} task_index={task_index} run_id={run_id} "
-                                f"instruction={world.task.instruction} before_score={before_score:.4f}")
 
                     for i in range(self.max_interactions):
                         code = self.call_llm(history)
@@ -122,11 +123,9 @@ class AppworldReactAgent:
 
                         output = world.execute(code)
                         if len(output) > self.max_response_size:
-                            logger.warning(f"output exceed max size={len(output)}")
+                            # logger.warning(f"output exceed max size={len(output)}")
                             output = output[:self.max_response_size]
                         history.append({"role": "user", "content": output})
-
-                        logger.info(f"ray_id={self.index} task_index={task_index} run_id={run_id} step={i} complete~")
 
                         if world.task_completed():
                             break
@@ -151,14 +150,11 @@ class AppworldReactAgent:
         return result
 
     def get_experience(self, query: str):
-        base_url = "http://0.0.0.0:8001/"
-        workspace_id = "appworld_8b_0724"
-        response = requests.post(url=base_url + "retriever", json={
-            "workspace_id": workspace_id,
+        response = requests.post(url=self.base_url + "retriever", json={
+            "workspace_id": self.workspace_id,
             "query": query,
             "top_k": 5
         })
-        logger.info(f"query:{query}")
 
         if response.status_code != 200:
             print(response.text)
