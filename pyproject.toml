@@ -37,5 +37,11 @@ where = ["."]
 include = ["experiencemaker*"]
 exclude = ["cookbook*"]
 
+[tool.setuptools.package-data]
+experiencemaker = [
+    "config/*.yaml", 
+    "op/**/*.yaml",
+]
+
 [project.scripts]
 experiencemaker = "experiencemaker.app:main"

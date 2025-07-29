@@ -523,7 +523,7 @@ import requests
 response = requests.post(url="http://0.0.0.0:8001/vector_store", json={
     "workspace_id": "appworld_v1",
     "action": "load",
-    "path": "./experience_library/",
+    "path": "./library/",
 })
 
 print(f"loading result result={response.json()}")
@@ -539,7 +539,7 @@ curl -X POST "http://0.0.0.0:8001/vector_store" \
   -d '{
     "workspace_id": "appworld_v1",
     "action": "load",
-    "path": "./experience_library/"
+    "path": "./library/"
   }'
 ```
 </details>

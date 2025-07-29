@@ -263,7 +263,7 @@
         // GitHub API configuration
         const GITHUB_USER = 'modelscope';
         const REPO_NAME = 'ExperienceMaker';
-        const EXPERIENCE_FOLDER = 'experience_library';
+        const EXPERIENCE_FOLDER = 'library';
 
         // DOM elements
         const loadingEl = document.getElementById('loading');
@@ -305,10 +305,12 @@
             try {
                 showLoading();
 
-                const baseUrl = `https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/${EXPERIENCE_FOLDER}`;
+                // const baseUrl = `https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/${EXPERIENCE_FOLDER}`;
+                const baseUrl = `./`;
 
                 const knownFiles = [
                     'appworld_v1.jsonl',
+                    'bfcl_v1.jsonl',
                     // 在这里添加你的其他 JSONL 文件名
                 ];
 
