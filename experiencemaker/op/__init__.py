@@ -15,6 +15,7 @@ from experiencemaker.op.summarizer.experience_validation_op import ExperienceVal
 from experiencemaker.op.summarizer.experience_deduplication_op import ExperienceDeduplicationOp
 from experiencemaker.op.summarizer.experience_validation_op import ExperienceValidationOp
 from experiencemaker.op.summarizer.trajectory_segmentation_op import TrajectorySegmentationOp
+from experiencemaker.op.summarizer.simple_comparative_summary_op import SimpleComparativeSummaryOp
 
 from experiencemaker.op.retriever.rerank_experience_op import RerankExperienceOp
 from experiencemaker.op.retriever.rewrite_experience_op import RewriteExperienceOp

@@ -62,6 +62,7 @@ class Message(BaseModel):
 
 
 class Trajectory(BaseModel):
+    task_id: str = Field(default="")
     messages: List[Message] = Field(default_factory=list)
     score: float = Field(default=0.0)
     metadata: dict = Field(default_factory=dict)
