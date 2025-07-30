@@ -493,6 +493,32 @@ We test ExperienceMaker on Appworld with qwen3-8b:
 
 Coming Soon! Stay tuned for comprehensive evaluation results.
 
+### 🧊 Experiment on Frozenlake
+|             without experience              |               with experience               |
+|:-------------------------------------------:|:-------------------------------------------:|
+| ![GIF 1](doc/figure/frozenlake_failure.gif) | ![GIF 2](doc/figure/frozenlake_success.gif) |
+
+We test on 100 random frozenlake map with qwen3-8b:
+
+| Method                        | pass rate         | 
+|-------------------------------|-------------------|
+| w/o ExperienceMaker (baseline) | 0.66              | 
+| **w ExperienceMaker**         |                   |
+| [1] experience(Direct Use)    | 0.84 **(+23.5%)** |
+| [2] experience(LLM Rewritten) | 0.72 **(+9.1%)**  |
+
+We also noticed that in such simple scenarios, not using LLM rewriting may actually yield better results. 
+
+Therefore, in some simple scenarios, you can also try disabling LLM rewriting by simply changing the following in default_config.yaml:
+
+```yaml
+rewrite_experience_op:
+  params:
+    enable_llm_rewrite: false  # change this to false
+```
+
+You may find more details to reproduce this experiment quickly in  `cookbook/frozenlake/quickstart.md`
+
 ---
 
 ## 🏪 Ready-made Experience Store
