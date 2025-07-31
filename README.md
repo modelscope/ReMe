@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://pypi.org/project/experiencemaker/"><img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python Version"></a>
-  <a href="https://pypi.org/project/experiencemaker/"><img src="https://img.shields.io/badge/pypi-v0.1.0-blue?logo=pypi" alt="PyPI Version"></a>
+  <a href="https://pypi.org/project/experiencemaker/"><img src="https://img.shields.io/badge/pypi-v0.1.1-blue?logo=pypi" alt="PyPI Version"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black" alt="License"></a>
   <a href="https://github.com/modelscope/ExperienceMaker"><img src="https://img.shields.io/github/stars/modelscope/ExperienceMaker?style=social" alt="GitHub Stars"></a>
 </p>
@@ -39,13 +39,6 @@ Exciting features and improvements are on the horizon! Check out our detailed [F
 ## 🌟 What is ExperienceMaker?
 ExperienceMaker is a framework that transforms how AI agents learn and improve through **experience-driven intelligence**. 
 By automatically extracting, storing, and intelligently reusing experiences from agent trajectories, it enables continuous learning and progressive skill enhancement.
-
-### 💡 Why ExperienceMaker?
-Traditional AI agents start from scratch with every new task, wasting valuable learning opportunities. 
-ExperienceMaker changes this paradigm by:
-- **🧠 Learning from History**: Automatically extract actionable insights from both successful and failed attempts
-- **🔄 Intelligent Reuse**: Apply relevant experiences to solve new, similar challenges more effectively
-- **📈 Continuous Improvement**: Build a growing knowledge base that makes agents progressively smarter
 
 ### ✨ Core Capabilities
 
@@ -85,12 +78,7 @@ ExperienceMaker follows a modular, production-ready architecture designed for sc
 - **🗄️ Vector Store API**: Database management and workspace operations with full CRUD support
 
 #### ⚙️ **Processing Pipeline**
-
-Our atomic operations can be seamlessly composed into powerful processing pipelines:
-
-```
-custom1_op->custom2_op...
-```
+- Our atomic operations can be seamlessly composed into powerful processing pipelines
 
 #### 🔌 **Extensible Components**
 - **LLM Integration**: OpenAI-compatible APIs with flexible model switching and provider support

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ExperienceMaker"
-version = "0.1.0"
+version = "0.1.1"
 description = "make experience from trajectory"
 authors = [{ name = "experiencemaker team", email = "experiencemaker@alibaba-inc.com" }]
 license = { file = "LICENSE" }
