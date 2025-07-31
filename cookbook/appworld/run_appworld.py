@@ -74,20 +74,19 @@ def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int, num_r
 
 
 def main():
-    max_workers = 6
-    num_runs = 4  # Run each task 4 times
+    max_workers = 8
+    num_runs = 1  # Run each task 4 times
     if max_workers > 1:
-        ray.init(num_cpus=6)
-    # run_agent(dataset_name="train", experiment_suffix="v2", max_workers=max_workers, num_runs=num_runs)
+        ray.init(num_cpus=8)
 
     logger.info("Start running experiments without experience")
     for i in range(num_runs):
         run_agent(dataset_name="dev", experiment_suffix=f"no-exp", max_workers=max_workers, num_runs=1,
-                  use_experience=False, workspace_id="appworld_8b_0725")
+                  use_experience=False, workspace_id="appworld_v1")
 
     logger.info("Start running experiments with experience")
     for i in range(num_runs):
-        run_agent(dataset_name="dev", experiment_suffix=f"add-exp", max_workers=max_workers, num_runs=1, use_experience=True,workspace_id="appworld_8b_0725")
+        run_agent(dataset_name="dev", experiment_suffix=f"add-exp", max_workers=max_workers, num_runs=1, use_experience=True,workspace_id="appworld_v1")
 
 
 
