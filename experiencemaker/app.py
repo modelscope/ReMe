@@ -43,3 +43,10 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# start with:
+# experiencemaker \
+#   http_service.port=8001 \
+#   llm.default.model_name=qwen3-32b \
+#   embedding_model.default.model_name=text-embedding-v4 \
+#   vector_store.default.backend=local_file

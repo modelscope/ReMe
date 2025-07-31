@@ -21,6 +21,7 @@ dependencies = [
     "dashscope>=1.19.1",
     "elasticsearch>=8.14.0",
     "fastapi>=0.115.13",
+    "fastmcp>=2.10.6",
     "loguru>=0.7.3",
     "mcp>=1.9.4",
     "numpy>=2.3.0",
@@ -45,3 +46,4 @@ experiencemaker = [
 
 [project.scripts]
 experiencemaker = "experiencemaker.app:main"
+experiencemaker_mcp = "experiencemaker.mcp_server:main"
