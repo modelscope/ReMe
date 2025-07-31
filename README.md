@@ -19,6 +19,7 @@
 ---
 
 ## 📰 What's New
+- **[2025-08]** 👉 Access experiences directly through the library, and contribute to expand our expertise pool👉[TODO]()
 - **[2025-08]** 🚀 MCP is now available! → [Quick Start Guide](./doc/mcp_quick_start.md)
 - **[2025-07]** 🎉 ExperienceMaker v0.1.1 is now available on [PyPI](https://pypi.org/project/experiencemaker/)!
 - **[2025-07]** 📚 Complete documentation and quick start guides released
@@ -482,7 +483,7 @@ We test ExperienceMaker on Appworld with qwen3-8b:
 |--------------------------------|-----------|-------------|-----------|
 | w/o ExperienceMaker (baseline) | 0.083     | 0.140       | 0.228     |
 | **w ExperienceMaker**          |           |             |           |
-|experience(Direct Use)     | **0.109** | 	**0.175**	 | **0.281** |
+| experience(Direct Use)         | **0.109** | 	**0.175**	 | **0.281** |
 
 Pass@K measures the probability that at least one out of K generated samples successfully completes the task (achieves score=1).
 The current experiments use an internal AppWorld environment which may have slight discrepancies, and we will soon update with experimental results from the standard AppWorld environment.
@@ -491,18 +492,25 @@ You may find more details to reproduce this experiment in [quickstart.md](cookbo
 
 
 ### 🧊 Experiment on Frozenlake
-|                                             without experience                                             |                                       with experience                                       |
-|:----------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------:|
-| <p align="center"><img src="doc/figure/frozenlake_failure.gif" alt="ExperienceMaker Logo" width="40%"></p> | <p align="center"><img src="doc/figure/frozenlake_success.gif" alt="GIF 2" width="40%"></p> |
+<table>
+<tr>
+<td align="center"><strong>Without Experience</strong></td>
+<td align="center"><strong>With Experience</strong></td>
+</tr>
+<tr>
+<td align="center"><img src="doc/figure/frozenlake_failure.gif" alt="without experience" width="40%"></td>
+<td align="center"><img src="doc/figure/frozenlake_success.gif" alt="with experience" width="40%"></td>
+</tr>
+</table>
 
 We test on 100 random frozenlake map with qwen3-8b:
 
-| Method                        | pass rate        | 
-|-------------------------------|------------------|
+| Method                         | pass rate        | 
+|--------------------------------|------------------|
 | w/o ExperienceMaker (baseline) | 0.66             | 
-| **w ExperienceMaker**         |                  |
-| [1] experience(Direct Use)    | 0.72 **(+9.1%)** |
-| [2] experience(LLM Rewritten) | 0.72 **(+9.1%)** |
+| **w ExperienceMaker**          |                  |
+| [1] experience(Direct Use)     | 0.72 **(+9.1%)** |
+| [2] experience(LLM Rewritten)  | 0.72 **(+9.1%)** |
 
 We also noticed that in such simple scenarios, not using LLM rewriting may actually yield better results. 
 
@@ -522,7 +530,7 @@ Coming Soon! Stay tuned for comprehensive evaluation results.
 
 ---
 
-## 🏪 Ready-made Experience Store
+## 🏪 Pre-built Experience Libraries
 
 ExperienceMaker provides pre-built experience libraries to jumpstart your agent's capabilities.
 You can directly load these curated experiences into your workspace and start benefiting from accumulated knowledge
