@@ -492,7 +492,7 @@ You may find more details to reproduce this experiment in [quickstart.md](cookbo
 
 ### 🧊 Experiment on Frozenlake
 
-<table style="width: 40%; margin: 0 auto; border-collapse: collapse;">
+<table style="width: 20%; margin: 0 auto; border-collapse: collapse;">
   <thead>
     <tr>
       <th style="text-align: center; padding: 10px; border: 1px solid #ddd;">without experience</th>
@@ -502,10 +502,10 @@ You may find more details to reproduce this experiment in [quickstart.md](cookbo
   <tbody>
     <tr>
       <td style="text-align: center; padding: 10px; border: 1px solid #ddd;">
-        <img src="doc/figure/frozenlake_failure.gif" alt="GIF 1" width="100%">
+        <img src="doc/figure/frozenlake_failure.gif" alt="GIF 1" width="50%">
       </td>
       <td style="text-align: center; padding: 10px; border: 1px solid #ddd;">
-        <img src="doc/figure/frozenlake_success.gif" alt="GIF 2" width="100%">
+        <img src="doc/figure/frozenlake_success.gif" alt="GIF 2" width="50%">
       </td>
     </tr>
   </tbody>
