@@ -492,24 +492,9 @@ You may find more details to reproduce this experiment in [quickstart.md](cookbo
 
 ### 🧊 Experiment on Frozenlake
 
-<table style="width: 20%; margin: 0 auto; border-collapse: collapse;">
-  <thead>
-    <tr>
-      <th style="text-align: center; padding: 10px; border: 1px solid #ddd;">without experience</th>
-      <th style="text-align: center; padding: 10px; border: 1px solid #ddd;">with experience</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="text-align: center; padding: 10px; border: 1px solid #ddd;">
-        <img src="doc/figure/frozenlake_failure.gif" alt="GIF 1" width="50%">
-      </td>
-      <td style="text-align: center; padding: 10px; border: 1px solid #ddd;">
-        <img src="doc/figure/frozenlake_success.gif" alt="GIF 2" width="50%">
-      </td>
-    </tr>
-  </tbody>
-</table>
+|                                     without experience                                      |               with experience               |
+|:-------------------------------------------------------------------------------------------:|:-------------------------------------------:|
+| <p align="center"><img src="doc/figure/frozenlake_failure.gif" alt="GIF 1" width="30%"></p> | <p align="center"><img src="doc/figure/frozenlake_success.gif" alt="GIF 2" width="30%"></p>
 
 We test on 100 random frozenlake map with qwen3-8b:
 
