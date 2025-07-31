@@ -39,7 +39,7 @@ class AppworldReactAgent:
                  use_experience: bool = False,
                  make_experience: bool = False,
                  exp_url: str = "http://0.0.0.0:8001/",
-                 workspace_id: str="appworld_8b_0725"):
+                 workspace_id: str="appworld_v1"):
 
         self.index: int = index
         self.task_ids: List[str] = task_ids
@@ -63,7 +63,7 @@ class AppworldReactAgent:
                     model=self.model_name,
                     messages=messages,
                     temperature=self.temperature,
-                    extra_body={"enable_thinking": False},
+                    extra_body={"enable_thinking": True},
                     seed=0)
 
                 return response.choices[0].message.content

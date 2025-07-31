@@ -137,10 +137,10 @@ def run_exp_statistic():
         df = df.set_index('file')
 
         # Sort columns by the number in column name (best@8, best@4, best@2, best@1)
-        # best_columns = [col for col in df.columns if col.startswith('best@')]
-        best_columns = [col for col in df.columns]
-        best_columns.sort(key=lambda x: x, reverse=False)
-        df = df[best_columns]
+        pass_columns = [col for col in df.columns if col.startswith('pass@')]
+        # best_columns = [col for col in df.columns]
+        pass_columns.sort(key=lambda x: x, reverse=False)
+        df = df[pass_columns]
 
         print("\n" + "=" * 80)
         print("Experiment Results Summary Table")

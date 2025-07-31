@@ -67,7 +67,7 @@ add experiences for appworld:
 curl -X POST "http://0.0.0.0:8001/vector_store" \
   -H "Content-Type: application/json" \
   -d '{
-    "workspace_id": "appworld",
+    "workspace_id": "appworld_v1",
     "action": "dump",
     "path": "./experience_library"
   }'
