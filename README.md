@@ -63,26 +63,9 @@ By automatically extracting, storing, and intelligently reusing experiences from
 - **Modular Pipeline Design**: Compose custom workflows from atomic operations with maximum flexibility
 - **Flexible Configuration**: YAML files and command-line overrides for easy customization
 - **Experience Store**: Ready-to-use out of the box — there’s no need for you to manually summarize experiences. You can directly leverage existing, comprehensive experience datasets to greatly enhance your agent’s capabilities.
-
-### 🏗️ Framework Architecture
 <p align="center">
  <img src="doc/figure/framework.png" alt="ExperienceMaker Architecture" width="70%">
 </p>
-
-ExperienceMaker follows a modular, production-ready architecture designed for scalability:
-#### ⚙️ **API Layer**
-- **🔍 Retriever API**: Query-based and conversation-based experience retrieval with intelligent matching
-- **📊 Summarizer API**: Trajectory-to-experience conversion and automated storage management
-- **🗄️ Vector Store API**: Database management and workspace operations with full CRUD support
-
-#### ⚙️ **Processing Pipeline**
-- Our atomic operations can be seamlessly composed into powerful processing pipelines
-
-#### 🔌 **Extensible Components**
-- **LLM Integration**: OpenAI-compatible APIs with flexible model switching and provider support
-- **Embedding Models**: Pluggable embedding providers for sophisticated semantic search capabilities
-- **Vector Stores**: Multiple backends optimized for different deployment scenarios and scales
-- **Tools & Operators**: Comprehensive, extensible library of processing operations
 
 ---
 
