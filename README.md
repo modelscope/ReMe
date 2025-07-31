@@ -32,8 +32,6 @@
 - **Experience Validation**: Quality analysis + cross-task effectiveness + auto-refinement
 - **Universal Trajectory Extraction**: Raw logs/multimodal data/execution traces → experiences
 
-Exciting features and improvements are on the horizon! Check out our detailed [Future Roadmap](./doc/future_roadmap.md) for upcoming enhancements.
-
 ---
 
 ## 🌟 What is ExperienceMaker?
