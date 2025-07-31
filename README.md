@@ -509,30 +509,31 @@ comprehensive [Quick Start Guide](./cookbook/simple_demo/quick_start.md).
 
 We test ExperienceMaker on Appworld with qwen3-8b:
 
-| Method                                   | best@1     | best@2       | best@4     |
-|------------------------------------------|------------|--------------|------------|
-| w/o ExperienceMaker (baseline)           | 0.3561     | 0.4052       | 0.4536     |
-| **w ExperienceMaker**                    |            |              |            |
-| [1] extract + compare + recall           | **0.4069** | 	**0.5066**	 | 0.618      |
-| [2] extract + compare + recall + rewrite | 0.3910     | 0.5038       | **0.6211** |
+| Method                         | pass@1    | pass@2      | pass@4    |
+|--------------------------------|-----------|-------------|-----------|
+| w/o ExperienceMaker (baseline) | 0.083     | 0.140       | 0.228     |
+| **w ExperienceMaker**          |           |             |           |
+|experience(Direct Use)     | **0.109** | 	**0.175**	 | **0.281** |
 
-### 🔧 Experiment on BFCL-V3
+Pass@K measures the probability that at least one out of K generated samples successfully completes the task (achieves score=1).
+The current experiments use an internal AppWorld environment which may have slight discrepancies, and we will soon update with experimental results from the standard AppWorld environment.
 
-Coming Soon! Stay tuned for comprehensive evaluation results.
+You may find more details to reproduce this experiment in [quickstart.md](cookbook/appworld/quickstart.md)
+
 
 ### 🧊 Experiment on Frozenlake
-|             without experience              |               with experience               |
-|:-------------------------------------------:|:-------------------------------------------:|
-| ![GIF 1](doc/figure/frozenlake_failure.gif) | ![GIF 2](doc/figure/frozenlake_success.gif) |
+|                                             without experience                                             |                                       with experience                                       |
+|:----------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------:|
+| <p align="center"><img src="doc/figure/frozenlake_failure.gif" alt="ExperienceMaker Logo" width="40%"></p> | <p align="center"><img src="doc/figure/frozenlake_success.gif" alt="GIF 2" width="40%"></p> |
 
 We test on 100 random frozenlake map with qwen3-8b:
 
-| Method                        | pass rate         | 
-|-------------------------------|-------------------|
-| w/o ExperienceMaker (baseline) | 0.66              | 
-| **w ExperienceMaker**         |                   |
-| [1] experience(Direct Use)    | 0.84 **(+23.5%)** |
-| [2] experience(LLM Rewritten) | 0.72 **(+9.1%)**  |
+| Method                        | pass rate        | 
+|-------------------------------|------------------|
+| w/o ExperienceMaker (baseline) | 0.66             | 
+| **w ExperienceMaker**         |                  |
+| [1] experience(Direct Use)    | 0.72 **(+9.1%)** |
+| [2] experience(LLM Rewritten) | 0.72 **(+9.1%)** |
 
 We also noticed that in such simple scenarios, not using LLM rewriting may actually yield better results. 
 
@@ -544,7 +545,11 @@ rewrite_experience_op:
     enable_llm_rewrite: false  # change this to false
 ```
 
-You may find more details to reproduce this experiment quickly in  `cookbook/frozenlake/quickstart.md`
+You may find more details to reproduce this experiment in [quickstart.md](cookbook/frozenlake/quickstart.md)
+
+### 🔧 Experiment on BFCL-V3
+
+Coming Soon! Stay tuned for comprehensive evaluation results.
 
 ---
 
