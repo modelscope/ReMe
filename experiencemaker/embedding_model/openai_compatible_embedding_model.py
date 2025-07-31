@@ -11,19 +11,53 @@ from experiencemaker.embedding_model.base_embedding_model import BaseEmbeddingMo
 
 @EMBEDDING_MODEL_REGISTRY.register("openai_compatible")
 class OpenAICompatibleEmbeddingModel(BaseEmbeddingModel):
-    api_key: str = Field(default_factory=lambda: os.getenv("EMBEDDING_API_KEY"), description="api key")
-    base_url: str = Field(default_factory=lambda: os.getenv("EMBEDDING_BASE_URL"), description="base url")
-    model_name: str = Field(default="", description="model name")
-    dimensions: int = Field(default=1024, description="dimensions")
-    encoding_format: Literal["float", "base64"] = Field(default="float", description="encoding_format")
+    """
+    OpenAI-compatible embedding model implementation.
+    
+    This class provides an implementation of BaseEmbeddingModel that works with
+    OpenAI-compatible embedding APIs, including OpenAI's official API and
+    other services that follow the same interface.
+    """
+    # API configuration fields
+    api_key: str = Field(default_factory=lambda: os.getenv("EMBEDDING_API_KEY"), description="API key for authentication")
+    base_url: str = Field(default_factory=lambda: os.getenv("EMBEDDING_BASE_URL"), description="Base URL for the API endpoint")
+    model_name: str = Field(default="", description="Name of the embedding model to use")
+    dimensions: int = Field(default=1024, description="Dimensionality of the embedding vectors")
+    encoding_format: Literal["float", "base64"] = Field(default="float", description="Encoding format for embeddings")
+    
+    # Private OpenAI client instance
     _client: OpenAI = PrivateAttr()
 
     @model_validator(mode="after")
     def init_client(self):
+        """
+        Initialize the OpenAI client after model validation.
+        
+        This method is called automatically after Pydantic model validation
+        to set up the OpenAI client with the provided API key and base URL.
+        
+        Returns:
+            self: The model instance for method chaining
+        """
         self._client = OpenAI(api_key=self.api_key, base_url=self.base_url)
         return self
 
     def _get_embeddings(self, input_text: str | List[str]):
+        """
+        Get embeddings from the OpenAI-compatible API.
+        
+        This method implements the abstract _get_embeddings method from BaseEmbeddingModel
+        by calling the OpenAI-compatible embeddings API.
+        
+        Args:
+            input_text: Single text string or list of text strings to embed
+            
+        Returns:
+            Embedding vector(s) corresponding to the input text(s)
+            
+        Raises:
+            RuntimeError: If unsupported input type is provided
+        """
         completion = self._client.embeddings.create(
             model=self.model_name,
             input=input_text,
