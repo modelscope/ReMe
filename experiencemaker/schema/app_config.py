@@ -59,6 +59,7 @@ class VectorStoreConfig:
 class AppConfig:
     pre_defined_config: str = field(default="default_config")
     config_path: str = field(default="")
+    mcp_transport: str = field(default="sse")
     http_service: HttpServiceConfig = field(default_factory=HttpServiceConfig)
     thread_pool: ThreadPoolConfig = field(default_factory=ThreadPoolConfig)
     api: APIConfig = field(default_factory=APIConfig)

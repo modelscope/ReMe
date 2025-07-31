@@ -46,8 +46,9 @@ class ExperienceMakerService:
 
     def __call__(self, api: str, request: dict | BaseRequest) -> BaseResponse:
         if isinstance(request, dict):
-            request = BaseRequest(**request)
-        app_config: AppConfig = self.config_parser.get_app_config(**request.config)
+            app_config: AppConfig = self.config_parser.get_app_config(**request["config"])
+        else:
+            app_config: AppConfig = self.config_parser.get_app_config(**request.config)
 
         if api == "retriever":
             if isinstance(request, dict):
@@ -75,6 +76,8 @@ class ExperienceMakerService:
 
         else:
             raise RuntimeError(f"Invalid service.api={api}")
+
+        logger.info(f"request={request.model_dump_json()}")
 
         try:
             context = PipelineContext(app_config=app_config,

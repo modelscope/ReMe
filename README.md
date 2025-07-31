@@ -19,7 +19,8 @@
 ---
 
 ## 📰 What's New
-- **[2025-08]** 🎉 ExperienceMaker v0.1.0 is now available on [PyPI](https://pypi.org/project/experiencemaker/)!
+- **[2025-08]** 🚀 MCP is now available! → [Quick Start Guide](./doc/mcp_quick_start.md)
+- **[2025-07]** 🎉 ExperienceMaker v0.1.1 is now available on [PyPI](https://pypi.org/project/experiencemaker/)!
 - **[2025-07]** 📚 Complete documentation and quick start guides released
 - **[2025-06]** 🚀 Multi-backend vector store support (Elasticsearch & ChromaDB)
 
@@ -134,6 +135,8 @@ EMBEDDING_MODEL_BASE_URL="https://xxx.com/v1"
 
 ## 🚀 Quick Start
 
+### 🌐 HTTP Service
+
 For testing and development, use the `local_file` backend:
 ```bash
 experiencemaker \
@@ -147,6 +150,30 @@ experiencemaker \
 including custom pipelines, operation parameters, and advanced configuration methods.
 
 The service will start on `http://localhost:8001`
+
+### 🔌 MCP Server
+
+ExperienceMaker now supports Model Context Protocol (MCP) for seamless integration with MCP-compatible clients like Claude Desktop:
+
+```bash
+experiencemaker_mcp \
+  mcp_transport=stdio \
+  llm.default.model_name=qwen3-32b \
+  embedding_model.default.model_name=text-embedding-v4 \
+  vector_store.default.backend=local_file
+```
+
+For SSE transport (Server-Sent Events):
+```bash
+experiencemaker_mcp \
+  mcp_transport=sse \
+  http_service.port=8001 \
+  llm.default.model_name=qwen3-32b \
+  embedding_model.default.model_name=text-embedding-v4 \
+  vector_store.default.backend=local_file
+```
+
+🔗 **For detailed MCP setup and usage examples**, see our [MCP Quick Start Guide](./doc/mcp_quick_start.md).
 
 ### 🔍 Production Setup with Elasticsearch Backend
 ```bash
