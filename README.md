@@ -1,7 +1,7 @@
 # ExperienceMaker
 
 <p align="center">
- <img src="doc/figure/logo_v3.jpg" alt="ExperienceMaker Logo" width="50%">
+ <img src="doc/figure/logo.jpg" alt="ExperienceMaker Logo" width="100%">
 </p>
 
 <p align="center">
@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <strong>A comprehensive framework for AI agent experience generation and reuse</strong><br>
+  <strong>A comprehensive framework to make experience, reuse experience and share experience for AI agent</strong><br>
   <em>Empowering agents to learn from the past and excel in the future</em>
 </p>
 
