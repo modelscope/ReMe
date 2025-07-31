@@ -30,6 +30,19 @@ def calculate_best_at_k(scores: list, k: int) -> float:
     return sum(group_maxs) / len(group_maxs)
 
 
+def calculate_pass_at_k(scores: list, k: int) -> float:
+    if len(scores) % k != 0:
+        raise ValueError(f"Length of scores ({len(scores)}) must be divisible by k ({k})")
+
+    group_maxs = []
+    for i in range(0, len(scores), k):
+        group = scores[i:i + k]
+        is_pass = 1.0 if max(group) >=1.0 else 0.0
+        group_maxs.append(is_pass)
+
+    return sum(group_maxs) / len(group_maxs)
+
+
 def get_possible_k_values(total_runs: int) -> list:
     """
     Get all possible k values (factors of total_runs)
@@ -53,7 +66,7 @@ def run_exp_statistic():
     # Store results for all experiments
     all_results = {}
 
-    for file in path.glob("*.jsonl"):
+    for file in [f for f in path.glob("*.jsonl") if not f.stem[-1].isdigit()]:
         # Group results by task_id
         task_results = defaultdict(list)
 
@@ -95,9 +108,12 @@ def run_exp_statistic():
 
         for k in k_values:
             best_at_k_scores = []
+            pass_at_k_scores = []
             for task_id, scores in task_results.items():
                 try:
                     best_k_score = calculate_best_at_k(scores, k)
+                    pass_at_k_score = calculate_pass_at_k(scores, k)
+                    pass_at_k_scores.append(pass_at_k_score)
                     best_at_k_scores.append(best_k_score)
                 except ValueError as e:
                     logger.error(f"Error calculating best@{k} for task {task_id}: {e}")
@@ -108,6 +124,11 @@ def run_exp_statistic():
                 file_results[f"best@{k}"] = avg_best_at_k
                 logger.info(f"file={file.name} best@{k}={avg_best_at_k:.4f}")
 
+            if pass_at_k_scores:
+                avg_pass_at_k = sum(pass_at_k_scores) / len(pass_at_k_scores)
+                file_results[f"pass@{k}"] = avg_pass_at_k
+                logger.info(f"file={file.name} pass@{k}={avg_pass_at_k:.4f}")
+
         all_results[file.name] = file_results
 
     # Create and display table
@@ -116,8 +137,9 @@ def run_exp_statistic():
         df = df.set_index('file')
 
         # Sort columns by the number in column name (best@8, best@4, best@2, best@1)
-        best_columns = [col for col in df.columns if col.startswith('best@')]
-        best_columns.sort(key=lambda x: int(x.split('@')[1]), reverse=True)
+        # best_columns = [col for col in df.columns if col.startswith('best@')]
+        best_columns = [col for col in df.columns]
+        best_columns.sort(key=lambda x: x, reverse=False)
         df = df[best_columns]
 
         print("\n" + "=" * 80)
