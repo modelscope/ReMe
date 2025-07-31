@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <strong>A comprehensive framework to make experience, reuse experience and share experience for AI agent</strong><br>
+  <strong>A comprehensive framework to make & reuse & share experience for AI agent</strong><br>
   <em>Empowering agents to learn from the past and excel in the future</em>
 </p>
 
