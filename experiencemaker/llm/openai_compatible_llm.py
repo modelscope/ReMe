@@ -31,7 +31,7 @@ class OpenAICompatibleBaseLLM(BaseLLM):
     # API configuration
     api_key: str = Field(default_factory=lambda: os.getenv("LLM_API_KEY"), description="API key for authentication")
     base_url: str = Field(default_factory=lambda: os.getenv("LLM_BASE_URL"), description="Base URL for the API endpoint")
-    _client: OpenAI = PrivateAttr(description="OpenAI client instance (private)")
+    _client: OpenAI = PrivateAttr()
 
     @model_validator(mode="after")
     def init_client(self):

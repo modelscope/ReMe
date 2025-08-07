@@ -23,7 +23,8 @@ class ReactV1Op(BaseOp):
         response: AgentResponse = self.context.response
 
         max_steps: int = int(self.op_params.get("max_steps", 10))
-        tool_names = self.op_params.get("tool_names", "code_tool,dashscope_search_tool,terminate_tool")
+        # dashscope_search_tool tavily_search_tool
+        tool_names = self.op_params.get("tool_names", "code_tool,tavily_search_tool,terminate_tool")
         tools: List[BaseTool] = [TOOL_REGISTRY[x.strip()]() for x in tool_names.split(",") if x]
         tool_dict: Dict[str, BaseTool] = {x.name: x for x in tools}
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
