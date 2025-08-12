@@ -30,3 +30,8 @@ cookbook/appworld/exp_result/*
 file_vector_store/*
 cookbook/appworld/file_vector_store/*
 experiencemaker/tool/web_search_cach/*
+experiencemaker/cookbook/bfcl/exp_result/*
+experiencemaker/cookbook/bfcl/no_exp_result/*
+experiencemaker/cookbook/bfcl/data/*
+experiencemaker/cookbook/bfcl/gorilla/*
+experiencemaker/*.sh
