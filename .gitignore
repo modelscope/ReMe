@@ -33,5 +33,5 @@ experiencemaker/tool/web_search_cach/*
 experiencemaker/cookbook/bfcl/exp_result/*
 experiencemaker/cookbook/bfcl/no_exp_result/*
 experiencemaker/cookbook/bfcl/data/*
-experiencemaker/cookbook/bfcl/gorilla/*
+experiencemaker/cookbook/bfcl/gorilla
 experiencemaker/*.sh
