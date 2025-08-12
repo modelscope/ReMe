@@ -35,3 +35,4 @@ experiencemaker/cookbook/bfcl/no_exp_result/*
 experiencemaker/cookbook/bfcl/data/*
 experiencemaker/cookbook/bfcl/gorilla
 experiencemaker/*.sh
+experiencemaker/file_vector_store
