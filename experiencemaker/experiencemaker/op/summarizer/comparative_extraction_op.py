@@ -156,17 +156,17 @@ class ComparativeExtractionOp(BaseOp):
             # Get step sequences
             success_step_sequences = []
             for traj in success_trajectories:
-                if hasattr(traj, 'segments') and traj.segments:
-                    success_step_sequences.extend(traj.segments)
+                if hasattr(traj.metadata, 'segments') and traj.metadata["segments"]:
+                    success_step_sequences.extend(traj.metadata["segments"])
                 else:
-                    success_step_sequences.append(traj.steps)
+                    success_step_sequences.append(traj.messages)
 
             failure_step_sequences = []
             for traj in failure_trajectories:
-                if hasattr(traj, 'segments') and traj.segments:
-                    failure_step_sequences.extend(traj.segments)
+                if hasattr(traj.metadata, 'segments') and traj.metadata["segments"]:
+                    failure_step_sequences.extend(traj.metadata["segments"])
                 else:
-                    failure_step_sequences.append(traj.steps)
+                    failure_step_sequences.append(traj.messages)
 
             # Limit comparison count to avoid computational overload
             max_sequences = self.op_params.get("max_similarity_sequences", 5)
