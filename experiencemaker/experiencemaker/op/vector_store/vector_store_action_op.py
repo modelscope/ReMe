@@ -20,6 +20,9 @@ class VectorStoreActionOp(BaseOp):
         elif request.action == "delete":
             result = self.vector_store.delete_workspace(workspace_id=request.workspace_id)
 
+        elif request.action == "delete_ids":
+            result = self.vector_store.delete(workspace_id=request.workspace_id,node_ids = request.experience_ids)
+
         elif request.action == "dump":
             def node_to_experience(node: VectorNode) -> dict:
                 return vector_node_to_experience(node).model_dump()
