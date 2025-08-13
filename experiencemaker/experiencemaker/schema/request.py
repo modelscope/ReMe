@@ -24,6 +24,7 @@ class VectorStoreRequest(BaseRequest):
     action: str = Field(default="")
     src_workspace_id: str = Field(default="")
     path: str = Field(default="")
+    experience_ids: List[str] = Field(default_factory=list)
 
 
 class AgentRequest(BaseRequest):
