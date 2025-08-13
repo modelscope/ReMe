@@ -63,6 +63,7 @@ class BFCLAgent:
                  num_runs: int = 1,
                  enable_thinking: bool = False,
                  use_experience: bool = False,              
+                 use_fixed_experience: bool = True,              
                  experience_base_url: str = "http://0.0.0.0:8001/",
                  experience_workspace_id: str = "bfcl_8b_0725"):
 
@@ -79,6 +80,7 @@ class BFCLAgent:
         self.num_runs: int = num_runs
         self.enable_thinking: bool = enable_thinking
         self.use_experience: bool = use_experience
+        self.use_fixed_experience: bool = use_fixed_experience
         self.experience_base_url: str = experience_base_url
         self.experience_workspace_id: str = experience_workspace_id
         
@@ -135,11 +137,11 @@ class BFCLAgent:
     def update_experience(self, trajectories):
         response = requests.post(url=self.experience_base_url + "summarizer", json={
             "workspace_id": self.experience_workspace_id,
-            "trajectories": trajectories,
+            "traj_list": trajectories,
         })
         response.raise_for_status()
         response = response.json()
-        return response["experiences"]
+        print(f"add new experiences: {response["experience_list"]}")
     
     def call_llm(self, messages: list, tool_schemas: list[dict]) -> str:
         for i in range(100):
@@ -517,9 +519,12 @@ class BFCLAgent:
                             break
 
                     reward = self.get_reward(run_id, task_index)
-                    # if reward == 1:
-                    #     
-                    #     self.update_experience([process_msg_to_trajectory(task_id, msg, reward)]) # selectively add experiences when succeed
+                    if reward == 1 and not self.use_fixed_experience:
+                        self.update_experience([{
+                            "task_id":task_id,
+                            "messages":self.history[run_id][task_index],
+                            "score":reward
+                        }]) # selectively add experiences when succeed
                      
                     t_result = {
                         "run_id": run_id,

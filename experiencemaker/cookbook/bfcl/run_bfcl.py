@@ -22,6 +22,7 @@ def run_agent(dataset_name: str,
               data_path: str = "data/multiturn_data_base_val.jsonl",
               answer_path: Path = Path("data/possible_answer"),
               use_experience: bool = False,         
+              use_fixed_experience: bool = True,         
               enable_thinking: bool = False,
               experience_base_url: str = "http://0.0.0.0:8001/",
               experience_workspace_id: str = "bfcl_8b_0725"):
@@ -51,6 +52,7 @@ def run_agent(dataset_name: str,
                 model_name=model_name,
                 num_runs=num_runs,
                 use_experience=use_experience,
+                use_fixed_experience=use_fixed_experience,
                 enable_thinking=enable_thinking,
                 experience_base_url=experience_base_url,
                 experience_workspace_id=experience_workspace_id
@@ -82,6 +84,7 @@ def run_agent(dataset_name: str,
                               answer_path=answer_path,
                               enable_thinking=enable_thinking,
                               use_experience=use_experience,
+                              use_fixed_experience=use_fixed_experience,
                               experience_base_url=experience_base_url,
                               experience_workspace_id=experience_workspace_id)
             task_results = agent.execute()
@@ -95,6 +98,7 @@ def main():
     max_workers = 4
     num_runs = 4  # Run each task 4 times
     use_experience = True
+    use_fixed_experience = True
     experience_base_url = "http://0.0.0.0:8001/"
     experience_workspace_id = "bfcl_v1"
     if max_workers > 1:
@@ -102,14 +106,15 @@ def main():
     for run_id in range(num_runs):
         run_agent(
             dataset_name="bfcl-multi-turn-base-val", 
-            experiment_suffix=f"0812-w-exp-extract-compare-recall",
+            experiment_suffix=f"0813-w-exp-w-think-update-test",
             model_name="qwen3-8b",
             max_workers=max_workers, 
             num_runs=1, 
             data_path="data/multiturn_data_base_val.jsonl",
             answer_path=Path("data/possible_answer"),
-            enable_thinking=False,
+            enable_thinking=True,
             use_experience=use_experience,
+            use_fixed_experience=use_fixed_experience,
             experience_base_url=experience_base_url,
             experience_workspace_id=experience_workspace_id,
         )

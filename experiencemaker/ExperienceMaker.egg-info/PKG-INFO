@@ -1,0 +1,889 @@
+Metadata-Version: 2.4
+Name: ExperienceMaker
+Version: 0.1.1
+Summary: make experience from trajectory
+Author-email: experiencemaker team <experiencemaker@alibaba-inc.com>
+License:                                  Apache License
+                                   Version 2.0, January 2004
+                                http://www.apache.org/licenses/
+        
+           TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+        
+           1. Definitions.
+        
+              "License" shall mean the terms and conditions for use, reproduction,
+              and distribution as defined by Sections 1 through 9 of this document.
+        
+              "Licensor" shall mean the copyright owner or entity authorized by
+              the copyright owner that is granting the License.
+        
+              "Legal Entity" shall mean the union of the acting entity and all
+              other entities that control, are controlled by, or are under common
+              control with that entity. For the purposes of this definition,
+              "control" means (i) the power, direct or indirect, to cause the
+              direction or management of such entity, whether by contract or
+              otherwise, or (ii) ownership of fifty percent (50%) or more of the
+              outstanding shares, or (iii) beneficial ownership of such entity.
+        
+              "You" (or "Your") shall mean an individual or Legal Entity
+              exercising permissions granted by this License.
+        
+              "Source" form shall mean the preferred form for making modifications,
+              including but not limited to software source code, documentation
+              source, and configuration files.
+        
+              "Object" form shall mean any form resulting from mechanical
+              transformation or translation of a Source form, including but
+              not limited to compiled object code, generated documentation,
+              and conversions to other media types.
+        
+              "Work" shall mean the work of authorship, whether in Source or
+              Object form, made available under the License, as indicated by a
+              copyright notice that is included in or attached to the work
+              (an example is provided in the Appendix below).
+        
+              "Derivative Works" shall mean any work, whether in Source or Object
+              form, that is based on (or derived from) the Work and for which the
+              editorial revisions, annotations, elaborations, or other modifications
+              represent, as a whole, an original work of authorship. For the purposes
+              of this License, Derivative Works shall not include works that remain
+              separable from, or merely link (or bind by name) to the interfaces of,
+              the Work and Derivative Works thereof.
+        
+              "Contribution" shall mean any work of authorship, including
+              the original version of the Work and any modifications or additions
+              to that Work or Derivative Works thereof, that is intentionally
+              submitted to Licensor for inclusion in the Work by the copyright owner
+              or by an individual or Legal Entity authorized to submit on behalf of
+              the copyright owner. For the purposes of this definition, "submitted"
+              means any form of electronic, verbal, or written communication sent
+              to the Licensor or its representatives, including but not limited to
+              communication on electronic mailing lists, source code control systems,
+              and issue tracking systems that are managed by, or on behalf of, the
+              Licensor for the purpose of discussing and improving the Work, but
+              excluding communication that is conspicuously marked or otherwise
+              designated in writing by the copyright owner as "Not a Contribution."
+        
+              "Contributor" shall mean Licensor and any individual or Legal Entity
+              on behalf of whom a Contribution has been received by Licensor and
+              subsequently incorporated within the Work.
+        
+           2. Grant of Copyright License. Subject to the terms and conditions of
+              this License, each Contributor hereby grants to You a perpetual,
+              worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+              copyright license to reproduce, prepare Derivative Works of,
+              publicly display, publicly perform, sublicense, and distribute the
+              Work and such Derivative Works in Source or Object form.
+        
+           3. Grant of Patent License. Subject to the terms and conditions of
+              this License, each Contributor hereby grants to You a perpetual,
+              worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+              (except as stated in this section) patent license to make, have made,
+              use, offer to sell, sell, import, and otherwise transfer the Work,
+              where such license applies only to those patent claims licensable
+              by such Contributor that are necessarily infringed by their
+              Contribution(s) alone or by combination of their Contribution(s)
+              with the Work to which such Contribution(s) was submitted. If You
+              institute patent litigation against any entity (including a
+              cross-claim or counterclaim in a lawsuit) alleging that the Work
+              or a Contribution incorporated within the Work constitutes direct
+              or contributory patent infringement, then any patent licenses
+              granted to You under this License for that Work shall terminate
+              as of the date such litigation is filed.
+        
+           4. Redistribution. You may reproduce and distribute copies of the
+              Work or Derivative Works thereof in any medium, with or without
+              modifications, and in Source or Object form, provided that You
+              meet the following conditions:
+        
+              (a) You must give any other recipients of the Work or
+                  Derivative Works a copy of this License; and
+        
+              (b) You must cause any modified files to carry prominent notices
+                  stating that You changed the files; and
+        
+              (c) You must retain, in the Source form of any Derivative Works
+                  that You distribute, all copyright, patent, trademark, and
+                  attribution notices from the Source form of the Work,
+                  excluding those notices that do not pertain to any part of
+                  the Derivative Works; and
+        
+              (d) If the Work includes a "NOTICE" text file as part of its
+                  distribution, then any Derivative Works that You distribute must
+                  include a readable copy of the attribution notices contained
+                  within such NOTICE file, excluding those notices that do not
+                  pertain to any part of the Derivative Works, in at least one
+                  of the following places: within a NOTICE text file distributed
+                  as part of the Derivative Works; within the Source form or
+                  documentation, if provided along with the Derivative Works; or,
+                  within a display generated by the Derivative Works, if and
+                  wherever such third-party notices normally appear. The contents
+                  of the NOTICE file are for informational purposes only and
+                  do not modify the License. You may add Your own attribution
+                  notices within Derivative Works that You distribute, alongside
+                  or as an addendum to the NOTICE text from the Work, provided
+                  that such additional attribution notices cannot be construed
+                  as modifying the License.
+        
+              You may add Your own copyright statement to Your modifications and
+              may provide additional or different license terms and conditions
+              for use, reproduction, or distribution of Your modifications, or
+              for any such Derivative Works as a whole, provided Your use,
+              reproduction, and distribution of the Work otherwise complies with
+              the conditions stated in this License.
+        
+           5. Submission of Contributions. Unless You explicitly state otherwise,
+              any Contribution intentionally submitted for inclusion in the Work
+              by You to the Licensor shall be under the terms and conditions of
+              this License, without any additional terms or conditions.
+              Notwithstanding the above, nothing herein shall supersede or modify
+              the terms of any separate license agreement you may have executed
+              with Licensor regarding such Contributions.
+        
+           6. Trademarks. This License does not grant permission to use the trade
+              names, trademarks, service marks, or product names of the Licensor,
+              except as required for reasonable and customary use in describing the
+              origin of the Work and reproducing the content of the NOTICE file.
+        
+           7. Disclaimer of Warranty. Unless required by applicable law or
+              agreed to in writing, Licensor provides the Work (and each
+              Contributor provides its Contributions) on an "AS IS" BASIS,
+              WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+              implied, including, without limitation, any warranties or conditions
+              of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+              PARTICULAR PURPOSE. You are solely responsible for determining the
+              appropriateness of using or redistributing the Work and assume any
+              risks associated with Your exercise of permissions under this License.
+        
+           8. Limitation of Liability. In no event and under no legal theory,
+              whether in tort (including negligence), contract, or otherwise,
+              unless required by applicable law (such as deliberate and grossly
+              negligent acts) or agreed to in writing, shall any Contributor be
+              liable to You for damages, including any direct, indirect, special,
+              incidental, or consequential damages of any character arising as a
+              result of this License or out of the use or inability to use the
+              Work (including but not limited to damages for loss of goodwill,
+              work stoppage, computer failure or malfunction, or any and all
+              other commercial damages or losses), even if such Contributor
+              has been advised of the possibility of such damages.
+        
+           9. Accepting Warranty or Additional Liability. While redistributing
+              the Work or Derivative Works thereof, You may choose to offer,
+              and charge a fee for, acceptance of support, warranty, indemnity,
+              or other liability obligations and/or rights consistent with this
+              License. However, in accepting such obligations, You may act only
+              on Your own behalf and on Your sole responsibility, not on behalf
+              of any other Contributor, and only if You agree to indemnify,
+              defend, and hold each Contributor harmless for any liability
+              incurred by, or claims asserted against, such Contributor by reason
+              of your accepting any such warranty or additional liability.
+        
+           END OF TERMS AND CONDITIONS
+        
+           APPENDIX: How to apply the Apache License to your work.
+        
+              To apply the Apache License to your work, attach the following
+              boilerplate notice, with the fields enclosed by brackets "[]"
+              replaced with your own identifying information. (Don't include
+              the brackets!)  The text should be enclosed in the appropriate
+              comment syntax for the file format. We also recommend that a
+              file or class name and description of purpose be included on the
+              same "printed page" as the copyright notice for easier
+              identification within third-party archives.
+        
+           Copyright 2024 Alibaba Group
+        
+           Licensed under the Apache License, Version 2.0 (the "License");
+           you may not use this file except in compliance with the License.
+           You may obtain a copy of the License at
+        
+               http://www.apache.org/licenses/LICENSE-2.0
+        
+           Unless required by applicable law or agreed to in writing, software
+           distributed under the License is distributed on an "AS IS" BASIS,
+           WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+           See the License for the specific language governing permissions and
+           limitations under the License.
+        
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: dashscope>=1.19.1
+Requires-Dist: elasticsearch>=8.14.0
+Requires-Dist: fastapi>=0.115.13
+Requires-Dist: fastmcp>=2.10.6
+Requires-Dist: loguru>=0.7.3
+Requires-Dist: mcp>=1.9.4
+Requires-Dist: numpy>=2.3.0
+Requires-Dist: openai>=1.88.0
+Requires-Dist: pydantic>=2.11.7
+Requires-Dist: PyYAML>=6.0.2
+Requires-Dist: Requests>=2.32.4
+Requires-Dist: uvicorn>=0.34.3
+Requires-Dist: setuptools>=75.0
+Dynamic: license-file
+
+# ExperienceMaker
+
+<p align="center">
+ <img src="doc/figure/logo.jpg" alt="ExperienceMaker Logo" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://pypi.org/project/experiencemaker/"><img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python Version"></a>
+  <a href="https://pypi.org/project/experiencemaker/"><img src="https://img.shields.io/badge/pypi-v0.1.1-blue?logo=pypi" alt="PyPI Version"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black" alt="License"></a>
+  <a href="https://github.com/modelscope/ExperienceMaker"><img src="https://img.shields.io/github/stars/modelscope/ExperienceMaker?style=social" alt="GitHub Stars"></a>
+</p>
+
+<p align="center">
+  <strong>A comprehensive framework to make & reuse & share experience for AI agent</strong><br>
+  <em>Empowering agents to learn from the past and excel in the future</em>
+</p>
+
+---
+
+## 📰 What's New
+- **[2025-08]** 🚀 MCP is now available! → [Quick Start Guide](./doc/mcp_quick_start.md)
+- **[2025-07]** 🎉 ExperienceMaker v0.1.1 is now available on [PyPI](https://pypi.org/project/experiencemaker/)!
+- **[2025-07]** 📚 Complete documentation and quick start guides released
+- **[2025-06]** 🚀 Multi-backend vector store support (Elasticsearch & ChromaDB)
+
+---
+
+## 🚀 What's Next
+- **Pre-built Experience Libraries**: Domain repositories (Finance/Coding/Education/Research) + community marketplace
+- **Rich Experience Formats**: Executable code/tool configs/pipeline templates/workflows
+- **Experience Validation**: Quality analysis + cross-task effectiveness + auto-refinement
+- **Universal Trajectory Extraction**: Raw logs/multimodal data/execution traces → experiences
+
+---
+
+## 🌟 What is ExperienceMaker?
+ExperienceMaker is a framework that transforms how AI agents learn and improve through **experience-driven intelligence**. 
+By automatically extracting, storing, and intelligently reusing experiences from agent trajectories, it enables continuous learning and progressive skill enhancement.
+
+### ✨ Core Capabilities
+
+#### 🔍 **Intelligent Experience Summarizer**
+- **Success Pattern Recognition**: Identify what works and understand the underlying principles
+- **Failure Analysis**: Learn from mistakes to avoid repeating them in future tasks
+- **Comparative Insights**: Understand the critical differences between successful and failed approaches
+- **Multistep Trajectory Processing**: Break down complex tasks into learnable, actionable segments
+
+#### 🎯 **Smart Experience Retriever**
+- **Semantic Search**: Find relevant experiences using advanced embedding models and semantic understanding
+- **Context-Aware Ranking**: Prioritize the most applicable experiences for current task contexts
+- **Dynamic Rewriting**: Intelligently adapt experiences to fit new situations and requirements
+- **Multi-modal Support**: Handle various input types including query, messages
+
+#### 🗄️ **Scalable Experience Management**
+- **Multiple Storage Backends**: Choose from Elasticsearch (production-ready), ChromaDB (development), or file-based storage (testing)
+- **Workspace Isolation**: Organize experiences by projects, domains, or teams with complete separation
+- **Deduplication & Validation**: Ensure high-quality, unique experience storage with automated quality control
+- **Batch Operations**: Efficiently handle large-scale experience processing with optimized performance
+
+#### 🔧 **Developer-Friendly Architecture**
+- **REST API Interface**: Seamless integration with existing systems through clean API design
+- **Modular Pipeline Design**: Compose custom workflows from atomic operations with maximum flexibility
+- **Flexible Configuration**: YAML files and command-line overrides for easy customization
+- **Experience Store**: Ready-to-use out of the box — there’s no need for you to manually summarize experiences. You can directly leverage existing, comprehensive experience datasets to greatly enhance your agent’s capabilities.
+<p align="center">
+ <img src="doc/figure/framework.png" alt="ExperienceMaker Architecture" width="70%">
+</p>
+
+---
+
+## 🛠️ Installation
+
+### Option 1: Install from PyPI (Recommended)
+
+```bash
+pip install experiencemaker
+```
+
+### Option 2: Install from Source
+
+```bash
+git clone https://github.com/modelscope/ExperienceMaker.git
+cd ExperienceMaker
+pip install .
+```
+
+## ⚙️ Environment Setup
+
+Create a `.env` file in your project root directory:
+
+```bash
+# Required: LLM API configuration
+LLM_API_KEY="sk-xxx"
+LLM_BASE_URL="https://xxx.com/v1"
+
+# Required: Embedding model configuration  
+EMBEDDING_MODEL_API_KEY="sk-xxx"
+EMBEDDING_MODEL_BASE_URL="https://xxx.com/v1"
+
+# Optional: Elasticsearch configuration (if using Elasticsearch backend)
+
+```
+
+## 🚀 Quick Start
+
+### 🌐 HTTP Service
+
+For testing and development, use the `local_file` backend:
+```bash
+experiencemaker \
+  http_service.port=8001 \
+  llm.default.model_name=qwen3-32b \
+  embedding_model.default.model_name=text-embedding-v4 \
+  vector_store.default.backend=local_file
+```
+
+💡 **Pro Tip**: Check out our [Configuration Guide](./doc/configuration_guide.md) for detailed configuration topics
+including custom pipelines, operation parameters, and advanced configuration methods.
+
+The service will start on `http://localhost:8001`
+
+### 🔌 MCP Server
+
+ExperienceMaker now supports Model Context Protocol (MCP) for seamless integration with MCP-compatible clients like Claude Desktop:
+
+```bash
+experiencemaker_mcp \
+  mcp_transport=stdio \
+  llm.default.model_name=qwen3-32b \
+  embedding_model.default.model_name=text-embedding-v4 \
+  vector_store.default.backend=local_file
+```
+
+For SSE transport (Server-Sent Events):
+```bash
+experiencemaker_mcp \
+  mcp_transport=sse \
+  http_service.port=8001 \
+  llm.default.model_name=qwen3-32b \
+  embedding_model.default.model_name=text-embedding-v4 \
+  vector_store.default.backend=local_file
+```
+
+🔗 **For detailed MCP setup and usage examples**, see our [MCP Quick Start Guide](./doc/mcp_quick_start.md).
+
+### 🔍 Production Setup with Elasticsearch Backend
+```bash
+experiencemaker \
+  http_service.port=8001 \
+  llm.default.model_name=qwen3-32b \
+  embedding_model.default.model_name=text-embedding-v4 \
+  vector_store.default.backend=elasticsearch
+```
+
+**Setup Elasticsearch:**
+```bash
+export ES_HOSTS="http://localhost:9200"
+# Quick setup using Elastic's official script
+curl -fsSL https://elastic.co/start-local | sh
+```
+📖 **Need Help?** Refer to [Vector Store Setup](./doc/vector_store_setup.md) for comprehensive deployment guidance.
+
+## 📝 Your First ExperienceMaker Script
+
+Here's how to get started!
+Note the `workspace_id` serves as your experience storage namespace. Experiences in different workspaces remain completely isolated and cannot access each other.
+
+### 📊 Call Summarizer Examples
+
+Transform conversation trajectories into valuable experiences using batch summarization. Each trajectory contains:
+
+- **Message**: Complete conversation history between user and agent
+- **Score**: Performance rating (0-1 scale, where 0=failure, 1=success)
+
+The summarizer analyzes these trajectories to extract actionable insights and patterns for future interactions.
+
+<details open>
+<summary><b>Python</b></summary>
+
+```python
+import requests
+
+response = requests.post(url="http://0.0.0.0:8001/summarizer", json={
+  "workspace_id": "test_workspace",
+  "traj_list": [
+    {"messages": [{"role": "user", "content": "hello world"}], "score": 1.0}
+  ]
+})
+
+experience_list = response.json()["experience_list"]
+for experience in experience_list:
+  print(experience)
+```
+</details>
+
+<details>
+<summary><b>curl</b></summary>
+
+```bash
+curl -X POST "http://0.0.0.0:8001/summarizer" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "test_workspace",
+    "traj_list": [
+      {
+        "messages": [{"role": "user", "content": "hello world"}],
+        "score": 1.0
+      }
+    ]
+  }'
+```
+</details>
+
+<details>
+<summary><b>Node.js</b></summary>
+
+```javascript
+const fetch = require('node-fetch');
+// or: import fetch from 'node-fetch';
+
+async function callSummarizer() {
+  try {
+    const response = await fetch('http://0.0.0.0:8001/summarizer', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        workspace_id: "test_workspace",
+        traj_list: [
+          {
+            messages: [{ role: "user", content: "hello world" }],
+            score: 1.0
+          }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    const experienceList = data.experience_list;
+    
+    experienceList.forEach(experience => {
+      console.log(experience);
+    });
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+callSummarizer();
+```
+</details>
+
+### 🔍 Call Retriever Examples
+
+Intelligently search and retrieve the most relevant experiences from your workspace to enhance decision-making. The retriever:
+
+- **Finds** the top-k most similar experiences based on semantic similarity to your query
+- **Returns** pre-assembled context ready for immediate use, or raw experience data for custom processing
+- **Leverages** your workspace's accumulated knowledge to provide contextually relevant insights
+
+<details open>
+<summary><b>Python</b></summary>
+
+```python
+import requests
+
+response = requests.post(url="http://0.0.0.0:8001/retriever", json={
+  "workspace_id": "test_workspace",
+  "query": "what is the meaning of life?",
+  "top_k": 1,
+})
+
+experience_merged: str = response.json()["experience_merged"]
+print(f"experience_merged={experience_merged}")
+```
+</details>
+
+<details>
+<summary><b>curl</b></summary>
+
+```bash
+curl -X POST "http://0.0.0.0:8001/retriever" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "test_workspace",
+    "query": "what is the meaning of life?",
+    "top_k": 1
+  }'
+```
+</details>
+
+<details>
+<summary><b>Node.js</b></summary>
+
+```javascript
+const fetch = require('node-fetch');
+// or: import fetch from 'node-fetch';
+
+async function callRetriever() {
+  try {
+    const response = await fetch('http://0.0.0.0:8001/retriever', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        workspace_id: "test_workspace",
+        query: "what is the meaning of life?",
+        top_k: 1
+      })
+    });
+
+    const data = await response.json();
+    const experienceMerged = data.experience_merged;
+    
+    console.log(`experience_merged=${experienceMerged}`);
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+callRetriever();
+```
+</details>
+
+### 💾 Dump Experiences From Vector Store
+
+Export and backup your valuable experience data for archival, analysis, or migration purposes. This operation:
+
+- **Extracts** all experiences from the specified workspace in the vector store
+- **Saves** them to a structured JSONL file at `{path}/{workspace_id}.jsonl`
+- **Preserves** complete experience metadata and embeddings for future restoration
+
+<details open>
+<summary><b>Python</b></summary>
+
+```python
+import requests
+
+response = requests.post(url="http://0.0.0.0:8001/vector_store", json={
+  "workspace_id": "test_workspace",
+  "action": "dump",
+  "path": "./",
+})
+print(response.json())
+```
+</details>
+
+<details>
+<summary><b>curl</b></summary>
+
+```bash
+curl -X POST "http://0.0.0.0:8001/vector_store" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "test_workspace",
+    "action": "dump",
+    "path": "./"
+  }'
+```
+</details>
+
+<details>
+<summary><b>Node.js</b></summary>
+
+```javascript
+const fetch = require('node-fetch');
+// or: import fetch from 'node-fetch';
+
+async function dumpExperiences() {
+  try {
+    const response = await fetch('http://0.0.0.0:8001/vector_store', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        workspace_id: "test_workspace",
+        action: "dump",
+        path: "./"
+      })
+    });
+
+    const data = await response.json();
+    console.log(data);
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+dumpExperiences();
+```
+</details>
+
+### 📥 Load Experiences To Vector Store
+
+Import and restore previously exported experience data to populate your workspace with existing knowledge. This operation:
+
+- **Reads** experience data from the JSONL file located at `{path}/{workspace_id}.jsonl`
+- **Reconstructs** the vector embeddings and indexes them in the specified workspace
+- **Enables** immediate access to imported experiences for retrieval and decision-making
+
+<details open>
+<summary><b>Python</b></summary>
+
+```python
+import requests
+
+response = requests.post(url="http://0.0.0.0:8001/vector_store", json={
+  "workspace_id": "test_workspace",
+  "action": "load",
+  "path": "./",
+})
+
+print(response.json())
+```
+</details>
+
+<details>
+<summary><b>curl</b></summary>
+
+```bash
+curl -X POST "http://0.0.0.0:8001/vector_store" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "test_workspace",
+    "action": "load",
+    "path": "./"
+  }'
+```
+</details>
+
+<details>
+<summary><b>Node.js</b></summary>
+
+```javascript
+const fetch = require('node-fetch');
+// or: import fetch from 'node-fetch';
+
+async function loadExperiences() {
+  try {
+    const response = await fetch('http://0.0.0.0:8001/vector_store', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        workspace_id: "test_workspace",
+        action: "load",
+        path: "./"
+      })
+    });
+
+    const data = await response.json();
+    console.log(data);
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+loadExperiences();
+```
+</details>
+
+💡 **Need More Advanced Operations?** For additional workspace management features(e.g. delete_workspace,
+copy_workspace), advanced configuration options, and troubleshooting guidance, check out our
+comprehensive [Quick Start Guide](./cookbook/simple_demo/quick_start.md).
+
+🎭 **Want to See It in Action?** We've prepared a [simple react agent](./cookbook/simple_demo/simple_demo.py) that demonstrates how to enhance agent capabilities by integrating summarizer and retriever components, achieving significantly better performance.
+
+---
+
+## 🧪 Experiments
+
+### 🌍 Experiment on Appworld
+
+We test ExperienceMaker on Appworld with qwen3-8b:
+
+| Method                         | pass@1    | pass@2      | pass@4    |
+|--------------------------------|-----------|-------------|-----------|
+| w/o ExperienceMaker (baseline) | 0.083     | 0.140       | 0.228     |
+| **w ExperienceMaker**          |           |             |           |
+|experience(Direct Use)     | **0.109** | 	**0.175**	 | **0.281** |
+
+Pass@K measures the probability that at least one out of K generated samples successfully completes the task (achieves score=1).
+The current experiments use an internal AppWorld environment which may have slight discrepancies, and we will soon update with experimental results from the standard AppWorld environment.
+
+You may find more details to reproduce this experiment in [quickstart.md](cookbook/appworld/quickstart.md)
+
+
+### 🧊 Experiment on Frozenlake
+
+|                                     without experience                                      |               with experience               |
+|:-------------------------------------------------------------------------------------------:|:-------------------------------------------:|
+| <p align="center"><img src="doc/figure/frozenlake_failure.gif" alt="GIF 1" width="30%"></p> | <p align="center"><img src="doc/figure/frozenlake_success.gif" alt="GIF 2" width="30%"></p>
+
+We test on 100 random frozenlake map with qwen3-8b:
+
+| Method                        | pass rate        | 
+|-------------------------------|------------------|
+| w/o ExperienceMaker (baseline) | 0.66             | 
+| **w ExperienceMaker**         |                  |
+| [1] experience(Direct Use)    | 0.72 **(+9.1%)** |
+| [2] experience(LLM Rewritten) | 0.72 **(+9.1%)** |
+
+We also noticed that in such simple scenarios, not using LLM rewriting may actually yield better results. 
+
+Therefore, in some simple scenarios, you can also try disabling LLM rewriting by simply changing the following in default_config.yaml:
+
+```yaml
+rewrite_experience_op:
+  params:
+    enable_llm_rewrite: false  # change this to false
+```
+
+You may find more details to reproduce this experiment in [quickstart.md](cookbook/frozenlake/quickstart.md)
+
+### 🔧 Experiment on BFCL-V3
+
+Coming Soon! Stay tuned for comprehensive evaluation results.
+
+---
+
+## 🏪 Ready-made Experience Store
+
+ExperienceMaker provides pre-built experience libraries to jumpstart your agent's capabilities.
+You can directly load these curated experiences into your workspace and start benefiting from accumulated knowledge
+immediately.
+
+### 📦 Available Experience Libraries
+
+- **`appworld_v1.jsonl`**: Comprehensive experiences from Appworld agent interactions, covering complex task planning
+  and execution patterns
+- **`bfcl_v1.jsonl`**: Function calling experiences from Berkeley Function-Calling Leaderboard tasks
+
+### 🚀 Quick Start with Pre-built Experiences
+
+Here's how to load and use the Appworld experience library:
+
+#### Step 1: Load Pre-built Experiences
+
+<details open>
+<summary><b>Python</b></summary>
+
+```python
+import requests
+
+# Load Appworld experiences into your workspace
+response = requests.post(url="http://0.0.0.0:8001/vector_store", json={
+    "workspace_id": "appworld_v1",
+    "action": "load",
+    "path": "./library/",
+})
+
+print(f"loading result result={response.json()}")
+```
+</details>
+
+<details>
+<summary><b>curl</b></summary>
+
+```bash
+curl -X POST "http://0.0.0.0:8001/vector_store" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "appworld_v1",
+    "action": "load",
+    "path": "./library/"
+  }'
+```
+</details>
+
+#### Step 2: Retrieve Relevant Experiences
+
+Now you can query the loaded experiences to get contextual guidance for your tasks:
+
+<details open>
+<summary><b>Python</b></summary>
+
+```python
+import requests
+
+# Query for app interaction experiences
+response = requests.post(url="http://0.0.0.0:8001/retriever", json={
+    "workspace_id": "appworld_v1",
+    "query": "How to navigate to settings and update user profile information?",
+    "top_k": 1,
+})
+
+experience_merged = response.json()["experience_merged"]
+print(f"Retrieved experiences: {experience_merged}")
+```
+</details>
+
+<details>
+<summary><b>curl</b></summary>
+
+```bash
+curl -X POST "http://0.0.0.0:8001/retriever" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "appworld_v1",
+    "query": "How to navigate to settings and update user profile information?",
+    "top_k": 1
+  }'
+```
+</details>
+
+---
+
+## 📚 Additional Resources
+
+- **[Quick Start](./cookbook/simple_demo/quick_start.md)**: This guide will help you get started with ExperienceMaker quickly using practical examples.
+- **[Vector Store Setup](./doc/vector_store_setup.md)**: Complete production deployment guide
+- **[Configuration Guide](./doc/configuration_guide.md)**: Describes all available command-line parameters for ExperienceMaker Service
+- **[Operations Documentation](./doc/operations_documentation.md)**: Comprehensive operations configuration reference
+- **[Example Collection](./cookbook)**: Practical examples and use cases
+- **[Future RoadMap](./doc/future_roadmap.md)**: Our vision and upcoming features
+
+---
+
+## 🤝 Contributing
+We warmly welcome contributions from the community! Here's how you can help make ExperienceMaker even better:
+
+### 🐛 **Report Issues**
+- Bug reports with detailed reproduction steps
+- Feature requests and enhancement suggestions
+- Documentation improvements and clarifications
+- Performance optimization ideas
+
+### 💻 **Code Contributions**
+- New operations and tools development
+- Backend implementations and optimizations
+- API enhancements and new endpoints
+- Test coverage improvements and quality assurance
+
+### 📝 **Documentation**
+- Usage examples and comprehensive tutorials
+- Best practices guides and design patterns
+- Translation and localization efforts
+
+---
+## 📄 Citation
+If you use ExperienceMaker in your research or projects, please cite:
+```bibtex
+@software{ExperienceMaker,
+  title = {ExperienceMaker: A Comprehensive Framework for AI Agent Experience Generation and Reuse},
+  author = {The ExperienceMaker Team},
+  url = {https://github.com/modelscope/ExperienceMaker},
+  month = {08},
+  year = {2025},
+}
+```
+
+---
+## ⚖️ License
+This project is licensed under the Apache License 2.0 - see the [LICENSE](./LICENSE) file for details.
+
+---

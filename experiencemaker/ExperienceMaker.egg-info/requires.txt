@@ -1,0 +1,13 @@
+dashscope>=1.19.1
+elasticsearch>=8.14.0
+fastapi>=0.115.13
+fastmcp>=2.10.6
+loguru>=0.7.3
+mcp>=1.9.4
+numpy>=2.3.0
+openai>=1.88.0
+pydantic>=2.11.7
+PyYAML>=6.0.2
+Requests>=2.32.4
+uvicorn>=0.34.3
+setuptools>=75.0

@@ -20,6 +20,11 @@ class SummarizerRequest(BaseRequest):
     traj_list: List[Trajectory] = Field(default_factory=list)
 
 
+class ManagerRequest(BaseRequest):
+    freq_threshold: int = Field(default=10)
+    utility_threshold: float = Field(default=0.6)
+
+
 class VectorStoreRequest(BaseRequest):
     action: str = Field(default="")
     src_workspace_id: str = Field(default="")

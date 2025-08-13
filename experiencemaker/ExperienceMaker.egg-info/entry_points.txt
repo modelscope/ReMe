@@ -1,0 +1,3 @@
+[console_scripts]
+experiencemaker = experiencemaker.app:main
+experiencemaker_mcp = experiencemaker.mcp_server:main

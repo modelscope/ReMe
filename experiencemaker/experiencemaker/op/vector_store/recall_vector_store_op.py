@@ -25,7 +25,7 @@ class RecallVectorStoreOp(BaseOp):
         nodes: List[VectorNode] = self.vector_store.search(query=query,
                                                            workspace_id=request.workspace_id,
                                                            top_k=request.top_k)
-
+        
         # convert to experience, filter duplicate
         experience_list: List[BaseExperience] = []
         experience_content_list: List[str] = []
