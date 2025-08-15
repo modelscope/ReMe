@@ -85,7 +85,7 @@ class BFCLAgent:
         self.enable_thinking: bool = enable_thinking
         self.use_experience: bool = use_experience
         self.use_fixed_experience: bool = use_fixed_experience if use_experience else True
-        self.use_experience_deletion: bool = use_experience_deletion
+        self.use_experience_deletion: bool = use_experience_deletion if use_experience else False
         self.delete_freq: int = delete_freq
         self.freq_threshold: int = freq_threshold
         self.utility_threshold: float = utility_threshold

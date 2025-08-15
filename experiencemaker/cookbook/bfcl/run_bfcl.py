@@ -87,14 +87,14 @@ def main():
     use_experience = True
     use_fixed_experience = False
     use_experience_deletion = True
-    experience_base_url = "http://0.0.0.0:8002/"
+    experience_base_url = "http://0.0.0.0:8001/"
     experience_workspace_id = "bfcl_v1"
     if max_workers > 1:
         ray.init(num_cpus=4)
     for run_id in range(num_runs):
         run_agent(
             dataset_name="bfcl-multi-turn-base-val", 
-            experiment_suffix=f"0815-w-exp-recall-rewrite-update-delete-test", # 
+            experiment_suffix=f"0815-w-exp-recall-update-delete-test", # -rewrite
             model_name="qwen3-8b",
             max_workers=max_workers, 
             num_runs=1, 
