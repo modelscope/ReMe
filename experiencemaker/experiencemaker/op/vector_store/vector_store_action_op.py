@@ -40,6 +40,15 @@ class VectorStoreActionOp(BaseOp):
                                                       path=request.path,
                                                       callback_fn=experience_dict_to_node)
 
+        elif request.action == "update_freq":
+            result = self.vector_store.update_freq(workspace_id=request.workspace_id, node_ids = request.experience_ids)
+        
+        elif request.action == "update_utility":
+            result = self.vector_store.update_utility(workspace_id=request.workspace_id, node_ids = request.experience_ids)
+        
+        elif request.action == "utility_based_delete":
+            result = self.vector_store.utility_based_delete(workspace_id=request.workspace_id, freq_threshold = request.freq_threshold, utility_threshold = request.utility_threshold)
+        
         else:
             raise ValueError(f"invalid action={request.action}")
 

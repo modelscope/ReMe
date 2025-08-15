@@ -8,4 +8,6 @@ class VectorNode(BaseModel):
     workspace_id: str = Field(default="")
     content: str = Field(default="")
     vector: List[float] | None = Field(default=None)
+    freq: int = Field(default=0)
+    utility: int = Field(default=0)
     metadata: dict = Field(default_factory=dict)

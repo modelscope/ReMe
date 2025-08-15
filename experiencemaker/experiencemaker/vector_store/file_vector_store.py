@@ -104,7 +104,66 @@ class FileVectorStore(BaseVectorStore):
         self._dump_to_path(nodes=all_nodes, workspace_id=workspace_id, path=self.store_path, **kwargs)
         logger.info(f"delete workspace_id={workspace_id} before_size={before_size} after_size={after_size}")
 
+    def update_freq(self, node_ids: str | List[str], workspace_id: str, **kwargs):
+        if not self.exist_workspace(workspace_id=workspace_id):
+            logger.warning(f"workspace_id={workspace_id} is not exists!")
+            return
 
+        if isinstance(node_ids, str):
+            node_ids = [node_ids]
+
+        all_nodes: List[VectorNode] = list(self._load_from_path(path=self.store_path, workspace_id=workspace_id))
+        all_new_nodes = []
+        freq_counter = []
+        for n in all_nodes:
+            if n.unique_id in node_ids:
+                n.freq += 1
+                
+            if n.freq not in freq_counter:
+                freq_counter[n.freq] = 0
+            freq_counter[n.freq] += 1
+            
+            all_new_nodes.append(n)
+
+        self._dump_to_path(nodes=all_new_nodes, workspace_id=workspace_id, path=self.store_path, **kwargs)
+        logger.info(f"update workspace_id={workspace_id} update_cnt={len(node_ids)}")
+        
+        return freq_counter
+    
+    def update_utility(self, node_ids: str | List[str], workspace_id: str, **kwargs):
+        if not self.exist_workspace(workspace_id=workspace_id):
+            logger.warning(f"workspace_id={workspace_id} is not exists!")
+            return
+
+        if isinstance(node_ids, str):
+            node_ids = [node_ids]
+
+        all_nodes: List[VectorNode] = list(self._load_from_path(path=self.store_path, workspace_id=workspace_id))
+        all_new_nodes = []
+        for n in all_nodes:
+            if n.unique_id in node_ids:
+                n.utility += 1
+            all_new_nodes.append(n)
+
+        self._dump_to_path(nodes=all_new_nodes, workspace_id=workspace_id, path=self.store_path, **kwargs)
+        logger.info(f"update workspace_id={workspace_id} update_utility_cnt={len(node_ids)}")
+
+    def utility_based_delete(self, workspace_id: str, freq_threshold: int, utility_threshold: float, **kwargs):
+        if not self.exist_workspace(workspace_id=workspace_id):
+            logger.warning(f"workspace_id={workspace_id} is not exists!")
+            return
+        
+        all_nodes: List[VectorNode] = list(self._load_from_path(path=self.store_path, workspace_id=workspace_id))
+        delete_node_ids = []
+        for n in all_nodes:
+            if n.freq >= freq_threshold:
+                if n.utility*1.0/n.freq < utility_threshold:
+                    delete_node_ids.append(n.unique_id)
+        
+        logger.info(f"delete when freq>={freq_threshold} and utility/freq<{utility_threshold}")
+        self.delete(node_ids=delete_node_ids, workspace_id=workspace_id)
+
+        
 def main():
     from dotenv import load_dotenv
     load_dotenv()

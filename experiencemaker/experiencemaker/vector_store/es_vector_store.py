@@ -3,6 +3,7 @@ from typing import List, Tuple, Iterable
 
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
+from elasticsearch import NotFoundError
 from loguru import logger
 from pydantic import Field, PrivateAttr, model_validator
 
@@ -131,7 +132,9 @@ class EsVectorStore(BaseVectorStore):
                     "workspace_id": workspace_id,
                     "content": node.content,
                     "metadata": node.metadata,
-                    "vector": node.vector
+                    "vector": node.vector,
+                    "freq": node.freq,
+                    "utility": node.utility
                 }
             } for node in embedded_nodes + now_embedded_nodes]
         status, error = bulk(self._client, docs, chunk_size=self.batch_size, **kwargs)
@@ -159,8 +162,107 @@ class EsVectorStore(BaseVectorStore):
 
         if refresh:
             self.refresh(workspace_id=workspace_id)
+    
+    def update_freq(self, node_ids: str | List[str], workspace_id: str, refresh: bool = False, **kwargs):
+        if not self.exist_workspace(workspace_id=workspace_id):
+            logger.warning(f"workspace_id={workspace_id} is not exists!")
+            return
 
+        if isinstance(node_ids, str):
+            node_ids = [node_ids]
 
+        actions = [
+            {
+                "_op_type": "update",
+                "_index": workspace_id,
+                "_id": node_id,
+                "script": {
+                    "source": "ctx._source.freq += 1",
+                    "lang": "painless"
+                }
+            } for node_id in node_ids
+        ]
+        status, error = bulk(self._client, actions, chunk_size=self.batch_size, **kwargs)
+        logger.info(f"update exp.size={len(node_ids)} status={status} error={error}")
+        
+        if refresh:
+            self.refresh(workspace_id=workspace_id) 
+    
+    
+    def update_utility(self, node_ids: str | List[str], workspace_id: str, refresh: bool = False, **kwargs):
+        if not self.exist_workspace(workspace_id=workspace_id):
+            logger.warning(f"workspace_id={workspace_id} is not exists!")
+            return
+
+        if isinstance(node_ids, str):
+            node_ids = [node_ids]
+
+        existing_nodes = []
+        for node_id in node_ids:
+            try:
+                self._client.get(index=workspace_id, id=node_id)
+                existing_nodes.append(node_id)
+            except NotFoundError:
+                logger.warning(f"Experience_id={node_id} not found in workspace_id={workspace_id}")
+
+        actions = [
+            {
+                "_op_type": "update",
+                "_index": workspace_id,
+                "_id": node_id,
+                "script": {
+                    "source": "ctx._source.utility += 1",
+                    "lang": "painless"
+                }
+            } for node_id in existing_nodes
+        ]
+        status, error = bulk(self._client, actions, chunk_size=self.batch_size, **kwargs)
+        logger.info(f"when updating utility, exp.size={len(node_ids)}, status={status}, error={error}")
+        
+        if refresh:
+            self.refresh(workspace_id=workspace_id)
+
+    def utility_based_delete(self, workspace_id: str, freq_threshold: int, utility_threshold: float, refresh: bool = False, **kwargs):
+        if not self.exist_workspace(workspace_id=workspace_id):
+            logger.warning(f"workspace_id={workspace_id} is not exists!")
+            return
+
+        query = {
+            "query": {
+                "bool": {
+                    "must": [{
+                        "script": {
+                            "script": {
+                                "source": "doc.freq.value > params.freq_threshold && (doc.utility.value * 1.0 / doc.freq.value) < params.utility_threshold",
+                                "params": {
+                                    "freq_threshold": freq_threshold,
+                                    "utility_threshold": utility_threshold
+                                }
+                            }
+                        }
+                    }]
+                }
+            }
+        }
+
+        # response = self._client.search(index=workspace_id, body=query, *kwargs)
+        # delete_node_ids = []
+        # for doc in response['hits']['hits']:
+        #     delete_node_ids.append(doc["_id"])
+        from elasticsearch.helpers import scan
+        results = scan(self._client, index=workspace_id, query=query, _source=False)
+        delete_node_ids = [hit['_id'] for hit in results]
+
+        if delete_node_ids:
+            logger.info(f"Found {len(delete_node_ids)} nodes to delete with freq>={freq_threshold} and utility/freq<{utility_threshold}")
+            self.delete(node_ids=delete_node_ids, workspace_id=workspace_id, refresh=refresh, **kwargs)
+        else:
+            logger.info("No nodes found matching the delete criteria")
+
+        if refresh:
+            self.refresh(workspace_id=workspace_id)
+
+        
 def main():
     from dotenv import load_dotenv
     load_dotenv()

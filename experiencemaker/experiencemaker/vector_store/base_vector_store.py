@@ -134,3 +134,11 @@ class BaseVectorStore(BaseModel, ABC):
     def delete(self, node_ids: str | List[str], workspace_id: str, **kwargs):
         raise NotImplementedError
 
+    def update_freq(self, node_ids: str | List[str], workspace_id: str, **kwargs):
+        raise NotImplementedError
+    
+    def update_utility(self, node_ids: str | List[str], workspace_id: str, **kwargs):
+        raise NotImplementedError
+
+    def utility_based_delete(self, workspace_id: str, freq_threshold: int, utility_threshold: float, **kwargs):
+        raise NotImplementedError

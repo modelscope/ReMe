@@ -64,6 +64,10 @@ class BFCLAgent:
                  enable_thinking: bool = False,
                  use_experience: bool = False,              
                  use_fixed_experience: bool = True,              
+                 use_experience_deletion: bool = False,              
+                 delete_freq: int = 10,
+                 freq_threshold: int = 5, 
+                 utility_threshold: float = 0.5,   
                  experience_base_url: str = "http://0.0.0.0:8001/",
                  experience_workspace_id: str = "bfcl_8b_0725"):
 
@@ -80,11 +84,16 @@ class BFCLAgent:
         self.num_runs: int = num_runs
         self.enable_thinking: bool = enable_thinking
         self.use_experience: bool = use_experience
-        self.use_fixed_experience: bool = use_fixed_experience
+        self.use_fixed_experience: bool = use_fixed_experience if use_experience else True
+        self.use_experience_deletion: bool = use_experience_deletion
+        self.delete_freq: int = delete_freq
+        self.freq_threshold: int = freq_threshold
+        self.utility_threshold: float = utility_threshold
         self.experience_base_url: str = experience_base_url
         self.experience_workspace_id: str = experience_workspace_id
         
         self.history: List[List[List[dict]]] = [[] for _ in range(num_runs)]
+        self.retrieved_experience_ids: List[List[List[str]]] = [[] for _ in range(num_runs)]
         self.test_entry: List[List[Dict[str, Any]]] = [[] for _ in range(num_runs)]
         self.original_test_entry: List[List[Dict[str, Any]]] = [[] for _ in range(num_runs)]
         self.tool_schema: List[List[List[dict]]] = [[] for _ in range(num_runs)]
@@ -104,8 +113,16 @@ class BFCLAgent:
         msg = self.test_entry[run_id][i].get("messages", [])[0]
         if self.use_experience:
             query = msg["content"]
-            exp = self.get_experience(query)
-            self.history[run_id].append([self.get_query_with_experience(query, exp)])
+            response = self.get_experience(query)
+            if len(response["experience_list"]):
+                self.retrieved_experience_ids[run_id].append([e["experience_id"] for e in response["experience_list"]])
+                exp: str = response["experience_merged"]
+                print(f"experience_merged={exp}")
+                self.history[run_id].append([self.get_query_with_experience(query, exp)])
+                self.update_experience_freq(self.retrieved_experience_ids[run_id][i])
+            else:
+                self.retrieved_experience_ids[run_id].append([])
+                self.history[run_id].append([{"role": "user","content": "Task:\n" + query + "\n"}])
         else:
             self.history[run_id].append([msg])
         self.current_turn[run_id][i] = 1
@@ -125,24 +142,48 @@ class BFCLAgent:
         logger.info(f"query:{query}")
 
         if response.status_code != 200:
-            print(response.text)
+            logger.info(response.text)
             return ""
 
         response = response.json()
-        print(response)
-        experience_merged: str = response["experience_merged"]
-        print(f"experience_merged={experience_merged}")
-        return experience_merged
+        logger.info(response)
+        return response
     
-    def update_experience(self, trajectories):
+    def add_experience(self, trajectories):
         response = requests.post(url=self.experience_base_url + "summarizer", json={
             "workspace_id": self.experience_workspace_id,
             "traj_list": trajectories,
         })
         response.raise_for_status()
         response = response.json()
-        print(f"add new experiences: {response["experience_list"]}")
+        logger.info(f"add new experiences: {response["experience_list"]}")
     
+    def update_experience_freq(self, experience_ids):
+        response = requests.post(url=self.experience_base_url + "vector_store", json={
+            "workspace_id": self.experience_workspace_id,
+            "action": "update_freq",
+            "experience_ids": experience_ids,
+        })
+        response.raise_for_status()    
+        logger.info(response.json())
+    
+    def update_experience_utility(self, experience_ids):
+        response = requests.post(url=self.experience_base_url + "vector_store", json={
+            "workspace_id": self.experience_workspace_id,
+            "action": "update_utility",
+            "experience_ids": experience_ids,
+        })
+        response.raise_for_status()
+    
+    def delete_experience(self):
+        response = requests.post(url=self.experience_base_url + "vector_store", json={
+            "workspace_id": self.experience_workspace_id,
+            "action": "utility_based_delete",
+            "freq_threshold": self.freq_threshold,
+            "utility_threshold": self.utility_threshold
+        })
+        response.raise_for_status()
+        
     def call_llm(self, messages: list, tool_schemas: list[dict]) -> str:
         for i in range(100):
             try:
@@ -475,6 +516,7 @@ class BFCLAgent:
 
     def execute(self):
         result = []
+        counter = 0
         for task_index, task_id in enumerate(tqdm(self.task_ids, desc=f"ray_index={self.index}")):
             for run_id in range(self.num_runs):
                 try:
@@ -520,12 +562,21 @@ class BFCLAgent:
 
                     reward = self.get_reward(run_id, task_index)
                     if reward == 1 and not self.use_fixed_experience:
-                        self.update_experience([{
+                        # selectively add experiences when succeed
+                        self.add_experience([{
                             "task_id":task_id,
                             "messages":self.history[run_id][task_index],
                             "score":reward
-                        }]) # selectively add experiences when succeed
-                     
+                        }]) 
+                        
+                        if len(self.retrieved_experience_ids[run_id][task_index]):
+                            # update the utility-related attributes of retrieved experiences
+                            self.update_experience_utility(self.retrieved_experience_ids[run_id][task_index])
+                        
+                    counter += 1
+                    if self.use_experience_deletion and counter % self.delete_freq == 0:
+                        self.delete_experience()
+
                     t_result = {
                         "run_id": run_id,
                         "task_id": self.task_ids[task_index],
