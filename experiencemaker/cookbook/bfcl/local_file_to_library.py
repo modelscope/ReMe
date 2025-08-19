@@ -1,0 +1,21 @@
+import json
+with open("../../file_vector_store/bfcl_train50_extract_compare_validate.jsonl", 'r') as f:
+    appworld = [json.loads(line) for line in f]
+    
+new_appworld = []
+for exp in appworld:
+    new_exp = {}
+    new_exp["workspace_id"] = exp["workspace_id"]
+    new_exp["experience_id"] = exp["unique_id"]
+    new_exp["experience_type"] = "text"
+    new_exp["when_to_use"] = exp["content"]
+    new_exp["content"] = exp["metadata"]["experience_content"]
+    new_exp["score"] =  exp["metadata"]["score"]
+    new_exp["metadata"]= exp["metadata"]["metadata"]
+
+    new_appworld.append(new_exp)
+    
+    
+
+with open('../../library/bfcl_train50_extract_compare_validate.jsonl', 'w', encoding='utf-8') as f:
+   f.writelines(json.dumps(item, ensure_ascii=False) + '\n' for item in new_appworld)

@@ -13,6 +13,7 @@ import ray
 import warnings
 import tempfile
 import requests
+import datetime
 
 from tqdm import tqdm
 from pathlib import Path
@@ -85,7 +86,7 @@ class BFCLAgent:
         self.enable_thinking: bool = enable_thinking
         self.use_experience: bool = use_experience
         self.use_fixed_experience: bool = use_fixed_experience if use_experience else True
-        self.use_experience_deletion: bool = use_experience_deletion if use_experience else False
+        self.use_experience_deletion: bool = use_experience_deletion if not use_fixed_experience else False
         self.delete_freq: int = delete_freq
         self.freq_threshold: int = freq_threshold
         self.utility_threshold: float = utility_threshold
@@ -122,7 +123,7 @@ class BFCLAgent:
                 self.update_experience_freq(self.retrieved_experience_ids[run_id][i])
             else:
                 self.retrieved_experience_ids[run_id].append([])
-                self.history[run_id].append([{"role": "user","content": "Task:\n" + query + "\n"}])
+                self.history[run_id].append([msg])
         else:
             self.history[run_id].append([msg])
         self.current_turn[run_id][i] = 1
@@ -520,6 +521,7 @@ class BFCLAgent:
         for task_index, task_id in enumerate(tqdm(self.task_ids, desc=f"ray_index={self.index}")):
             for run_id in range(self.num_runs):
                 try:
+                    start_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     for i in range(self.max_interactions):
                         llm_output = self.call_llm(self.history[run_id][task_index], self.tool_schema[run_id][task_index])
                         self.history[run_id][task_index].append(llm_output)
@@ -584,6 +586,7 @@ class BFCLAgent:
                         "task_completed": self.task_completed(run_id, task_index),
                         "reward": reward,
                         "task_history": self.history[run_id][task_index],
+                        "task_start_time": start_time,
                     }
                     result.append(t_result)
 

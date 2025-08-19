@@ -31,7 +31,7 @@ def run_agent(dataset_name: str,
               experience_base_url: str = "http://0.0.0.0:8001/",
               experience_workspace_id: str = "bfcl_8b_0725"):
     experiment_name = dataset_name + "_" + experiment_suffix
-    path: Path = Path(f"./exp_result/{model_name}")
+    path: Path = Path(f"./exp_result/{model_name}/with_think" if enable_thinking else f"./exp_result/{model_name}/no_think")
     path.mkdir(parents=True, exist_ok=True)
     
     with open(data_path, "r", encoding="utf-8") as f:
@@ -85,22 +85,22 @@ def main():
     max_workers = 4
     num_runs = 1
     use_experience = True
-    use_fixed_experience = False
-    use_experience_deletion = True
-    experience_base_url = "http://0.0.0.0:8001/"
-    experience_workspace_id = "bfcl_v1"
+    use_fixed_experience = True
+    use_experience_deletion = False
+    experience_base_url = "http://0.0.0.0:8003/"
+    experience_workspace_id = "bfcl_train50_extract_compare_validate_add"
     if max_workers > 1:
-        ray.init(num_cpus=4)
+        ray.init(num_cpus=max_workers)
     for run_id in range(num_runs):
         run_agent(
             dataset_name="bfcl-multi-turn-base-val", 
-            experiment_suffix=f"0815-w-exp-recall-update-delete-test", # -rewrite
+            experiment_suffix=f"w-exp-w-add-recall-rewrite-1",
             model_name="qwen3-8b",
             max_workers=max_workers, 
             num_runs=1, 
             data_path="data/multiturn_data_base_val.jsonl",
             answer_path=Path("data/possible_answer"),
-            enable_thinking=False,
+            enable_thinking=True,
             use_experience=use_experience,
             use_fixed_experience=use_fixed_experience,
             use_experience_deletion=use_experience_deletion,
