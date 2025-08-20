@@ -37,4 +37,4 @@ experiencemaker/cookbook/bfcl/gorilla
 experiencemaker/*.sh
 experiencemaker/file_vector_store
 experiencemaker/*.egg-info
-experiencemaker/library/bfcl_train*.jsonl
+experiencemaker/experiment_library

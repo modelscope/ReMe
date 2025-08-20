@@ -563,7 +563,7 @@ class BFCLAgent:
                             break
 
                     reward = self.get_reward(run_id, task_index)
-                    if reward == 1 and not self.use_fixed_experience:
+                    if reward == 1 and self.use_experience and not self.use_fixed_experience:
                         # selectively add experiences when succeed
                         self.add_experience([{
                             "task_id":task_id,

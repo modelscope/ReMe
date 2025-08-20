@@ -83,22 +83,22 @@ def run_agent(dataset_name: str,
 
 def main():
     max_workers = 4
-    num_runs = 1
-    use_experience = True
-    use_fixed_experience = True
-    use_experience_deletion = False
+    num_runs = 8
+    use_experience = False
+    use_fixed_experience = False
+    use_experience_deletion = True
     experience_base_url = "http://0.0.0.0:8003/"
-    experience_workspace_id = "bfcl_train50_extract_compare_validate_add"
+    experience_workspace_id = "bfcl_train50_extract_compare_validate_add_delete_2"
     if max_workers > 1:
         ray.init(num_cpus=max_workers)
     for run_id in range(num_runs):
         run_agent(
-            dataset_name="bfcl-multi-turn-base-val", 
-            experiment_suffix=f"w-exp-w-add-recall-rewrite-1",
-            model_name="qwen3-8b",
+            dataset_name="bfcl-multi-turn-base", 
+            experiment_suffix=f"wo-exp",
+            model_name="qwen3-14b",
             max_workers=max_workers, 
             num_runs=1, 
-            data_path="data/multiturn_data_base_val.jsonl",
+            data_path="data/multiturn_data_base_train.jsonl",
             answer_path=Path("data/possible_answer"),
             enable_thinking=True,
             use_experience=use_experience,
