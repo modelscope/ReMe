@@ -16,30 +16,22 @@ http:
   limit_concurrency: 64
 
 flow:
-  task_retrieve:
-    flow_content: build_query_op->recall_vector_store_op->merge_experience_op
+  retrieve_task_memory:
+    flow_content: build_query_op >> recall_vector_store_op >> merge_memory_op
+    description: "Retrieve the most relevant top_k memory experience from historical memory based on the query to help solve tasks better now"
+    input_schema:
+      query:
+        type: "str"
+        description: "current query"
+        required: true
+      top_k:
+        type: "int"
+        description: "top_k similar memories"
+        required: true
+
 #  task_summarizer: simple_summary_op->update_vector_store_op
 #  vector_store: vector_store_action_op
 #  agent: react_op
-
-  mock_expression_flow:
-    flow_content: mock1_op>>((mock4_op>>mock2_op)|mock5_op)>>(mock3_op|mock6_op)
-    description: "mock flow"
-    input_schema:
-      a:
-        type: "str"
-        description: "mock attr a"
-        required: true
-      b:
-        type: "str"
-        description: "mock attr b"
-        required: true
-
-op:
-  mock1_op:
-    backend: mock1_op
-    llm: default
-    vector_store: default
 
 llm:
   default:
@@ -47,10 +39,6 @@ llm:
     model_name: qwen3-30b-a3b-thinking-2507
     params:
       temperature: 0.6
-
-  qwen3_30b_instruct:
-    backend: openai_compatible
-    model_name: qwen3-30b-a3b-instruct-2507
 
 embedding_model:
   default:
@@ -64,4 +52,5 @@ vector_store:
     backend: elasticsearch
     embedding_model: default
     params:
-      hosts: "http://localhost:9200"
+      # hosts: "http://localhost:9200"
+      hosts: "http://11.160.132.46:8200"
