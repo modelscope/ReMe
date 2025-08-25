@@ -237,7 +237,7 @@ if __name__ == "__main__":
     else:
         # 保持原有的行为（向后兼容）
         print("Running in compatibility mode...")
-        with open("exp_result/qwen-max-2025-01-25/no_think/bfcl-multi-turn-base-train50_wo-exp.jsonl", "r") as f:
+        with open("exp_result/qwen3-14b/with_think/bfcl-multi-turn-base-train50_wo-exp.jsonl", "r") as f:
             data = [json.loads(line) for line in f]
         
         # 分组
@@ -246,8 +246,8 @@ if __name__ == "__main__":
         
         results = process_trajectories_with_threads(
             grouped_trajectories, 
-            "http://localhost:8001", 
-            "bfcl_train50_qwen_max_2025_01_25_extract_compare_validate",
+            "http://localhost:8002", 
+            "bfcl_train50_qwen3_14b_extract_compare_validate_w_score",
             n_threads=4
         )
         print(f"Processed {len(results)} groups")

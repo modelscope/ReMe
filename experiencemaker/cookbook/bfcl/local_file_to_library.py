@@ -1,5 +1,5 @@
 import json
-with open("../../file_vector_store/bfcl_train50_extract_compare_validate.jsonl", 'r') as f:
+with open("../../file_vector_store/bfcl_train50_qwen_max_latest_extract_compare_validate.jsonl", 'r') as f:
     appworld = [json.loads(line) for line in f]
     
 new_appworld = []
@@ -17,5 +17,5 @@ for exp in appworld:
     
     
 
-with open('../../library/bfcl_train50_extract_compare_validate.jsonl', 'w', encoding='utf-8') as f:
+with open('../../experiment_library/bfcl_train50_qwen_max_latest_extract_compare_validate.jsonl', 'w', encoding='utf-8') as f:
    f.writelines(json.dumps(item, ensure_ascii=False) + '\n' for item in new_appworld)

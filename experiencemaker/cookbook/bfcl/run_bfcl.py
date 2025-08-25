@@ -22,7 +22,7 @@ def run_agent(dataset_name: str,
               data_path: str = "data/multiturn_data_base_val.jsonl",
               answer_path: Path = Path("data/possible_answer"),
               use_experience: bool = False,         
-              use_fixed_experience: bool = True,    
+              use_experience_addition: bool = True,    
               use_experience_deletion: bool = False,
               delete_freq: int = 10,
               freq_threshold: int = 5,
@@ -55,7 +55,7 @@ def run_agent(dataset_name: str,
             model_name=model_name,
             num_runs=num_runs,
             use_experience=use_experience,
-            use_fixed_experience=use_fixed_experience,
+            use_experience_addition=use_experience_addition,
             use_experience_deletion=use_experience_deletion,
             delete_freq=delete_freq,
             freq_threshold=freq_threshold,
@@ -83,26 +83,26 @@ def run_agent(dataset_name: str,
 
 def main():
     max_workers = 4
-    num_runs = 8
-    use_experience = False
-    use_fixed_experience = False
-    use_experience_deletion = True
-    experience_base_url = "http://0.0.0.0:8003/"
-    experience_workspace_id = "bfcl_train50_extract_compare_validate_add_delete_2"
+    num_runs = 1
+    use_experience = True
+    use_experience_addition = False
+    use_experience_deletion = False
+    experience_base_url = "http://0.0.0.0:8000/"
+    experience_workspace_id = "bfcl_train50_qwen3_14b_extract_compare_validate"
     if max_workers > 1:
         ray.init(num_cpus=max_workers)
     for run_id in range(num_runs):
         run_agent(
-            dataset_name="bfcl-multi-turn-base", 
-            experiment_suffix=f"wo-exp",
-            model_name="qwen3-14b",
+            dataset_name="bfcl-multi-turn-base-val", 
+            experiment_suffix=f"w-exp-fixed-recall-only",
+            model_name="qwen3-14b", # qwen-max-latest,qwen-max-2025-01-25,qwen3-14b
             max_workers=max_workers, 
             num_runs=1, 
-            data_path="data/multiturn_data_base_train.jsonl",
+            data_path="data/multiturn_data_base_val.jsonl",
             answer_path=Path("data/possible_answer"),
-            enable_thinking=True,
+            enable_thinking=False,
             use_experience=use_experience,
-            use_fixed_experience=use_fixed_experience,
+            use_experience_addition=use_experience_addition,
             use_experience_deletion=use_experience_deletion,
             delete_freq=5,
             freq_threshold=5,

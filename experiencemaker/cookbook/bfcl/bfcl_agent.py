@@ -64,7 +64,7 @@ class BFCLAgent:
                  num_runs: int = 1,
                  enable_thinking: bool = False,
                  use_experience: bool = False,              
-                 use_fixed_experience: bool = True,              
+                 use_experience_addition: bool = True,              
                  use_experience_deletion: bool = False,              
                  delete_freq: int = 10,
                  freq_threshold: int = 5, 
@@ -85,8 +85,8 @@ class BFCLAgent:
         self.num_runs: int = num_runs
         self.enable_thinking: bool = enable_thinking
         self.use_experience: bool = use_experience
-        self.use_fixed_experience: bool = use_fixed_experience if use_experience else True
-        self.use_experience_deletion: bool = use_experience_deletion if not use_fixed_experience else False
+        self.use_experience_addition: bool = use_experience_addition if use_experience else False
+        self.use_experience_deletion: bool = use_experience_deletion if use_experience else False
         self.delete_freq: int = delete_freq
         self.freq_threshold: int = freq_threshold
         self.utility_threshold: float = utility_threshold
@@ -547,6 +547,16 @@ class BFCLAgent:
                                 new_tool_call_ids.append(msg.get("tool_call_id", ""))
                             elif msg["role"] == "user":
                                 next_user_msg = msg.get("content", "")
+                                # if self.use_experience:
+                                #     response = self.get_experience(next_user_msg)
+                                #     if len(response["experience_list"]):
+                                #         new_retrieved_experience_ids=[e["experience_id"] for e in response["experience_list"]]
+                                #         self.retrieved_experience_ids[run_id][task_index].extend(new_retrieved_experience_ids)
+                                #         self.retrieved_experience_ids[run_id][task_index]=list(set(self.retrieved_experience_ids[run_id][task_index]))  
+                                #         exp: str = response["experience_merged"]
+                                #         print(f"experience_merged={exp}")
+                                #         next_user_msg = "Task:\n" + next_user_msg + "\n\nSome Related Experience to help you to complete the task:\n" + exp
+                                #         self.update_experience_freq(new_retrieved_experience_ids)
                                 self.current_turn[run_id][task_index] += 1
                             else: # for env role messages
                                 next_user_msg = msg.get("content", "")
@@ -563,14 +573,15 @@ class BFCLAgent:
                             break
 
                     reward = self.get_reward(run_id, task_index)
-                    if reward == 1 and self.use_experience and not self.use_fixed_experience:
-                        # selectively add experiences when succeed
-                        self.add_experience([{
-                            "task_id":task_id,
-                            "messages":self.history[run_id][task_index],
-                            "score":reward
-                        }]) 
-                        
+                    if self.use_experience: # reward == 1 and 
+                        if self.use_experience_addition:
+                            # selectively add experiences when succeed
+                            self.add_experience([{
+                                "task_id":task_id,
+                                "messages":self.history[run_id][task_index],
+                                "score":reward
+                            }]) 
+                    
                         if len(self.retrieved_experience_ids[run_id][task_index]):
                             # update the utility-related attributes of retrieved experiences
                             self.update_experience_utility(self.retrieved_experience_ids[run_id][task_index])

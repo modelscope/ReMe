@@ -37,6 +37,9 @@ class BaseExperience(BaseModel, ABC):
     def from_vector_node(cls, node: VectorNode):
         raise NotImplementedError
 
+    def update_score(self, score):
+        self.score = score
+
 
 class TextExperience(BaseExperience):
     experience_type: str = Field(default="text")
