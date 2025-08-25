@@ -1,23 +1,20 @@
 import re
 from typing import List, Dict, Any
 from loguru import logger
-
-from experiencemaker.op import OP_REGISTRY
-from experiencemaker.op.base_op import BaseOp
-from experiencemaker.schema.experience import BaseExperience
-from experiencemaker.schema.message import Message
-from experiencemaker.enumeration.role import Role
-import re
 import json
 
+from flowllm import C, BaseLLMOp
+from reme_ai.schema.memory import BaseMemory
+from reme_ai.schema.message import Message
 
-@OP_REGISTRY.register()
-class ExperienceValidationOp(BaseOp):
+
+@C.register_op()
+class ExperienceValidationOp(BaseLLMOp):
     current_path: str = __file__
 
     def execute(self):
         """Validate quality of extracted experiences"""
-        experiences: List[BaseExperience] = self.context.response.experience_list
+        experiences: List[BaseMemory] = self.context.get("experiences", [])
         
         if not experiences:
             logger.info("No experiences found for validation")
@@ -25,33 +22,29 @@ class ExperienceValidationOp(BaseOp):
 
         logger.info(f"Validating {len(experiences)} extracted experiences")
 
-        # Use thread pool for parallel validation
-        for experience in experiences:
-            self.submit_task(self._validate_single_experience, experience=experience)
-
-        # Collect validation results
+        # Validate experiences
         validated_experiences = []
-        validation_results = list(self.join_task())
         
-        for i, result in enumerate(validation_results):
-            if result and result.get("is_valid", False):
-                validated_experiences.append(experiences[i])
+        for experience in experiences:
+            validation_result = self._validate_single_experience(experience)
+            if validation_result and validation_result.get("is_valid", False):
+                validated_experiences.append(experience)
             else:
-                reason = result.get("reason", "Unknown reason") if result else "Validation failed"
+                reason = validation_result.get("reason", "Unknown reason") if validation_result else "Validation failed"
                 logger.warning(f"Experience validation failed: {reason}")
 
         logger.info(f"Validated {len(validated_experiences)} out of {len(experiences)} experiences")
         
         # Update context
-        self.context.response.experience_list = validated_experiences
+        self.context.validated_experiences = validated_experiences
 
-    def _validate_single_experience(self, experience: BaseExperience) -> Dict[str, Any]:
+    def _validate_single_experience(self, experience: BaseMemory) -> Dict[str, Any]:
         """Validate single experience"""
         validation_info = self._llm_validate_experience(experience)
         logger.info(f"Validating: {validation_info}")
         return validation_info
 
-    def _llm_validate_experience(self, experience: BaseExperience) -> Dict[str, Any]:
+    def _llm_validate_experience(self, experience: BaseMemory) -> Dict[str, Any]:
         """Validate experience using LLM"""
         try:
             prompt = self.prompt_format(

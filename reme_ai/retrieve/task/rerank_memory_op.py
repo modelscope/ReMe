@@ -1,30 +1,26 @@
 import json
 import re
 from typing import List
+
+from flowllm import C, BaseLLMOp
+from flowllm.enumeration.role import Role
+from flowllm.schema.message import Message
 from loguru import logger
-from pydantic import Field
 
-from experiencemaker.op import OP_REGISTRY
-from experiencemaker.op.base_op import BaseOp
-from experiencemaker.schema.experience import BaseExperience
-from experiencemaker.schema.message import Message
-from experiencemaker.schema.vector_node import VectorNode
-from experiencemaker.enumeration.role import Role
-from experiencemaker.op.vector_store.recall_vector_store_op import RecallVectorStoreOp
+from reme_ai.schema.memory import BaseMemory
 
-@OP_REGISTRY.register()
-class RerankExperienceOp(BaseOp):
+
+@C.register_op()
+class RerankMemoryOp(BaseLLMOp):
     """
     Rerank and filter recalled experiences using LLM and score-based filtering
     """
     current_path: str = __file__
 
     def execute(self):
-
         """Execute rerank operation"""
-
-        experiences: List[BaseExperience] = self.context.response.experience_list
-        retrieval_query: str = self.context.get_context(RecallVectorStoreOp.SEARCH_QUERY, "")
+        memory_list: List[BaseMemory] = self.context.response.metadata["memory_list"]
+        retrieval_query: str = self.context.query
         enable_llm_rerank = self.op_params.get("enable_llm_rerank", True)
         enable_score_filter = self.op_params.get("enable_score_filter", False)
         min_score_threshold = self.op_params.get("min_score_threshold", 0.3)
@@ -32,98 +28,89 @@ class RerankExperienceOp(BaseOp):
 
         logger.info(f"top_k: {top_k}")
 
-        if not experiences:
-            logger.info("No recalled experiences to rerank")
-            self.context.response.experience_list = []
+        if not memory_list:
+            logger.info("No recalled memory_list to rerank")
             return
 
-        try:
-            logger.info(f"Reranking {len(experiences)} experiences")
+        logger.info(f"Reranking {len(memory_list)} memories")
 
-            # Step 1: LLM reranking (optional)
-            if enable_llm_rerank:
-                experiences = self._llm_rerank(retrieval_query, experiences)
-                logger.info(f"After LLM reranking: {len(experiences)} experiences")
+        # Step 1: LLM reranking (optional)
+        if enable_llm_rerank:
+            memory_list = self._llm_rerank(retrieval_query, memory_list)
+            logger.info(f"After LLM reranking: {len(memory_list)} memories")
 
-            # Step 2: Score-based filtering (optional)
-            if enable_score_filter:
-                experiences = self._score_based_filter(experiences, min_score_threshold)
-                logger.info(f"After score filtering: {len(experiences)} experiences")
+        # Step 2: Score-based filtering (optional)
+        if enable_score_filter:
+            memory_list = self._score_based_filter(memory_list, min_score_threshold)
+            logger.info(f"After score filtering: {len(memory_list)} memories")
 
-            # Step 3: Return top-k results
-            renranked_experiences = experiences[:top_k]
-            logger.info(f"Final reranked results: {len(renranked_experiences)} experiences")
+        # Step 3: Return top-k results
+        reranked_memories = memory_list[:top_k]
+        logger.info(f"Final reranked results: {len(reranked_memories)} memories")
 
-            # Store results in context
-            self.context.response.experience_list = renranked_experiences
+        # Store results in context
+        self.context.response.metadata["memory_list"] = reranked_memories
 
-        except Exception as e:
-            logger.error(f"Error in rerank operation: {e}")
-            self.context.response.experience_list = renranked_experiences[:top_k]
-
-    def _llm_rerank(self, query: str, candidates: List[BaseExperience]) -> List[BaseExperience]:
+    def _llm_rerank(self, query: str, candidates: List[BaseMemory]) -> List[BaseMemory]:
         """LLM-based reranking of candidate experiences"""
         if not candidates:
             return candidates
 
-        try:
-            # Format candidates for LLM evaluation
-            candidates_text = self._format_candidates_for_rerank(candidates)
+        # Format candidates for LLM evaluation
+        candidates_text = self._format_candidates_for_rerank(candidates)
 
-            prompt = self.prompt_format(
-                prompt_name="experience_rerank_prompt",
-                query=query,
-                candidates=candidates_text,
-                num_candidates=len(candidates)
-            )
+        prompt = self.prompt_format(
+            prompt_name="memory_rerank_prompt",
+            query=query,
+            candidates=candidates_text,
+            num_candidates=len(candidates)
+        )
 
-            response = self.llm.chat([Message(role=Role.USER, content=prompt)])
+        response = self.llm.chat([Message(role=Role.USER, content=prompt)])
 
-            # Parse reranking results
-            reranked_indices = self._parse_rerank_response(response.content)
+        # Parse reranking results
+        reranked_indices = self._parse_rerank_response(response.content)
 
-            # Reorder candidates based on LLM ranking
-            if reranked_indices:
-                reranked_candidates = []
-                for idx in reranked_indices:
-                    if 0 <= idx < len(candidates):
-                        reranked_candidates.append(candidates[idx])
+        # Reorder candidates based on LLM ranking
+        if reranked_indices:
+            reranked_candidates = []
+            for idx in reranked_indices:
+                if 0 <= idx < len(candidates):
+                    reranked_candidates.append(candidates[idx])
 
-                # Add any remaining candidates that weren't explicitly ranked
-                ranked_indices_set = set(reranked_indices)
-                for i, candidate in enumerate(candidates):
-                    if i not in ranked_indices_set:
-                        reranked_candidates.append(candidate)
+            # Add any remaining candidates that weren't explicitly ranked
+            ranked_indices_set = set(reranked_indices)
+            for i, candidate in enumerate(candidates):
+                if i not in ranked_indices_set:
+                    reranked_candidates.append(candidate)
 
-                return reranked_candidates
+            return reranked_candidates
 
-            return candidates
+        return candidates
 
-        except Exception as e:
-            logger.error(f"Error in LLM reranking: {e}")
-            return candidates
+    @staticmethod
+    def _score_based_filter(memories: List[BaseMemory], min_score: float) -> List[BaseMemory]:
+        """Filter memories based on quality scores"""
+        filtered_memories = []
 
-    def _score_based_filter(self, experiences: List[BaseExperience], min_score: float) -> List[BaseExperience]:
-        """Filter experiences based on quality scores"""
-        filtered_experiences = []
-
-        for exp in experiences:
+        for memory in memories:
             # Get confidence score from metadata
-            confidence = exp.metadata.get("confidence", 0.5)
-            validation_score = exp.score
+            confidence = memory.metadata.get("confidence", 0.5)
+            validation_score = memory.score or 0.5
 
             # Calculate combined score
             combined_score = (confidence + validation_score) / 2
 
             if combined_score >= min_score:
-                filtered_experiences.append(exp)
+                filtered_memories.append(memory)
             else:
-                logger.debug(f"Filtered out experience with score {combined_score:.2f}")
+                logger.debug(f"Filtered out memory with score {combined_score:.2f}")
 
-        logger.info(f"Score filtering: {len(filtered_experiences)}/{len(experiences)} experiences retained")
-        return filtered_experiences
+        logger.info(f"Score filtering: {len(filtered_memories)}/{len(memories)} memories retained")
+        return filtered_memories
 
-    def _format_candidates_for_rerank(self, candidates: List[BaseExperience]) -> str:
+    @staticmethod
+    def _format_candidates_for_rerank(candidates: List[BaseMemory]) -> str:
         """Format candidates for LLM reranking"""
         formatted_candidates = []
 
@@ -139,7 +126,8 @@ class RerankExperienceOp(BaseOp):
 
         return "\n---\n".join(formatted_candidates)
 
-    def _parse_rerank_response(self, response: str) -> List[int]:
+    @staticmethod
+    def _parse_rerank_response(response: str) -> List[int]:
         """Parse LLM reranking response to extract ranked indices"""
         try:
             # Try to extract JSON format

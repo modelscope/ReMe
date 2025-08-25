@@ -3,20 +3,17 @@ from typing import List, Dict
 
 from loguru import logger
 
-from experiencemaker.op import OP_REGISTRY
-from experiencemaker.op.base_op import BaseOp
-from experiencemaker.schema.experience import TextExperience, ExperienceMeta, BaseExperience
-from experiencemaker.schema.message import Message, Trajectory
-from experiencemaker.schema.request import SummarizerRequest
-from experiencemaker.schema.response import SummarizerResponse
-from experiencemaker.utils.op_utils import merge_messages_content
+from flowllm import C, BaseLLMOp
+from reme_ai.schema.memory import BaseMemory, TaskMemory
+from reme_ai.schema.message import Message, Trajectory
+from reme_ai.utils.memory_utils import merge_messages_content
 
 
-@OP_REGISTRY.register()
-class SimpleComparativeSummaryOp(BaseOp):
+@C.register_op()
+class SimpleComparativeSummaryOp(BaseLLMOp):
     current_path: str = __file__
 
-    def compare_summary_trajectory(self, trajectory_a: Trajectory, trajectory_b: Trajectory) -> List[BaseExperience]:
+    def compare_summary_trajectory(self, trajectory_a: Trajectory, trajectory_b: Trajectory) -> List[BaseMemory]:
         summary_prompt = self.prompt_format(prompt_name="summary_prompt",
                                             execution_process_a=merge_messages_content(trajectory_a.messages),
                                             execution_process_b=merge_messages_content(trajectory_b.messages),
@@ -34,10 +31,10 @@ class SimpleComparativeSummaryOp(BaseOp):
                     when_to_use = exp_dict.get("when_to_use", "").strip()
                     experience = exp_dict.get("experience", "").strip()
                     if when_to_use and experience:
-                        experience_list.append(TextExperience(workspace_id=self.context.request.workspace_id,
+                        experience_list.append(TaskMemory(workspace_id=self.context.get("workspace_id", ""),
                                                               when_to_use=when_to_use,
                                                               content=experience,
-                                                              metadata=ExperienceMeta(author=self.llm.model_name)))
+                                                              author=getattr(self.llm, 'model_name', 'system')))
 
                 return experience_list
 
@@ -48,24 +45,25 @@ class SimpleComparativeSummaryOp(BaseOp):
         return self.llm.chat(messages=[Message(content=summary_prompt)], callback_fn=parse_content)
 
     def execute(self):
-        request: SummarizerRequest = self.context.request
-        response: SummarizerResponse = self.context.response
+        trajectories: List[Trajectory] = self.context.get("trajectories", [])
 
         task_id_dict: Dict[str, List[Trajectory]] = {}
-        for trajectory in request.traj_list:
+        for trajectory in trajectories:
             if trajectory.task_id not in task_id_dict:
                 task_id_dict[trajectory.task_id] = []
             task_id_dict[trajectory.task_id].append(trajectory)
 
-        for task_id, trajectories in task_id_dict.items():
-            trajectories: List[Trajectory] = sorted(trajectories, key=lambda x: x.score, reverse=True)
-            if len(trajectories) < 2:
+        experience_list = []
+        for task_id, task_trajectories in task_id_dict.items():
+            task_trajectories: List[Trajectory] = sorted(task_trajectories, key=lambda x: x.score, reverse=True)
+            if len(task_trajectories) < 2:
                 continue
 
-            if trajectories[0].score > trajectories[-1].score:
-                self.submit_task(self.compare_summary_trajectory, trajectory_a=trajectories[0],
-                                 trajectory_b=trajectories[-1])
+            if task_trajectories[0].score > task_trajectories[-1].score:
+                experiences = self.compare_summary_trajectory(trajectory_a=task_trajectories[0],
+                                                             trajectory_b=task_trajectories[-1])
+                experience_list.extend(experiences)
 
-        response.experience_list = self.join_task()
-        for e in response.experience_list:
+        self.context.comparative_summary_experiences = experience_list
+        for e in experience_list:
             logger.info(f"add experience when_to_use={e.when_to_use}\ncontent={e.content}")

@@ -4,21 +4,20 @@ from typing import List
 
 from loguru import logger
 
-from experiencemaker.op import OP_REGISTRY
-from experiencemaker.op.base_op import BaseOp
-from experiencemaker.schema.message import Message, Trajectory
+from flowllm import C, BaseLLMOp
+from reme_ai.schema.message import Message, Trajectory
 
 
-@OP_REGISTRY.register()
-class TrajectorySegmentationOp(BaseOp):
+@C.register_op()
+class TrajectorySegmentationOp(BaseLLMOp):
     current_path: str = __file__
 
     def execute(self):
         """Segment trajectories into meaningful steps"""
         # Get trajectories from context
-        all_trajectories: List[Trajectory] = self.context.get_context("all_trajectories", [])
-        success_trajectories: List[Trajectory] = self.context.get_context("success_trajectories", [])
-        failure_trajectories: List[Trajectory] = self.context.get_context("failure_trajectories", [])
+        all_trajectories: List[Trajectory] = self.context.get("all_trajectories", [])
+        success_trajectories: List[Trajectory] = self.context.get("success_trajectories", [])
+        failure_trajectories: List[Trajectory] = self.context.get("failure_trajectories", [])
 
         if not all_trajectories:
             logger.warning("No trajectories found in context")
@@ -36,6 +35,9 @@ class TrajectorySegmentationOp(BaseOp):
             segmented_count += 1
 
         logger.info(f"Segmented {segmented_count} trajectories")
+        
+        # Update context with segmented trajectories
+        self.context.segmented_trajectories = target_trajectories
 
     def _get_target_trajectories(self, all_trajectories: List[Trajectory],
                                  success_trajectories: List[Trajectory],

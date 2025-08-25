@@ -4,26 +4,20 @@ from typing import List, Dict
 
 from loguru import logger
 
-from experiencemaker.enumeration.role import Role
-from experiencemaker.op import OP_REGISTRY
-from experiencemaker.op.base_op import BaseOp
-from experiencemaker.schema.message import Message
-from experiencemaker.schema.request import AgentRequest
-from experiencemaker.schema.response import AgentResponse
+from flowllm import C, BaseLLMOp
+from reme_ai.schema.message import Message, Role
 from experiencemaker.tool import TOOL_REGISTRY
 from experiencemaker.tool.base_tool import BaseTool
 
 
-@OP_REGISTRY.register()
-class ReactV1Op(BaseOp):
+@C.register_op()
+class ReactV1Op(BaseLLMOp):
     current_path: str = __file__
 
     def execute(self):
-        request: AgentRequest = self.context.request
-        response: AgentResponse = self.context.response
+        query: str = self.context.query
 
         max_steps: int = int(self.op_params.get("max_steps", 10))
-        # dashscope_search_tool tavily_search_tool
         tool_names = self.op_params.get("tool_names", "code_tool,tavily_search_tool,terminate_tool")
         tools: List[BaseTool] = [TOOL_REGISTRY[x.strip()]() for x in tool_names.split(",") if x]
         tool_dict: Dict[str, BaseTool] = {x.name: x for x in tools}
@@ -33,7 +27,7 @@ class ReactV1Op(BaseOp):
         user_prompt = self.prompt_format(prompt_name="role_prompt",
                                          time=now_time,
                                          tools=",".join([x.name for x in tools]),
-                                         query=request.query)
+                                         query=query)
         messages: List[Message] = [Message(role=Role.USER, content=user_prompt)]
         logger.info(f"step.0 user_prompt={user_prompt}")
 
@@ -84,5 +78,6 @@ class ReactV1Op(BaseOp):
                 assistant_message.tool_calls.clear()
                 messages.append(Message(role=Role.USER, content=self.prompt_format(prompt_name="final_prompt")))
 
-        response.messages = messages
-        response.answer = response.messages[-1].content
+        # Store results in context instead of response
+        self.context.messages = messages
+        self.context.answer = messages[-1].content

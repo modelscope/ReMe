@@ -3,20 +3,17 @@ from typing import List
 
 from loguru import logger
 
-from experiencemaker.op import OP_REGISTRY
-from experiencemaker.op.base_op import BaseOp
-from experiencemaker.schema.experience import TextExperience, ExperienceMeta, BaseExperience
-from experiencemaker.schema.message import Message, Trajectory
-from experiencemaker.schema.request import SummarizerRequest
-from experiencemaker.schema.response import SummarizerResponse
-from experiencemaker.utils.op_utils import merge_messages_content
+from flowllm import C, BaseLLMOp
+from reme_ai.schema.memory import BaseMemory, TaskMemory
+from reme_ai.schema.message import Message, Trajectory
+from reme_ai.utils.memory_utils import merge_messages_content
 
 
-@OP_REGISTRY.register()
-class SimpleSummaryOp(BaseOp):
+@C.register_op()
+class SimpleSummaryOp(BaseLLMOp):
     current_path: str = __file__
 
-    def summary_trajectory(self, trajectory: Trajectory) -> List[BaseExperience]:
+    def summary_trajectory(self, trajectory: Trajectory) -> List[BaseMemory]:
         execution_process = merge_messages_content(trajectory.messages)
         success_score_threshold: float = self.op_params.get("success_score_threshold", 0.9)
         logger.info(f"success_score_threshold={success_score_threshold}")
@@ -39,10 +36,10 @@ class SimpleSummaryOp(BaseOp):
                     when_to_use = exp_dict.get("when_to_use", "").strip()
                     experience = exp_dict.get("experience", "").strip()
                     if when_to_use and experience:
-                        experience_list.append(TextExperience(workspace_id=self.context.request.workspace_id,
+                        experience_list.append(TaskMemory(workspace_id=self.context.get("workspace_id", ""),
                                                               when_to_use=when_to_use,
                                                               content=experience,
-                                                              metadata=ExperienceMeta(author=self.llm.model_name)))
+                                                              author=getattr(self.llm, 'model_name', 'system')))
 
                 return experience_list
 
@@ -53,12 +50,13 @@ class SimpleSummaryOp(BaseOp):
         return self.llm.chat(messages=[Message(content=summary_prompt)], callback_fn=parse_content)
 
     def execute(self):
-        request: SummarizerRequest = self.context.request
-        response: SummarizerResponse = self.context.response
+        trajectories: List[Trajectory] = self.context.get("trajectories", [])
 
-        for trajectory in request.traj_list:
-            self.submit_task(self.summary_trajectory, trajectory=trajectory)
+        experience_list = []
+        for trajectory in trajectories:
+            experiences = self.summary_trajectory(trajectory)
+            experience_list.extend(experiences)
 
-        response.experience_list = self.join_task()
-        for e in response.experience_list:
+        self.context.summary_experiences = experience_list
+        for e in experience_list:
             logger.info(f"add experience when_to_use={e.when_to_use}\ncontent={e.content}")

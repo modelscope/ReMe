@@ -4,21 +4,18 @@ from typing import List
 
 from loguru import logger
 
-from experiencemaker.enumeration.role import Role
-from experiencemaker.op import OP_REGISTRY
-from experiencemaker.op.base_op import BaseOp
-from experiencemaker.schema.experience import BaseExperience, ExperienceMeta, TextExperience
-from experiencemaker.schema.message import Message, Trajectory
-from experiencemaker.schema.response import SummarizerResponse
-from experiencemaker.utils.op_utils import merge_messages_content, parse_json_experience_response, get_trajectory_context
+from flowllm import C, BaseLLMOp
+from reme_ai.schema.memory import BaseMemory, TaskMemory
+from reme_ai.schema.message import Message, Trajectory
+from reme_ai.utils.memory_utils import merge_messages_content, parse_json_experience_response, get_trajectory_context
 
-@OP_REGISTRY.register()
-class SuccessExtractionOp(BaseOp):
+@C.register_op()
+class SuccessExtractionOp(BaseLLMOp):
     current_path: str = __file__
 
     def execute(self):
         """Extract experiences from successful trajectories"""
-        success_trajectories: List[Trajectory] = self.context.get_context("success_trajectories", [])
+        success_trajectories: List[Trajectory] = self.context.get("success_trajectories", [])
         
         if not success_trajectories:
             logger.info("No success trajectories found for extraction")
@@ -26,27 +23,26 @@ class SuccessExtractionOp(BaseOp):
 
         logger.info(f"Extracting experiences from {len(success_trajectories)} successful trajectories")
 
-        # Use thread pool for parallel processing
+        success_experiences = []
+        
+        # Process trajectories
         for trajectory in success_trajectories:
             if "segments" in trajectory.metadata:
                 # Process segmented step sequences
                 for segment in trajectory.metadata["segments"]:
-                    self.submit_task(self._extract_success_experience_from_steps, steps=segment, trajectory=trajectory)
+                    experiences = self._extract_success_experience_from_steps(segment, trajectory)
+                    success_experiences.extend(experiences)
             else:
                 # Process entire trajectory
-                self.submit_task(self._extract_success_experience_from_steps,
-                                 steps=trajectory.messages, trajectory=trajectory)
-
-        # Collect all experiences
-        success_experiences = self.join_task()
+                experiences = self._extract_success_experience_from_steps(trajectory.messages, trajectory)
+                success_experiences.extend(experiences)
 
         logger.info(f"Extracted {len(success_experiences)} success experiences")
         
         # Add experiences to context
-        response: SummarizerResponse = self.context.response
-        response.experience_list.extend(success_experiences)
+        self.context.success_experiences = success_experiences
 
-    def _extract_success_experience_from_steps(self, steps: List[Message], trajectory: Trajectory) -> List[BaseExperience]:
+    def _extract_success_experience_from_steps(self, steps: List[Message], trajectory: Trajectory) -> List[BaseMemory]:
         """Extract experience from successful step sequences"""
         step_content = merge_messages_content(steps)
         context = get_trajectory_context(trajectory, steps)
@@ -59,16 +55,17 @@ class SuccessExtractionOp(BaseOp):
             outcome="successful"
         )
 
-        def parse_experiences(message: Message) -> List[TextExperience]:
+        def parse_experiences(message: Message) -> List[BaseMemory]:
             experiences_data = parse_json_experience_response(message.content)
             experiences = []
 
             for exp_data in experiences_data:
-                experience = TextExperience(
-                    workspace_id=self.context.request.workspace_id,
+                experience = TaskMemory(
+                    workspace_id=self.context.get("workspace_id", ""),
                     when_to_use=exp_data.get("when_to_use", exp_data.get("condition", "")),
                     content=exp_data.get("experience", ""),
-                    metadata=ExperienceMeta(author=self.llm.model_name if hasattr(self, 'llm') else "system")
+                    author=getattr(self.llm, 'model_name', 'system'),
+                    metadata=exp_data
                 )
                 experiences.append(experience)
 

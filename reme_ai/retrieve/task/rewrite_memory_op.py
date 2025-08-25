@@ -1,21 +1,17 @@
 import json
 import re
 from typing import List
+
+from flowllm import C, BaseLLMOp
+from flowllm.enumeration.role import Role
+from flowllm.schema.message import Message
 from loguru import logger
-from pydantic import Field
 
-from experiencemaker.op import OP_REGISTRY
-from experiencemaker.op.base_op import BaseOp
-from experiencemaker.schema.experience import TextExperience, BaseExperience
-from experiencemaker.schema.message import Message
-from experiencemaker.schema.vector_node import VectorNode
-from experiencemaker.enumeration.role import Role
-from experiencemaker.schema.response import RetrieverResponse
-from experiencemaker.op.vector_store.recall_vector_store_op import RecallVectorStoreOp
+from reme_ai.schema.memory import BaseMemory
 
 
-@OP_REGISTRY.register()
-class RewriteExperienceOp(BaseOp):
+@C.register_op()
+class RewriteMemoryOp(BaseLLMOp):
     """
     Generate and rewrite context messages from reranked experiences
     """
@@ -23,47 +19,44 @@ class RewriteExperienceOp(BaseOp):
 
     def execute(self):
         """Execute rewrite operation"""
-        experiences: List[BaseExperience] = self.context.response.experience_list
-        query: str = self.context.get_context(RecallVectorStoreOp.SEARCH_QUERY, "")
-        messages: List[Message] = self.context.get_context("messages", [])
+        memory_list: List[BaseMemory] = self.context.response.metadata["memory_list"]
+        query: str = self.context.query
+        messages: List[Message] = \
+            [Message(**x) if isinstance(x, dict) else x for x in self.context.get('messages', [])]
 
-        if not experiences:
-            logger.info("No reranked experiences to rewrite")
-            self.context.response.experience_merged = ""
+        if not memory_list:
+            logger.info("No reranked memories to rewrite")
+            self.context.response.answer = ""
             return
 
-        logger.info(f"Generating context from {len(experiences)} experiences")
+        logger.info(f"Generating context from {len(memory_list)} memories")
 
         # Generate initial context message
-        context_message = self._generate_context_message(query, messages, experiences)
+        rewritten_memory = self._generate_context_message(query, messages, memory_list)
 
         # Store results in context
-        self.context.set_context("context_message", context_message)
+        self.context.response.answer = rewritten_memory
 
-        response: RetrieverResponse = self.context.response
-        response.experience_merged = context_message
-
-
-    def _generate_context_message(self, query: str, messages: List[Message], experiences: List[BaseExperience],
+    def _generate_context_message(self, query: str, messages: List[Message], memories: List[BaseMemory],
                                   ) -> str:
-        """Generate context message from retrieved experiences"""
-        if not experiences:
+        """Generate context message from retrieved memories"""
+        if not memories:
             return ""
 
         try:
-            # Format retrieved experiences
-            formatted_experiences = self._format_experiences_for_context(experiences)
+            # Format retrieved memories
+            formatted_memories = self._format_memories_for_context(memories)
 
             if self.op_params.get("enable_llm_rewrite", True):
-                context_content = self._rewrite_context(query, formatted_experiences, messages)
+                context_content = self._rewrite_context(query, formatted_memories, messages)
             else:
-                context_content = formatted_experiences
+                context_content = formatted_memories
 
             return context_content
 
         except Exception as e:
             logger.error(f"Error generating context message: {e}")
-            return self._format_experiences_for_context(experiences)
+            return self._format_memories_for_context(memories)
 
     def _rewrite_context(self, query: str, context_content: str, messages: List[Message]) -> str:
         """LLM-based context rewriting to make experiences more relevant and actionable"""
@@ -75,7 +68,7 @@ class RewriteExperienceOp(BaseOp):
             current_context = self._extract_context(messages)
 
             prompt = self.prompt_format(
-                prompt_name="experience_rewrite_prompt",
+                prompt_name="memory_rewrite_prompt",
                 current_query=query,
                 current_context=current_context,
                 original_context=context_content
@@ -96,18 +89,18 @@ class RewriteExperienceOp(BaseOp):
             logger.error(f"Error in context rewriting: {e}")
             return context_content
 
-    def _format_experiences_for_context(self, experiences: List[BaseExperience]) -> str:
-        """Format experiences for context generation"""
-        formatted_experiences = []
+    def _format_memories_for_context(self, memories: List[BaseMemory]) -> str:
+        """Format memories for context generation"""
+        formatted_memories = []
 
-        for i, exp in enumerate(experiences, 1):
-            condition = exp.when_to_use
-            experience_content = exp.content
-            exp_text = f"Experience {i} :\n When to use: {condition}\n Content: {experience_content}\n"
+        for i, memory in enumerate(memories, 1):
+            condition = memory.when_to_use
+            memory_content = memory.content
+            memory_text = f"Memory {i} :\n When to use: {condition}\n Content: {memory_content}\n"
 
-            formatted_experiences.append(exp_text)
+            formatted_memories.append(memory_text)
 
-        return "\n".join(formatted_experiences)
+        return "\n".join(formatted_memories)
 
     def _extract_context(self, messages: List[Message]) -> str:
         """Extract relevant context from messages"""

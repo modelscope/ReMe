@@ -1,19 +1,18 @@
 from typing import List
 from loguru import logger
 
-from experiencemaker.op import OP_REGISTRY
-from experiencemaker.op.base_op import BaseOp
-from experiencemaker.schema.experience import BaseExperience
+from flowllm import C, BaseOp
+from reme_ai.schema.memory import BaseMemory
 
 
-@OP_REGISTRY.register()
+@C.register_op()
 class ExperienceDeduplicationOp(BaseOp):
     current_path: str = __file__
 
     def execute(self):
         """Remove duplicate experiences"""
         # Get experiences to deduplicate
-        experiences: List[BaseExperience] = self.context.response.experience_list
+        experiences: List[BaseMemory] = self.context.get("experiences", [])
 
         if not experiences:
             logger.info("No experiences found for deduplication")
@@ -27,15 +26,15 @@ class ExperienceDeduplicationOp(BaseOp):
         logger.info(f"Deduplication complete: {len(deduplicated_experiences)} deduplicated experiences out of {len(experiences)}")
         
         # Update context
-        self.context.response.experience_list = deduplicated_experiences
+        self.context.deduplicated_experiences = deduplicated_experiences
 
-    def _deduplicate_experiences(self, experiences: List[BaseExperience]) -> List[BaseExperience]:
+    def _deduplicate_experiences(self, experiences: List[BaseMemory]) -> List[BaseMemory]:
         """Remove duplicate experiences"""
         if not experiences:
             return experiences
 
         similarity_threshold = self.op_params.get("similarity_threshold", 0.5)
-        workspace_id = self.context.request.workspace_id if hasattr(self.context, 'request') else None
+        workspace_id = self.context.get("workspace_id")
 
         unique_experiences = []
 
@@ -69,11 +68,11 @@ class ExperienceDeduplicationOp(BaseOp):
     def _get_existing_experience_embeddings(self, workspace_id: str) -> List[List[float]]:
         """Get embeddings of existing experiences"""
         try:
-            if not hasattr(self, 'vector_store') or not self.vector_store or not workspace_id:
+            if not hasattr(self.context, 'vector_store') or not self.context.vector_store or not workspace_id:
                 return []
 
             # Query existing experience nodes
-            existing_nodes = self.vector_store.search(
+            existing_nodes = self.context.vector_store.search(
                 query="...",  # Empty query to get all
                 workspace_id=workspace_id,
                 top_k=self.op_params.get("max_existing_experiences", 1000)
@@ -92,15 +91,15 @@ class ExperienceDeduplicationOp(BaseOp):
             logger.warning(f"Failed to retrieve existing experience embeddings: {e}")
             return []
 
-    def _get_experience_embedding(self, experience: BaseExperience) -> List[float]:
+    def _get_experience_embedding(self, experience: BaseMemory) -> List[float]:
         """Generate embedding for experience"""
         try:
-            if not hasattr(self, 'vector_store') or not self.vector_store:
+            if not hasattr(self.context, 'vector_store') or not self.context.vector_store:
                 return None
 
             # Combine experience description and content for embedding
             text_for_embedding = f"{experience.when_to_use} {experience.content}"
-            embeddings = self.vector_store.embedding_model.get_embeddings([text_for_embedding])
+            embeddings = self.context.vector_store.embedding_model.get_embeddings([text_for_embedding])
 
             if embeddings and len(embeddings) > 0:
                 return embeddings[0]
@@ -125,7 +124,7 @@ class ExperienceDeduplicationOp(BaseOp):
         return False
 
     def _is_similar_to_current_experiences(self, current_embedding: List[float],
-                                         current_experiences: List[BaseExperience],
+                                         current_experiences: List[BaseMemory],
                                          threshold: float) -> bool:
         for existing_experience in current_experiences:
             existing_embedding = self._get_experience_embedding(existing_experience)
