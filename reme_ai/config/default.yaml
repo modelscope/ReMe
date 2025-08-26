@@ -44,13 +44,32 @@ flow:
         required: true
 
   summary_task_memory:
-    flow_content: trajectory_preprocess_op->[success_extraction_op|failure_extraction_op|comparative_extraction_op]->experience_validation_op->experience_deduplication_op->update_vector_store_op
+    # memory_deduplication_op
+    flow_content: trajectory_preprocess_op >> (success_extraction_op|failure_extraction_op|comparative_extraction_op) >> memory_validation_op >> update_vector_store_op
     description: "Summarize trajectories or messages into memories"
     input_schema:
       trajectories:
         type: "list"
         description: "A list of conversation trajectory information, including message content and score. This field does not need to be filled in, the system will complete it automatically."
         required: false
+
+  agent_task:
+    flow_content: react_op
+    description: "A React-capable agent that can utilize web search and code execution tools."
+    input_schema:
+      query:
+        type: "str"
+        description: "current query"
+        required: true
+
+    vector_store:
+      flow_content: vector_store_action_op
+      description: "A React-capable agent that can utilize web search and code execution tools."
+      input_schema:
+        query:
+          type: "str"
+          description: "current query"
+          required: true
 
 #  vector_store: vector_store_action_op
 #  agent: react_op

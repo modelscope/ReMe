@@ -12,7 +12,7 @@ class TaskMemoryDeduplicationOp(BaseOp):
     def execute(self):
         """Remove duplicate task memories"""
         # Get task memories to deduplicate
-        task_memories: List[BaseMemory] = self.context.get("task_memories", [])
+        task_memories: List[BaseMemory] = self.context.memory_list
 
         if not task_memories:
             logger.info("No task memories found for deduplication")
@@ -26,7 +26,7 @@ class TaskMemoryDeduplicationOp(BaseOp):
         logger.info(f"Deduplication complete: {len(deduplicated_task_memories)} deduplicated task memories out of {len(task_memories)}")
         
         # Update context
-        self.context.deduplicated_task_memories = deduplicated_task_memories
+        self.context.memory_list = deduplicated_task_memories
 
     def _deduplicate_task_memories(self, task_memories: List[BaseMemory]) -> List[BaseMemory]:
         """Remove duplicate task memories"""
@@ -91,7 +91,7 @@ class TaskMemoryDeduplicationOp(BaseOp):
             logger.warning(f"Failed to retrieve existing task memory embeddings: {e}")
             return []
 
-    def _get_task_memory_embedding(self, task_memory: BaseMemory) -> List[float]:
+    def _get_task_memory_embedding(self, task_memory: BaseMemory) -> List[float] | None:
         """Generate embedding for task memory"""
         try:
             if not hasattr(self.context, 'vector_store') or not self.context.vector_store:
@@ -137,7 +137,8 @@ class TaskMemoryDeduplicationOp(BaseOp):
                 return True
         return False
 
-    def _calculate_cosine_similarity(self, embedding1: List[float], embedding2: List[float]) -> float:
+    @staticmethod
+    def _calculate_cosine_similarity(embedding1: List[float], embedding2: List[float]) -> float:
         """Calculate cosine similarity"""
         try:
             import numpy as np

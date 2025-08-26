@@ -46,7 +46,8 @@ class ComparativeExtractionOp(BaseLLMOp):
         # Add task memories to context
         self.context.comparative_task_memories = comparative_task_memories
 
-    def _find_highest_lowest_scoring_trajectories(self, trajectories: List[Trajectory]) -> Tuple[Optional[Trajectory], Optional[Trajectory]]:
+    @staticmethod
+    def _find_highest_lowest_scoring_trajectories(trajectories: List[Trajectory]) -> Tuple[Optional[Trajectory], Optional[Trajectory]]:
         """Find the highest and lowest scoring trajectories"""
         if len(trajectories) < 2:
             return None, None
@@ -66,7 +67,8 @@ class ComparativeExtractionOp(BaseLLMOp):
 
         return highest_traj, lowest_traj
 
-    def _get_trajectory_score(self, trajectory: Trajectory) -> Optional[float]:
+    @staticmethod
+    def _get_trajectory_score(trajectory: Trajectory) -> Optional[float]:
         """Get trajectory score"""
         return trajectory.score
 
@@ -133,7 +135,8 @@ class ComparativeExtractionOp(BaseLLMOp):
         return self.llm.chat(messages=[Message(content=prompt)], callback_fn=parse_task_memories)
 
 
-    def _get_trajectory_steps(self, trajectory: Trajectory) -> List[Message]:
+    @staticmethod
+    def _get_trajectory_steps(trajectory: Trajectory) -> List[Message]:
         """Get trajectory steps, prioritizing segmented steps"""
         if hasattr(trajectory, 'segments') and trajectory.segments:
             # If there are segments, merge all segments
@@ -208,7 +211,8 @@ class ComparativeExtractionOp(BaseLLMOp):
 
         return []
 
-    def _calculate_cosine_similarity(self, embedding1: List[float], embedding2: List[float]) -> float:
+    @staticmethod
+    def _calculate_cosine_similarity(embedding1: List[float], embedding2: List[float]) -> float:
         """Calculate cosine similarity"""
         import numpy as np
 

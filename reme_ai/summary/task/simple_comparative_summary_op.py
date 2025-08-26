@@ -45,7 +45,8 @@ class SimpleComparativeSummaryOp(BaseLLMOp):
         return self.llm.chat(messages=[Message(content=summary_prompt)], callback_fn=parse_content)
 
     def execute(self):
-        trajectories: List[Trajectory] = self.context.get("trajectories", [])
+        trajectories: list = self.context.get("trajectories", [])
+        trajectories: List[Trajectory] = [Trajectory(**x) if isinstance(x, dict) else x for x in trajectories]
 
         task_id_dict: Dict[str, List[Trajectory]] = {}
         for trajectory in trajectories:
@@ -53,7 +54,7 @@ class SimpleComparativeSummaryOp(BaseLLMOp):
                 task_id_dict[trajectory.task_id] = []
             task_id_dict[trajectory.task_id].append(trajectory)
 
-        task_memory_list = []
+        memory_list = []
         for task_id, task_trajectories in task_id_dict.items():
             task_trajectories: List[Trajectory] = sorted(task_trajectories, key=lambda x: x.score, reverse=True)
             if len(task_trajectories) < 2:
@@ -62,8 +63,9 @@ class SimpleComparativeSummaryOp(BaseLLMOp):
             if task_trajectories[0].score > task_trajectories[-1].score:
                 task_memories = self.compare_summary_trajectory(trajectory_a=task_trajectories[0],
                                                              trajectory_b=task_trajectories[-1])
-                task_memory_list.extend(task_memories)
+                memory_list.extend(task_memories)
 
-        self.context.comparative_summary_task_memories = task_memory_list
-        for tm in task_memory_list:
+        self.context.response.answer = json.dumps([x.model_dump() for x in memory_list])
+        self.context.memory_list = memory_list
+        for tm in memory_list:
             logger.info(f"add task memory when_to_use={tm.when_to_use}\ncontent={tm.content}")

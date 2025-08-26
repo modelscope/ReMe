@@ -10,12 +10,17 @@ from reme_ai.schema.memory import BaseMemory
 
 
 @C.register_op()
-class TaskMemoryValidationOp(BaseLLMOp):
+class MemoryValidationOp(BaseLLMOp):
     file_path: str = __file__
 
     def execute(self):
         """Validate quality of extracted task memories"""
-        task_memories: List[BaseMemory] = self.context.get("task_memories", [])
+        self.context.memory_list = []
+        self.context.memory_list.append(self.context.success_task_memories)
+        self.context.memory_list.append(self.context.failure_task_memories)
+        self.context.memory_list.append(self.context.comparative_task_memories)
+
+        task_memories: List[BaseMemory] = self.context.memory_list
 
         if not task_memories:
             logger.info("No task memories found for validation")
@@ -37,7 +42,7 @@ class TaskMemoryValidationOp(BaseLLMOp):
         logger.info(f"Validated {len(validated_task_memories)} out of {len(task_memories)} task memories")
         
         # Update context
-        self.context.validated_task_memories = validated_task_memories
+        self.context.memory_list = validated_task_memories
 
     def _validate_single_task_memory(self, task_memory: BaseMemory) -> Dict[str, Any]:
         """Validate single task memory"""
@@ -81,13 +86,13 @@ class TaskMemoryValidationOp(BaseLLMOp):
                         "reason": "" if (is_valid and score >= validation_threshold) else f"Low validation score ({score:.2f}) or marked as invalid"
                     }
                     
-                except Exception as e:
-                    logger.error(f"Error parsing validation response: {e}")
+                except Exception as e_inner:
+                    logger.exception(f"Error parsing validation response: {e_inner}")
                     return {
                         "is_valid": False,
                         "score": 0.0,
                         "feedback": "",
-                        "reason": f"Parse error: {str(e)}"
+                        "reason": f"Parse error: {str(e_inner)}"
                     }
 
             return self.llm.chat(messages=[Message(content=prompt)], callback_fn=parse_validation)

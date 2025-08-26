@@ -85,14 +85,16 @@ class TrajectorySegmentationOp(BaseLLMOp):
         return self.llm.chat(messages=[Message(content=prompt)], callback_fn=parse_segmentation,
                              default_value=[trajectory.messages])
 
-    def _format_trajectory_content(self, trajectory: Trajectory) -> str:
+    @staticmethod
+    def _format_trajectory_content(trajectory: Trajectory) -> str:
         """Format trajectory content for LLM processing"""
         content = ""
         for i, step in enumerate(trajectory.messages):
             content += f"Step {i + 1} ({step.role.value}):\n{step.content}\n\n"
         return content
 
-    def _parse_segmentation_response(self, response: str) -> List[int]:
+    @staticmethod
+    def _parse_segmentation_response(response: str) -> List[int]:
         """Parse segmentation response from LLM"""
         segment_points = []
 
