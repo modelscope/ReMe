@@ -5,7 +5,7 @@ from loguru import logger
 
 @C.register_op()
 class BuildQueryOp(BaseLLMOp):
-    current_path: str = __file__
+    file_path: str = __file__
 
     def execute(self):
         if "query" in self.context:

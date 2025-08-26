@@ -1,58 +1,67 @@
-from experiencemaker.op import OP_REGISTRY
-from experiencemaker.op.base_op import BaseOp
-from experiencemaker.schema.experience import vector_node_to_experience, dict_to_experience, BaseExperience
-from experiencemaker.schema.request import VectorStoreRequest
-from experiencemaker.schema.response import VectorStoreResponse
-from experiencemaker.schema.vector_node import VectorNode
+from flowllm import C, BaseLLMOp
+from flowllm.schema.vector_node import VectorNode
+
+from reme_ai.schema.memory import vector_node_to_memory, dict_to_experience, BaseMemory
 
 
-@OP_REGISTRY.register()
-class VectorStoreActionOp(BaseOp):
+@C.register_op()
+class VectorStoreActionOp(BaseLLMOp):
 
     def execute(self):
-        request: VectorStoreRequest = self.context.request
-        response: VectorStoreResponse = self.context.response
+        workspace_id: str = self.context.workspace_id
+        action: str = self.context.action
 
-        if request.action == "copy":
-            result = self.vector_store.copy_workspace(src_workspace_id=request.src_workspace_id,
-                                                      dest_workspace_id=request.workspace_id)
+        if action == "copy":
+            src_workspace_id: str = self.context.src_workspace_id
+            result = self.vector_store.copy_workspace(src_workspace_id=src_workspace_id,
+                                                      dest_workspace_id=workspace_id)
 
-        elif request.action == "delete":
-            result = self.vector_store.delete_workspace(workspace_id=request.workspace_id)
+        elif action == "delete":
+            result = self.vector_store.delete_workspace(workspace_id=workspace_id)
 
-        elif request.action == "delete_ids":
-            result = self.vector_store.delete(workspace_id=request.workspace_id,node_ids = request.experience_ids)
+        elif action == "delete_ids":
+            memory_ids: list = self.context.memory_ids
+            result = self.vector_store.delete(workspace_id=workspace_id, node_ids=memory_ids)
 
-        elif request.action == "dump":
-            def node_to_experience(node: VectorNode) -> dict:
-                return vector_node_to_experience(node).model_dump()
+        elif action == "dump":
+            path: str = self.context.path
+            def node_to_memory(node: VectorNode) -> dict:
+                return vector_node_to_memory(node).model_dump()
 
-            result = self.vector_store.dump_workspace(workspace_id=request.workspace_id,
-                                                      path=request.path,
-                                                      callback_fn=node_to_experience)
+            result = self.vector_store.dump_workspace(workspace_id=workspace_id,
+                                                      path=path,
+                                                      callback_fn=node_to_memory)
 
-        elif request.action == "load":
-            def experience_dict_to_node(experience_dict: dict) -> VectorNode:
-                experience: BaseExperience = dict_to_experience(experience_dict=experience_dict)
-                return experience.to_vector_node()
+        elif action == "load":
+            path: str = self.context.path
+            def memory_dict_to_node(memory_dict: dict) -> VectorNode:
+                memory: BaseMemory = dict_to_experience(memory_dict=memory_dict)
+                return memory.to_vector_node()
 
-            result = self.vector_store.load_workspace(workspace_id=request.workspace_id,
-                                                      path=request.path,
-                                                      callback_fn=experience_dict_to_node)
+            result = self.vector_store.load_workspace(workspace_id=workspace_id,
+                                                      path=path,
+                                                      callback_fn=memory_dict_to_node)
 
-        elif request.action == "update_freq":
-            result = self.vector_store.update_freq(workspace_id=request.workspace_id, node_ids = request.experience_ids)
+        elif action == "update_freq":
+            memory_ids: list = self.context.memory_ids
+            result = self.vector_store.update_freq(workspace_id=workspace_id, node_ids=memory_ids)
         
-        elif request.action == "update_utility":
-            result = self.vector_store.update_utility(workspace_id=request.workspace_id, node_ids = request.experience_ids)
+        elif action == "update_utility":
+            memory_ids: list = self.context.memory_ids
+            result = self.vector_store.update_utility(workspace_id=workspace_id, node_ids=memory_ids)
         
-        elif request.action == "utility_based_delete":
-            result = self.vector_store.utility_based_delete(workspace_id=request.workspace_id, freq_threshold = request.freq_threshold, utility_threshold = request.utility_threshold)
+        elif action == "utility_based_delete":
+            freq_threshold: float = self.context.freq_threshold
+            utility_threshold: float = self.context.utility_threshold
+            result = self.vector_store.utility_based_delete(workspace_id=workspace_id, 
+                                                            freq_threshold=freq_threshold, 
+                                                            utility_threshold=utility_threshold)
         
         else:
-            raise ValueError(f"invalid action={request.action}")
+            raise ValueError(f"invalid action={action}")
 
+        # Store results in context
         if isinstance(result, dict):
-            response.metadata.update(result)
+            self.context.action_result = result
         else:
-            response.metadata["result"] = str(result)
+            self.context.action_result = {"result": str(result)}

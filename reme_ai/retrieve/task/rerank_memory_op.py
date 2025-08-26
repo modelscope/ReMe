@@ -15,7 +15,7 @@ class RerankMemoryOp(BaseLLMOp):
     """
     Rerank and filter recalled experiences using LLM and score-based filtering
     """
-    current_path: str = __file__
+    file_path: str = __file__
 
     def execute(self):
         """Execute rerank operation"""

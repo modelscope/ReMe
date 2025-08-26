@@ -1,1 +1,3 @@
 from reme_ai.vector_store.recall_vector_store_op import RecallVectorStoreOp
+from reme_ai.vector_store.update_vector_store_op import UpdateVectorStoreOp
+from reme_ai.vector_store.vector_store_action_op import VectorStoreActionOp

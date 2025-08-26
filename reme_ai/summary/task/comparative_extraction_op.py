@@ -5,8 +5,8 @@ from loguru import logger
 
 from flowllm import C, BaseLLMOp
 from reme_ai.schema.memory import BaseMemory, TaskMemory
-from reme_ai.schema.message import Message, Trajectory
-from reme_ai.utils.memory_utils import merge_messages_content, parse_json_experience_response, get_trajectory_context
+from reme_ai.schema import Message, Trajectory
+from reme_ai.utils.op_utils import merge_messages_content, parse_json_experience_response, get_trajectory_context
 
 
 @C.register_op()

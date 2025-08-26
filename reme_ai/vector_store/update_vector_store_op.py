@@ -1,28 +1,32 @@
 import json
 from typing import List
 
+from flowllm import C, BaseLLMOp
+from flowllm.schema.vector_node import VectorNode
 from loguru import logger
 
-from experiencemaker.op import OP_REGISTRY
-from experiencemaker.op.base_op import BaseOp
-from experiencemaker.schema.experience import BaseExperience
-from experiencemaker.schema.request import BaseRequest
-from experiencemaker.schema.vector_node import VectorNode
+from reme_ai.schema.memory import BaseMemory
 
 
-@OP_REGISTRY.register()
-class UpdateVectorStoreOp(BaseOp):
+@C.register_op()
+class UpdateVectorStoreOp(BaseLLMOp):
 
     def execute(self):
-        request: BaseRequest = self.context.request
+        workspace_id: str = self.context.workspace_id
 
-        experience_ids: List[str] | None = self.context.response.deleted_experience_ids
-        if experience_ids:
-            self.vector_store.delete(node_ids=experience_ids, workspace_id=request.workspace_id)
-            logger.info(f"delete experience_ids={json.dumps(experience_ids, indent=2)}")
+        deleted_memory_ids: List[str] = self.context.get("deleted_memory_ids", [])
+        if deleted_memory_ids:
+            self.vector_store.delete(node_ids=deleted_memory_ids, workspace_id=workspace_id)
+            logger.info(f"delete memory_ids={json.dumps(deleted_memory_ids, indent=2)}")
 
-        insert_experience_list: List[BaseExperience] | None = self.context.response.experience_list
-        if insert_experience_list:
-            insert_nodes: List[VectorNode] = [x.to_vector_node() for x in insert_experience_list]
-            self.vector_store.insert(nodes=insert_nodes, workspace_id=request.workspace_id)
+        insert_memory_list: List[BaseMemory] | None = self.context.get("memory_list", [])
+        if insert_memory_list:
+            insert_nodes: List[VectorNode] = [x.to_vector_node() for x in insert_memory_list]
+            self.vector_store.insert(nodes=insert_nodes, workspace_id=workspace_id)
             logger.info(f"insert insert_node.size={len(insert_nodes)}")
+
+        # Store results in context
+        self.context.update_result = {
+            "deleted_count": len(deleted_memory_ids) if deleted_memory_ids else 0,
+            "inserted_count": len(insert_memory_list) if insert_memory_list else 0
+        }

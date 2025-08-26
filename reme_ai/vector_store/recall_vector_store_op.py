@@ -12,10 +12,11 @@ class RecallVectorStoreOp(BaseLLMOp):
 
     def execute(self):
         recall_key: str = self.op_params.get("recall_key", "query")
+        top_k: int = self.op_params.get("top_k", 3)
+
         query: str = self.context[recall_key]
         assert query, "query should be not empty!"
 
-        top_k: int = self.context.top_k
         workspace_id: str = self.context.workspace_id
         nodes: List[VectorNode] = self.vector_store.search(query=query, workspace_id=workspace_id, top_k=top_k)
 

@@ -7,11 +7,11 @@ summary_prompt: |
 
   # Task
   Reflect on what went well and what did not go well in the execution path based on the user's question.
-  The summarized experiences should be generalizable, providing assistance in solving similar types of problems in the future. 
+  The summarized memory should be generalizable, providing assistance in solving similar types of problems in the future. 
   They can include good suggestions or highlight areas to avoid and potential pitfalls.
-  The type of experience can be plain text or a piece of code that solves a specific problem.
-  If there are no experiences to summarize, output an empty list []. 
-  For each experience, first state the scenario when it is applicable (when to use), then provide the experience itself, with a maximum of two experiences summarized.
+  The type of memory can be plain text or a piece of code that solves a specific problem.
+  If there are no memory to summarize, output an empty list []. 
+  For each memory, first state the scenario when it is applicable (when to use), then provide the memory itself, with a maximum of two memories summarized.
   
   # Output Format
   {summary_example}
@@ -21,11 +21,11 @@ summary_example: |
   [
     {
       "when_to_use": "...",
-      "experience": "..."
+      "memory": "..."
     },
     {
       "when_to_use": "...",
-      "experience": "..."
+      "memory": "..."
     }
   ]
   ```

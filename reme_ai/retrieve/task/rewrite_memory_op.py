@@ -15,7 +15,7 @@ class RewriteMemoryOp(BaseLLMOp):
     """
     Generate and rewrite context messages from reranked experiences
     """
-    current_path: str = __file__
+    file_path: str = __file__
 
     def execute(self):
         """Execute rewrite operation"""
@@ -37,8 +37,7 @@ class RewriteMemoryOp(BaseLLMOp):
         # Store results in context
         self.context.response.answer = rewritten_memory
 
-    def _generate_context_message(self, query: str, messages: List[Message], memories: List[BaseMemory],
-                                  ) -> str:
+    def _generate_context_message(self, query: str, messages: List[Message], memories: List[BaseMemory]) -> str:
         """Generate context message from retrieved memories"""
         if not memories:
             return ""

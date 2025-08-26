@@ -3,8 +3,12 @@ import re
 from typing import List
 
 from flowllm.schema.message import Message, Trajectory
+from flowllm.utils.llm_utils import merge_messages_content as merge_messages_content_flowllm
 from loguru import logger
 
+
+def merge_messages_content(messages: List[Message | dict]) -> str:
+    return merge_messages_content_flowllm(messages)
 
 def parse_json_experience_response(response: str) -> List[dict]:
     """Parse JSON formatted experience response"""
