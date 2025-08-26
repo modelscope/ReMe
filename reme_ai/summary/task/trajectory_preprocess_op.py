@@ -1,18 +1,19 @@
 from typing import List, Dict
 
+from flowllm import C, BaseOp
 from loguru import logger
 
-from flowllm import C, BaseOp
-from reme_ai.schema.message import Trajectory
+from reme_ai.schema import Trajectory
 
 
 @C.register_op()
 class TrajectoryPreprocessOp(BaseOp):
-    current_path: str = __file__
+    file_path: str = __file__
 
     def execute(self):
         """Preprocess trajectories: validate and classify"""
-        trajectories: List[Trajectory] = self.context.get("trajectories", [])
+        trajectories: list = self.context.get("trajectories", [])
+        trajectories: List[Trajectory] = [Trajectory(**x) if isinstance(x, dict) else x for x in trajectories]
 
         # Classify trajectories
         classified = self._classify_trajectories(trajectories)

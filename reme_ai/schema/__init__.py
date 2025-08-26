@@ -1,1 +1,1 @@
-from flowllm.schema.message import Message, Trajectory, ToolCall
+from flowllm.schema.message import Message, Trajectory, ToolCall, Role

@@ -1,7 +1,7 @@
-success_step_experience_prompt: |
+success_step_task_memory_prompt: |
   You are an expert AI analyst reviewing successful step sequences from an AI agent execution.
   
-  Your task is to extract reusable, actionable step-level experiences that can guide future agent executions.
+  Your task is to extract reusable, actionable step-level task memories that can guide future agent executions.
   Focus on identifying specific patterns, techniques, and decision points that contributed to success.
   
   ANALYSIS FRAMEWORK:

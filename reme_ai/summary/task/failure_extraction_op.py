@@ -1,74 +1,73 @@
-import json
-import re
 from typing import List
-from loguru import logger
 
 from flowllm import C, BaseLLMOp
+from loguru import logger
+
+from reme_ai.schema import Message, Trajectory
 from reme_ai.schema.memory import BaseMemory, TaskMemory
-from reme_ai.schema.message import Message, Trajectory
-from reme_ai.utils.memory_utils import merge_messages_content, parse_json_experience_response, get_trajectory_context
+from reme_ai.utils.op_utils import merge_messages_content, parse_json_experience_response, get_trajectory_context
 
 
 @C.register_op()
 class FailureExtractionOp(BaseLLMOp):
-    current_path: str = __file__
+    file_path: str = __file__
 
     def execute(self):
-        """Extract experiences from failed trajectories"""
+        """Extract task memories from failed trajectories"""
         failure_trajectories: List[Trajectory] = self.context.get("failure_trajectories", [])
         
         if not failure_trajectories:
             logger.info("No failure trajectories found for extraction")
             return
 
-        logger.info(f"Extracting experiences from {len(failure_trajectories)} failed trajectories")
+        logger.info(f"Extracting task memories from {len(failure_trajectories)} failed trajectories")
 
-        failure_experiences = []
+        failure_task_memories = []
         
         # Process trajectories
         for trajectory in failure_trajectories:
             if hasattr(trajectory, 'segments') and trajectory.segments:
                 # Process segmented step sequences
                 for segment in trajectory.segments:
-                    experiences = self._extract_failure_experience_from_steps(segment, trajectory)
-                    failure_experiences.extend(experiences)
+                    task_memories = self._extract_failure_task_memory_from_steps(segment, trajectory)
+                    failure_task_memories.extend(task_memories)
             else:
                 # Process entire trajectory
-                experiences = self._extract_failure_experience_from_steps(trajectory.messages, trajectory)
-                failure_experiences.extend(experiences)
+                task_memories = self._extract_failure_task_memory_from_steps(trajectory.messages, trajectory)
+                failure_task_memories.extend(task_memories)
 
-        logger.info(f"Extracted {len(failure_experiences)} failure experiences")
-        
-        # Add experiences to context
-        self.context.failure_experiences = failure_experiences
+        logger.info(f"Extracted {len(failure_task_memories)} failure task memories")
 
-    def _extract_failure_experience_from_steps(self, steps: List[Message], trajectory: Trajectory) -> List[BaseMemory]:
-        """Extract experience from failed step sequences"""
+        # Add task memories to context
+        self.context.failure_task_memories = failure_task_memories
+
+    def _extract_failure_task_memory_from_steps(self, steps: List[Message], trajectory: Trajectory) -> List[BaseMemory]:
+        """Extract task memory from failed step sequences"""
         step_content = merge_messages_content(steps)
         context = get_trajectory_context(trajectory, steps)
 
         prompt = self.prompt_format(
-            prompt_name="failure_step_experience_prompt",
+            prompt_name="failure_step_task_memory_prompt",
             query=trajectory.metadata.get('query', ''),
             step_sequence=step_content,
             context=context,
             outcome="failed"
         )
 
-        def parse_experiences(message: Message) -> List[BaseMemory]:
-            experiences_data = parse_json_experience_response(message.content)
-            experiences = []
+        def parse_task_memories(message: Message) -> List[BaseMemory]:
+            task_memories_data = parse_json_experience_response(message.content)
+            task_memories = []
 
-            for exp_data in experiences_data:
-                experience = TaskMemory(
+            for tm_data in task_memories_data:
+                task_memory = TaskMemory(
                     workspace_id=self.context.get("workspace_id", ""),
-                    when_to_use=exp_data.get("when_to_use", exp_data.get("condition", "")),
-                    content=exp_data.get("experience", ""),
+                    when_to_use=tm_data.get("when_to_use", tm_data.get("condition", "")),
+                    content=tm_data.get("experience", ""),
                     author=getattr(self.llm, 'model_name', 'system'),
-                    metadata=exp_data
+                    metadata=tm_data
                 )
-                experiences.append(experience)
+                task_memories.append(task_memory)
 
-            return experiences
+            return task_memories
 
-        return self.llm.chat(messages=[Message(content=prompt)], callback_fn=parse_experiences)
+        return self.llm.chat(messages=[Message(content=prompt)], callback_fn=parse_task_memories)

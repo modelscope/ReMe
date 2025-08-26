@@ -2,25 +2,24 @@ import datetime
 import time
 from typing import List, Dict
 
+from flowllm import C, BaseLLMOp
+from flowllm.flow.base_tool_flow import BaseToolFlow
+from flowllm.flow.gallery import DashscopeSearchToolFlow, CodeToolFlow, TerminateToolFlow
 from loguru import logger
 
-from flowllm import C, BaseLLMOp
-from reme_ai.schema.message import Message, Role
-from experiencemaker.tool import TOOL_REGISTRY
-from experiencemaker.tool.base_tool import BaseTool
+from reme_ai.schema import Message, Role
 
 
 @C.register_op()
 class ReactV1Op(BaseLLMOp):
-    current_path: str = __file__
+    file_path: str = __file__
 
     def execute(self):
         query: str = self.context.query
 
         max_steps: int = int(self.op_params.get("max_steps", 10))
-        tool_names = self.op_params.get("tool_names", "code_tool,tavily_search_tool,terminate_tool")
-        tools: List[BaseTool] = [TOOL_REGISTRY[x.strip()]() for x in tool_names.split(",") if x]
-        tool_dict: Dict[str, BaseTool] = {x.name: x for x in tools}
+        tools: List[BaseToolFlow] = [DashscopeSearchToolFlow(), CodeToolFlow(), TerminateToolFlow()]
+        tool_dict: Dict[str, BaseToolFlow] = {x.name: x for x in tools}
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         has_terminate_tool = False
 
@@ -35,7 +34,7 @@ class ReactV1Op(BaseLLMOp):
             if has_terminate_tool:
                 assistant_message: Message = self.llm.chat(messages)
             else:
-                assistant_message: Message = self.llm.chat(messages, tools=tools)
+                assistant_message: Message = self.llm.chat(messages, tools=[x.tool_call for x in tools])
 
             messages.append(assistant_message)
             logger.info(f"assistant.{i}.reasoning_content={assistant_message.reasoning_content}\n"
@@ -61,7 +60,7 @@ class ReactV1Op(BaseLLMOp):
                 if tool_call.name not in tool_dict:
                     continue
 
-                self.submit_task(tool_dict[tool_call.name].execute, **tool_call.argument_dict)
+                self.submit_task(tool_dict[tool_call.name].__call__, **tool_call.argument_dict)
                 time.sleep(1)
 
             if not has_terminate_tool:

@@ -2,15 +2,15 @@ import json
 import re
 from typing import List
 
+from flowllm import C, BaseLLMOp
 from loguru import logger
 
-from flowllm import C, BaseLLMOp
-from reme_ai.schema.message import Message, Trajectory
+from reme_ai.schema import Message, Trajectory
 
 
 @C.register_op()
 class TrajectorySegmentationOp(BaseLLMOp):
-    current_path: str = __file__
+    file_path: str = __file__
 
     def execute(self):
         """Segment trajectories into meaningful steps"""

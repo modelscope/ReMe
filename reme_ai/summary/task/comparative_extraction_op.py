@@ -1,33 +1,33 @@
-import json
-import re
 from typing import List, Tuple, Optional
-from loguru import logger
 
 from flowllm import C, BaseLLMOp
-from reme_ai.schema.memory import BaseMemory, TaskMemory
+from loguru import logger
+
 from reme_ai.schema import Message, Trajectory
-from reme_ai.utils.op_utils import merge_messages_content, parse_json_experience_response, get_trajectory_context
+from reme_ai.schema.memory import BaseMemory, TaskMemory
+from reme_ai.utils.op_utils import merge_messages_content, parse_json_experience_response
 
 
 @C.register_op()
 class ComparativeExtractionOp(BaseLLMOp):
-    current_path: str = __file__
+    file_path: str = __file__
 
     def execute(self):
-        """Extract comparative experiences by comparing different scoring trajectories"""
+        """Extract comparative task memories by comparing different scoring trajectories"""
         all_trajectories: List[Trajectory] = self.context.get("all_trajectories", [])
         success_trajectories: List[Trajectory] = self.context.get("success_trajectories", [])
         failure_trajectories: List[Trajectory] = self.context.get("failure_trajectories", [])
 
-        comparative_experiences = []
+        comparative_task_memories = []
 
         # Soft comparison: highest score vs lowest score
         if len(all_trajectories) >= 2 and self.op_params.get("enable_soft_comparison", True):
             highest_traj, lowest_traj = self._find_highest_lowest_scoring_trajectories(all_trajectories)
             if highest_traj and lowest_traj and highest_traj.score > lowest_traj.score:
-                logger.info(f"Extracting soft comparative experiences: highest ({highest_traj.score:.2f}) vs lowest ({lowest_traj.score:.2f})")
-                soft_experiences = self._extract_soft_comparative_experience(highest_traj, lowest_traj)
-                comparative_experiences.extend(soft_experiences)
+                logger.info(
+                    f"Extracting soft comparative task memories: highest ({highest_traj.score:.2f}) vs lowest ({lowest_traj.score:.2f})")
+                soft_task_memories = self._extract_soft_comparative_task_memory(highest_traj, lowest_traj)
+                comparative_task_memories.extend(soft_task_memories)
 
         # Hard comparison: success vs failure (if similarity search is enabled)
         if (success_trajectories and failure_trajectories and
@@ -37,13 +37,14 @@ class ComparativeExtractionOp(BaseLLMOp):
             logger.info(f"Found {len(similar_pairs)} similar pairs for hard comparison")
 
             for success_steps, failure_steps, similarity_score in similar_pairs:
-                hard_experiences = self._extract_hard_comparative_experience(success_steps, failure_steps, similarity_score)
-                comparative_experiences.extend(hard_experiences)
+                hard_task_memories = self._extract_hard_comparative_task_memory(success_steps, failure_steps,
+                                                                                similarity_score)
+                comparative_task_memories.extend(hard_task_memories)
 
-        logger.info(f"Extracted {len(comparative_experiences)} comparative experiences")
+        logger.info(f"Extracted {len(comparative_task_memories)} comparative task memories")
 
-        # Add experiences to context
-        self.context.comparative_experiences = comparative_experiences
+        # Add task memories to context
+        self.context.comparative_task_memories = comparative_task_memories
 
     def _find_highest_lowest_scoring_trajectories(self, trajectories: List[Trajectory]) -> Tuple[Optional[Trajectory], Optional[Trajectory]]:
         """Find the highest and lowest scoring trajectories"""
@@ -69,67 +70,67 @@ class ComparativeExtractionOp(BaseLLMOp):
         """Get trajectory score"""
         return trajectory.score
 
-    def _extract_soft_comparative_experience(self, higher_traj: Trajectory, lower_traj: Trajectory) -> List[BaseMemory]:
-        """Extract soft comparative experience (high score vs low score)"""
+    def _extract_soft_comparative_task_memory(self, higher_traj: Trajectory, lower_traj: Trajectory) -> List[
+        BaseMemory]:
+        """Extract soft comparative task memory (high score vs low score)"""
         higher_steps = self._get_trajectory_steps(higher_traj)
         lower_steps = self._get_trajectory_steps(lower_traj)
         higher_score = self._get_trajectory_score(higher_traj)
         lower_score = self._get_trajectory_score(lower_traj)
 
         prompt = self.prompt_format(
-            prompt_name="soft_comparative_step_experience_prompt",
+            prompt_name="soft_comparative_step_task_memory_prompt",
             higher_steps=merge_messages_content(higher_steps),
             lower_steps=merge_messages_content(lower_steps),
             higher_score=f"{higher_score:.2f}",
             lower_score=f"{lower_score:.2f}"
         )
 
-        def parse_experiences(message: Message) -> List[BaseMemory]:
-            experiences_data = parse_json_experience_response(message.content)
-            experiences = []
+        def parse_task_memories(message: Message) -> List[BaseMemory]:
+            task_memories_data = parse_json_experience_response(message.content)
+            task_memories = []
 
-            for exp_data in experiences_data:
-                experience = TaskMemory(
+            for tm_data in task_memories_data:
+                task_memory = TaskMemory(
                     workspace_id=self.context.get("workspace_id", ""),
-                    when_to_use=exp_data.get("when_to_use", exp_data.get("condition", "")),
-                    content=exp_data.get("experience", ""),
+                    when_to_use=tm_data.get("when_to_use", tm_data.get("condition", "")),
+                    content=tm_data.get("experience", ""),
                     author=getattr(self.llm, 'model_name', 'system'),
-                    metadata=exp_data
+                    metadata=tm_data
                 )
-                experiences.append(experience)
+                task_memories.append(task_memory)
 
-            return experiences
+            return task_memories
 
-        return self.llm.chat(messages=[Message(content=prompt)], callback_fn=parse_experiences)
+        return self.llm.chat(messages=[Message(content=prompt)], callback_fn=parse_task_memories)
 
-
-    def _extract_hard_comparative_experience(self, success_steps: List[Message],
+    def _extract_hard_comparative_task_memory(self, success_steps: List[Message],
                                            failure_steps: List[Message], similarity_score: float) -> List[BaseMemory]:
-        """Extract hard comparative experience (success vs failure)"""
+        """Extract hard comparative task memory (success vs failure)"""
         prompt = self.prompt_format(
-            prompt_name="comparative_step_experience_prompt",
+            prompt_name="comparative_step_task_memory_prompt",
             success_steps=merge_messages_content(success_steps),
             failure_steps=merge_messages_content(failure_steps),
             similarity_score=similarity_score
         )
 
-        def parse_experiences(message: Message) -> List[BaseMemory]:
-            experiences_data = parse_json_experience_response(message.content)
-            experiences = []
+        def parse_task_memories(message: Message) -> List[BaseMemory]:
+            task_memories_data = parse_json_experience_response(message.content)
+            task_memories = []
 
-            for exp_data in experiences_data:
-                experience = TaskMemory(
+            for tm_data in task_memories_data:
+                task_memory = TaskMemory(
                     workspace_id=self.context.get("workspace_id", ""),
-                    when_to_use=exp_data.get("when_to_use", exp_data.get("condition", "")),
-                    content=exp_data.get("experience", ""),
+                    when_to_use=tm_data.get("when_to_use", tm_data.get("condition", "")),
+                    content=tm_data.get("experience", ""),
                     author=getattr(self.llm, 'model_name', 'system'),
-                    metadata=exp_data
+                    metadata=tm_data
                 )
-                experiences.append(experience)
+                task_memories.append(task_memory)
 
-            return experiences
+            return task_memories
 
-        return self.llm.chat(messages=[Message(content=prompt)], callback_fn=parse_experiences)
+        return self.llm.chat(messages=[Message(content=prompt)], callback_fn=parse_task_memories)
 
 
     def _get_trajectory_steps(self, trajectory: Trajectory) -> List[Message]:

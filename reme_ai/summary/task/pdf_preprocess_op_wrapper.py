@@ -1,13 +1,12 @@
-from typing import List, Dict, Any, Tuple
+from flowllm import C, BaseOp
 from loguru import logger
 
-from flowllm import C, BaseOp
-from .pdf_preprocess_op import MinerUPDFProcessor, chunk_pdf_content
+from reme_ai.utils.miner_u_pdf_processor import MinerUPDFProcessor, chunk_pdf_content
 
 
 @C.register_op()
 class PDFPreprocessOp(BaseOp):
-    current_path: str = __file__
+    file_path: str = __file__
 
     def execute(self):
         """Process PDF files using MinerU and chunk content"""

@@ -1,17 +1,17 @@
 import json
 from typing import List, Dict
 
+from flowllm import C, BaseLLMOp
 from loguru import logger
 
-from flowllm import C, BaseLLMOp
+from reme_ai.schema import Message, Trajectory
 from reme_ai.schema.memory import BaseMemory, TaskMemory
-from reme_ai.schema.message import Message, Trajectory
-from reme_ai.utils.memory_utils import merge_messages_content
+from reme_ai.utils.op_utils import merge_messages_content
 
 
 @C.register_op()
 class SimpleComparativeSummaryOp(BaseLLMOp):
-    current_path: str = __file__
+    file_path: str = __file__
 
     def compare_summary_trajectory(self, trajectory_a: Trajectory, trajectory_b: Trajectory) -> List[BaseMemory]:
         summary_prompt = self.prompt_format(prompt_name="summary_prompt",
@@ -21,22 +21,22 @@ class SimpleComparativeSummaryOp(BaseLLMOp):
 
         def parse_content(message: Message):
             content = message.content
-            experience_list = []
+            task_memory_list = []
             try:
                 content = content.split("```")[1].strip()
                 if content.startswith("json"):
                     content = content.strip("json")
 
-                for exp_dict in json.loads(content):
-                    when_to_use = exp_dict.get("when_to_use", "").strip()
-                    experience = exp_dict.get("experience", "").strip()
-                    if when_to_use and experience:
-                        experience_list.append(TaskMemory(workspace_id=self.context.get("workspace_id", ""),
+                for tm_dict in json.loads(content):
+                    when_to_use = tm_dict.get("when_to_use", "").strip()
+                    task_memory_content = tm_dict.get("experience", "").strip()
+                    if when_to_use and task_memory_content:
+                        task_memory_list.append(TaskMemory(workspace_id=self.context.get("workspace_id", ""),
                                                               when_to_use=when_to_use,
-                                                              content=experience,
+                                                           content=task_memory_content,
                                                               author=getattr(self.llm, 'model_name', 'system')))
 
-                return experience_list
+                return task_memory_list
 
             except Exception as e:
                 logger.exception(f"parse content failed!\n{content}")
@@ -53,17 +53,17 @@ class SimpleComparativeSummaryOp(BaseLLMOp):
                 task_id_dict[trajectory.task_id] = []
             task_id_dict[trajectory.task_id].append(trajectory)
 
-        experience_list = []
+        task_memory_list = []
         for task_id, task_trajectories in task_id_dict.items():
             task_trajectories: List[Trajectory] = sorted(task_trajectories, key=lambda x: x.score, reverse=True)
             if len(task_trajectories) < 2:
                 continue
 
             if task_trajectories[0].score > task_trajectories[-1].score:
-                experiences = self.compare_summary_trajectory(trajectory_a=task_trajectories[0],
+                task_memories = self.compare_summary_trajectory(trajectory_a=task_trajectories[0],
                                                              trajectory_b=task_trajectories[-1])
-                experience_list.extend(experiences)
+                task_memory_list.extend(task_memories)
 
-        self.context.comparative_summary_experiences = experience_list
-        for e in experience_list:
-            logger.info(f"add experience when_to_use={e.when_to_use}\ncontent={e.content}")
+        self.context.comparative_summary_task_memories = task_memory_list
+        for tm in task_memory_list:
+            logger.info(f"add task memory when_to_use={tm.when_to_use}\ncontent={tm.content}")

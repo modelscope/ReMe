@@ -1,7 +1,7 @@
-failure_step_experience_prompt: |
+failure_step_task_memory_prompt: |
   You are an expert AI analyst reviewing failed step sequences from an AI agent execution.
   
-  Your task is to extract learning experiences from failures to prevent similar mistakes in future executions.
+  Your task is to extract learning task memories from failures to prevent similar mistakes in future executions.
   Focus on identifying error patterns, missed opportunities, and alternative approaches.
   
   ANALYSIS FRAMEWORK:

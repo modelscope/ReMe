@@ -1,56 +1,57 @@
+import json
 import re
 from typing import List, Dict, Any
-from loguru import logger
-import json
 
 from flowllm import C, BaseLLMOp
+from loguru import logger
+
+from reme_ai.schema import Message
 from reme_ai.schema.memory import BaseMemory
-from reme_ai.schema.message import Message
 
 
 @C.register_op()
-class ExperienceValidationOp(BaseLLMOp):
-    current_path: str = __file__
+class TaskMemoryValidationOp(BaseLLMOp):
+    file_path: str = __file__
 
     def execute(self):
-        """Validate quality of extracted experiences"""
-        experiences: List[BaseMemory] = self.context.get("experiences", [])
-        
-        if not experiences:
-            logger.info("No experiences found for validation")
+        """Validate quality of extracted task memories"""
+        task_memories: List[BaseMemory] = self.context.get("task_memories", [])
+
+        if not task_memories:
+            logger.info("No task memories found for validation")
             return
 
-        logger.info(f"Validating {len(experiences)} extracted experiences")
+        logger.info(f"Validating {len(task_memories)} extracted task memories")
 
-        # Validate experiences
-        validated_experiences = []
-        
-        for experience in experiences:
-            validation_result = self._validate_single_experience(experience)
+        # Validate task memories
+        validated_task_memories = []
+
+        for task_memory in task_memories:
+            validation_result = self._validate_single_task_memory(task_memory)
             if validation_result and validation_result.get("is_valid", False):
-                validated_experiences.append(experience)
+                validated_task_memories.append(task_memory)
             else:
                 reason = validation_result.get("reason", "Unknown reason") if validation_result else "Validation failed"
-                logger.warning(f"Experience validation failed: {reason}")
+                logger.warning(f"Task memory validation failed: {reason}")
 
-        logger.info(f"Validated {len(validated_experiences)} out of {len(experiences)} experiences")
+        logger.info(f"Validated {len(validated_task_memories)} out of {len(task_memories)} task memories")
         
         # Update context
-        self.context.validated_experiences = validated_experiences
+        self.context.validated_task_memories = validated_task_memories
 
-    def _validate_single_experience(self, experience: BaseMemory) -> Dict[str, Any]:
-        """Validate single experience"""
-        validation_info = self._llm_validate_experience(experience)
+    def _validate_single_task_memory(self, task_memory: BaseMemory) -> Dict[str, Any]:
+        """Validate single task memory"""
+        validation_info = self._llm_validate_task_memory(task_memory)
         logger.info(f"Validating: {validation_info}")
         return validation_info
 
-    def _llm_validate_experience(self, experience: BaseMemory) -> Dict[str, Any]:
-        """Validate experience using LLM"""
+    def _llm_validate_task_memory(self, task_memory: BaseMemory) -> Dict[str, Any]:
+        """Validate task memory using LLM"""
         try:
             prompt = self.prompt_format(
-                prompt_name="experience_validation_prompt",
-                condition=experience.when_to_use,
-                experience_content=experience.content
+                prompt_name="task_memory_validation_prompt",
+                condition=task_memory.when_to_use,
+                task_memory_content=task_memory.content
             )
 
             def parse_validation(message: Message) -> Dict[str, Any]:
