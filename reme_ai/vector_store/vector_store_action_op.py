@@ -51,7 +51,7 @@ class VectorStoreActionOp(BaseLLMOp):
             result = self.vector_store.update_utility(workspace_id=workspace_id, node_ids=memory_ids)
         
         elif action == "utility_based_delete":
-            freq_threshold: float = self.context.freq_threshold
+            freq_threshold: int = self.context.freq_threshold
             utility_threshold: float = self.context.utility_threshold
             result = self.vector_store.utility_based_delete(workspace_id=workspace_id, 
                                                             freq_threshold=freq_threshold, 

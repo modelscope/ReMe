@@ -64,15 +64,13 @@ flow:
 
     vector_store:
       flow_content: vector_store_action_op
-      description: "A React-capable agent that can utilize web search and code execution tools."
+      description: "directly operate the vector store."
       input_schema:
-        query:
+        action:
           type: "str"
-          description: "current query"
+          description: "vector store operations"
           required: true
-
-#  vector_store: vector_store_action_op
-#  agent: react_op
+          enum: [ copy, delete, delete_ids, dump, load ]
 
 llm:
   default:
