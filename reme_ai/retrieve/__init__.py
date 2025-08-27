@@ -1,2 +1,2 @@
-from reme_ai.retrieve import task
-from reme_ai.retrieve import personal
+from . import task
+from . import personal

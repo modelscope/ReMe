@@ -6,7 +6,7 @@ from reme_ai.schema.memory import BaseMemory
 
 
 @C.register_op()
-class TaskMemoryDeduplicationOp(BaseOp):
+class MemoryDeduplicationOp(BaseOp):
     file_path: str = __file__
 
     def execute(self):
