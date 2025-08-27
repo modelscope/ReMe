@@ -110,7 +110,7 @@ class ComparativeExtractionOp(BaseLLMOp):
                                            failure_steps: List[Message], similarity_score: float) -> List[BaseMemory]:
         """Extract hard comparative task memory (success vs failure)"""
         prompt = self.prompt_format(
-            prompt_name="comparative_step_task_memory_prompt",
+            prompt_name="hard_comparative_step_task_memory_prompt",
             success_steps=merge_messages_content(success_steps),
             failure_steps=merge_messages_content(failure_steps),
             similarity_score=similarity_score

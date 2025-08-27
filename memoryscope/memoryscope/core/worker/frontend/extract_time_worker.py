@@ -15,7 +15,7 @@ class ExtractTimeWorker(MemoryBaseWorker):
     """
 
     EXTRACT_TIME_PATTERN = r"-\s*(\S+)[：:]\s*(\S+)"
-    FILE_PATH: str = __file__
+    file_path: str = __file__
 
     def _parse_params(self, **kwargs):
         self.generation_model_kwargs: dict = kwargs.get("generation_model_kwargs", {})

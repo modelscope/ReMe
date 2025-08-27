@@ -16,7 +16,7 @@ from memoryscope.scheme.message import Message
 
 
 class MemoryBaseWorker(BaseWorker, metaclass=ABCMeta):
-    FILE_PATH: str = __file__
+    file_path: str = __file__
 
     def __init__(self,
                  embedding_model: str = "",

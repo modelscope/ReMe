@@ -63,8 +63,7 @@ class RerankMemoryOp(BaseLLMOp):
             prompt_name="memory_rerank_prompt",
             query=query,
             candidates=candidates_text,
-            num_candidates=len(candidates)
-        )
+            num_candidates=len(candidates))
 
         response = self.llm.chat([Message(role=Role.USER, content=prompt)])
 

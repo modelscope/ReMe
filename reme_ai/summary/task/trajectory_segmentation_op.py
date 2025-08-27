@@ -37,7 +37,7 @@ class TrajectorySegmentationOp(BaseLLMOp):
         logger.info(f"Segmented {segmented_count} trajectories")
         
         # Update context with segmented trajectories
-        self.context.segmented_trajectories = target_trajectories
+
 
     def _get_target_trajectories(self, all_trajectories: List[Trajectory],
                                  success_trajectories: List[Trajectory],
@@ -60,8 +60,7 @@ class TrajectorySegmentationOp(BaseLLMOp):
             prompt_name="step_segmentation_prompt",
             query=trajectory.metadata.get('query', ''),
             trajectory_content=trajectory_content,
-            total_steps=len(trajectory.messages)
-        )
+            total_steps=len(trajectory.messages))
 
         def parse_segmentation(message: Message) -> List[List[Message]]:
             content = message.content

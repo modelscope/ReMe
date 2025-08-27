@@ -17,7 +17,7 @@ class LongContraRepeatWorker(MemoryBaseWorker):
     to provide specialized functionality for long conversations with potential
     contradictory or repetitive statements.
     """
-    FILE_PATH: str = __file__
+    file_path: str = __file__
 
     def _parse_params(self, **kwargs):
         self.unit_test_flag = False

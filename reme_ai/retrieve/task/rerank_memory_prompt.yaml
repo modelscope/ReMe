@@ -1,4 +1,4 @@
-experience_rerank_prompt: |
+memory_rerank_prompt: |
   You are an expert AI analyst tasked with reranking retrieved experiences based on their relevance to a specific query.
   
   Your task is to analyze the candidates and rank them by relevance, considering:

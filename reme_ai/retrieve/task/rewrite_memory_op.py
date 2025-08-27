@@ -70,8 +70,7 @@ class RewriteMemoryOp(BaseLLMOp):
                 prompt_name="memory_rewrite_prompt",
                 current_query=query,
                 current_context=current_context,
-                original_context=context_content
-            )
+                original_context=context_content)
 
             response = self.llm.chat([Message(role=Role.USER, content=prompt)])
 

@@ -20,7 +20,7 @@ class ContraRepeatWorker(MemoryBaseWorker):
     - Adjusts the status of memory nodes based on the analysis.
     - Persists the updated node statuses back into memory.
     """
-    FILE_PATH: str = __file__
+    file_path: str = __file__
 
     def _parse_params(self, **kwargs):
         self.generation_model_kwargs: dict = kwargs.get("generation_model_kwargs", {})

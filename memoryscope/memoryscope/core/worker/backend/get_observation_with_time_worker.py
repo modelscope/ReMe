@@ -12,7 +12,7 @@ class GetObservationWithTimeWorker(GetObservationWorker):
     A specialized worker class that extends GetObservationWorker functionality to handle
     retrieval of observations which include associated timestamp information from chat messages.
     """
-    FILE_PATH: str = __file__
+    file_path: str = __file__
     OBS_STORE_KEY: str = NEW_OBS_WITH_TIME_NODES
 
     def filter_messages(self) -> List[Message]:

@@ -15,12 +15,11 @@ class MemoryValidationOp(BaseLLMOp):
 
     def execute(self):
         """Validate quality of extracted task memories"""
-        self.context.memory_list = []
-        self.context.memory_list.append(self.context.success_task_memories)
-        self.context.memory_list.append(self.context.failure_task_memories)
-        self.context.memory_list.append(self.context.comparative_task_memories)
 
-        task_memories: List[BaseMemory] = self.context.memory_list
+        task_memories: List[BaseMemory] = []
+        task_memories.extend(self.context.success_task_memories)
+        task_memories.extend(self.context.failure_task_memories)
+        task_memories.extend(self.context.comparative_task_memories)
 
         if not task_memories:
             logger.info("No task memories found for validation")
@@ -34,6 +33,7 @@ class MemoryValidationOp(BaseLLMOp):
         for task_memory in task_memories:
             validation_result = self._validate_single_task_memory(task_memory)
             if validation_result and validation_result.get("is_valid", False):
+                task_memory.score = validation_result.get("score", 0.0)
                 validated_task_memories.append(task_memory)
             else:
                 reason = validation_result.get("reason", "Unknown reason") if validation_result else "Validation failed"
@@ -42,7 +42,8 @@ class MemoryValidationOp(BaseLLMOp):
         logger.info(f"Validated {len(validated_task_memories)} out of {len(task_memories)} task memories")
         
         # Update context
-        self.context.memory_list = validated_task_memories
+        self.context.response.answer = json.dumps([x.model_dump() for x in validated_task_memories])
+        self.context.response.metadata["memory_list"] = validated_task_memories
 
     def _validate_single_task_memory(self, task_memory: BaseMemory) -> Dict[str, Any]:
         """Validate single task memory"""
@@ -56,8 +57,7 @@ class MemoryValidationOp(BaseLLMOp):
             prompt = self.prompt_format(
                 prompt_name="task_memory_validation_prompt",
                 condition=task_memory.when_to_use,
-                task_memory_content=task_memory.content
-            )
+                task_memory_content=task_memory.content)
 
             def parse_validation(message: Message) -> Dict[str, Any]:
                 try:

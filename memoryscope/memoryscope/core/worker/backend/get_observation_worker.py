@@ -15,7 +15,7 @@ class GetObservationWorker(MemoryBaseWorker):
     """
     A specialized worker class to generate the observations from the original chat histories.
     """
-    FILE_PATH: str = __file__
+    file_path: str = __file__
     OBS_STORE_KEY: str = NEW_OBS_NODES
 
     def _parse_params(self, **kwargs):
