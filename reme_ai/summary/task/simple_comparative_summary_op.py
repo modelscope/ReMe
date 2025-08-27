@@ -66,6 +66,6 @@ class SimpleComparativeSummaryOp(BaseLLMOp):
                 memory_list.extend(task_memories)
 
         self.context.response.answer = json.dumps([x.model_dump() for x in memory_list])
-        self.context.memory_list = memory_list
+        self.context.response.metadata["memory_list"] = memory_list
         for tm in memory_list:
             logger.info(f"add task memory when_to_use={tm.when_to_use}\ncontent={tm.content}")

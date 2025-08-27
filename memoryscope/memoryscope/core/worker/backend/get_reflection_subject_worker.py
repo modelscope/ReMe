@@ -16,7 +16,7 @@ class GetReflectionSubjectWorker(MemoryBaseWorker):
     generating reflection prompts with current insights, invoking an LLM for fresh insights,
     parsing the LLM responses, forming new insight nodes, and updating memory statuses accordingly.
     """
-    FILE_PATH: str = __file__
+    file_path: str = __file__
 
     def _parse_params(self, **kwargs):
         self.reflect_obs_cnt_threshold: int = kwargs.get("reflect_obs_cnt_threshold", 10)

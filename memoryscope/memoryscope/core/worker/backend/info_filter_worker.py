@@ -13,7 +13,7 @@ class InfoFilterWorker(MemoryBaseWorker):
     model to process this prompt, parses the AI's generated response to allocate scores, and ultimately retains
     messages in `self.chat_messages` based on these assigned scores.
     """
-    FILE_PATH: str = __file__
+    file_path: str = __file__
 
     def _parse_params(self, **kwargs):
         self.preserved_scores: str = kwargs.get("preserved_scores", "2,3")

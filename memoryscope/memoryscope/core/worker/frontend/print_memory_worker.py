@@ -12,7 +12,7 @@ class PrintMemoryWorker(MemoryBaseWorker):
     """
     Formats the memories to print.
     """
-    FILE_PATH: str = __file__
+    file_path: str = __file__
 
     def _run(self):
         """

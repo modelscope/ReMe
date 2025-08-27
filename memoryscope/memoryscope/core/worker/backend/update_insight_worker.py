@@ -18,7 +18,7 @@ class UpdateInsightWorker(MemoryBaseWorker):
     generates refreshed insights via an LLM, and manages node statuses and content updates,
     incorporating features for concurrent execution and logging.
     """
-    FILE_PATH: str = __file__
+    file_path: str = __file__
 
     def _parse_params(self, **kwargs):
         self.update_insight_threshold: float = kwargs.get("update_insight_threshold", 0.1)

@@ -8,7 +8,7 @@ from memoryscope.enumeration.message_role_enum import MessageRoleEnum
 
 class ExampleQueryWorker(MemoryBaseWorker):
     # NOTE: If you want to utilize the capabilities of the prompt handler, please be sure to include this sentence.
-    FILE_PATH: str = __file__
+    file_path: str = __file__
 
     def _parse_params(self, **kwargs):
         self.rewrite_history_count: int = kwargs.get("rewrite_history_count", 2)

@@ -1,6 +1,5 @@
 import datetime
 from abc import ABC
-from typing import List
 from uuid import uuid4
 
 from flowllm.schema.vector_node import VectorNode
@@ -67,39 +66,80 @@ class TaskMemory(BaseMemory):
                    metadata=node.metadata.get("metadata"))
 
 
-class FunctionArg(BaseModel):
-    arg_name: str = Field(default=...)
-    arg_type: str = Field(default=...)
-    required: bool = Field(default=True)
-
-
-class Function(BaseModel):
-    func_code: str = Field(default=..., description="function code")
-    func_name: str = Field(default=..., description="function name")
-    func_args: List[FunctionArg] = Field(default_factory=list)
-
-
-class FuncMemory(BaseMemory):
-    memory_type: str = Field(default="function")
-    functions: List[Function] = Field(default_factory=list)
-
-
 class PersonalMemory(BaseMemory):
     memory_type: str = Field(default="personal")
     target: str = Field(default="")
+    reflection_subject: str = Field(default="")  # For storing reflection subject attributes
+
+    def to_vector_node(self) -> VectorNode:
+        return VectorNode(unique_id=self.memory_id,
+                          workspace_id=self.workspace_id,
+                          content=self.when_to_use,
+                          metadata={
+                              "memory_type": self.memory_type,
+                              "content": self.content,
+                              "target": self.target,
+                              "reflection_subject": self.reflection_subject,
+                              "score": self.score,
+                              "created_time": self.created_time,
+                              "modified_time": self.modified_time,
+                              "author": self.author,
+                              "metadata": self.metadata,
+                          })
+
+    @classmethod
+    def from_vector_node(cls, node: VectorNode) -> "PersonalMemory":
+        return cls(workspace_id=node.workspace_id,
+                   memory_id=node.unique_id,
+                   memory_type=node.metadata.get("memory_type"),
+                   when_to_use=node.content,
+                   content=node.metadata.get("content"),
+                   target=node.metadata.get("target", ""),
+                   reflection_subject=node.metadata.get("reflection_subject", ""),
+                   score=node.metadata.get("score"),
+                   created_time=node.metadata.get("created_time"),
+                   modified_time=node.metadata.get("modified_time"),
+                   author=node.metadata.get("author"),
+                   metadata=node.metadata.get("metadata"))
 
 
 class PersonalTopicMemory(PersonalMemory):
     memory_type: str = Field(default="personal_topic")
+
+    def to_vector_node(self) -> VectorNode:
+        return VectorNode(unique_id=self.memory_id,
+                          workspace_id=self.workspace_id,
+                          content=self.when_to_use,
+                          metadata={
+                              "memory_type": self.memory_type,
+                              "content": self.content,
+                              "target": self.target,
+                              "score": self.score,
+                              "created_time": self.created_time,
+                              "modified_time": self.modified_time,
+                              "author": self.author,
+                              "metadata": self.metadata,
+                          })
+
+    @classmethod
+    def from_vector_node(cls, node: VectorNode) -> "PersonalTopicMemory":
+        return cls(workspace_id=node.workspace_id,
+                   memory_id=node.unique_id,
+                   memory_type=node.metadata.get("memory_type"),
+                   when_to_use=node.content,
+                   content=node.metadata.get("content"),
+                   target=node.metadata.get("target", ""),
+                   score=node.metadata.get("score"),
+                   created_time=node.metadata.get("created_time"),
+                   modified_time=node.metadata.get("modified_time"),
+                   author=node.metadata.get("author"),
+                   metadata=node.metadata.get("metadata"))
 
 
 def vector_node_to_memory(node: VectorNode) -> BaseMemory:
     memory_type = node.metadata.get("memory_type")
     if memory_type == "task":
         return TaskMemory.from_vector_node(node)
-
-    elif memory_type == "function":
-        return FuncMemory.from_vector_node(node)
 
     elif memory_type == "personal":
         return PersonalMemory.from_vector_node(node)
@@ -115,9 +155,6 @@ def dict_to_memory(memory_dict: dict):
     memory_type = memory_dict.get("memory_type", "task")
     if memory_type == "task":
         return TaskMemory(**memory_dict)
-
-    elif memory_type == "function":
-        return FuncMemory(**memory_dict)
 
     elif memory_type == "personal":
         return PersonalMemory(**memory_dict)

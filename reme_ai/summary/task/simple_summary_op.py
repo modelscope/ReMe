@@ -62,6 +62,6 @@ class SimpleSummaryOp(BaseLLMOp):
                 memory_list.extend(memories)
 
         self.context.response.answer = json.dumps([x.model_dump() for x in memory_list])
-        self.context.memory_list = memory_list
+        self.context.response.metadata["memory_list"] = memory_list
         for memory in memory_list:
             logger.info(f"add memory: when_to_use={memory.when_to_use}\ncontent={memory.content}")
