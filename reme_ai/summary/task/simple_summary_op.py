@@ -52,7 +52,7 @@ class SimpleSummaryOp(BaseLLMOp):
         return self.llm.chat(messages=[Message(content=summary_prompt)], callback_fn=parse_content)
 
     def execute(self):
-        trajectories: list = self.context.get("trajectories", [])
+        trajectories: list = self.context.trajectories
         trajectories: List[Trajectory] = [Trajectory(**x) if isinstance(x, dict) else x for x in trajectories]
 
         memory_list: List[BaseMemory] = []

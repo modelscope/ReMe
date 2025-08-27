@@ -14,7 +14,7 @@ class SuccessExtractionOp(BaseLLMOp):
 
     def execute(self):
         """Extract task memories from successful trajectories"""
-        success_trajectories: List[Trajectory] = self.context.get("success_trajectories", [])
+        success_trajectories: List[Trajectory] = self.context.success_trajectories
         
         if not success_trajectories:
             logger.info("No success trajectories found for extraction")

@@ -62,15 +62,15 @@ flow:
         description: "current query"
         required: true
 
-    vector_store:
-      flow_content: vector_store_action_op
-      description: "directly operate the vector store."
-      input_schema:
-        action:
-          type: "str"
-          description: "vector store operations"
-          required: true
-          enum: [ copy, delete, delete_ids, dump, load ]
+  vector_store:
+    flow_content: vector_store_action_op
+    description: "directly operate the vector store."
+    input_schema:
+      action:
+        type: "str"
+        description: "vector store operations"
+        required: true
+        enum: [ copy, delete, delete_ids, dump, load ]
 
 llm:
   default:
