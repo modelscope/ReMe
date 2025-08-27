@@ -1,3 +1,4 @@
+import re
 from typing import List
 
 from flowllm import C, BaseLLMOp
@@ -5,7 +6,6 @@ from flowllm.schema.message import Message
 from loguru import logger
 
 from reme_ai.schema.memory import PersonalMemory
-from reme_ai.utils.op_utils import parse_update_insight_response
 
 
 @C.register_op()
@@ -19,107 +19,132 @@ class UpdateInsightOp(BaseLLMOp):
 
     def execute(self):
         """
-        Executes the main routine of the UpdateInsightOp. This involves filtering and updating insight nodes
-        based on their association with observed nodes.
+        Update insight values based on new observation memories.
+        
+        Process:
+        1. Get insight subjects and personal memories from context
+        2. Find relevant observations for each insight subject
+        3. Update insight values using LLM integration
+        4. Store updated insights in context
         """
-        # Get insight memories from context
-        insight_memories: List[PersonalMemory] = self.context.response.metadata.get("insight_memories", [])
-        observation_memories: List[PersonalMemory] = self.context.response.metadata.get("observation_memories", [])
+        # Get memories from previous operations
+        insight_memories = self.context.response.metadata.get("insight_memories", [])
+        personal_memories = self.context.response.metadata.get("personal_memories", [])
 
         if not insight_memories:
-            logger.warning("insight_memories is empty, stopping processing.")
+            logger.info("No insight memories to update")
+            self.context.response.metadata["updated_insight_memories"] = []
             return
 
-        if not observation_memories:
-            logger.warning("observation_memories is empty, stopping processing.")
+        if not personal_memories:
+            logger.info("No observation memories available for insight updates")
+            self.context.response.metadata["updated_insight_memories"] = []
             return
 
         # Get operation parameters
-        update_insight_threshold: float = self.op_params.get("update_insight_threshold", 0.1)
-        update_insight_max_count: int = self.op_params.get("update_insight_max_count", 5)
+        update_insight_threshold = self.op_params.get("update_insight_threshold", 0.3)
+        update_insight_max_count = self.op_params.get("update_insight_max_count", 5)
         user_name = self.context.get("user_name", "user")
 
-        logger.info(
-            f"Processing {len(insight_memories)} insight memories with {len(observation_memories)} observations")
+        logger.info(f"Updating {len(insight_memories)} insights with {len(personal_memories)} observations")
 
-        # Filter and score insight memories based on relevance to observations
-        scored_insights = self._filter_and_score_insights(insight_memories, observation_memories,
-                                                          update_insight_threshold, user_name)
+        # Score and filter insights based on relevance to observations
+        scored_insights = self._score_insights_by_relevance(
+            insight_memories, personal_memories, update_insight_threshold
+        )
 
         if not scored_insights:
-            logger.warning("No relevant insights found after filtering")
+            logger.info("No insights meet relevance threshold for updating")
+            self.context.response.metadata["updated_insight_memories"] = []
             return
 
-        # Select top insights to update
+        # Select top insights for updating
         top_insights = sorted(scored_insights, key=lambda x: x[1], reverse=True)[:update_insight_max_count]
         logger.info(f"Selected {len(top_insights)} insights for updating")
 
         # Update each selected insight
         updated_insights = []
-        for insight_memory, score, relevant_observations in top_insights:
-            updated_insight = self._update_single_insight(insight_memory, relevant_observations, user_name)
+        for insight_memory, relevance_score, relevant_observations in top_insights:
+            updated_insight = self._update_insight_with_observations(
+                insight_memory, relevant_observations, user_name
+            )
             if updated_insight:
                 updated_insights.append(updated_insight)
 
-        # Store updated insights in context
+        # Store results in context
         self.context.response.metadata["updated_insight_memories"] = updated_insights
         logger.info(f"Successfully updated {len(updated_insights)} insight memories")
 
-    def _filter_and_score_insights(self, insight_memories: List[PersonalMemory],
+    def _score_insights_by_relevance(self, insight_memories: List[PersonalMemory],
                                    observation_memories: List[PersonalMemory],
-                                   threshold: float, user_name: str) -> List[tuple]:
+                                     threshold: float) -> List[tuple]:
         """
-        Filter and score insight memories based on their relevance to observation memories.
+        Score insight memories based on relevance to observation memories.
         
+        Args:
+            insight_memories: List of insight memories to score
+            observation_memories: List of observation memories for comparison
+            threshold: Minimum relevance score threshold
+            
         Returns:
-            List[tuple]: List of (insight_memory, max_score, relevant_observations)
+            List[tuple]: List of (insight_memory, relevance_score, relevant_observations)
         """
         scored_insights = []
 
         for insight_memory in insight_memories:
-            # For each insight, find observations that are relevant to the same subject
             relevant_observations = []
-            max_score = 0.0
+            max_relevance = 0.0
 
-            insight_subject = insight_memory.reflection_subject or ""
+            insight_subject = getattr(insight_memory, 'reflection_subject', '') or insight_memory.content
             insight_keywords = set(insight_memory.content.lower().split())
 
+            # Find observations relevant to this insight
             for obs_memory in observation_memories:
-                score = 0.0
+                relevance_score = self._calculate_relevance_score(
+                    insight_memory, obs_memory, insight_keywords
+                )
 
-                # If both have the same reflection subject, they're highly relevant
-                if (insight_subject and
-                        hasattr(obs_memory, 'reflection_subject') and
-                        obs_memory.reflection_subject == insight_subject):
-                    score = 0.8
-                else:
-                    # Otherwise, use keyword-based similarity
-                    obs_keywords = set(obs_memory.content.lower().split())
-                    intersection = len(insight_keywords.intersection(obs_keywords))
-                    union = len(insight_keywords.union(obs_keywords))
-                    score = intersection / union if union > 0 else 0.0
-
-                if score >= threshold:
+                if relevance_score >= threshold:
                     relevant_observations.append(obs_memory)
-                    max_score = max(max_score, score)
+                    max_relevance = max(max_relevance, relevance_score)
 
+            # Include insight if it has relevant observations
             if relevant_observations:
-                scored_insights.append((insight_memory, max_score, relevant_observations))
+                scored_insights.append((insight_memory, max_relevance, relevant_observations))
                 logger.info(
-                    f"Insight '{insight_memory.content[:50]}...' (subject: {insight_subject}) scored {max_score:.3f} with {len(relevant_observations)} relevant observations")
+                    f"Insight '{insight_subject[:40]}...' scored {max_relevance:.3f} with {len(relevant_observations)} observations"
+                )
 
         return scored_insights
 
-    def _update_single_insight(self, insight_memory: PersonalMemory,
-                               relevant_observations: List[PersonalMemory],
-                               user_name: str) -> PersonalMemory:
+    @staticmethod
+    def _calculate_relevance_score(insight_memory: PersonalMemory,
+                                   obs_memory: PersonalMemory, insight_keywords: set) -> float:
+        """Calculate relevance score between insight and observation memory"""
+        # High relevance for same reflection subject
+        insight_subject = getattr(insight_memory, 'reflection_subject', '')
+        obs_subject = getattr(obs_memory, 'reflection_subject', '')
+
+        if insight_subject and obs_subject and insight_subject == obs_subject:
+            return 0.9
+
+        # Medium relevance for keyword overlap
+        obs_keywords = set(obs_memory.content.lower().split())
+        intersection = len(insight_keywords.intersection(obs_keywords))
+        union = len(insight_keywords.union(obs_keywords))
+
+        return intersection / union if union > 0 else 0.0
+
+    def _update_insight_with_observations(self, insight_memory: PersonalMemory,
+                                          relevant_observations: List[PersonalMemory],
+                                          user_name: str) -> PersonalMemory:
         """
         Update a single insight memory based on relevant observations using LLM.
         
         Args:
             insight_memory: The insight memory to update
             relevant_observations: List of relevant observation memories
-            user_name: The target user name
+            user_name: The target username
             
         Returns:
             PersonalMemory: Updated insight memory or None if update failed
@@ -150,7 +175,7 @@ class UpdateInsightOp(BaseLLMOp):
             logger.info(f"update_insight_response={response_text}")
 
             # Parse the response to extract updated insight
-            updated_content = parse_update_insight_response(response_text, self.language)
+            updated_content = UpdateInsightOp.parse_update_insight_response(response_text, self.language)
 
             if not updated_content or updated_content.lower() in ['无', 'none', '']:
                 logger.info(f"No update needed for insight: {insight_memory.content[:50]}...")
@@ -187,3 +212,33 @@ class UpdateInsightOp(BaseLLMOp):
         except Exception as e:
             logger.error(f"Error updating insight: {e}")
             return insight_memory
+
+    @staticmethod
+    def parse_update_insight_response(response_text: str, language: str = "en") -> str:
+        """Parse update insight response to extract updated insight content"""
+        # Pattern to match both Chinese and English insight formats
+        # Chinese: {user_name}的资料: <信息>
+        # English: {user_name}'s profile: <Information>
+        if language in ["zh", "cn"]:
+            pattern = r"的资料[：:]\s*<([^<>]+)>"
+        else:
+            pattern = r"profile[：:]\s*<([^<>]+)>"
+
+        matches = re.findall(pattern, response_text, re.IGNORECASE | re.MULTILINE)
+
+        if matches:
+            insight_content = matches[0].strip()
+            logger.info(f"Parsed insight content: {insight_content}")
+            return insight_content
+
+        # Fallback: try to find content between angle brackets
+        fallback_pattern = r"<([^<>]+)>"
+        fallback_matches = re.findall(fallback_pattern, response_text)
+        if fallback_matches:
+            # Get the last match as it's likely the final answer
+            insight_content = fallback_matches[-1].strip()
+            logger.info(f"Parsed insight content (fallback): {insight_content}")
+            return insight_content
+
+        logger.warning("No insight content found in response")
+        return ""

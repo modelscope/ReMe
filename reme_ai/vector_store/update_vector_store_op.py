@@ -26,7 +26,7 @@ class UpdateVectorStoreOp(BaseLLMOp):
             logger.info(f"insert insert_node.size={len(insert_nodes)}")
 
         # Store results in context
-        self.context.update_result = {
+        self.context.response.metadata["update_result"] = {
             "deleted_count": len(deleted_memory_ids) if deleted_memory_ids else 0,
             "inserted_count": len(insert_memory_list) if insert_memory_list else 0
         }

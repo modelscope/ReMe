@@ -2,6 +2,8 @@ from flowllm import C, BaseLLMOp
 from flowllm.utils.llm_utils import merge_messages_content
 from loguru import logger
 
+from reme_ai.schema import Message, Role
+
 
 @C.register_op()
 class BuildQueryOp(BaseLLMOp):
@@ -14,7 +16,9 @@ class BuildQueryOp(BaseLLMOp):
         elif "messages" in self.context:
             if self.op_params.get("enable_llm_build", True):
                 execution_process = merge_messages_content(self.context.messages)
-                query = self.prompt_format(prompt_name="query_build", execution_process=execution_process)
+                prompt = self.prompt_format(prompt_name="query_build", execution_process=execution_process)
+                message = self.llm.chat(messages=[Message(role=Role.USER, content=prompt)])
+                query = message.content
 
             else:
                 context_parts = []

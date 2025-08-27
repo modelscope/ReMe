@@ -100,39 +100,6 @@ class PersonalMemory(BaseMemory):
                    metadata=node.metadata.get("metadata"))
 
 
-class PersonalTopicMemory(PersonalMemory):
-    memory_type: str = Field(default="personal_topic")
-
-    def to_vector_node(self) -> VectorNode:
-        return VectorNode(unique_id=self.memory_id,
-                          workspace_id=self.workspace_id,
-                          content=self.when_to_use,
-                          metadata={
-                              "memory_type": self.memory_type,
-                              "content": self.content,
-                              "target": self.target,
-                              "score": self.score,
-                              "created_time": self.created_time,
-                              "modified_time": self.modified_time,
-                              "author": self.author,
-                              "metadata": self.metadata,
-                          })
-
-    @classmethod
-    def from_vector_node(cls, node: VectorNode) -> "PersonalTopicMemory":
-        return cls(workspace_id=node.workspace_id,
-                   memory_id=node.unique_id,
-                   memory_type=node.metadata.get("memory_type"),
-                   when_to_use=node.content,
-                   content=node.metadata.get("content"),
-                   target=node.metadata.get("target", ""),
-                   score=node.metadata.get("score"),
-                   created_time=node.metadata.get("created_time"),
-                   modified_time=node.metadata.get("modified_time"),
-                   author=node.metadata.get("author"),
-                   metadata=node.metadata.get("metadata"))
-
-
 def vector_node_to_memory(node: VectorNode) -> BaseMemory:
     memory_type = node.metadata.get("memory_type")
     if memory_type == "task":
@@ -140,9 +107,6 @@ def vector_node_to_memory(node: VectorNode) -> BaseMemory:
 
     elif memory_type == "personal":
         return PersonalMemory.from_vector_node(node)
-
-    elif memory_type == "personal_topic":
-        return PersonalTopicMemory.from_vector_node(node)
 
     else:
         raise RuntimeError(f"memory_type={memory_type} not supported!")
@@ -155,9 +119,6 @@ def dict_to_experience(memory_dict: dict):
 
     elif memory_type == "personal":
         return PersonalMemory(**memory_dict)
-
-    elif memory_type == "personal_topic":
-        return PersonalTopicMemory(**memory_dict)
 
     else:
         raise RuntimeError(f"memory_type={memory_type} not supported!")

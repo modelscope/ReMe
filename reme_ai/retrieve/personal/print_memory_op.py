@@ -62,3 +62,70 @@ class PrintMemoryOp(BaseOp):
             formatted_memories.append(memory_text)
 
         return "\n".join(formatted_memories)
+
+    @staticmethod
+    def format_memories_for_output(memories: List) -> str:
+        """
+        Format memory list for output string.
+        
+        Args:
+            memories: List of memory objects
+            
+        Returns:
+            Formatted string
+        """
+        if not memories:
+            return ""
+
+        formatted_parts = []
+        for i, memory in enumerate(memories, 1):
+            when_to_use = getattr(memory, 'when_to_use', '') or memory.get('when_to_use', '')
+            content = getattr(memory, 'content', '') or memory.get('content', '')
+
+            part = f"Memory {i}:\n"
+            if when_to_use:
+                part += f"When to use: {when_to_use}\n"
+            if content:
+                part += f"Content: {content}\n"
+
+            formatted_parts.append(part)
+
+        return "\n".join(formatted_parts)
+
+    @staticmethod
+    def format_memories_for_simple_output(memories: List) -> str:
+        """
+        Format memory list for simple flow output.
+        
+        Args:
+            memories: List of memory objects
+            
+        Returns:
+            Formatted string suitable for response.answer
+        """
+        if not memories:
+            return "No relevant memories found."
+
+        content_parts = ["Previous Memory"]
+
+        for memory in memories:
+            # Safely get field values
+            when_to_use = getattr(memory, 'when_to_use', '') or memory.get('when_to_use', '')
+            content = getattr(memory, 'content', '') or memory.get('content', '')
+
+            # Skip memories with empty content
+            if not content:
+                continue
+
+            # Format individual memory
+            memory_text = f"- when_to_use: {when_to_use}\n  content: {content}"
+            content_parts.append(memory_text)
+
+        # If no valid memories, return empty message
+        if len(content_parts) == 1:  # Only title
+            return "No relevant memories with valid content found."
+
+        content_parts.append("\nPlease consider the helpful parts from these in answering the question, "
+                             "to make the response more comprehensive and substantial.")
+
+        return "\n".join(content_parts)

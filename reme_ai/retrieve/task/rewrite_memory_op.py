@@ -87,7 +87,8 @@ class RewriteMemoryOp(BaseLLMOp):
             logger.error(f"Error in context rewriting: {e}")
             return context_content
 
-    def _format_memories_for_context(self, memories: List[BaseMemory]) -> str:
+    @staticmethod
+    def _format_memories_for_context(memories: List[BaseMemory]) -> str:
         """Format memories for context generation"""
         formatted_memories = []
 
@@ -100,7 +101,8 @@ class RewriteMemoryOp(BaseLLMOp):
 
         return "\n".join(formatted_memories)
 
-    def _extract_context(self, messages: List[Message]) -> str:
+    @staticmethod
+    def _extract_context(messages: List[Message]) -> str:
         """Extract relevant context from messages"""
         if not messages:
             return ""
@@ -119,7 +121,8 @@ class RewriteMemoryOp(BaseLLMOp):
 
         return "\n\n".join(context_parts)
 
-    def _parse_json_response(self, response: str, key: str) -> str:
+    @staticmethod
+    def _parse_json_response(response: str, key: str) -> str:
         """Parse JSON response to extract specific key"""
         try:
             # Try to extract JSON blocks

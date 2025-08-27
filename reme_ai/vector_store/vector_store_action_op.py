@@ -42,26 +42,11 @@ class VectorStoreActionOp(BaseLLMOp):
                                                       path=path,
                                                       callback_fn=memory_dict_to_node)
 
-        elif action == "update_freq":
-            memory_ids: list = self.context.memory_ids
-            result = self.vector_store.update_freq(workspace_id=workspace_id, node_ids=memory_ids)
-        
-        elif action == "update_utility":
-            memory_ids: list = self.context.memory_ids
-            result = self.vector_store.update_utility(workspace_id=workspace_id, node_ids=memory_ids)
-        
-        elif action == "utility_based_delete":
-            freq_threshold: int = self.context.freq_threshold
-            utility_threshold: float = self.context.utility_threshold
-            result = self.vector_store.utility_based_delete(workspace_id=workspace_id, 
-                                                            freq_threshold=freq_threshold, 
-                                                            utility_threshold=utility_threshold)
-        
         else:
             raise ValueError(f"invalid action={action}")
 
         # Store results in context
         if isinstance(result, dict):
-            self.context.action_result = result
+            self.context.response.metadata["action_result"] = result
         else:
-            self.context.action_result = {"result": str(result)}
+            self.context.response.metadata["action_result"] = {"result": str(result)}

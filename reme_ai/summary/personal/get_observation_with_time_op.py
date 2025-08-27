@@ -1,3 +1,4 @@
+import re
 from typing import List
 
 from flowllm import C, BaseLLMOp
@@ -6,7 +7,6 @@ from loguru import logger
 
 from reme_ai.schema.memory import BaseMemory, PersonalMemory
 from reme_ai.utils.datetime_handler import DatetimeHandler
-from reme_ai.utils.op_utils import parse_observation_with_time_response
 
 
 @C.register_op()
@@ -18,8 +18,8 @@ class GetObservationWithTimeOp(BaseLLMOp):
 
     def execute(self):
         """Extract personal observations with time information from chat messages"""
-        # Get messages from context
-        messages: List[Message] = self.context.get("messages", [])
+        # Get messages from context - guaranteed to exist by flow input
+        messages: List[Message] = self.context.messages
         if not messages:
             logger.warning("No messages found in context")
             return
@@ -28,16 +28,17 @@ class GetObservationWithTimeOp(BaseLLMOp):
         filtered_messages = self._filter_messages(messages)
         if not filtered_messages:
             logger.warning("No messages with time keywords found")
+            self.context.observation_memories_with_time = []
             return
 
         logger.info(f"Extracting observations with time from {len(filtered_messages)} filtered messages")
 
         # Extract observations using LLM
-        observation_memories = self._extract_observations_with_time_from_messages(filtered_messages)
+        observation_memories_with_time = self._extract_observations_with_time_from_messages(filtered_messages)
 
-        # Store results in context
-        self.context.response.metadata["observation_with_time_memories"] = observation_memories
-        logger.info(f"Generated {len(observation_memories)} observation memories with time")
+        # Store results in context using standardized key
+        self.context.observation_memories_with_time = observation_memories_with_time
+        logger.info(f"Generated {len(observation_memories_with_time)} observation memories with time")
 
     def _filter_messages(self, messages: List[Message]) -> List[Message]:
         """
@@ -92,8 +93,8 @@ class GetObservationWithTimeOp(BaseLLMOp):
             response_text = message.content
             logger.info(f"get_observation_with_time_response={response_text}")
 
-            # Parse observations using utility function
-            parsed_observations = parse_observation_with_time_response(response_text)
+            # Parse observations using class method
+            parsed_observations = GetObservationWithTimeOp.parse_observation_with_time_response(response_text)
 
             observation_memories = []
             for obs in parsed_observations:
@@ -127,3 +128,37 @@ class GetObservationWithTimeOp(BaseLLMOp):
         """Get language-specific colon word"""
         colon_dict = {"zh": "：", "cn": "：", "en": ": "}
         return colon_dict.get(self.language, ": ")
+
+    @staticmethod
+    def parse_observation_with_time_response(response_text: str) -> List[dict]:
+        """Parse observation with time response to extract structured data"""
+        # Pattern to match both Chinese and English observation formats with time information
+        # Chinese: 信息：<1> <时间信息或不输出> <明确的重要信息或"无"> <关键词>
+        # English: Information: <1> <Time information or do not output> <Clear important information or "None"> <Keywords>
+        pattern = r"信息：<(\d+)>\s*<([^<>]*)>\s*<([^<>]+)>\s*<([^<>]*)>|Information:\s*<(\d+)>\s*<([^<>]*)>\s*<([^<>]+)>\s*<([^<>]*)>"
+        matches = re.findall(pattern, response_text, re.IGNORECASE | re.MULTILINE)
+
+        observations = []
+        for match in matches:
+            # Handle both Chinese and English patterns
+            if match[0]:  # Chinese pattern
+                idx_str, time_info, content, keywords = match[0], match[1], match[2], match[3]
+            else:  # English pattern  
+                idx_str, time_info, content, keywords = match[4], match[5], match[6], match[7]
+
+            try:
+                idx = int(idx_str)
+                # Skip if content indicates no meaningful observation
+                content_lower = content.lower().strip()
+                if content_lower not in ['无', 'none', '', 'repeat']:
+                    observations.append({
+                        "index": idx,
+                        "time_info": time_info.strip() if time_info else "",
+                        "content": content.strip(),
+                        "keywords": keywords.strip() if keywords else ""
+                    })
+            except ValueError:
+                logger.warning(f"Invalid index format: {idx_str}")
+                continue
+
+        return observations

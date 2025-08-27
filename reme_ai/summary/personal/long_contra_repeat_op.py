@@ -1,3 +1,4 @@
+import re
 from typing import List
 
 from flowllm import C, BaseLLMOp
@@ -6,7 +7,6 @@ from flowllm.schema.message import Message
 from loguru import logger
 
 from reme_ai.schema.memory import BaseMemory, PersonalMemory
-from reme_ai.utils.op_utils import parse_long_contra_repeat_response
 
 
 @C.register_op()
@@ -21,78 +21,104 @@ class LongContraRepeatOp(BaseLLMOp):
 
     def execute(self):
         """
-        Executes the primary routine of the LongContraRepeatOp which involves:
-        1. Gets memory list from context
-        2. Retrieves similar memories for each memory
-        3. Constructs a prompt with these memories for language model analysis
-        4. Parses the model's response to detect contradictions or redundancies
-        5. Filters and returns the processed memories
+        Analyze memories for contradictions and redundancies, resolving conflicts.
+        
+        Process:
+        1. Get updated insight memories from previous operation
+        2. Check for contradictions and redundancies among memories
+        3. Resolve conflicts by keeping most recent/accurate information
+        4. Filter out redundant memories
+        5. Store cleaned memory list in context
         """
-        # Get memory list from context
-        memory_list: List[BaseMemory] = self.context.response.metadata.get("memory_list", [])
+        # Get memories from previous operation
+        updated_insights = self.context.response.metadata.get("updated_insight_memories", [])
 
-        if not memory_list:
-            logger.info("memory_list is empty!")
+        if not updated_insights:
+            logger.info("No updated insight memories to process for contradictions")
+            self.context.response.metadata["memory_list"] = []
             return
 
         # Get operation parameters
-        long_contra_repeat_max_count: int = self.op_params.get("long_contra_repeat_max_count", 50)
-        enable_long_contra_repeat: bool = self.op_params.get("enable_long_contra_repeat", True)
+        max_memories_to_process = self.op_params.get("long_contra_repeat_max_count", 50)
+        enable_processing = self.op_params.get("enable_long_contra_repeat", True)
 
-        if not enable_long_contra_repeat:
-            logger.warning("long_contra_repeat is not enabled!")
+        if not enable_processing:
+            logger.info("Long contradiction/repeat processing is disabled")
+            self.context.response.metadata["memory_list"] = updated_insights
             return
 
-        # Sort and limit memories by count
-        sorted_memories = sorted(memory_list, key=lambda x: getattr(x, 'created_time', ''), reverse=True)[
-            :long_contra_repeat_max_count]
+        # Sort memories by creation time (most recent first) and limit count
+        sorted_memories = sorted(
+            updated_insights,
+            key=lambda x: getattr(x, 'created_time', ''),
+            reverse=True
+        )[:max_memories_to_process]
 
         if len(sorted_memories) <= 1:
-            logger.info("sorted_memories.size<=1, stop.")
+            logger.info("Only one memory to process, skipping contradiction analysis")
+            self.context.response.metadata["memory_list"] = sorted_memories
             return
 
-        # Build prompt
-        user_query_list = []
-        for i, memory in enumerate(sorted_memories):
-            user_query_list.append(f"{i + 1} {memory.content}")
+        logger.info(f"Processing {len(sorted_memories)} memories for contradictions and redundancies")
 
+        # Analyze and resolve contradictions
+        filtered_memories = self._analyze_and_resolve_conflicts(sorted_memories)
+
+        # Store results in context
+        self.context.response.metadata["memory_list"] = filtered_memories
+        logger.info(f"Conflict resolution: {len(sorted_memories)} -> {len(filtered_memories)} memories")
+
+    def _analyze_and_resolve_conflicts(self, memories: List[BaseMemory]) -> List[BaseMemory]:
+        """
+        Analyze memories for contradictions and redundancies using LLM.
+        
+        Args:
+            memories: List of memories to analyze
+            
+        Returns:
+            List of filtered memories with conflicts resolved
+        """
         user_name = self.context.get("user_name", "user")
 
-        # Create prompt using the new pattern
-        system_prompt = self.prompt_format(prompt_name="long_contra_repeat_system",
-                                           num_obs=len(user_query_list),
-                                           user_name=user_name)
-        few_shot = self.prompt_format(prompt_name="long_contra_repeat_few_shot", user_name=user_name)
-        user_query = self.prompt_format(prompt_name="long_contra_repeat_user_query",
-                                        user_query="\n".join(user_query_list))
+        # Prepare memory content for LLM analysis
+        memory_texts = []
+        for i, memory in enumerate(memories):
+            memory_texts.append(f"{i + 1} {memory.content}")
+
+        # Build LLM prompt
+        system_prompt = self.prompt_format(
+            prompt_name="long_contra_repeat_system",
+            num_obs=len(memory_texts),
+            user_name=user_name
+        )
+        few_shot = self.prompt_format(
+            prompt_name="long_contra_repeat_few_shot",
+            user_name=user_name
+        )
+        user_query = self.prompt_format(
+            prompt_name="long_contra_repeat_user_query",
+            user_query="\n".join(memory_texts)
+        )
 
         full_prompt = f"{system_prompt}\n\n{few_shot}\n\n{user_query}"
-        logger.info(f"long_contra_repeat_prompt={full_prompt}")
+        logger.info(f"Contradiction analysis prompt length: {len(full_prompt)} chars")
 
-        # Call LLM
+        # Get LLM analysis
         response = self.llm.chat([Message(role=Role.USER, content=full_prompt)])
 
-        # Return if empty
         if not response or not response.content:
-            logger.warning("Empty response from LLM")
-            return
-
-        response_text = response.content
-        logger.info(f"long_contra_repeat_response={response_text}")
+            logger.warning("Empty response from LLM, keeping all memories")
+            return memories
 
         # Parse response and filter memories
-        filtered_memories = self._parse_and_filter_memories(response_text, sorted_memories, user_name)
+        return self._parse_and_filter_memories(response.content, memories, user_name)
 
-        # Update context with filtered memories
-        self.context.response.metadata["memory_list"] = filtered_memories
-        logger.info(f"Filtered {len(memory_list)} memories to {len(filtered_memories)} memories")
-
-    def _parse_and_filter_memories(self, response_text: str, memories: List[BaseMemory], user_name: str) -> List[
-        BaseMemory]:
+    @staticmethod
+    def _parse_and_filter_memories(response_text: str, memories: List[BaseMemory], user_name: str) -> List[BaseMemory]:
         """Parse LLM response and filter memories based on contradiction/containment analysis"""
 
-        # Use utility function to parse the response
-        judgments = parse_long_contra_repeat_response(response_text)
+        # Use class method to parse the response
+        judgments = LongContraRepeatOp.parse_long_contra_repeat_response(response_text)
 
         if not judgments:
             logger.warning("No valid judgments found in response")
@@ -155,3 +181,30 @@ class LongContraRepeatOp(BaseLLMOp):
     def get_language_value(self, value_dict: dict):
         """Get language-specific value from dictionary"""
         return value_dict.get(self.language, value_dict.get("en"))
+
+    @staticmethod
+    def parse_long_contra_repeat_response(response_text: str) -> List[tuple]:
+        """Parse long contra repeat response to extract judgments"""
+        # Pattern to match both Chinese and English judgment formats
+        # Chinese: 判断：<序号> <矛盾|被包含|无> <修改后的内容>
+        # English: Judgment: <Index> <Contradiction|Contained|None> <Modified content>
+        pattern = r"判断：<(\d+)>\s*<(矛盾|被包含|无)>\s*<([^<>]*)>|Judgment:\s*<(\d+)>\s*<(Contradiction|Contained|None)>\s*<([^<>]*)>"
+        matches = re.findall(pattern, response_text, re.IGNORECASE | re.MULTILINE)
+
+        judgments = []
+        for match in matches:
+            # Handle both Chinese and English patterns
+            if match[0]:  # Chinese pattern
+                idx_str, judgment, modified_content = match[0], match[1], match[2]
+            else:  # English pattern
+                idx_str, judgment, modified_content = match[3], match[4], match[5]
+
+            try:
+                idx = int(idx_str)
+                judgments.append((idx, judgment, modified_content))
+            except ValueError:
+                logger.warning(f"Invalid index format: {idx_str}")
+                continue
+
+        logger.info(f"Parsed {len(judgments)} long contra repeat judgments from response")
+        return judgments

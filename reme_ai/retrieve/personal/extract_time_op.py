@@ -40,7 +40,9 @@ class ExtractTimeOp(BaseLLMOp):
         # Identify if the query contains datetime keywords
         contain_datetime = DatetimeHandler.has_time_word(query, self.language)
         if not contain_datetime:
-            logger.info(f"contain_datetime={contain_datetime}")
+            logger.info(f"Query contains no datetime keywords: {contain_datetime}")
+            # Set empty time dict for downstream operations
+            self.context[EXTRACT_TIME_DICT] = {}
             return
 
         # Prepare the prompt with necessary contextual details
@@ -50,27 +52,46 @@ class ExtractTimeOp(BaseLLMOp):
         # Create message with system and few-shot examples
         system_prompt = self.prompt_format(prompt_name="extract_time_system")
         few_shot = self.prompt_format(prompt_name="extract_time_few_shot")
-        user_prompt = self.prompt_format(prompt_name="extract_time_user_query", query=query,
-                                         query_time_str=query_time_str)
+        user_prompt = self.prompt_format(prompt_name="extract_time_user_query",
+                                         query=query, query_time_str=query_time_str)
 
         full_prompt = f"{system_prompt}\n\n{few_shot}\n\n{user_prompt}"
-        logger.info(f"extract_time_prompt={full_prompt}")
+        logger.info(f"Extracting time from query: {query[:100]}...")
 
         # Invoke the LLM to generate a response
         response = self.llm.chat([Message(role=Role.USER, content=full_prompt)])
 
         # Handle empty or unsuccessful responses
         if not response or not response.content:
+            logger.warning("LLM returned empty response for time extraction")
+            self.context[EXTRACT_TIME_DICT] = {}
             return
+
         response_text = response.content
 
-        # Extract time information from the LLM's response using regex
+        # Extract and parse time information from the LLM's response
+        extract_time_dict = self._parse_time_from_response(response_text)
+
+        logger.info(f"Extracted time information: {extract_time_dict}")
+        self.context[EXTRACT_TIME_DICT] = extract_time_dict
+
+    def _parse_time_from_response(self, response_text: str) -> Dict[str, str]:
+        """
+        Parse time information from LLM response using regex.
+        
+        Args:
+            response_text: Raw LLM response content
+            
+        Returns:
+            Dictionary of extracted time information
+        """
         extract_time_dict: Dict[str, str] = {}
         matches = re.findall(self.EXTRACT_TIME_PATTERN, response_text)
         key_map: dict = DATATIME_KEY_MAP[DatetimeHandler.language_transform]
+
         for key, value in matches:
             if key in key_map.keys():
                 extract_time_dict[key_map[key]] = value
 
-        logger.info(f"response_text={response_text} matches={matches} filters={extract_time_dict}")
-        self.context[EXTRACT_TIME_DICT] = extract_time_dict
+        logger.debug(f"Time extraction - Response: {response_text[:200]}... Matches: {matches}")
+        return extract_time_dict

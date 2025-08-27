@@ -1,3 +1,4 @@
+import re
 from typing import List
 
 from flowllm import C, BaseLLMOp
@@ -6,7 +7,6 @@ from loguru import logger
 
 from reme_ai.schema.memory import BaseMemory, PersonalMemory
 from reme_ai.utils.datetime_handler import DatetimeHandler
-from reme_ai.utils.op_utils import parse_observation_response
 
 
 @C.register_op()
@@ -18,8 +18,8 @@ class GetObservationOp(BaseLLMOp):
 
     def execute(self):
         """Extract personal observations from chat messages"""
-        # Get messages from context
-        messages: List[Message] = self.context.get("messages", [])
+        # Get messages from context - guaranteed to exist by flow input
+        messages: List[Message] = self.context.messages
         if not messages:
             logger.warning("No messages found in context")
             return
@@ -28,6 +28,7 @@ class GetObservationOp(BaseLLMOp):
         filtered_messages = self._filter_messages(messages)
         if not filtered_messages:
             logger.warning("No messages left after filtering")
+            self.context.observation_memories = []
             return
 
         logger.info(f"Extracting observations from {len(filtered_messages)} filtered messages")
@@ -35,8 +36,8 @@ class GetObservationOp(BaseLLMOp):
         # Extract observations using LLM
         observation_memories = self._extract_observations_from_messages(filtered_messages)
 
-        # Store results in context
-        self.context.response.metadata["observation_memories"] = observation_memories
+        # Store results in context using standardized key
+        self.context.observation_memories = observation_memories
         logger.info(f"Generated {len(observation_memories)} observation memories")
 
     def _filter_messages(self, messages: List[Message]) -> List[Message]:
@@ -83,8 +84,8 @@ class GetObservationOp(BaseLLMOp):
             response_text = message.content
             logger.info(f"get_observation_response={response_text}")
 
-            # Parse observations using utility function
-            parsed_observations = parse_observation_response(response_text)
+            # Parse observations using class method
+            parsed_observations = GetObservationOp.parse_observation_response(response_text)
 
             observation_memories = []
             for obs in parsed_observations:
@@ -98,7 +99,7 @@ class GetObservationOp(BaseLLMOp):
                     workspace_id=self.context.get("workspace_id", ""),
                     content=obs["content"],
                     target=user_name,
-                    author=getattr(self.llm, "model_name", "system"),
+                    author=self.llm.model_name,
                     metadata={
                         "keywords": obs["keywords"],
                         "source_message": filtered_messages[idx].content,
@@ -113,6 +114,33 @@ class GetObservationOp(BaseLLMOp):
         # Use LLM chat with callback function
         return self.llm.chat(messages=[Message(content=full_prompt)], callback_fn=parse_observations)
 
-    def get_language_value(self, value_dict: dict):
-        """Get language-specific value from dictionary"""
-        return value_dict.get(self.language, value_dict.get("en"))
+    @staticmethod
+    def parse_observation_response(response_text: str) -> List[dict]:
+        """Parse observation response to extract structured data"""
+        # Pattern to match both Chinese and English observation formats
+        pattern = r"信息：<(\d+)>\s*<>\s*<([^<>]+)>\s*<([^<>]*)>|Information:\s*<(\d+)>\s*<>\s*<([^<>]+)>\s*<([^<>]*)>"
+        matches = re.findall(pattern, response_text, re.IGNORECASE | re.MULTILINE)
+
+        observations = []
+        for match in matches:
+            # Handle both Chinese and English patterns
+            if match[0]:  # Chinese pattern
+                idx_str, content, keywords = match[0], match[1], match[2]
+            else:  # English pattern  
+                idx_str, content, keywords = match[3], match[4], match[5]
+
+            try:
+                idx = int(idx_str)
+                # Skip if content indicates no meaningful observation
+                content_lower = content.lower().strip()
+                if content_lower not in ['无', 'none', '', 'repeat']:
+                    observations.append({
+                        "index": idx,
+                        "content": content.strip(),
+                        "keywords": keywords.strip() if keywords else ""
+                    })
+            except ValueError:
+                logger.warning(f"Invalid index format: {idx_str}")
+                continue
+
+        return observations
