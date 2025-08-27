@@ -24,6 +24,9 @@ class BaseMemory(BaseModel, ABC):
 
     def update_modified_time(self):
         self.modified_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    def update_metadata(self, new_metadata):
+        self.metadata = new_metadata
 
     def to_vector_node(self) -> VectorNode:
         raise NotImplementedError
@@ -108,7 +111,7 @@ def vector_node_to_memory(node: VectorNode) -> BaseMemory:
         raise RuntimeError(f"memory_type={memory_type} not supported!")
 
 
-def dict_to_experience(memory_dict: dict):
+def dict_to_memory(memory_dict: dict):
     memory_type = memory_dict.get("memory_type", "task")
     if memory_type == "task":
         return TaskMemory(**memory_dict)

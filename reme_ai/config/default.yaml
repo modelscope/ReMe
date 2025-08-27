@@ -53,6 +53,40 @@ flow:
         description: "A list of conversation trajectory information, including message content and score. This field does not need to be filled in, the system will complete it automatically."
         required: false
 
+  record_task_memory:
+    flow_content: update_memory_freq_op >> update_memory_utility_op >> update_vector_store_op
+    description: "Update the freq & utility attributes of retrieved task memories"
+    input_schema:
+      workspace_id:
+        type: "str"
+        description: "workspace id"
+        required: true
+      memory_dicts:
+        type: "list"
+        description: "A list of retrieved task memory corresponding to the current task."
+        required: true
+      update_utility:
+        type: "bool"
+        description: "Whether to update the utility attribute of the retrieved task memory."
+        required: true
+  
+  delete_task_memory:
+    flow_content: delete_memory_op >> update_vector_store_op
+    description: "Delete task memories when utility/freq < utility_threshold and freq >= freq_threshold"
+    input_schema:
+      workspace_id:
+        type: "str"
+        description: "workspace id"
+        required: true
+      freq_threshold:
+        type: "int"
+        description: "The retrieved frequency threshold for deleting task memory."
+        required: true
+      utility_threshold:
+        type: "float"
+        description: "The utility/freq threshold for deleting task memory."
+        required: true
+
   agent_task:
     flow_content: react_op
     description: "A React-capable agent that can utilize web search and code execution tools."
@@ -71,6 +105,22 @@ flow:
         description: "vector store operations"
         required: true
         enum: [ copy, delete, delete_ids, dump, load ]
+
+op:
+  # retriever ops
+  rerank_memory_op:
+    backend: rerank_memory_op
+    llm: default
+    params:
+      enable_llm_rerank: true
+      enable_score_filter: false
+      top_k: 5
+
+  rewrite_memory_op:
+    backend: rewrite_memory_op
+    llm: default
+    params:
+      enable_llm_rewrite: true
 
 llm:
   default:
