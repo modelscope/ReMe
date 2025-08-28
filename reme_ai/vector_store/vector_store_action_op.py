@@ -1,7 +1,7 @@
 from flowllm import C, BaseLLMOp
 from flowllm.schema.vector_node import VectorNode
 
-from reme_ai.schema.memory import vector_node_to_memory, dict_to_experience, BaseMemory
+from reme_ai.schema.memory import vector_node_to_memory, dict_to_memory, BaseMemory
 
 
 @C.register_op()
@@ -35,27 +35,12 @@ class VectorStoreActionOp(BaseLLMOp):
         elif action == "load":
             path: str = self.context.path
             def memory_dict_to_node(memory_dict: dict) -> VectorNode:
-                memory: BaseMemory = dict_to_experience(memory_dict=memory_dict)
+                memory: BaseMemory = dict_to_memory(memory_dict=memory_dict)
                 return memory.to_vector_node()
 
             result = self.vector_store.load_workspace(workspace_id=workspace_id,
                                                       path=path,
                                                       callback_fn=memory_dict_to_node)
-
-        elif action == "update_freq":
-            memory_ids: list = self.context.memory_ids
-            result = self.vector_store.update_freq(workspace_id=workspace_id, node_ids=memory_ids)
-        
-        elif action == "update_utility":
-            memory_ids: list = self.context.memory_ids
-            result = self.vector_store.update_utility(workspace_id=workspace_id, node_ids=memory_ids)
-        
-        elif action == "utility_based_delete":
-            freq_threshold: int = self.context.freq_threshold
-            utility_threshold: float = self.context.utility_threshold
-            result = self.vector_store.utility_based_delete(workspace_id=workspace_id, 
-                                                            freq_threshold=freq_threshold, 
-                                                            utility_threshold=utility_threshold)
         
         else:
             raise ValueError(f"invalid action={action}")
