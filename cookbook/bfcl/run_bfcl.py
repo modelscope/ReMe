@@ -1,7 +1,8 @@
 import os
 import time
 import ray
-from ray import logger
+# from ray import logger
+from loguru import logger
 
 from dotenv import load_dotenv
 
@@ -21,15 +22,15 @@ def run_agent(dataset_name: str,
               model_name: str = "qwen3-8b",
               data_path: str = "data/multiturn_data_base_val.jsonl",
               answer_path: Path = Path("data/possible_answer"),
-              use_experience: bool = False,         
-              use_fixed_experience: bool = True,    
-              use_experience_deletion: bool = False,
+              use_memory: bool = False,         
+              use_memory_addition: bool = True,    
+              use_memory_deletion: bool = False,
               delete_freq: int = 10,
               freq_threshold: int = 5,
               utility_threshold: float = 0.5,
               enable_thinking: bool = False,
-              experience_base_url: str = "http://0.0.0.0:8001/",
-              experience_workspace_id: str = "bfcl_8b_0725"):
+              memory_base_url: str = "http://0.0.0.0:8001/",
+              memory_workspace_id: str = "bfcl_test"):
     experiment_name = dataset_name + "_" + experiment_suffix
     path: Path = Path(f"./exp_result/{model_name}/with_think" if enable_thinking else f"./exp_result/{model_name}/no_think")
     path.mkdir(parents=True, exist_ok=True)
@@ -54,15 +55,15 @@ def run_agent(dataset_name: str,
             answer_path=answer_path,
             model_name=model_name,
             num_runs=num_runs,
-            use_experience=use_experience,
-            use_fixed_experience=use_fixed_experience,
-            use_experience_deletion=use_experience_deletion,
+            use_memory=use_memory,
+            use_memory_addition=use_memory_addition,
+            use_memory_deletion=use_memory_deletion,
             delete_freq=delete_freq,
             freq_threshold=freq_threshold,
             utility_threshold=utility_threshold,
             enable_thinking=enable_thinking,
-            experience_base_url=experience_base_url,
-            experience_workspace_id=experience_workspace_id
+            memory_base_url=memory_base_url,
+            memory_workspace_id=memory_workspace_id
         )
         future = actor.execute.remote()
         future_list.append(future)
@@ -83,32 +84,32 @@ def run_agent(dataset_name: str,
 
 def main():
     max_workers = 4
-    num_runs = 8
-    use_experience = False
-    use_fixed_experience = False
-    use_experience_deletion = True
-    experience_base_url = "http://0.0.0.0:8003/"
-    experience_workspace_id = "bfcl_train50_extract_compare_validate_add_delete_2"
+    num_runs = 1
+    use_memory = False
+    use_memory_addition = False
+    use_memory_deletion = False
+    memory_base_url = "http://0.0.0.0:8001/"
+    memory_workspace_id = "bfcl_test"
     if max_workers > 1:
         ray.init(num_cpus=max_workers)
     for run_id in range(num_runs):
         run_agent(
             dataset_name="bfcl-multi-turn-base", 
             experiment_suffix=f"wo-exp",
-            model_name="qwen3-14b",
+            model_name="qwen3-8b",
             max_workers=max_workers, 
             num_runs=1, 
-            data_path="data/multiturn_data_base_train.jsonl",
+            data_path="data/multiturn_data_base_val.jsonl",
             answer_path=Path("data/possible_answer"),
-            enable_thinking=True,
-            use_experience=use_experience,
-            use_fixed_experience=use_fixed_experience,
-            use_experience_deletion=use_experience_deletion,
+            enable_thinking=False,
+            use_memory=use_memory,
+            use_memory_addition=use_memory_addition,
+            use_memory_deletion=use_memory_deletion,
             delete_freq=5,
             freq_threshold=5,
             utility_threshold=0.5,
-            experience_base_url=experience_base_url,
-            experience_workspace_id=experience_workspace_id,
+            memory_base_url=memory_base_url,
+            memory_workspace_id=memory_workspace_id,
         )
 
 

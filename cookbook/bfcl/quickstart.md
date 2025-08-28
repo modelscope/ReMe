@@ -1,6 +1,6 @@
 # BFCL Experiment Quick Start Guide
 
-This guide helps you quickly set up and run BFCL experiments with ExperienceMaker integration.
+This guide helps you quickly set up and run BFCL experiments with ReMe integration.
 
 ## Env Setup
 
@@ -32,7 +32,7 @@ cp -r bfcl_eval/data {/path/to/bfcl/data}
 
 ### 2. Collect agent trajectories on training data set
 
-Run the main experiment script to collect agent trajectories on training data set without experience(`use_experience=False`):
+Run the main experiment script to collect agent trajectories on training data set without task memory(`use_memory=False`):
 
 ```bash
 python run_bfcl.py
@@ -40,29 +40,30 @@ python run_bfcl.py
 
 **Note**: 
 - `max_workers`: Number of parallel workers (default: `4`)
-- `num_runs`: Number of times each task is repeated (default: `4`)
+- `num_runs`: Number of times each task is repeated (default: `1`)
 - `model_name`: LLM model name (default: `qwen3-8b`)
 - `enable_thinking`: Control the model's thinking mode (default: `False`)
 - `data_path`: Path to the training dataset (default: `./data/multiturn_data_base_train.jsonl`)
 - `answer_path`: Path to the possible answer, which are used to evaluate the model's output function (default: `./data/possible_answer`)
 - Results are automatically saved to `./exp_result/{model_name}/{no_think/with_think}` directory
 
-### 3. Start ExperienceMaker Service and Init the Experience Pool
+### 3. Start ReMe Service and Init the task memory pool
 
-After collecting trajectories, Launch the ExperienceMaker service to enable experience library functionality:
+After collecting trajectories, Launch the ReMe service to enable memory library functionality:
 
 ```bash
 # Go back to the project root
 cd ../..
 
-experiencemaker \
-  http_service.port=8001 \
+reme \
+  backend=http \
+  http.port=8001 \
   llm.default.model_name=qwen-max-2025-01-25 \
   embedding_model.default.model_name=text-embedding-v4 \
-  vector_store.default.backend=local_file
+  vector_store.default.backend=local
 ```
 
-and then init the experience pool:
+and then init the task memory pool:
 
 ```bash
 python init_exp_pool.py
@@ -70,29 +71,29 @@ python init_exp_pool.py
 
 **Configuration options in `init_exp_pool.py`:**
 - `jsonl_file`: Path to the collloaded trajectories
-- `service_url`: Experience maker service URL (default: `http://localhost:8001`)
-- `workspace_id`: Workspace ID for the experience (default: `bfcl_v1`)
+- `service_url`: ReMe service URL (default: `http://localhost:8001`)
+- `workspace_id`: Workspace ID for the task memory pool (default: `bfcl_test`)
 - `n_threads`: Number of threads for processing (default: `4`)
 - `output_file`: Output file to save results (optional)
 
-Now you have inited the experience pool using `local_file` backend (start on `http://localhost:8001`). The `local_file_to_library.py` script or use the following `curl` command:
+Now you have inited the task memory pool using `local` backend (start on `http://localhost:8001`). The `local_file_to_library.py` script or use the following `curl` command:
 ```bash
 curl -X POST "http://0.0.0.0:8001/vector_store" \
   -H "Content-Type: application/json" \
   -d '{
-    "workspace_id": "bfcl_v1",
+    "workspace_id": "bfcl_test",
     "action": "dump",
     "path": "./library"
   }'
 ```
-can convert the local file to the experience library (default in `./library/bfcl_v1.jsonl`).
+can convert the local file to the memory library (default in `./library/bfcl_test.jsonl`).
 
-Next time, you can import this previously exported experience data to populate the new started workspace with existing knowledge:
+Next time, you can import this previously exported task memory data to populate the new started workspace with existing knowledge:
 ```bash
 curl -X POST "http://0.0.0.0:8001/vector_store" \
   -H "Content-Type: application/json" \
   -d '{
-    "workspace_id": "bfcl_v1",
+    "workspace_id": "bfcl_test",
     "action": "load",
     "path": "./library"
   }'
@@ -101,7 +102,7 @@ curl -X POST "http://0.0.0.0:8001/vector_store" \
 
 ### 4. Run Experiments on Validation Set
 
-Run you can compare agent performance on the validation set with experience (`use_experience=True`) and without experience:
+Run you can compare agent performance on the validation set with task memory (`use_memory=True`) and without task memory:
 
 ```bash
 # remember to change the configuration options, e.g., `data_path=./data/multiturn_data_base_val.jsonl`

@@ -63,14 +63,14 @@ class BFCLAgent:
                  max_response_size: int = 2000,
                  num_runs: int = 1,
                  enable_thinking: bool = False,
-                 use_experience: bool = False,              
-                 use_fixed_experience: bool = True,              
-                 use_experience_deletion: bool = False,              
+                 use_memory: bool = False,              
+                 use_memory_addition: bool = False,              
+                 use_memory_deletion: bool = False,              
                  delete_freq: int = 10,
                  freq_threshold: int = 5, 
                  utility_threshold: float = 0.5,   
-                 experience_base_url: str = "http://0.0.0.0:8001/",
-                 experience_workspace_id: str = "bfcl_8b_0725"):
+                 memory_base_url: str = "http://0.0.0.0:8001/",
+                 memory_workspace_id: str = "bfcl_8b_0725"):
 
         self.index: int = index
         self.task_ids: List[str] = task_ids
@@ -84,17 +84,17 @@ class BFCLAgent:
         self.max_response_size: int = max_response_size
         self.num_runs: int = num_runs
         self.enable_thinking: bool = enable_thinking
-        self.use_experience: bool = use_experience
-        self.use_fixed_experience: bool = use_fixed_experience if use_experience else True
-        self.use_experience_deletion: bool = use_experience_deletion if not use_fixed_experience else False
+        self.use_memory: bool = use_memory
+        self.use_memory_addition: bool = use_memory_addition if use_memory else False
+        self.use_memory_deletion: bool = use_memory_deletion if use_memory else False
         self.delete_freq: int = delete_freq
         self.freq_threshold: int = freq_threshold
         self.utility_threshold: float = utility_threshold
-        self.experience_base_url: str = experience_base_url
-        self.experience_workspace_id: str = experience_workspace_id
+        self.memory_base_url: str = memory_base_url
+        self.memory_workspace_id: str = memory_workspace_id
         
         self.history: List[List[List[dict]]] = [[] for _ in range(num_runs)]
-        self.retrieved_experience_ids: List[List[List[str]]] = [[] for _ in range(num_runs)]
+        self.retrieved_memory_list: List[List[List[Any]]] = [[] for _ in range(num_runs)]
         self.test_entry: List[List[Dict[str, Any]]] = [[] for _ in range(num_runs)]
         self.original_test_entry: List[List[Dict[str, Any]]] = [[] for _ in range(num_runs)]
         self.tool_schema: List[List[List[dict]]] = [[] for _ in range(num_runs)]
@@ -112,74 +112,71 @@ class BFCLAgent:
 
         # 初始历史
         msg = self.test_entry[run_id][i].get("messages", [])[0]
-        if self.use_experience:
+        if self.use_memory:
             query = msg["content"]
-            response = self.get_experience(query)
-            if len(response["experience_list"]):
-                self.retrieved_experience_ids[run_id].append([e["experience_id"] for e in response["experience_list"]])
-                exp: str = response["experience_merged"]
-                print(f"experience_merged={exp}")
-                self.history[run_id].append([self.get_query_with_experience(query, exp)])
-                self.update_experience_freq(self.retrieved_experience_ids[run_id][i])
+            response = self.get_memory(query)
+            
+            if len(response["metadata"]["memory_list"]):
+                self.retrieved_memory_list[run_id].append(response["metadata"]["memory_list"])
+                exp: str = response["answer"]
+                # print(f"memory_merged={exp}")
+                self.history[run_id].append([self.get_query_with_memory(query, exp)])
             else:
-                self.retrieved_experience_ids[run_id].append([])
+                self.retrieved_memory_list[run_id].append([])
                 self.history[run_id].append([msg])
         else:
             self.history[run_id].append([msg])
         self.current_turn[run_id][i] = 1
 
-    def get_query_with_experience(self, query: str, experience: str):
+    def get_query_with_memory(self, query: str, memory: str):
         return {
             "role": "user",
-            "content": "Task:\n" + query + "\n\nSome Related Experience to help you to complete the task:\n" + experience
+            "content": "Task:\n" + query + "\n\nSome Related Experience to help you to complete the task:\n" + memory
         }
-    
-    def get_experience(self, query: str):
-        response = requests.post(url=self.experience_base_url + "retriever", json={
-            "workspace_id": self.experience_workspace_id,
+
+    def get_traj_from_task_history(self, task_id: str, task_history: list, reward: float):
+        return {
+            "task_id": task_id,
+            "messages": task_history,
+            "score": reward
+        }
+
+    def get_memory(self, query: str):
+        response = requests.post(url=self.memory_base_url + "retrieve_task_memory", json={
+            "workspace_id": self.memory_workspace_id,
             "query": query,
             "top_k": 5
         })
-        logger.info(f"query:{query}")
 
         if response.status_code != 200:
             logger.info(response.text)
             return ""
 
         response = response.json()
-        logger.info(response)
+        logger.info(f"query: {query}, response: {response}")
         return response
     
-    def add_experience(self, trajectories):
-        response = requests.post(url=self.experience_base_url + "summarizer", json={
-            "workspace_id": self.experience_workspace_id,
-            "traj_list": trajectories,
+    def add_memory(self, trajectories):
+        response = requests.post(url=self.memory_base_url + "summary_task_memory", json={
+            "workspace_id": self.memory_workspace_id,
+            "trajectories": trajectories,
         })
         response.raise_for_status()
         response = response.json()
-        logger.info(f"add new experiences: {response["experience_list"]}")
+        logger.info(f"add new memorys: {response["metadata"]["memory_list"]}")
     
-    def update_experience_freq(self, experience_ids):
-        response = requests.post(url=self.experience_base_url + "vector_store", json={
-            "workspace_id": self.experience_workspace_id,
-            "action": "update_freq",
-            "experience_ids": experience_ids,
+    def update_memory_information(self, memory_list, update_utility: bool=False):
+        response = requests.post(url=self.memory_base_url + "record_task_memory", json={
+            "workspace_id": self.memory_workspace_id,
+            "memory_dicts": memory_list,
+            "update_utility": update_utility
         })
         response.raise_for_status()    
         logger.info(response.json())
     
-    def update_experience_utility(self, experience_ids):
-        response = requests.post(url=self.experience_base_url + "vector_store", json={
-            "workspace_id": self.experience_workspace_id,
-            "action": "update_utility",
-            "experience_ids": experience_ids,
-        })
-        response.raise_for_status()
-    
-    def delete_experience(self):
-        response = requests.post(url=self.experience_base_url + "vector_store", json={
-            "workspace_id": self.experience_workspace_id,
-            "action": "utility_based_delete",
+    def delete_memory(self):
+        response = requests.post(url=self.memory_base_url + "delete_task_memory", json={
+            "workspace_id": self.memory_workspace_id,
             "freq_threshold": self.freq_threshold,
             "utility_threshold": self.utility_threshold
         })
@@ -563,21 +560,18 @@ class BFCLAgent:
                             break
 
                     reward = self.get_reward(run_id, task_index)
-                    if reward == 1 and self.use_experience and not self.use_fixed_experience:
-                        # selectively add experiences when succeed
-                        self.add_experience([{
-                            "task_id":task_id,
-                            "messages":self.history[run_id][task_index],
-                            "score":reward
-                        }]) 
+                    if self.use_memory:
+                        if reward == 1 and self.use_memory_addition: # selectively add memories when succeed
+                            new_traj_list = [self.get_traj_from_task_history(task_id, self.history[run_id][task_index], reward)]
+                            self.add_memory(new_traj_list) 
                         
-                        if len(self.retrieved_experience_ids[run_id][task_index]):
-                            # update the utility-related attributes of retrieved experiences
-                            self.update_experience_utility(self.retrieved_experience_ids[run_id][task_index])
+                        # update the freq & utility attributes of retrieved memories
+                        update_utility: bool = (reward == 1)
+                        self.update_memory_information(self.retrieved_memory_list[run_id][task_index], update_utility)
                         
                     counter += 1
-                    if self.use_experience_deletion and counter % self.delete_freq == 0:
-                        self.delete_experience()
+                    if self.use_memory_deletion and counter % self.delete_freq == 0:
+                        self.delete_memory()
 
                     t_result = {
                         "run_id": run_id,

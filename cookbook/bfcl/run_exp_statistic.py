@@ -61,7 +61,7 @@ def get_possible_k_values(total_runs: int) -> list:
 
 
 def run_exp_statistic():
-    path: Path = Path(f"./exp_result/qwen-max-latest/no_think")
+    path: Path = Path(f"./exp_result/qwen3-8b/no_think")
 
     # Store results for all experiments
     all_results = {}
