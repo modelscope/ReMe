@@ -201,7 +201,7 @@ class UpdateInsightOp(BaseLLMOp):
                     "update_reason": "integrated_new_observations"
                 }
             )
-            updated_insight.update_modified_time()
+            updated_insight.update_time_modified()
 
             logger.info(f"Updated insight: {updated_content[:50]}...")
             return updated_insight

@@ -61,13 +61,12 @@ class SemanticRankOp(BaseLLMOp):
                 memory_list = ranked_memories
 
         # Sort by score
-        memory_list = sorted(memory_list, key=lambda m: getattr(m, 'score', 0.0), reverse=True)
+        memory_list = sorted(memory_list, key=lambda m: m.score, reverse=True)
 
         # Log top ranked memories
         logger.info(f"Semantic ranking completed for query: {query[:50]}...")
         for i, memory in enumerate(memory_list[:5]):  # Log top 5
-            score = getattr(memory, 'score', 0.0)
-            logger.info(f"Top {i + 1}: Score={score:.3f}, Content={memory.content[:80]}...")
+            logger.info(f"Top {i + 1}: Score={memory.score:.3f}, Content={memory.content[:80]}...")
 
         # Save ranked memories back to context
         self.context.response.metadata["memory_list"] = memory_list

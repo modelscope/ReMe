@@ -18,7 +18,7 @@ http:
 flow:
   retrieve_task_memory:
     flow_content: build_query_op >> recall_vector_store_op >> rerank_memory_op >> rewrite_memory_op
-    description: "Retrieve the most relevant top_k memory experience from historical memory based on the query to help solve tasks better now"
+    description: "Retrieves the most relevant top-k memory experiences from historical data based on the current query to enhance task-solving capabilities"
     input_schema:
       query:
         type: "str"
@@ -27,7 +27,7 @@ flow:
 
   summary_task_memory:
     flow_content: trajectory_preprocess_op >> (success_extraction_op|failure_extraction_op|comparative_extraction_op) >> memory_validation_op >> update_vector_store_op
-    description: "Summarize trajectories or messages into memories"
+    description: "Summarizes conversation trajectories or messages into structured memory representations for long-term storage"
     input_schema:
       trajectories:
         type: "list"
@@ -36,7 +36,7 @@ flow:
 
   retrieve_task_memory_simple:
     flow_content: build_query_op >> recall_vector_store_op >> merge_memory_op
-    description: "Retrieve the most relevant top_k memory experience from historical memory based on the query to help solve tasks better now"
+    description: "Retrieves the most relevant top-k memory experiences from historical data based on the current query with simplified processing"
     input_schema:
       query:
         type: "str"
@@ -45,7 +45,7 @@ flow:
 
   summary_task_memory_simple:
     flow_content: simple_summary_op >> update_vector_store_op
-    description: "Summarize trajectories or messages into memories"
+    description: "Summarizes conversation trajectories or messages into memories using a simplified approach"
     input_schema:
       trajectories:
         type: "list"
@@ -54,7 +54,7 @@ flow:
 
   vector_store:
     flow_content: vector_store_action_op
-    description: "directly operate the vector store."
+    description: "Directly operates on the vector store with various management actions"
     input_schema:
       action:
         type: "str"
@@ -64,16 +64,16 @@ flow:
 
   retrieve_personal_memory:
     flow_content: set_query_op >> (extract_time_op | (retrieve_memory_op >> semantic_rank_op)) >> fuse_rerank_op
-    description: "Retrieve the most relevant memories from historical memory based on the query to help answer better now."
+    description: "Retrieves the most relevant personal memories from historical data based on the query to enhance response quality"
     input_schema:
       query:
         type: "str"
         description: "user query"
         required: true
 
-  consolidate_personal_memory:
+  summary_personal_memory:
     flow_content: info_filter_op >> (get_observation_op | get_observation_with_time_op | load_today_memory_op) >> contra_repeat_op >> update_vector_store_op
-    description: "summary user's observation memory"
+    description: "Consolidates user observations and memories by filtering information and removing redundancies for efficient storage"
     input_schema:
       messages:
         type: "list"
@@ -88,7 +88,8 @@ flow:
 llm:
   default:
     backend: openai_compatible
-    model_name: qwen3-30b-a3b-thinking-2507
+#    model_name: qwen3-30b-a3b-thinking-2507
+    model_name: qwen3-30b-a3b-instruct-2507
     params:
       temperature: 0.6
 

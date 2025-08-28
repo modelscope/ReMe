@@ -34,9 +34,9 @@ class ContraRepeatOp(BaseLLMOp):
         """
         # Get memory list from context - standardized key
         memory_list: List[BaseMemory] = []
-        memory_list.extend(self.context.observation_memories)
-        memory_list.extend(self.context.observation_memories_with_time)
-        memory_list.extend(self.context.today_memories)
+        memory_list.extend(self.context.get("observation_memories", []))
+        memory_list.extend(self.context.get("observation_memories_with_time", []))
+        memory_list.extend(self.context.get("today_memories", []))
 
         self.context.response.metadata["memory_list"] = memory_list
 
@@ -55,7 +55,7 @@ class ContraRepeatOp(BaseLLMOp):
             return
 
         # Sort and limit memories by count
-        sorted_memories = sorted(memory_list, key=lambda x: x.created_time, reverse=True)[:contra_repeat_max_count]
+        sorted_memories = sorted(memory_list, key=lambda x: x.time_created, reverse=True)[:contra_repeat_max_count]
 
         if len(sorted_memories) <= 1:
             logger.info("sorted_memories.size<=1, stop.")

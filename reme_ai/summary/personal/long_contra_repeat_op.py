@@ -50,7 +50,7 @@ class LongContraRepeatOp(BaseLLMOp):
         # Sort memories by creation time (most recent first) and limit count
         sorted_memories = sorted(
             updated_insights,
-            key=lambda x: getattr(x, 'created_time', ''),
+            key=lambda x: x.time_created,
             reverse=True
         )[:max_memories_to_process]
 
@@ -151,7 +151,7 @@ class LongContraRepeatOp(BaseLLMOp):
                             author=memory.author,
                             metadata={**memory.metadata, 'modified_by': 'long_contra_repeat'}
                         )
-                        modified_memory.update_modified_time()
+                        modified_memory.update_time_modified()
                         filtered_memories.append(modified_memory)
                         logger.info(f"Modified contradictory memory {idx}: {modified_content.strip()[:50]}...")
                     else:

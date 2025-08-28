@@ -13,16 +13,16 @@ class BaseMemory(BaseModel, ABC):
 
     when_to_use: str = Field(default="")
     content: str | bytes = Field(default="")
-    score: float | None = Field(default=None)
+    score: float = Field(default=0)
 
-    created_time: str = Field(default_factory=lambda: datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    modified_time: str = Field(default_factory=lambda: datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    time_created: str = Field(default_factory=lambda: datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    time_modified: str = Field(default_factory=lambda: datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     author: str = Field(default="")
 
     metadata: dict = Field(default_factory=dict)
 
-    def update_modified_time(self):
-        self.modified_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    def update_time_modified(self):
+        self.time_modified = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     def to_vector_node(self) -> VectorNode:
         raise NotImplementedError
@@ -43,24 +43,25 @@ class TaskMemory(BaseMemory):
                               "memory_type": self.memory_type,
                               "content": self.content,
                               "score": self.score,
-                              "created_time": self.created_time,
-                              "modified_time": self.modified_time,
+                              "time_created": self.time_created,
+                              "time_modified": self.time_modified,
                               "author": self.author,
                               "metadata": self.metadata,
                           })
 
     @classmethod
     def from_vector_node(cls, node: VectorNode) -> "TaskMemory":
+        metadata = node.metadata.copy()
         return cls(workspace_id=node.workspace_id,
                    memory_id=node.unique_id,
-                   memory_type=node.metadata.get("memory_type"),
+                   memory_type=metadata.pop("memory_type"),
                    when_to_use=node.content,
-                   content=node.metadata.get("content"),
-                   score=node.metadata.get("score"),
-                   created_time=node.metadata.get("created_time"),
-                   modified_time=node.metadata.get("modified_time"),
-                   author=node.metadata.get("author"),
-                   metadata=node.metadata.get("metadata"))
+                   content=metadata.pop("content"),
+                   score=metadata.pop("score"),
+                   time_created=metadata.pop("time_created"),
+                   time_modified=metadata.pop("time_modified"),
+                   author=metadata.pop("author"),
+                   metadata=metadata.pop("metadata", {}))
 
 
 class PersonalMemory(BaseMemory):
@@ -78,26 +79,27 @@ class PersonalMemory(BaseMemory):
                               "target": self.target,
                               "reflection_subject": self.reflection_subject,
                               "score": self.score,
-                              "created_time": self.created_time,
-                              "modified_time": self.modified_time,
+                              "time_created": self.time_created,
+                              "time_modified": self.time_modified,
                               "author": self.author,
                               "metadata": self.metadata,
                           })
 
     @classmethod
     def from_vector_node(cls, node: VectorNode) -> "PersonalMemory":
+        metadata = node.metadata.copy()
         return cls(workspace_id=node.workspace_id,
                    memory_id=node.unique_id,
-                   memory_type=node.metadata.get("memory_type"),
+                   memory_type=metadata.pop("memory_type"),
                    when_to_use=node.content,
-                   content=node.metadata.get("content"),
-                   target=node.metadata.get("target", ""),
-                   reflection_subject=node.metadata.get("reflection_subject", ""),
-                   score=node.metadata.get("score"),
-                   created_time=node.metadata.get("created_time"),
-                   modified_time=node.metadata.get("modified_time"),
-                   author=node.metadata.get("author"),
-                   metadata=node.metadata.get("metadata"))
+                   content=metadata.pop("content"),
+                   target=metadata.pop("target", ""),
+                   reflection_subject=metadata.pop("reflection_subject", ""),
+                   score=metadata.pop("score"),
+                   time_created=metadata.pop("time_created"),
+                   time_modified=metadata.pop("time_modified"),
+                   author=metadata.pop("author"),
+                   metadata=metadata.pop("metadata", {}))
 
 
 def vector_node_to_memory(node: VectorNode) -> BaseMemory:

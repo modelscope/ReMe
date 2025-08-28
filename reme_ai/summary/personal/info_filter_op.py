@@ -19,6 +19,7 @@ class InfoFilterOp(BaseLLMOp):
     def execute(self):
         """Filter messages based on information content scores"""
         # Get messages from context - guaranteed to exist by flow input
+        self.context.messages = [Message(**x) if isinstance(x, dict) else x for x in self.context.messages]
         messages: List[Message] = self.context.messages
         if not messages:
             logger.warning("No messages found in context")
@@ -33,7 +34,7 @@ class InfoFilterOp(BaseLLMOp):
         info_messages = self._filter_and_process_messages(messages, user_name, info_filter_msg_max_size)
         if not info_messages:
             logger.warning("No messages left after filtering")
-            self.context.response.metadata["memory_list"] = []
+            self.context.messages = []
             return
 
         logger.info(f"Filtering {len(info_messages)} messages for information content")
@@ -42,7 +43,7 @@ class InfoFilterOp(BaseLLMOp):
         filtered_memories = self._filter_messages_with_llm(info_messages, user_name, preserved_scores)
 
         # Store results in context using standardized key
-        self.context.response.metadata["memory_list"] = filtered_memories
+        self.context.messages = filtered_memories
         logger.info(f"Filtered to {len(filtered_memories)} high-information messages")
 
     @staticmethod
@@ -117,28 +118,25 @@ class InfoFilterOp(BaseLLMOp):
 
                 # Check if score should be preserved
                 if score in preserved_scores:
-                    message_obj = info_messages[msg_idx]
-
-                    # Get original message metadata or create empty dict
-                    original_metadata = getattr(message_obj, 'metadata', {}) or {}
+                    message = info_messages[msg_idx]
 
                     # Create memory from filtered message with combined metadata
                     memory = PersonalMemory(
                         workspace_id=self.context.get("workspace_id", ""),
-                        content=message_obj.content,
+                        content=message.content,
                         target=user_name,
                         author=getattr(self.llm, "model_name", "system"),
                         metadata={
                             "info_score": score,
                             "filter_type": "info_content",
-                            "original_message_time": getattr(message_obj, 'time_created', None),
-                            "role_name": original_metadata.get('role_name', user_name),
+                            "original_message_time": getattr(message, 'time_created', None),
+                            "role_name": message.metadata.pop("role_name", user_name),
                             "memorized": True,
-                            **original_metadata  # Include all original metadata
+                            **message.metadata  # Include all original metadata
                         }
                     )
                     filtered_memories.append(memory)
-                    logger.info(f"Info filter: kept message with score {score}: {message_obj.content[:50]}...")
+                    logger.info(f"Info filter: kept message with score {score}: {message.content[:50]}...")
 
             return filtered_memories
 

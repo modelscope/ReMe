@@ -17,9 +17,9 @@ class MemoryValidationOp(BaseLLMOp):
         """Validate quality of extracted task memories"""
 
         task_memories: List[BaseMemory] = []
-        task_memories.extend(self.context.success_task_memories)
-        task_memories.extend(self.context.failure_task_memories)
-        task_memories.extend(self.context.comparative_task_memories)
+        task_memories.extend(self.context.get("success_task_memories", []))
+        task_memories.extend(self.context.get("failure_task_memories", []))
+        task_memories.extend(self.context.get("comparative_task_memories", []))
 
         if not task_memories:
             logger.info("No task memories found for validation")
