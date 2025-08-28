@@ -18,22 +18,40 @@ http:
 flow:
   retrieve_task_memory:
     flow_content: build_query_op >> recall_vector_store_op >> rerank_memory_op >> rewrite_memory_op
-    description: "Retrieve the most relevant top_k memory experience from historical memory based on the query to help solve tasks better now"
+    description: "Retrieves the most relevant top-k memory experiences from historical data based on the current query to enhance task-solving capabilities"
     input_schema:
       query:
         type: "str"
-        description: "current query"
+        description: "user query"
         required: true
 
   summary_task_memory:
     flow_content: trajectory_preprocess_op >> (success_extraction_op|failure_extraction_op|comparative_extraction_op) >> memory_validation_op >> update_vector_store_op
-    description: "Summarize trajectories or messages into memories"
+    description: "Summarizes conversation trajectories or messages into structured memory representations for long-term storage"
     input_schema:
       trajectories:
         type: "list"
         description: "A list of conversation trajectory information, including message content and score. This field does not need to be filled in, the system will complete it automatically."
         required: false
 
+  retrieve_task_memory_simple:
+    flow_content: build_query_op >> recall_vector_store_op >> merge_memory_op
+    description: "Retrieves the most relevant top-k memory experiences from historical data based on the current query with simplified processing"
+    input_schema:
+      query:
+        type: "str"
+        description: "user query"
+        required: true
+
+  summary_task_memory_simple:
+    flow_content: simple_summary_op >> update_vector_store_op
+    description: "Summarizes conversation trajectories or messages into memories using a simplified approach"
+    input_schema:
+      trajectories:
+        type: "list"
+        description: "A list of conversation trajectory information, including message content and score. This field does not need to be filled in, the system will complete it automatically."
+        required: false
+  
   record_task_memory:
     flow_content: update_memory_freq_op >> update_memory_utility_op >> update_vector_store_op
     description: "Update the freq & utility attributes of retrieved task memories"
@@ -77,48 +95,33 @@ flow:
         description: "vector store operations"
         required: true
         enum: [ copy, delete, delete_ids, dump, load ]
-  
-  retrieve_task_memory_simple:
-    flow_content: build_query_op >> recall_vector_store_op >> merge_memory_op
-    description: "Retrieve the most relevant top_k memory experience from historical memory based on the query to help solve tasks better now"
+
+  retrieve_personal_memory:
+    flow_content: set_query_op >> (extract_time_op | (retrieve_memory_op >> semantic_rank_op)) >> fuse_rerank_op
+    description: "Retrieves the most relevant personal memories from historical data based on the query to enhance response quality"
     input_schema:
       query:
         type: "str"
-        description: "current query"
+        description: "user query"
         required: true
 
-  summary_task_memory_simple:
-    flow_content: simple_summary_op >> update_vector_store_op
-    description: "Summarize trajectories or messages into memories"
+  summary_personal_memory:
+    flow_content: info_filter_op >> (get_observation_op | get_observation_with_time_op | load_today_memory_op) >> contra_repeat_op >> update_vector_store_op
+    description: "Consolidates user observations and memories by filtering information and removing redundancies for efficient storage"
     input_schema:
-      trajectories:
+      messages:
         type: "list"
-        description: "A list of conversation trajectory information, including message content and score. This field does not need to be filled in, the system will complete it automatically."
+        description: "A list of conversation messages information. This field does not need to be filled in, the system will complete it automatically."
         required: false
-
-
-op:
-  # retriever ops
-  rerank_memory_op:
-    backend: rerank_memory_op
-    llm: default
-    params:
-      enable_llm_rerank: true
-      enable_score_filter: false
-      top_k: 5
-
-  rewrite_memory_op:
-    backend: rewrite_memory_op
-    llm: default
-    params:
-      enable_llm_rewrite: true
 
 llm:
   default:
     backend: openai_compatible
-    model_name: qwen3-30b-a3b-thinking-2507
+#    model_name: qwen3-30b-a3b-thinking-2507
+    model_name: qwen3-30b-a3b-instruct-2507
     params:
       temperature: 0.6
+      
 
 embedding_model:
   default:

@@ -47,6 +47,6 @@ class VectorStoreActionOp(BaseLLMOp):
 
         # Store results in context
         if isinstance(result, dict):
-            self.context.action_result = result
+            self.context.response.metadata["action_result"] = result
         else:
-            self.context.action_result = {"result": str(result)}
+            self.context.response.metadata["action_result"] = {"result": str(result)}

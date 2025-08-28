@@ -1,3 +1,4 @@
+import re
 from typing import List
 
 from flowllm import C, BaseLLMOp
@@ -5,7 +6,6 @@ from flowllm.schema.message import Message
 from loguru import logger
 
 from reme_ai.schema.memory import PersonalMemory
-from reme_ai.utils.op_utils import parse_info_filter_response
 
 
 @C.register_op()
@@ -18,8 +18,9 @@ class InfoFilterOp(BaseLLMOp):
 
     def execute(self):
         """Filter messages based on information content scores"""
-        # Get messages from context
-        messages: List[Message] = self.context.get("messages", [])
+        # Get messages from context - guaranteed to exist by flow input
+        self.context.messages = [Message(**x) if isinstance(x, dict) else x for x in self.context.messages]
+        messages: List[Message] = self.context.messages
         if not messages:
             logger.warning("No messages found in context")
             return
@@ -33,6 +34,7 @@ class InfoFilterOp(BaseLLMOp):
         info_messages = self._filter_and_process_messages(messages, user_name, info_filter_msg_max_size)
         if not info_messages:
             logger.warning("No messages left after filtering")
+            self.context.messages = []
             return
 
         logger.info(f"Filtering {len(info_messages)} messages for information content")
@@ -40,23 +42,28 @@ class InfoFilterOp(BaseLLMOp):
         # Filter messages using LLM
         filtered_memories = self._filter_messages_with_llm(info_messages, user_name, preserved_scores)
 
-        # Store results in context
-        self.context.response.metadata["filtered_memories"] = filtered_memories
+        # Store results in context using standardized key
+        self.context.messages = filtered_memories
         logger.info(f"Filtered to {len(filtered_memories)} high-information messages")
 
-    def _filter_and_process_messages(self, messages: List[Message], user_name: str, max_size: int) -> List[Message]:
+    @staticmethod
+    def _filter_and_process_messages(messages: List[Message], user_name: str, max_size: int) -> List[Message]:
         """Filter and process messages for information filtering"""
         info_messages = []
 
         for msg in messages:
+            # Ensure metadata exists
+
             # Skip memorized messages
-            if hasattr(msg, 'memorized') and msg.memorized:
+            if msg.metadata.get('memorized', False):
                 continue
 
             # Only process messages from the target user
-            if hasattr(msg, 'role_name') and msg.role_name != user_name:
-                continue
-            elif hasattr(msg, 'role') and msg.role != 'user':
+            # role_name = msg.metadata.get('role_name')
+            # if role_name and role_name != user_name:
+            #     continue
+
+            elif msg.role.value != "user":
                 continue
 
             # Truncate long messages
@@ -95,8 +102,8 @@ class InfoFilterOp(BaseLLMOp):
             response_text = message.content
             logger.info(f"info_filter_response={response_text}")
 
-            # Parse scores using utility function
-            info_scores = parse_info_filter_response(response_text)
+            # Parse scores using class method
+            info_scores = InfoFilterOp.parse_info_filter_response(response_text)
 
             if len(info_scores) != len(info_messages):
                 logger.warning(f"score_size != messages_size, {len(info_scores)} vs {len(info_messages)}")
@@ -111,22 +118,25 @@ class InfoFilterOp(BaseLLMOp):
 
                 # Check if score should be preserved
                 if score in preserved_scores:
-                    message_obj = info_messages[msg_idx]
+                    message = info_messages[msg_idx]
 
-                    # Create memory from filtered message
+                    # Create memory from filtered message with combined metadata
                     memory = PersonalMemory(
                         workspace_id=self.context.get("workspace_id", ""),
-                        content=message_obj.content,
+                        content=message.content,
                         target=user_name,
                         author=getattr(self.llm, "model_name", "system"),
                         metadata={
                             "info_score": score,
                             "filter_type": "info_content",
-                            "original_message_time": getattr(message_obj, 'time_created', None)
+                            "original_message_time": getattr(message, 'time_created', None),
+                            "role_name": message.metadata.pop("role_name", user_name),
+                            "memorized": True,
+                            **message.metadata  # Include all original metadata
                         }
                     )
                     filtered_memories.append(memory)
-                    logger.info(f"Info filter: kept message with score {score}: {message_obj.content[:50]}...")
+                    logger.info(f"Info filter: kept message with score {score}: {message.content[:50]}...")
 
             return filtered_memories
 
@@ -137,3 +147,31 @@ class InfoFilterOp(BaseLLMOp):
         """Get language-specific colon word"""
         colon_dict = {"zh": "：", "cn": "：", "en": ": "}
         return colon_dict.get(self.language, ": ")
+
+    @staticmethod
+    def parse_info_filter_response(response_text: str) -> List[tuple]:
+        """Parse info filter response to extract message scores"""
+        # Pattern to match both Chinese and English result formats
+        # Chinese: 结果：<序号> <分数>
+        # English: Result: <Index> <Score>
+        pattern = r"结果：<(\d+)>\s*<([0-3])>|Result:\s*<(\d+)>\s*<([0-3])>"
+        matches = re.findall(pattern, response_text, re.IGNORECASE | re.MULTILINE)
+
+        scores = []
+        for match in matches:
+            # Handle both Chinese and English patterns
+            if match[0]:  # Chinese pattern
+                idx_str, score_str = match[0], match[1]
+            else:  # English pattern
+                idx_str, score_str = match[2], match[3]
+
+            try:
+                idx = int(idx_str)
+                score = score_str
+                scores.append((idx, score))
+            except ValueError:
+                logger.warning(f"Invalid index or score format: {idx_str}, {score_str}")
+                continue
+
+        logger.info(f"Parsed {len(scores)} info filter scores from response")
+        return scores

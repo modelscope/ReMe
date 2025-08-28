@@ -1,4 +1,6 @@
-from typing import List
+import json
+import re
+from typing import List, Tuple
 
 from flowllm import C, BaseLLMOp
 from flowllm.enumeration.role import Role
@@ -30,11 +32,17 @@ class ContraRepeatOp(BaseLLMOp):
         3. Parses the model's response to detect contradictions or redundancies
         4. Filters and returns the processed memories
         """
-        # Get memory list from context
-        memory_list: List[BaseMemory] = self.context.response.metadata.get("memory_list", [])
+        # Get memory list from context - standardized key
+        memory_list: List[BaseMemory] = []
+        memory_list.extend(self.context.get("observation_memories", []))
+        memory_list.extend(self.context.get("observation_memories_with_time", []))
+        memory_list.extend(self.context.get("today_memories", []))
+
+        self.context.response.metadata["memory_list"] = memory_list
 
         if not memory_list:
             logger.info("memory_list is empty!")
+            self.context.response.metadata["deleted_memory_ids"] = []
             return
 
         # Get operation parameters
@@ -43,14 +51,16 @@ class ContraRepeatOp(BaseLLMOp):
 
         if not enable_contra_repeat:
             logger.warning("contra_repeat is not enabled!")
+            self.context.response.metadata["deleted_memory_ids"] = []
             return
 
         # Sort and limit memories by count
-        sorted_memories = sorted(memory_list, key=lambda x: getattr(x, 'created_at', ''), reverse=True)[
-            :contra_repeat_max_count]
+        sorted_memories = sorted(memory_list, key=lambda x: x.time_created, reverse=True)[:contra_repeat_max_count]
 
         if len(sorted_memories) <= 1:
             logger.info("sorted_memories.size<=1, stop.")
+            self.context.response.metadata["memory_list"] = sorted_memories
+            self.context.response.metadata["deleted_memory_ids"] = []
             return
 
         # Build prompt
@@ -77,22 +87,26 @@ class ContraRepeatOp(BaseLLMOp):
         # Return if empty
         if not response or not response.content:
             logger.warning("Empty response from LLM")
+            self.context.response.metadata["memory_list"] = sorted_memories
+            self.context.response.metadata["deleted_memory_ids"] = []
             return
 
         response_text = response.content
         logger.info(f"contra_repeat_response={response_text}")
 
         # Parse response and filter memories
-        filtered_memories = self._parse_and_filter_memories(response_text, sorted_memories, user_name)
+        filtered_memories, deleted_memory_ids = self._parse_and_filter_memories(response_text, sorted_memories)
 
-        # Update context with filtered memories
+        # Update context with filtered memories and deleted memory IDs - standardized keys
         self.context.response.metadata["memory_list"] = filtered_memories
+        self.context.response.metadata["deleted_memory_ids"] = deleted_memory_ids
         logger.info(f"Filtered {len(memory_list)} memories to {len(filtered_memories)} memories")
+        logger.info(f"Deleted memory IDs: {json.dumps(deleted_memory_ids, indent=2)}")
 
-    def _parse_and_filter_memories(self, response_text: str, memories: List[BaseMemory], user_name: str) -> List[
-        BaseMemory]:
+    @staticmethod
+    def _parse_and_filter_memories(response_text: str, memories: List[BaseMemory]) -> Tuple[
+        List[BaseMemory], List[str]]:
         """Parse LLM response and filter memories based on contradiction/containment analysis"""
-        import re
 
         # Parse the response to extract judgments
         pattern = r"<(\d+)>\s*<(矛盾|被包含|无|Contradiction|Contained|None)>"
@@ -100,10 +114,11 @@ class ContraRepeatOp(BaseLLMOp):
 
         if not matches:
             logger.warning("No valid judgments found in response")
-            return memories
+            return memories, []
 
         # Create a set of indices to remove (contradictory or contained memories)
         indices_to_remove = set()
+        deleted_memory_ids = []
 
         for idx_str, judgment in matches:
             try:
@@ -115,6 +130,7 @@ class ContraRepeatOp(BaseLLMOp):
                 judgment_lower = judgment.lower()
                 if judgment_lower in ['矛盾', 'contradiction', '被包含', 'contained']:
                     indices_to_remove.add(idx)
+                    deleted_memory_ids.append(memories[idx].id)
                     logger.info(f"Marking memory {idx + 1} for removal: {judgment} - {memories[idx].content[:100]}...")
 
             except ValueError:
@@ -124,8 +140,4 @@ class ContraRepeatOp(BaseLLMOp):
         # Filter out the memories marked for removal
         filtered_memories = [memory for i, memory in enumerate(memories) if i not in indices_to_remove]
 
-        return filtered_memories
-
-    def get_language_value(self, value_dict: dict):
-        """Get language-specific value from dictionary"""
-        return value_dict.get(self.language, value_dict.get("en"))
+        return filtered_memories, deleted_memory_ids

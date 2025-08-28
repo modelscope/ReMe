@@ -439,7 +439,8 @@ class MinerUPDFProcessor:
             self.logger.error(f"Error occurred while saving files: {e}")
             raise
 
-    def get_content_statistics(self, content_list: List[Dict[str, Any]]) -> Dict[str, Any]:
+    @staticmethod
+    def get_content_statistics(content_list: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Generate detailed statistics about the processed content.
         
