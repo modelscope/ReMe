@@ -60,7 +60,7 @@ flow:
         type: "str"
         description: "workspace id"
         required: true
-      memory_list:
+      memory_dicts:
         type: "list"
         description: "A list of retrieved task memory corresponding to the current task."
         required: true
@@ -113,6 +113,22 @@ flow:
         type: "list"
         description: "A list of conversation messages information. This field does not need to be filled in, the system will complete it automatically."
         required: false
+  
+op:
+  # retriever ops
+  rerank_memory_op:
+    backend: rerank_memory_op
+    llm: default
+    params:
+      enable_llm_rerank: true
+      enable_score_filter: false
+      top_k: 5
+
+  rewrite_memory_op:
+    backend: rewrite_memory_op
+    llm: default
+    params:
+      enable_llm_rewrite: true
 
 llm:
   default:
