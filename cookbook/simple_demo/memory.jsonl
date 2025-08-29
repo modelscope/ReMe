@@ -1,0 +1,26 @@
+[
+  {
+    "workspace_id": "test_workspace4",
+    "memory_id": "922a556d988f47bcadd8228d9f2235dc",
+    "memory_type": "task",
+    "when_to_use": "When conducting a company analysis requiring multi-dimensional insights (e.g., financials, market position, strategic shifts)",
+    "content": "Split the analysis into 3-4 distinct subtopics (e.g., financial performance, market challenges, strategic initiatives) and perform targeted web searches for each. Use language matching the user's query (Chinese in this case) to ensure relevant results. Avoid broad single searches that may miss critical angles.",
+    "score": 0.0,
+    "time_created": "2025-08-29 01:44:37",
+    "time_modified": "2025-08-29 01:44:37",
+    "author": "qwen3-30b-a3b-thinking-2507",
+    "metadata": {}
+  },
+  {
+    "workspace_id": "test_workspace4",
+    "memory_id": "5cac948c7e8141dfb7723ab482d3aa8c",
+    "memory_type": "task",
+    "when_to_use": "When verifying if retrieved information is sufficient to answer the user's query",
+    "content": "Always cross-check that the retrieved data covers all core aspects of the query before terminating. In this case, the financial metrics, market challenges, and strategic pivots were all covered in the search results, making further searches unnecessary. Never assume coverage—explicitly validate completeness.",
+    "score": 0.0,
+    "time_created": "2025-08-29 01:44:37",
+    "time_modified": "2025-08-29 01:44:37",
+    "author": "qwen3-30b-a3b-thinking-2507",
+    "metadata": {}
+  }
+]
