@@ -105,7 +105,8 @@ class GetObservationWithTimeOp(BaseLLMOp):
 
                 # Create observation memory
                 observation = PersonalMemory(
-                    workspace_id=self.context.get("workspace_id", ""),
+                    workspace_id=self.context.workspace_id,
+                    when_to_use=obs["keywords"],
                     content=obs["content"],
                     target=user_name,
                     author=getattr(self.llm, "model_name", "system"),

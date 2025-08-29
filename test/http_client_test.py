@@ -78,7 +78,13 @@ async def run2(session):
         result = await response.json()
         print(json.dumps(result, ensure_ascii=False))
 
-    messages = [{"role": "user", "content": "我喜欢吃西瓜🍉"}]
+    messages = [
+        {"role": "user", "content": "我喜欢吃西瓜🍉"},
+        {"role": "user", "content": "昨天吃了苹果，很好吃"},
+        {"role": "user", "content": "我不太喜欢吃西瓜"},
+        {"role": "user", "content": "上周我去了日本，得了肠胃炎"},
+        {"role": "user", "content": "这周只能在家里，喝粥"},
+    ]
 
     async with session.post(
             f"{base_url}/summary_personal_memory",
@@ -96,7 +102,7 @@ async def run2(session):
     async with session.post(
             f"{base_url}/retrieve_personal_memory",
             json={
-                "query": "茅台怎么样？",
+                "query": "你知道我喜欢吃什么？",
                 "workspace_id": workspace_id,
             },
             headers={"Content-Type": "application/json"}

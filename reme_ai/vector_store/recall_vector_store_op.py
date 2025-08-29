@@ -19,7 +19,6 @@ class RecallVectorStoreOp(BaseLLMOp):
 
         workspace_id: str = self.context.workspace_id
         nodes: List[VectorNode] = self.vector_store.search(query=query, workspace_id=workspace_id, top_k=top_k)
-
         memory_list: List[BaseMemory] = []
         memory_content_list: List[str] = []
         for node in nodes:

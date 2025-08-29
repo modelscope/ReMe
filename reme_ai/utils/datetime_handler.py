@@ -29,7 +29,11 @@ class DatetimeHandler(object):
         """
         if isinstance(dt, str | int | float):
             if isinstance(dt, str):
-                dt = float(dt)
+                try:
+                    dt = float(dt)
+                except:
+                    dt = datetime.datetime.strptime(dt, "%Y-%m-%d %H:%M:%S")
+                    dt = dt.timestamp()
             self._dt: datetime.datetime = datetime.datetime.fromtimestamp(dt)
         elif isinstance(dt, datetime.datetime):
             self._dt: datetime.datetime = dt

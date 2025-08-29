@@ -4,13 +4,12 @@ import requests
 from dotenv import load_dotenv
 
 load_dotenv()
-base_url = "http://0.0.0.0:8001/"
-workspace_id = "test_workspace1"
+base_url = "http://0.0.0.0:8002/"
+workspace_id = "test_workspace4"
 
 
 def run_agent(query: str, dump_messages: bool = False):
-
-    response = requests.post(url=base_url + "agent", json={"query": query})
+    response = requests.post(url=base_url + "react", json={"query": query})
     if response.status_code != 200:
         print(response.text)
         return []
@@ -28,10 +27,10 @@ def run_agent(query: str, dump_messages: bool = False):
     return messages
 
 
-def run_summary(messages: list, dump_experience: bool = True):
-    response = requests.post(url=base_url + "summarizer", json={
+def run_summary(messages: list, enable_dump_memory: bool = True):
+    response = requests.post(url=base_url + "summary_task_memory_simple", json={
         "workspace_id": workspace_id,
-        "traj_list": [
+        "trajectories": [
             {"messages": messages, "score": 1.0}
         ]
     })
@@ -41,14 +40,14 @@ def run_summary(messages: list, dump_experience: bool = True):
         return
 
     response = response.json()
-    experience_list = response["experience_list"]
-    if dump_experience:
-        with open("experience.jsonl", "w") as f:
-            f.write(json.dumps(experience_list, indent=2, ensure_ascii=False))
+    memory_list = response["metadata"]["memory_list"]
+    if enable_dump_memory:
+        with open("memory.jsonl", "w") as f:
+            f.write(json.dumps(memory_list, indent=2, ensure_ascii=False))
 
 
-def run_retriever(query: str):
-    response = requests.post(url=base_url + "retriever", json={
+def run_retrieve(query: str):
+    response = requests.post(url=base_url + "retrieve_task_memory_simple", json={
         "workspace_id": workspace_id,
         "query": query,
     })
@@ -58,20 +57,20 @@ def run_retriever(query: str):
         return ""
 
     response = response.json()
-    experience_merged: str = response["experience_merged"]
-    print(f"experience_merged={experience_merged}")
-    return experience_merged
+    answer: str = response["answer"]
+    print(f"answer={answer}")
+    return answer
 
 
-def run_agent_with_experience(query_first: str, query_second: str, dump_experience: bool = True):
+def run_agent_with_memory(query_first: str, query_second: str, enable_dump_memory: bool = True):
     messages = run_agent(query=query_second)
-    run_summary(messages, dump_experience)
-    experience_merged = run_retriever(query_first)
-    messages = run_agent(query=f"{experience_merged}\n\nUser Question:\n{query_first}")
+    run_summary(messages, enable_dump_memory)
+    retrieved_memory = run_retrieve(query_first)
+    messages = run_agent(query=f"{retrieved_memory}\n\nUser Question:\n{query_first}")
     return messages
 
 
-def dump_experience():
+def dump_memory():
     response = requests.post(url=base_url + "vector_store", json={
         "workspace_id": workspace_id,
         "action": "dump",
@@ -85,7 +84,7 @@ def dump_experience():
     print(response.json())
 
 
-def load_experience():
+def load_memory():
     response = requests.post(url=base_url + "vector_store", json={
         "workspace_id": "test_workspace2",
         "action": "load",
@@ -104,6 +103,6 @@ if __name__ == "__main__":
     query2 = "Analyze the company Tesla."
 
     run_agent(query=query1, dump_messages=True)
-    run_agent_with_experience(query_first=query1, query_second=query2)
-    dump_experience()
-    load_experience()
+    run_agent_with_memory(query_first=query1, query_second=query2)
+    dump_memory()
+    load_memory()

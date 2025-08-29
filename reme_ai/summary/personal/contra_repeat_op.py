@@ -130,7 +130,7 @@ class ContraRepeatOp(BaseLLMOp):
                 judgment_lower = judgment.lower()
                 if judgment_lower in ['矛盾', 'contradiction', '被包含', 'contained']:
                     indices_to_remove.add(idx)
-                    deleted_memory_ids.append(memories[idx].id)
+                    deleted_memory_ids.append(memories[idx].memory_id)
                     logger.info(f"Marking memory {idx + 1} for removal: {judgment} - {memories[idx].content[:100]}...")
 
             except ValueError:

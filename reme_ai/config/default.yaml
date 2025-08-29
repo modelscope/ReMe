@@ -40,7 +40,7 @@ flow:
     input_schema:
       query:
         type: "str"
-        description: "user query"
+        description: "current query"
         required: true
 
   summary_task_memory_simple:
@@ -51,44 +51,10 @@ flow:
         type: "list"
         description: "A list of conversation trajectory information, including message content and score. This field does not need to be filled in, the system will complete it automatically."
         required: false
-  
-  record_task_memory:
-    flow_content: update_memory_freq_op >> update_memory_utility_op >> update_vector_store_op
-    description: "Update the freq & utility attributes of retrieved task memories"
-    input_schema:
-      workspace_id:
-        type: "str"
-        description: "workspace id"
-        required: true
-      memory_dicts:
-        type: "list"
-        description: "A list of retrieved task memory corresponding to the current task."
-        required: true
-      update_utility:
-        type: "bool"
-        description: "Whether to update the utility attribute of the retrieved task memory."
-        required: true
-  
-  delete_task_memory:
-    flow_content: delete_memory_op >> update_vector_store_op
-    description: "Delete task memories when utility/freq < utility_threshold and freq >= freq_threshold"
-    input_schema:
-      workspace_id:
-        type: "str"
-        description: "workspace id"
-        required: true
-      freq_threshold:
-        type: "int"
-        description: "The retrieved frequency threshold for deleting task memory."
-        required: true
-      utility_threshold:
-        type: "float"
-        description: "The utility/freq threshold for deleting task memory."
-        required: true
 
   vector_store:
     flow_content: vector_store_action_op
-    description: "directly operate the vector store."
+    description: "Directly operates on the vector store with various management actions"
     input_schema:
       action:
         type: "str"
@@ -113,22 +79,11 @@ flow:
         type: "list"
         description: "A list of conversation messages information. This field does not need to be filled in, the system will complete it automatically."
         required: false
-  
-op:
-  # retriever ops
-  rerank_memory_op:
-    backend: rerank_memory_op
-    llm: default
-    params:
-      enable_llm_rerank: true
-      enable_score_filter: false
-      top_k: 5
 
-  rewrite_memory_op:
-    backend: rewrite_memory_op
-    llm: default
-    params:
-      enable_llm_rewrite: true
+#  reconsolidate_personal_memory:
+#    flow_content: load_not_reflected_memory_op >> get_reflection_subject_op >> update_insight_op >> long_contra_repeat_op >> update_vector_store_op
+#    description: "Consolidate personal memories by generating topic insights, updating values, resolving conflicts, and updating vector store"
+
 
 llm:
   default:
@@ -137,7 +92,6 @@ llm:
     model_name: qwen3-30b-a3b-instruct-2507
     params:
       temperature: 0.6
-      
 
 embedding_model:
   default:
