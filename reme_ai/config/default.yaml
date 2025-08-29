@@ -1,5 +1,5 @@
 # default config.yaml
-backend: mcp
+backend: http
 language: ""
 thread_pool_max_workers: 32
 ray_max_workers: 1
@@ -79,6 +79,40 @@ flow:
         type: "list"
         description: "A list of conversation messages information. This field does not need to be filled in, the system will complete it automatically."
         required: false
+
+  record_task_memory:
+    flow_content: update_memory_freq_op >> update_memory_utility_op >> update_vector_store_op
+    description: "Update the freq & utility attributes of retrieved task memories"
+    input_schema:
+      workspace_id:
+        type: "str"
+        description: "workspace id"
+        required: true
+      memory_dicts:
+        type: "list"
+        description: "A list of retrieved task memory corresponding to the current task."
+        required: true
+      update_utility:
+        type: "bool"
+        description: "Whether to update the utility attribute of the retrieved task memory."
+        required: true
+
+    delete_task_memory:
+      flow_content: delete_memory_op >> update_vector_store_op
+      description: "Delete task memories when utility/freq < utility_threshold and freq >= freq_threshold"
+      input_schema:
+        workspace_id:
+          type: "str"
+          description: "workspace id"
+          required: true
+        freq_threshold:
+          type: "int"
+          description: "The retrieved frequency threshold for deleting task memory."
+          required: true
+        utility_threshold:
+          type: "float"
+          description: "The utility/freq threshold for deleting task memory."
+          required: true
 
 #  reconsolidate_personal_memory:
 #    flow_content: load_not_reflected_memory_op >> get_reflection_subject_op >> update_insight_op >> long_contra_repeat_op >> update_vector_store_op

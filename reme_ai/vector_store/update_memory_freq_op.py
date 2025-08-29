@@ -1,12 +1,12 @@
 from typing import List
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseLLMOp, BaseOp
 from loguru import logger
 
 from reme_ai.schema.memory import BaseMemory, dict_to_memory
 
 
 @C.register_op()
-class UpdateMemoryFreqOp(BaseLLMOp):
+class UpdateMemoryFreqOp(BaseOp):
     file_path: str = __file__
 
     def execute(self):
