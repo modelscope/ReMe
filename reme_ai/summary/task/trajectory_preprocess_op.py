@@ -1,3 +1,4 @@
+import json
 from typing import List, Dict
 
 from flowllm import C, BaseOp
@@ -13,7 +14,15 @@ class TrajectoryPreprocessOp(BaseOp):
     def execute(self):
         """Preprocess trajectories: validate and classify"""
         trajectories: list = self.context.get("trajectories", [])
-        trajectories: List[Trajectory] = [Trajectory(**x) if isinstance(x, dict) else x for x in trajectories]
+        # trajectories: List[Trajectory] = [Trajectory(**x) if isinstance(x, dict) else x for x in trajectories]
+        new_trajectories: List[Trajectory] = []
+        for x in trajectories:
+            if isinstance(x, dict):
+                x["messages"] = self._modify_tool_calls(x["messages"])
+                new_trajectories.append(Trajectory(**x))
+            else:
+                new_trajectories.append(x)
+        trajectories = new_trajectories
 
         # Classify trajectories
         classified = self._classify_trajectories(trajectories)
@@ -45,3 +54,23 @@ class TrajectoryPreprocessOp(BaseOp):
             'failure': failure_trajectories,
             'all': trajectories
         }
+
+    def _modify_tool_calls(self, messages: List[Dict]) -> List[Dict]:
+        new_messages = []
+        
+        for msg in messages:
+            if 'tool_calls' in msg:
+                processed_tool_calls = []
+                for tool_call in msg['tool_calls']:
+                    tool_type = tool_call.get("type", "function")
+                    nested_data = tool_call.get(tool_type, {})
+                    tool_call.update({
+                        "arguments": json.loads(nested_data.get("arguments", "")),
+                        "name": nested_data.get("name", "")
+                    })
+                    tool_call.pop(tool_type)
+                    processed_tool_calls.append(tool_call)
+                msg['tool_calls'] = processed_tool_calls
+            new_messages.append(msg)
+        
+        return new_messages
