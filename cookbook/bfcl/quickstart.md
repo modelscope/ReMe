@@ -21,6 +21,7 @@ cd gorilla/berkeley-function-call-leaderboard
 conda create -n bfcl-env python==3.12
 conda activate bfcl-env
 pip install -e .
+pip install -r requirements.txt
 ```
 
 #### Move the dataset to the data folder under bfcl
@@ -49,12 +50,9 @@ python run_bfcl.py
 
 ### 3. Start ReMe Service and Init the task memory pool
 
-After collecting trajectories, Launch the ReMe service to enable memory library functionality:
+After collecting trajectories, Launch the ReMe service (make sure you have installed ReMe environment, if not please follow the steps in the [ReMe Installation Guide](https://github.com/modelscope/ReMe/blob/main/doc/README.md) to install):
 
 ```bash
-# Go back to the project root
-cd ../..
-
 reme \
   backend=http \
   http.port=8001 \
@@ -76,7 +74,7 @@ python init_exp_pool.py
 - `n_threads`: Number of threads for processing (default: `4`)
 - `output_file`: Output file to save results (optional)
 
-Now you have inited the task memory pool using `local` backend (start on `http://localhost:8001`). The `local_file_to_library.py` script or use the following `curl` command:
+Now you have inited the task memory pool using `local` backend (start on `http://localhost:8001`). Then, use `local_file_to_library.py` script to convert the local file to the memory library or run the following `curl` command:
 ```bash
 curl -X POST "http://0.0.0.0:8001/vector_store" \
   -H "Content-Type: application/json" \
@@ -86,7 +84,7 @@ curl -X POST "http://0.0.0.0:8001/vector_store" \
     "path": "./library"
   }'
 ```
-can convert the local file to the memory library (default in `./library/bfcl_test.jsonl`).
+to dump the memory library (default in `./library/bfcl_test.jsonl`).
 
 Next time, you can import this previously exported task memory data to populate the new started workspace with existing knowledge:
 ```bash
