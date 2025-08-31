@@ -35,9 +35,8 @@ class TrajectorySegmentationOp(BaseLLMOp):
             segmented_count += 1
 
         logger.info(f"Segmented {segmented_count} trajectories")
-        
-        # Update context with segmented trajectories
 
+        # Update context with segmented trajectories
 
     def _get_target_trajectories(self, all_trajectories: List[Trajectory],
                                  success_trajectories: List[Trajectory],

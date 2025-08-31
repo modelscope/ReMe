@@ -97,32 +97,36 @@ flow:
         description: "Whether to update the utility attribute of the retrieved task memory."
         required: true
 
-    delete_task_memory:
-      flow_content: delete_memory_op >> update_vector_store_op
-      description: "Delete task memories when utility/freq < utility_threshold and freq >= freq_threshold"
-      input_schema:
-        workspace_id:
-          type: "str"
-          description: "workspace id"
-          required: true
-        freq_threshold:
-          type: "int"
-          description: "The retrieved frequency threshold for deleting task memory."
-          required: true
-        utility_threshold:
-          type: "float"
-          description: "The utility/freq threshold for deleting task memory."
-          required: true
+  delete_task_memory:
+    flow_content: delete_memory_op >> update_vector_store_op
+    description: "Delete task memories when utility/freq < utility_threshold and freq >= freq_threshold"
+    input_schema:
+      workspace_id:
+        type: "str"
+        description: "workspace id"
+        required: true
+      freq_threshold:
+        type: "int"
+        description: "The retrieved frequency threshold for deleting task memory."
+        required: true
+      utility_threshold:
+        type: "float"
+        description: "The utility/freq threshold for deleting task memory."
+        required: true
 
-#  reconsolidate_personal_memory:
-#    flow_content: load_not_reflected_memory_op >> get_reflection_subject_op >> update_insight_op >> long_contra_repeat_op >> update_vector_store_op
-#    description: "Consolidate personal memories by generating topic insights, updating values, resolving conflicts, and updating vector store"
-
+  react:
+    flow_content: simple_react_op
+    description: "React to the current task with an agent"
+    input_schema:
+      query:
+        type: "str"
+        description: "user query"
+        required: true
 
 llm:
   default:
     backend: openai_compatible
-#    model_name: qwen3-30b-a3b-thinking-2507
+    #    model_name: qwen3-30b-a3b-thinking-2507
     model_name: qwen3-30b-a3b-instruct-2507
     params:
       temperature: 0.6
@@ -138,6 +142,6 @@ vector_store:
   default:
     backend: elasticsearch
     embedding_model: default
-    params:
-      # hosts: "http://localhost:9200"
-      hosts: "http://11.160.132.46:8200"
+#    params:
+#      hosts: "http://localhost:9200"
+#      hosts: "http://11.160.132.46:8200"

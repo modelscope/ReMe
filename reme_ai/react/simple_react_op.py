@@ -1,10 +1,10 @@
 from flowllm import C
 from flowllm.context.flow_context import FlowContext
-from flowllm.op.agent.react_v1_op import ReactV1Op
+from flowllm.op.agent.react_v2_op import ReactV2Op
 
 
 @C.register_op()
-class SimpleReactOp(ReactV1Op):
+class SimpleReactOp(ReactV2Op):
     ...
 
 

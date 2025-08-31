@@ -1,4 +1,3 @@
-import json
 from typing import List, Dict
 
 from flowllm import C, BaseOp
@@ -57,7 +56,7 @@ class TrajectoryPreprocessOp(BaseOp):
 
     def _modify_tool_calls(self, messages: List[Dict]) -> List[Dict]:
         new_messages = []
-        
+
         for msg in messages:
             if 'tool_calls' in msg:
                 processed_tool_calls = []
@@ -72,5 +71,5 @@ class TrajectoryPreprocessOp(BaseOp):
                     processed_tool_calls.append(tool_call)
                 msg['tool_calls'] = processed_tool_calls
             new_messages.append(msg)
-        
+
         return new_messages

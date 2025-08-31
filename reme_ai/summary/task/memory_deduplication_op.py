@@ -1,7 +1,8 @@
 from typing import List
-from loguru import logger
 
 from flowllm import C, BaseOp
+from loguru import logger
+
 from reme_ai.schema.memory import BaseMemory
 
 
@@ -23,8 +24,9 @@ class MemoryDeduplicationOp(BaseOp):
         # Perform deduplication
         deduplicated_task_memories = self._deduplicate_task_memories(task_memories)
 
-        logger.info(f"Deduplication complete: {len(deduplicated_task_memories)} deduplicated task memories out of {len(task_memories)}")
-        
+        logger.info(
+            f"Deduplication complete: {len(deduplicated_task_memories)} deduplicated task memories out of {len(task_memories)}")
+
         # Update context
         self.context.memory_list = deduplicated_task_memories
 
@@ -84,7 +86,8 @@ class MemoryDeduplicationOp(BaseOp):
                 if hasattr(node, 'embedding') and node.embedding:
                     existing_embeddings.append(node.embedding)
 
-            logger.debug(f"Retrieved {len(existing_embeddings)} existing task memory embeddings from workspace {workspace_id}")
+            logger.debug(
+                f"Retrieved {len(existing_embeddings)} existing task memory embeddings from workspace {workspace_id}")
             return existing_embeddings
 
         except Exception as e:
@@ -111,10 +114,9 @@ class MemoryDeduplicationOp(BaseOp):
             logger.error(f"Error generating embedding for task memory: {e}")
             return None
 
-
     def _is_similar_to_existing_task_memories(self, current_embedding: List[float],
-                                          existing_embeddings: List[List[float]],
-                                          threshold: float) -> bool:
+                                              existing_embeddings: List[List[float]],
+                                              threshold: float) -> bool:
         """Check if current embedding is similar to existing embeddings"""
         for existing_embedding in existing_embeddings:
             similarity = self._calculate_cosine_similarity(current_embedding, existing_embedding)
@@ -124,8 +126,8 @@ class MemoryDeduplicationOp(BaseOp):
         return False
 
     def _is_similar_to_current_task_memories(self, current_embedding: List[float],
-                                         current_task_memories: List[BaseMemory],
-                                         threshold: float) -> bool:
+                                             current_task_memories: List[BaseMemory],
+                                             threshold: float) -> bool:
         for existing_task_memory in current_task_memories:
             existing_embedding = self._get_task_memory_embedding(existing_task_memory)
             if existing_embedding is None:

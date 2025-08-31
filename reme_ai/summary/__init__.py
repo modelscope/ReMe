@@ -1,2 +1,2 @@
-from . import task
 from . import personal
+from . import task

@@ -1,56 +1,145 @@
 [
   {
     "role": "user",
-    "content": "You are a helpful assistant.\nThe current time is 2025-08-29 01:42:07.\nPlease proactively choose the most suitable tool or combination of tools based on the user's question, including web_search,python_execute,terminate etc.\nPlease first think about how to break down the problem into subtasks, what tools and parameters should be used for each subtask, and finally provide the tool call name and parameters.\nTry calling the same tool multiple times with different parameters to obtain information from various perspectives.\nPlease determine the response language based on the language of the user's question.\n\nAnalyze Xiaomi Corporation\n",
+    "content": "You are a helpful assistant.\nThe current time is 2025-08-31 15:41:22.\nPlease proactively choose the most suitable tool or combination of tools based on the user's question, including web_search,python_execute etc.\nPlease first think about how to break down the problem into subtasks, what tools and parameters should be used for each subtask, and finally provide the tool call name and parameters.\nTry calling the same tool multiple times with different parameters to obtain information from various perspectives.\nPlease determine the response language based on the language of the user's question.\n\nAnalyze Xiaomi Corporation\n",
     "reasoning_content": "",
     "tool_calls": [],
     "tool_call_id": "",
-    "time_created": "2025-08-29 01:42:07",
+    "time_created": "2025-08-31 15:41:22",
     "metadata": {}
   },
   {
     "role": "assistant",
     "content": "",
-    "reasoning_content": "Okay, let's tackle this user query about analyzing Xiaomi Corporation. First, I need to figure out what the user is asking for. They just said \"Analyze Xiaomi Corporation,\" so it's pretty broad. I should break this down into subtasks.\n\nHmm, analyzing a company usually involves looking at their financials, market position, product lines, maybe recent news or trends. But since I don't have real-time data, I need to use web search to get the latest info. The user might want current data, so web_search is probably the first tool to use.\n\nWait, the user mentioned the current time is 2025-08-29, but that's probably a placeholder. The actual date isn't relevant here. I should focus on getting the latest info about Xiaomi.\n\nFirst, I'll need to search for key aspects of Xiaomi. Let me think of relevant keywords. Maybe \"Xiaomi Corporation financial performance 2024\", \"Xiaomi market share smartphone 2024\", \"Xiaomi recent products 2024\", and \"Xiaomi global expansion strategy\". Using multiple search terms will give a more comprehensive analysis.\n\nWait, the tools say if there are multiple keywords, use each separately. So I should make four separate web_search calls with each keyword. Let me check the function description again. Yes, \"if there are multiple search keywords, please use each keyword separately to call this tool.\"\n\nSo, I'll generate four tool calls with each query. Let me list them:\n\n1. \"Xiaomi Corporation financial performance 2024\"\n2. \"Xiaomi market share smartphone 2024\"\n3. \"Xiaomi recent products 2024\"\n4. \"Xiaomi global expansion strategy\"\n\nEach of these will get different pieces of information. Once I have the search results, I can compile the analysis. But since I can't do that yet, the next step is to make those web searches.\n\nWait, the user might not need all four, but to be thorough, it's better to cover different angles. Let me confirm if these keywords are appropriate. Financial performance, market share, recent products, and expansion strategy are all key areas for a company analysis.\n\nI should make sure the queries are specific to 2024 since the current time in the system is 2025, but the user's query is for analysis, so recent data is needed. Using 2024 in the query makes sense.\n\nSo, I'll proceed to call web_search four times with each of those keywords. Then, once the results come back, I can synthesize the information. But since I can't do that now, the immediate action is to make those four tool calls.\n",
-    "tool_calls": [],
+    "reasoning_content": "",
+    "tool_calls": [
+      {
+        "index": 0,
+        "id": "call_2116799d79ed41048e364f",
+        "type": "function",
+        "name": "web_search",
+        "arguments": "{\"query\": \"Xiaomi Corporation company overview\"}",
+        "description": "",
+        "input_schema": {},
+        "output_schema": {}
+      },
+      {
+        "index": 1,
+        "id": "call_1609fb473ad54e8aab3b96",
+        "type": "function",
+        "name": "web_search",
+        "arguments": "{\"query\": \"Xiaomi Corporation financial performance 2024\"}",
+        "description": "",
+        "input_schema": {},
+        "output_schema": {}
+      },
+      {
+        "index": 2,
+        "id": "call_b6ea98ff91484ea39a6efa",
+        "type": "function",
+        "name": "web_search",
+        "arguments": "{\"query\": \"Xiaomi Corporation product portfolio and market share\"}",
+        "description": "",
+        "input_schema": {},
+        "output_schema": {}
+      }
+    ],
     "tool_call_id": "",
-    "time_created": "2025-08-29 01:42:15",
+    "time_created": "2025-08-31 15:41:23",
     "metadata": {}
   },
   {
-    "role": "user",
-    "content": "<tool_response>\n- Xiaomi's smartphone revenue reached CNY 191.8 billion ($26.5 billion), accounting for 52% of overall sales. Xiaomi sold 169 million units in 2024.\n- Total Revenue for 2024 was RMB 365.9 billion.\n- Xiaomi posted record-breaking financial results for 2024, with the CEO Lei Jun calling it the \"strongest annual report in history.\"\n- Revenue for the first quarter of 2025 surged 47.4 percent year-on-year to 111.3 billion yuan ($15.5 billion), indicating continued strong performance following 2024.\n</tool_response>\n<tool_response>\nHere is the relevant information regarding Xiaomi's smartphone market share in 2024:\n\n1. In Q1 2025, Xiaomi's smartphone revenue is mentioned, and it reclaimed the top spot in mainland China after a decade, capturing 18.8% market share. (Note: Though mentioned in Q1 2025, it indicates Xiaomi's strong performance that might have carried over from 2024.)\n\n2. In 2024 Q4, Xiaomi's market share of smartphone shipments in mainland China increased by 3.0 percentage points YoY to 15.8%, marking its 4 consecutive quarters of market share growth.\n\n3. Additionally, in the RMB3,000 - 4,000 segment in 2024 Q3, Xiaomi's market share reached 18.1%, up 9.3 percentage points YoY.\n\nThese data points reflect Xiaomi's growing market presence in the Chinese smartphone market during 2024.\n</tool_response>\n<tool_response>\nIn 2024, Xiaomi has released several new products across different categories:\n\n- **Xiaomi 15 Series and Xiaomi HyperOS 2**: On October 29, 2024, Xiaomi held a new product launch event, introducing the Xiaomi 15 series smartphones and the Xiaomi HyperOS 2. The Xiaomi 15 series includes four color options, starting at a price of 4499 yuan. Two special editions, the Custom Edition and the Diamond Limited Edition, are priced at 4999 yuan and 5999 yuan, respectively. These smartphones are equipped with the latest Snapdragon 8 Gen 3 processor, featuring enhanced performance and energy efficiency. Additionally, the Xiaomi 15 series boasts improved Leica optical high-speed lens systems and the advanced Xiaomi AISP 2.0 computational photography platform powered by large models.\n\n- **Xiaomi SU7 Ultra Production Version**: As part of the October 29 launch event, Xiaomi also unveiled the Xiaomi SU7 Ultra production version, which is described as the fastest four-door production car available on the streets, capable of accelerating from 0 to 100 km/h in just 1.98 seconds. The pre-sale price is set at 814,900 yuan, with an expected official release in March 2025.\n\n- **Xiaomi Watch S4 and Xiaomi Band 9 Pro**: These wearable devices were also introduced during the October 29 event, contributing to Xiaomi's ecosystem of interconnected devices.\n\n- **Xiaomi MIX Fold4 and Xiaomi MIX Flip**: During a summer product launch event on July 19, Xiaomi introduced the Xiaomi MIX Fold4 and Xiaomi MIX Flip. The Xiaomi MIX Fold4 is noted for its lightweight and slim design, weighing 226g and having a single-edge thickness of 4.59mm. It features Xiaomi's latest Dragon Bone Hinge 2.0 design, ensuring stability and safety over 500,000 folding tests. The Xiaomi MIX Flip is a compact foldable phone with a width of only 74.02mm and a weight of 192g, ideal for one-handed operation.\n\n- **Redmi K70 Ultra**: Also launched on July 19, this smartphone is equipped with the Dimensity 9300+ processor and an independent graphics card D1, achieving a benchmark score exceeding 2.38 million in performance tests.\n\n- **Xiaomi 14 Ultra**: This device was introduced as an annual imaging flagship in February 2024, featuring a Leica-tuned quad-camera system that pushes image quality to new extremes.\n\n- **Xiaomi 14T Series**: At an international launch event in September 2024, Xiaomi showcased the professional night photography capabilities of the Xiaomi 14T series, capable of capturing true-to-life colors in low-light conditions.\n\nThese products highlight Xiaomi's commitment to innovation and technological advancement across multiple product lines and markets.\n</tool_response>\n<tool_response>\nXiaomi's global expansion strategy involves several key elements:\n\n1. **Market Positioning and Branding**: Xiaomi's success in the global market is attributed to its precise market positioning, localization strategies, and strong brand building.\n\n2. **International Market Entry**: By 2016, Xiaomi had started to expand internationally, aiming to make \"good but cheap things\" and replicate its domestic success in new markets.\n\n3. **Product Ecosystem**: The company aggressively built a robust ecosystem around its products, which included selling over 70 million mobile phones in 2015.\n\n4. **Leadership**: Hugo Barra, a top Android executive, left Google a few years earlier to lead Xiaomi’s international growth.\n\n5. **Shipping and Logistics**: Enhancing customer satisfaction through timely deliveries and optimizing time-to-market for new product launches are integral to Xiaomi's global strategy.\n\n6. **Localization Strategies**: Xiaomi employs localization strategies to better fit the markets it enters, which helps in achieving a higher global market share.\n\n7. **Global Market Share**: Xiaomi's global market share has hit a new high of 27%, indicating the effectiveness of its expansion strategies.\n</tool_response>\nThink based on the current content and the user's question: Is the current context sufficient to answer the user's question?  \n\n- If the current context is not sufficient to answer the user's question, consider what information is missing. \n  Re-plan and think about how to break down the missing information into subtasks. \n  For each subtask, determine what tools and parameters should be used for the query.\n  Please first provide the reasoning process, then give the tool call name and parameters.\n\n- If the current context is sufficient to answer the user's question, use the **terminate** tool.\n",
+    "role": "tool",
+    "content": "以下是从知识库中提取的与用户查询相关的内容：\n\n小米公司正式成立于2010年4月，并于2018年7月9日在香港联交所主板上市。小米公司是一家以智能手机、智能硬件和IoT平台为核心的消费电子及智能制造公司。创新与品质并重，小米不断追求极致的用户体验和运营效率。小米的使命是，始终坚持做\"感动人心、价格厚道\"的好产品，让全球每个人都能享受科技带来的美好生活。\n\n小米公司是一家主要从事智能手机、互联网电视以及智能家居生态链建设的创新型科技企业。其愿景是“让每个人都能享受科技的乐趣”。公司通过四个分部开展业务，主要从事智能手机、物联网(IoT)和生活消费产品的研发和销售业务。\n\n公司名称为XiaomiCorporation(小米集团)。公司股本为675,000美元,分为70,000,000,000股每股面值0.0000025美元的A类普通股和200,000,000,000股每股面值0.0000025美元的B类普通股。公司设立的宗旨没有限制,拥有全部权力及权限实施不受开曼群岛法例禁止的目标。各股东所承担的责任以其所持股份不时未缴付的股款为限。\n\n以上信息截至2025年8月19日。",
     "reasoning_content": "",
     "tool_calls": [],
-    "tool_call_id": "",
-    "time_created": "2025-08-29 01:42:41",
+    "tool_call_id": "call_2116799d79ed41048e364f",
+    "time_created": "2025-08-31 15:41:34",
+    "metadata": {}
+  },
+  {
+    "role": "tool",
+    "content": "The following information pertains to Xiaomi Corporation's financial performance in 2024:\n\n- Xiaomi reported record-breaking financial results for 2024, with smartphone revenue reaching CNY 191.8 billion ($26.5 billion), accounting for 52% of overall sales. The company sold 169 million units in 2024. (Posted on March 19, 2025)\n\n- Xiaomi's annual financial report for 2024 was planned to be announced on March 18, 2025 (Tuesday).\n\n- Xiaomi's Q2 2024 performance was scheduled to be released on August 21, 2024 (Wednesday), with an investor conference call or webcast set for the same day at 7:30 PM (Beijing time).\n\n- Xiaomi's Q3 2024 performance was scheduled to be released on November 18, 2024 (Monday), with an investor conference call or webcast planned for the same day at 8:30 PM HKT (Hong Kong time).",
+    "reasoning_content": "",
+    "tool_calls": [],
+    "tool_call_id": "call_1609fb473ad54e8aab3b96",
+    "time_created": "2025-08-31 15:41:34",
+    "metadata": {}
+  },
+  {
+    "role": "tool",
+    "content": "Xiaomi Corporation's product portfolio includes:\n\n- **Monitors & Media**: For instance, the Xiaomi 2K Gaming Monitor G27Qi, which features a 27-inch fast LCD with a 180Hz high refresh rate.\n- **Wearables**\n- **Home Appliances**\n- **Lifestyle Companions**\n\nRegarding Xiaomi's market share, the information provided highlights that in the RMB3,000 - 4,000 segment, Xiaomi's market share reached 18.1%, showing an increase of 9.3 percentage points year-over-year. However, no specific figures are given for other segments or the overall market share of Xiaomi's entire product portfolio.",
+    "reasoning_content": "",
+    "tool_calls": [],
+    "tool_call_id": "call_b6ea98ff91484ea39a6efa",
+    "time_created": "2025-08-31 15:41:34",
     "metadata": {}
   },
   {
     "role": "assistant",
-    "content": "<result>\nThe user's query to \"Analyze Xiaomi Corporation\" has been addressed comprehensively using the provided data from web searches. The analysis covers:\n1. **Financial Performance** (2024 revenue, smartphone sales, Q1 2025 growth)\n2. **Market Share** (China smartphone dominance, segment-specific performance)\n3. **Product Portfolio** (2024 flagship launches across smartphones, EVs, wearables)\n4. **Global Strategy** (market expansion, localization, 27% global market share)\n\nAll key aspects of a company analysis are covered with current data (2024-2025). No additional information is required.\n</result>\n\n<answer>\nThe analysis of Xiaomi Corporation for 2024-2025 is complete, based on the following key findings:\n\n✅ **Financials**: \n- Total Revenue: RMB 365.9 billion (2024)\n- Smartphone Revenue: RMB 191.8 billion (52% of total sales)\n- 169 million smartphones sold in 2024\n- Q1 2025 Revenue: RMB 111.3 billion (+47.4% YoY)\n\n✅ **Market Position**:\n- China smartphone market share: 15.8% (Q4 2024), 18.8% (Q1 2025)\n- Top segment performance: 18.1% in RMB 3,000-4,000 range (Q3 2024)\n\n✅ **Product Innovation**:\n- Xiaomi 15 Series (Oct 2024) with Snapdragon 8 Gen 3\n- SU7 Ultra EV (pre-sale at 814,900 yuan)\n- MIX Fold4 (226g, 4.59mm thickness) and MIX Flip\n\n✅ **Global Expansion**:\n- 27% global market share (record high)\n- Localization strategies driving international growth\n- 70+ million phones shipped globally in 2015 (historical context)\n\nThis represents Xiaomi's strongest annual performance to date, with sustained growth across products, markets, and revenue streams.\n</answer>\n\n",
-    "reasoning_content": "Okay, let's see. The user asked to analyze Xiaomi Corporation. I've been provided with four tool responses from web searches covering financial performance, market share, recent products, and global expansion strategy. Let me check if all these pieces are sufficient to form a comprehensive analysis.\n\nFirst, the financial data: total revenue 365.9 billion RMB in 2024, smartphone revenue 191.8 billion, 169 million units sold. That's solid for financials. Then market share in China: 15.8% in Q4 2024, 18.8% in Q1 2025, which shows growth. Recent products include the 15 series, SU7 Ultra, and foldables. Global strategy mentions 27% market share and localization efforts.\n\nWait, the user's question is to \"analyze Xiaomi Corporation.\" The provided data covers key areas: financials, market share, product launches, and expansion. Each of the four search results addresses a different aspect. The user probably needs a summary that ties these together. Since all necessary data is here, there's no need for more web searches. The next step is to compile this into a coherent answer.\n\nI should check if there's anything missing. For example, maybe competition details or future projections, but the user didn't ask for that. The given data seems sufficient for a basic analysis. The financials, market share, product updates, and global strategy are all covered. So the context is sufficient. Therefore, the terminate tool with status success should be used.",
-    "tool_calls": [],
+    "content": "",
+    "reasoning_content": "",
+    "tool_calls": [
+      {
+        "index": 0,
+        "id": "call_78001de6ca57472f9c66a9",
+        "type": "function",
+        "name": "web_search",
+        "arguments": "{\"query\": \"Xiaomi Corporation market share smartphone global 2024\"}",
+        "description": "",
+        "input_schema": {},
+        "output_schema": {}
+      }
+    ],
     "tool_call_id": "",
-    "time_created": "2025-08-29 01:42:51",
+    "time_created": "2025-08-31 15:41:35",
     "metadata": {}
   },
   {
-    "role": "user",
-    "content": "Please integrate the context and provide a complete answer to the user's question.\n\n# User's Question\n{query}\n",
+    "role": "tool",
+    "content": "- In 2024, Xiaomi smartphone sales increased significantly, reaching over 168 million unit shipments, accounting for over 13 percent of the global smartphone market. (Statista, 2025年2月19日)\n\n- Xiaomi ranked No.4 globally in smartphone shipments in 2024, with a market share of 16.1%. (Xiaomi Corporation - Investor Relations, 2025年3月2日)",
     "reasoning_content": "",
     "tool_calls": [],
-    "tool_call_id": "",
-    "time_created": "2025-08-29 01:42:52",
+    "tool_call_id": "call_78001de6ca57472f9c66a9",
+    "time_created": "2025-08-31 15:41:40",
     "metadata": {}
   },
   {
     "role": "assistant",
-    "content": "terminate\n{\n  \"answer\": \"Xiaomi Corporation has delivered its strongest annual performance to date in 2024, with comprehensive growth across all key business dimensions:\\n\\n✅ **Financial Performance**\\n- Total Revenue: RMB 365.9 billion (2024)\\n- Smartphone Revenue: RMB 191.8 billion (52% of total sales)\\n- 169 million smartphones sold globally\\n- Q1 2025 Revenue: RMB 111.3 billion (+47.4% YoY)\\n- CEO Lei Jun described 2024 as \\\"the strongest annual report in history\\\"\\n\\n✅ **Market Dominance**\\n- China smartphone market share: 15.8% (Q4 2024), 18.8% (Q1 2025)\\n- 18.1% share in RMB 3,000-4,000 segment (Q3 2024)\\n- 4 consecutive quarters of market share growth in China\\n\\n✅ **Product Innovation**\\n- Xiaomi 15 Series (Oct 2024): Snapdragon 8 Gen 3, Leica optics, HyperOS 2\\n- SU7 Ultra EV: 1.98s 0-100km/h acceleration, 814,900 yuan pre-sale\\n- MIX Fold4: 226g, 4.59mm thickness, 500k+ fold tests\\n- Redmi K70 Ultra: Dimensity 9300+ processor, 2.38M+ benchmark\\n\\n✅ **Global Expansion**\\n- Achieved 27% global market share (record high)\\n- Localization strategies driving international growth\\n- 70+ million phones shipped globally (2015 historical context)\\n\\nXiaomi's 2024-2025 performance demonstrates successful execution of its product ecosystem strategy, market localization, and technological innovation across smartphones, EVs, and IoT devices.\"\n}",
-    "reasoning_content": "Okay, let's tackle this. The user asked to \"Analyze Xiaomi Corporation,\" and the assistant has already provided a detailed analysis based on the search results. Now, I need to make sure the answer is complete and integrates all the context provided.\n\nFirst, check if all the necessary information is covered. The previous response listed financials, market share, products, and global strategy. The search results included data from 2024 and Q1 2025, which seems up-to-date. The user's current time is 2025-08-29, so the Q1 2025 data is relevant.\n\nWait, the user's question is just \"Analyze Xiaomi Corporation,\" so the answer should summarize the key points without needing more data. The assistant's previous answer seems to have all the necessary info from the provided context. The tools used were web_search for each subtask, and the results were integrated into the analysis.\n\nI need to confirm if there's anything missing. The financials, market share, products, and global strategy are all covered. The mention of the CEO calling it the \"strongest annual report in history\" adds context. The product launches in 2024 (Xiaomi 15 Series, SU7 Ultra, MIX Fold4) are all included. Global expansion mentions 27% market share, which is a key point.\n\nNo additional tools are needed because all required data is present in the context. The assistant should terminate the process and provide the integrated answer. The previous \"terminate\" response was correct. The user's answer is already complete, so the correct action is to use the terminate tool with the answer.\n",
+    "content": "",
+    "reasoning_content": "",
+    "tool_calls": [
+      {
+        "index": 0,
+        "id": "call_d1cebb4b219d42099d3ee4",
+        "type": "function",
+        "name": "web_search",
+        "arguments": "{\"query\": \"Xiaomi Corporation innovation strategy and future plans 2025\"}",
+        "description": "",
+        "input_schema": {},
+        "output_schema": {}
+      }
+    ],
+    "tool_call_id": "",
+    "time_created": "2025-08-31 15:41:40",
+    "metadata": {}
+  },
+  {
+    "role": "tool",
+    "content": "Xiaomi's innovation strategy and future plans for 2025 are highlighted in several pieces of information:\n\n1. **Investment in Core Technologies**: Xiaomi has committed to investing heavily in core technologies, setting a goal to spend 100 billion yuan ($13.8 billion) on research and development (R&D). By 2025, they have exceeded this target, having invested about 105 billion yuan ($14.5 billion) from 2021 to 2025, with 30 billion yuan ($4.2 billion) specifically allocated for R&D in 2025 alone.\n\n2. **Technological Advancement and Industry Transformation**: Xiaomi believes that technological advancement plays a critical role in transforming traditional industries and fostering emerging sectors. The company will continue to innovate to contribute to China's path to modernization.\n\n3. **Expansion into New Sectors**: Under the leadership of Lei Jun, CEO and chairman of Xiaomi Corp, the company is focusing on transforming traditional industries and fostering new sectors through technological innovation. Over the past 15 years, Xiaomi has deeply understood that technological innovation is the cornerstone of progress.\n\n4. **Smartphone Market and Product Launches**: In Q2 2025, Xiaomi launched the Xiaomi YU7 Series in June, achieving significant locked-in orders. This indicates Xiaomi's ongoing commitment to innovation in the smartphone market.\n\n5. **Diversification into EVs and AI**: In Q1 2025, Xiaomi posted record profits and revenue with key gains in electric vehicles (EVs), artificial intelligence (AI), and chip design, marking a major milestone in tech leadership. This suggests that Xiaomi is diversifying its portfolio beyond smartphones into cutting-edge technologies.\n\n6. **Digital Marketing and User Engagement**:小米 is focusing on innovative digital marketing strategies, including a product strategy that emphasizes high cost-performance and an ecosystem chain matrix to build a user experience closed loop. Additionally, Xiaomi uses a penetration pricing and dynamic pricing strategy, along with limited sale mechanisms to strengthen the perception of scarcity. In terms of user engagement, Xiaomi is依托米粉社区培育忠诚度, forming a word-of-mouth communication ecosystem.\n\nThese strategies and plans reflect Xiaomi's holistic approach to maintaining its competitive edge through innovation, diversification, and strong user engagement in 2025.",
+    "reasoning_content": "",
+    "tool_calls": [],
+    "tool_call_id": "call_d1cebb4b219d42099d3ee4",
+    "time_created": "2025-08-31 15:41:56",
+    "metadata": {}
+  },
+  {
+    "role": "assistant",
+    "content": "Based on the provided information, here is a comprehensive analysis of Xiaomi Corporation:\n\n### 1. **Company Overview**\n- **Founded**: April 2010.\n- **Listing**: Hong Kong Stock Exchange (HKEX) in July 2018.\n- **Core Focus**: Smartphones, smart hardware, and IoT platforms.\n- **Mission**: \"Make products that move people's hearts and are priced fairly.\"\n- **Vision**: \"Let everyone enjoy the fun of technology.\"\n- **Business Model**: A global leader in consumer electronics and intelligent manufacturing, focusing on innovation and quality.\n\n---\n\n### 2. **Financial Performance (2024)**\n- **Revenue**: Record-breaking performance with smartphone revenue reaching CNY 191.8 billion ($26.5 billion), accounting for 52% of total sales.\n- **Unit Sales**: Sold 169 million smartphones in 2024.\n- **Market Position**: Ranked **No. 4 globally** in smartphone shipments with a market share of **16.1%**.\n- **Global Market Share**: Over 13% of the global smartphone market (168+ million units shipped).\n\n---\n\n### 3. **Product Portfolio & Market Share**\n- **Key Product Lines**:\n  - **Smartphones**: Core product line with strong performance in mid-to-high-end segments.\n  - **IoT & Smart Home Devices**: Includes wearables, home appliances, monitors, and lifestyle companions.\n  - **Electric Vehicles (EVs)**: A major new growth area, contributing significantly to Q1 2025 profits.\n  - **AI & Chip Design**: Investments in artificial intelligence and semiconductor technology.\n- **Market Share Highlights**:\n  - In the RMB 3,000–4,000 price segment, Xiaomi achieved a **18.1% market share**, up 9.3 percentage points YoY.\n  - Global smartphone market share reached **16.1%** in 2024, solidifying its position as a top-tier player.\n\n---\n\n### 4. **Innovation Strategy & Future Plans (2025)**\n- **R&D Investment**: Exceeded its target by investing approximately **CNY 105 billion ($14.5 billion)** from 2021 to 2025, with **CNY 30 billion ($4.2 billion)** allocated for 2025 alone.\n- **Focus Areas**:\n  - **Core Technologies**: Heavy investment in AI, chip design, and EV development.\n  - **Industry Transformation**: Leveraging technology to modernize traditional industries.\n  - **New Markets**: Expansion into electric vehicles and AI-driven solutions.\n- **Product Launches**:\n  - Launched the **Xiaomi YU7 Series** in June 2025, achieving significant pre-orders.\n- **Marketing & User Engagement**:\n  - Emphasis on high cost-performance ratio.\n  - Use of dynamic pricing, limited releases, and community-building (e.g., Mi Fans).\n  - Creating a closed-loop user experience ecosystem.\n\n---\n\n### 5. **Conclusion**\nXiaomi Corporation has evolved from a smartphone-focused company into a diversified tech giant with leadership in IoT, EVs, AI, and chip design. Its success in 2024 was driven by strong financial performance, global market expansion, and a relentless focus on innovation. With ambitious plans for 2025—including massive R&D investments and strategic diversification—Xiaomi is well-positioned to maintain its competitive edge and drive long-term growth.",
+    "reasoning_content": "",
     "tool_calls": [],
     "tool_call_id": "",
-    "time_created": "2025-08-29 01:43:02",
+    "time_created": "2025-08-31 15:42:05",
     "metadata": {}
   }
 ]

@@ -101,7 +101,7 @@ class GetReflectionSubjectOp(BaseLLMOp):
         Args:
             memory_contents: List of memory content strings
             existing_subjects: List of already existing subject strings
-            user_name: Target user name
+            user_name: Target username
             num_questions: Maximum number of new subjects to generate
             
         Returns:

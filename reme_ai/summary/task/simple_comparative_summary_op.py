@@ -32,9 +32,9 @@ class SimpleComparativeSummaryOp(BaseLLMOp):
                     task_memory_content = tm_dict.get("experience", "").strip()
                     if when_to_use and task_memory_content:
                         task_memory_list.append(TaskMemory(workspace_id=self.context.get("workspace_id", ""),
-                                                              when_to_use=when_to_use,
+                                                           when_to_use=when_to_use,
                                                            content=task_memory_content,
-                                                              author=getattr(self.llm, 'model_name', 'system')))
+                                                           author=getattr(self.llm, 'model_name', 'system')))
 
                 return task_memory_list
 
@@ -62,7 +62,7 @@ class SimpleComparativeSummaryOp(BaseLLMOp):
 
             if task_trajectories[0].score > task_trajectories[-1].score:
                 task_memories = self.compare_summary_trajectory(trajectory_a=task_trajectories[0],
-                                                             trajectory_b=task_trajectories[-1])
+                                                                trajectory_b=task_trajectories[-1])
                 memory_list.extend(task_memories)
 
         self.context.response.answer = json.dumps([x.model_dump() for x in memory_list])

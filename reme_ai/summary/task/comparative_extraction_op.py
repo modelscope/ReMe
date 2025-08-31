@@ -31,7 +31,7 @@ class ComparativeExtractionOp(BaseLLMOp):
 
         # Hard comparison: success vs failure (if similarity search is enabled)
         if (success_trajectories and failure_trajectories and
-            self.op_params.get("enable_similarity_comparison", False)):
+                self.op_params.get("enable_similarity_comparison", False)):
 
             similar_pairs = self._find_similar_step_sequences(success_trajectories, failure_trajectories)
             logger.info(f"Found {len(similar_pairs)} similar pairs for hard comparison")
@@ -47,7 +47,8 @@ class ComparativeExtractionOp(BaseLLMOp):
         self.context.comparative_task_memories = comparative_task_memories
 
     @staticmethod
-    def _find_highest_lowest_scoring_trajectories(trajectories: List[Trajectory]) -> Tuple[Optional[Trajectory], Optional[Trajectory]]:
+    def _find_highest_lowest_scoring_trajectories(trajectories: List[Trajectory]) -> Tuple[
+        Optional[Trajectory], Optional[Trajectory]]:
         """Find the highest and lowest scoring trajectories"""
         if len(trajectories) < 2:
             return None, None
@@ -107,7 +108,8 @@ class ComparativeExtractionOp(BaseLLMOp):
         return self.llm.chat(messages=[Message(content=prompt)], callback_fn=parse_task_memories)
 
     def _extract_hard_comparative_task_memory(self, success_steps: List[Message],
-                                           failure_steps: List[Message], similarity_score: float) -> List[BaseMemory]:
+                                              failure_steps: List[Message], similarity_score: float) -> List[
+        BaseMemory]:
         """Extract hard comparative task memory (success vs failure)"""
         prompt = self.prompt_format(
             prompt_name="hard_comparative_step_task_memory_prompt",
@@ -134,7 +136,6 @@ class ComparativeExtractionOp(BaseLLMOp):
 
         return self.llm.chat(messages=[Message(content=prompt)], callback_fn=parse_task_memories)
 
-
     @staticmethod
     def _get_trajectory_steps(trajectory: Trajectory) -> List[Message]:
         """Get trajectory steps, prioritizing segmented steps"""
@@ -148,7 +149,8 @@ class ComparativeExtractionOp(BaseLLMOp):
             return trajectory.messages
 
     def _find_similar_step_sequences(self, success_trajectories: List[Trajectory],
-                                   failure_trajectories: List[Trajectory]) -> List[Tuple[List[Message], List[Message], float]]:
+                                     failure_trajectories: List[Trajectory]) -> List[
+        Tuple[List[Message], List[Message], float]]:
         """Find similar step sequences for comparison"""
         if not self.op_params.get("enable_similarity_comparison", False):
             return []
@@ -184,7 +186,8 @@ class ComparativeExtractionOp(BaseLLMOp):
             failure_texts = [merge_messages_content(seq) for seq in failure_step_sequences]
 
             # Get embedding vectors
-            if hasattr(self.context, 'vector_store') and self.context.vector_store and hasattr(self.context.vector_store, 'embedding_model'):
+            if hasattr(self.context, 'vector_store') and self.context.vector_store and hasattr(
+                    self.context.vector_store, 'embedding_model'):
                 success_embeddings = self.context.vector_store.embedding_model.get_embeddings(success_texts)
                 failure_embeddings = self.context.vector_store.embedding_model.get_embeddings(failure_texts)
 

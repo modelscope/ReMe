@@ -231,7 +231,7 @@ class MinerUPDFProcessor:
         Returns:
             Tuple[List[Dict[str, Any]], str]: A tuple containing:
                 - content_list: Structured content list with metadata
-                - markdown_content: Raw markdown text content
+                - markdown_content: Raw Markdown text content
         """
         # Locate generated output files - handle both flat and nested directory structures
         md_file = output_dir / f"{file_stem}.md"
@@ -277,7 +277,8 @@ class MinerUPDFProcessor:
                                     item[field_name] = str(absolute_img_path)
                                     self.logger.debug(f"Updated {field_name}: {img_path} -> {item[field_name]}")
 
-                self.logger.info(f"Successfully read JSON file: {json_file}, containing {len(content_list)} content blocks")
+                self.logger.info(
+                    f"Successfully read JSON file: {json_file}, containing {len(content_list)} content blocks")
 
             except Exception as e:
                 self.logger.warning(f"Failed to read JSON file {json_file}: {e}")
@@ -466,32 +467,32 @@ class MinerUPDFProcessor:
             "table_count": 0,
             "has_formulas": False
         }
-        
+
         for item in content_list:
             if not isinstance(item, dict):
                 continue
-                
+
             content_type = item.get("type", "unknown")
             stats["content_types"][content_type] = stats["content_types"].get(content_type, 0) + 1
-            
+
             if content_type == "text":
                 text = item.get("text", "")
                 stats["text_stats"]["total_characters"] += len(text)
                 stats["text_stats"]["total_words"] += len(text.split())
-                
+
                 level = item.get("text_level", 0)
                 if level > 0:
                     stats["text_stats"]["title_levels"][level] = stats["text_stats"]["title_levels"].get(level, 0) + 1
-                    
+
             elif content_type == "image":
                 stats["image_count"] += 1
-                
+
             elif content_type == "table":
                 stats["table_count"] += 1
-                
+
             elif content_type == "formula":
                 stats["has_formulas"] = True
-        
+
         return stats
 
     def validate_output_quality(self, content_list: List[Dict[str, Any]], markdown_content: str) -> Dict[str, Any]:
@@ -518,20 +519,20 @@ class MinerUPDFProcessor:
             "suggestions": [],
             "quality_score": 100
         }
-        
+
         # Check if content was extracted
         if not content_list and not markdown_content.strip():
             validation["is_valid"] = False
             validation["warnings"].append("No content was extracted from the PDF")
             validation["quality_score"] = 0
             return validation
-        
+
         # Check content diversity
         stats = self.get_content_statistics(content_list)
         if stats["total_blocks"] < 5:
             validation["warnings"].append("Very few content blocks extracted - document may be complex or image-heavy")
             validation["quality_score"] -= 20
-        
+
         # Check text content ratio
         text_blocks = stats["content_types"].get("text", 0)
         if text_blocks == 0:
@@ -540,16 +541,17 @@ class MinerUPDFProcessor:
         elif text_blocks / stats["total_blocks"] < 0.3:
             validation["suggestions"].append("Low text content ratio - document may benefit from OCR processing")
             validation["quality_score"] -= 10
-        
+
         # Check for images without processing
         if stats["image_count"] > 0 and stats["content_types"].get("text", 0) == 0:
-            validation["suggestions"].append("Images detected but no text extracted - consider using VLM backend for image analysis")
-        
+            validation["suggestions"].append(
+                "Images detected but no text extracted - consider using VLM backend for image analysis")
+
         # Check markdown length vs content blocks
         if len(markdown_content.strip()) < 100 and stats["total_blocks"] > 10:
             validation["warnings"].append("Markdown content seems unusually short for the number of content blocks")
             validation["quality_score"] -= 15
-        
+
         return validation
 
 
@@ -656,22 +658,23 @@ if __name__ == "__main__":
     and working with the extracted content.
     """
     import sys
-    
+
+
     # Example usage
     def example_usage():
         """Demonstrate basic PDF processing workflow."""
         try:
             # Initialize processor
             processor = MinerUPDFProcessor.create_with_defaults(log_level="INFO")
-            
+
             # Example PDF path (replace with actual PDF file)
             pdf_path = "example_document.pdf"
-            
+
             if not Path(pdf_path).exists():
                 print(f"Example PDF file not found: {pdf_path}")
                 print("Please provide a valid PDF file path to test the processor.")
                 return
-            
+
             # Process PDF with different methods
             print("Processing PDF with auto method...")
             content_list, markdown_content = processor.process_pdf(
@@ -679,7 +682,7 @@ if __name__ == "__main__":
                 method="auto",
                 lang="en"  # Specify language for better OCR results
             )
-            
+
             # Generate statistics
             stats = processor.get_content_statistics(content_list)
             print(f"Processing Statistics:")
@@ -687,7 +690,7 @@ if __name__ == "__main__":
             print(f"  Content types: {stats['content_types']}")
             print(f"  Text characters: {stats['text_stats']['total_characters']}")
             print(f"  Text words: {stats['text_stats']['total_words']}")
-            
+
             # Validate output quality
             validation = processor.validate_output_quality(content_list, markdown_content)
             print(f"Quality Score: {validation['quality_score']}/100")
@@ -695,7 +698,7 @@ if __name__ == "__main__":
                 print("Warnings:", validation['warnings'])
             if validation['suggestions']:
                 print("Suggestions:", validation['suggestions'])
-            
+
             # Save results
             output_path = Path(pdf_path).stem + "_processed"
             saved_files = processor.save_results(
@@ -704,19 +707,20 @@ if __name__ == "__main__":
                 output_path=output_path
             )
             print(f"Results saved to: {saved_files}")
-            
+
             # Create text chunks for downstream processing
             chunks = chunk_pdf_content(content_list, max_length=2000)
             print(f"Created {len(chunks)} text chunks")
-            
+
             # Display first chunk as example
             if chunks:
                 print("First chunk preview:")
                 print(chunks[0][:200] + "..." if len(chunks[0]) > 200 else chunks[0])
-                
+
         except Exception as e:
             print(f"Error during processing: {e}")
             sys.exit(1)
-    
+
+
     # Run example if script is executed directly
     example_usage()

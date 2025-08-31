@@ -20,8 +20,7 @@ class MergeMemoryOp(BaseOp):
             if not memory.content:
                 continue
 
-            content_collector.append(f"- when_to_use: {memory.when_to_use}\n"
-                                     f"content: {memory.content}\n")
+            content_collector.append(f"- {memory.when_to_use} {memory.content}\n")
         content_collector.append("Please consider the helpful parts from these in answering the question, "
                                  "to make the response more comprehensive and substantial.")
         self.context.response.answer = "\n".join(content_collector)

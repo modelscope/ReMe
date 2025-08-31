@@ -33,7 +33,7 @@ class RewriteMemoryOp(BaseLLMOp):
 
         # Generate initial context message
         rewritten_memory = self._generate_context_message(query, messages, memory_list)
-        
+
         # Store results in context
         self.context.response.answer = rewritten_memory
         self.context.response.metadata["memory_list"] = [memory.model_dump() for memory in memory_list]
@@ -41,7 +41,6 @@ class RewriteMemoryOp(BaseLLMOp):
     def _generate_context_message(self, query: str, messages: List[Message], memories: List[BaseMemory]) -> str:
         """Generate context message from retrieved memories"""
         if not memories:
-            
             return ""
 
         try:

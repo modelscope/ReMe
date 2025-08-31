@@ -1,9 +1,7 @@
-from typing import List, Iterable
+from typing import Iterable
+
 from flowllm import C, BaseLLMOp
 from flowllm.schema.vector_node import VectorNode
-from loguru import logger
-
-from reme_ai.schema.memory import BaseMemory, dict_to_memory
 
 
 @C.register_op()
@@ -14,14 +12,14 @@ class DeleteMemoryOp(BaseLLMOp):
         workspace_id: str = self.context.workspace_id
         freq_threshold: int = self.context.freq_threshold
         utility_threshold: float = self.context.utility_threshold
-        nodes: Iterable[VectorNode] = self.vector_store._iter_workspace_nodes(workspace_id=workspace_id)
-        
+        nodes: Iterable[VectorNode] = self.vector_store.iter_workspace_nodes(workspace_id=workspace_id)
+
         deleted_memory_ids = []
         for node in nodes:
             freq = node["metadata"]["metadata"]["freq"]
             utility = node["metadata"]["metadata"]["utility"]
             if freq >= freq_threshold:
-                if utility*1.0 / freq < utility_threshold:
+                if utility * 1.0 / freq < utility_threshold:
                     deleted_memory_ids.append(node["unique_id"])
-        
+
         self.context.deleted_memory_ids = deleted_memory_ids

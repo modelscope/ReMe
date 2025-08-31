@@ -1,5 +1,6 @@
 from typing import List
-from flowllm import C, BaseLLMOp, BaseOp
+
+from flowllm import C, BaseOp
 from loguru import logger
 
 from reme_ai.schema.memory import BaseMemory
@@ -12,7 +13,7 @@ class UpdateMemoryUtilityOp(BaseOp):
     def execute(self):
         memory_dicts: List[dict] = self.context.memory_dicts
         update_utility = self.context.update_utility
-        
+
         if not memory_dicts or not update_utility:
             logger.info("No memories to update utility")
             return
@@ -24,9 +25,8 @@ class UpdateMemoryUtilityOp(BaseOp):
             metadata = memory.metadata
             metadata["utility"] = metadata.get("utility", 0) + 1
             memory.update_metadata(metadata)
-            
+
             new_memory_list.append(memory)
 
         self.context.response.metadata["memory_list"] = new_memory_list
         self.context.response.metadata["deleted_memory_ids"] = self.context.deleted_memory_ids
-        

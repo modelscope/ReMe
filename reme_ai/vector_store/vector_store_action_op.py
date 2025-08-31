@@ -17,7 +17,8 @@ class VectorStoreActionOp(BaseLLMOp):
                                                       dest_workspace_id=workspace_id)
 
         elif action == "delete":
-            result = self.vector_store.delete_workspace(workspace_id=workspace_id)
+            if self.vector_store.exist_workspace(workspace_id):
+                result = self.vector_store.delete_workspace(workspace_id=workspace_id)
 
         elif action == "delete_ids":
             memory_ids: list = self.context.memory_ids
@@ -25,6 +26,7 @@ class VectorStoreActionOp(BaseLLMOp):
 
         elif action == "dump":
             path: str = self.context.path
+
             def node_to_memory(node: VectorNode) -> dict:
                 return vector_node_to_memory(node).model_dump()
 
@@ -34,6 +36,7 @@ class VectorStoreActionOp(BaseLLMOp):
 
         elif action == "load":
             path: str = self.context.path
+
             def memory_dict_to_node(memory_dict: dict) -> VectorNode:
                 memory: BaseMemory = dict_to_memory(memory_dict=memory_dict)
                 return memory.to_vector_node()
@@ -41,7 +44,7 @@ class VectorStoreActionOp(BaseLLMOp):
             result = self.vector_store.load_workspace(workspace_id=workspace_id,
                                                       path=path,
                                                       callback_fn=memory_dict_to_node)
-        
+
         else:
             raise ValueError(f"invalid action={action}")
 

@@ -15,7 +15,7 @@ class FailureExtractionOp(BaseLLMOp):
     def execute(self):
         """Extract task memories from failed trajectories"""
         failure_trajectories: List[Trajectory] = self.context.get("failure_trajectories", [])
-        
+
         if not failure_trajectories:
             logger.info("No failure trajectories found for extraction")
             return
@@ -23,7 +23,7 @@ class FailureExtractionOp(BaseLLMOp):
         logger.info(f"Extracting task memories from {len(failure_trajectories)} failed trajectories")
 
         failure_task_memories = []
-        
+
         # Process trajectories
         for trajectory in failure_trajectories:
             if hasattr(trajectory, 'segments') and trajectory.segments:

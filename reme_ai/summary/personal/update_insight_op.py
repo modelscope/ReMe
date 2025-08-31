@@ -76,7 +76,7 @@ class UpdateInsightOp(BaseLLMOp):
         logger.info(f"Successfully updated {len(updated_insights)} insight memories")
 
     def _score_insights_by_relevance(self, insight_memories: List[PersonalMemory],
-                                   observation_memories: List[PersonalMemory],
+                                     observation_memories: List[PersonalMemory],
                                      threshold: float) -> List[tuple]:
         """
         Score insight memories based on relevance to observation memories.

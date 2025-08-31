@@ -15,7 +15,7 @@ class SuccessExtractionOp(BaseLLMOp):
     def execute(self):
         """Extract task memories from successful trajectories"""
         success_trajectories: List[Trajectory] = self.context.success_trajectories
-        
+
         if not success_trajectories:
             logger.info("No success trajectories found for extraction")
             return
@@ -23,7 +23,7 @@ class SuccessExtractionOp(BaseLLMOp):
         logger.info(f"Extracting task memories from {len(success_trajectories)} successful trajectories")
 
         success_task_memories = []
-        
+
         # Process trajectories
         for trajectory in success_trajectories:
             if "segments" in trajectory.metadata:

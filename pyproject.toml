@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "reme_ai"
 version = "0.1.0"
 description = "Remember me of memory and experience"
-authors = [{ name = "reme_ai team", email = "reme_ai@alibaba-inc.com" }]
+authors = [{ name = "reme_ai_team", email = "reme_ai_team@alibaba-inc.com" }]
 license = { file = "LICENSE" }
 readme = "README.md"
 requires-python = ">=3.12"

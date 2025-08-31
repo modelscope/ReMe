@@ -40,7 +40,7 @@ class MemoryValidationOp(BaseLLMOp):
                 logger.warning(f"Task memory validation failed: {reason}")
 
         logger.info(f"Validated {len(validated_task_memories)} out of {len(task_memories)} task memories")
-        
+
         # Update context
         self.context.response.answer = json.dumps([x.model_dump() for x in validated_task_memories])
         self.context.response.metadata["memory_list"] = validated_task_memories
@@ -62,7 +62,7 @@ class MemoryValidationOp(BaseLLMOp):
             def parse_validation(message: Message) -> Dict[str, Any]:
                 try:
                     response_content = message.content
-                    
+
                     # Parse validation result
                     # Extract JSON blocks
                     json_pattern = r'```json\s*([\s\S]*?)\s*```'
@@ -73,19 +73,20 @@ class MemoryValidationOp(BaseLLMOp):
                     else:
                         parsed = {}
 
-                    is_valid = parsed.get("is_valid",True)
-                    score = parsed.get("score",0.5)
+                    is_valid = parsed.get("is_valid", True)
+                    score = parsed.get("score", 0.5)
 
                     # Set validation threshold
                     validation_threshold = self.op_params.get("validation_threshold", 0.5)
-                    
+
                     return {
                         "is_valid": is_valid and score >= validation_threshold,
                         "score": score,
                         "feedback": response_content,
-                        "reason": "" if (is_valid and score >= validation_threshold) else f"Low validation score ({score:.2f}) or marked as invalid"
+                        "reason": "" if (
+                                    is_valid and score >= validation_threshold) else f"Low validation score ({score:.2f}) or marked as invalid"
                     }
-                    
+
                 except Exception as e_inner:
                     logger.exception(f"Error parsing validation response: {e_inner}")
                     return {

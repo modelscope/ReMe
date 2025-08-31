@@ -22,8 +22,8 @@ class BaseMemory(BaseModel, ABC):
     metadata: dict = Field(default_factory=dict)
 
     def update_modified_time(self):
-        self.modified_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
+        self.time_modified = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     def update_metadata(self, new_metadata):
         self.metadata = new_metadata
 
