@@ -1,17 +1,4 @@
-# Personal Memory Summary Operations
-
-This document provides a detailed overview of the operations (ops) used in the personal memory summarization flow in MemoryScope. Each operation plays a specific role in processing, filtering, and storing personal memories.
-
-## Overview
-
-As defined in the configuration, the personal memory summarization flow follows this sequence:
-
-```yaml
-summary_personal_memory:
-  flow_content: info_filter_op >> (get_observation_op | get_observation_with_time_op | load_today_memory_op) >> contra_repeat_op >> update_vector_store_op
-```
-
-This document describes each operation in detail, including its purpose, parameters, and configuration options.
+# Personal Memory Summary Ops
 
 ## InfoFilterOp
 
@@ -156,41 +143,3 @@ This operation is the final step in the personal memory summarization flow. It:
 3. Records the number of deleted and inserted memories
 
 This ensures that the vector store remains up-to-date with the latest processed memories.
-
-## Configuration Example
-
-Here's an example of how to configure these operations in your YAML configuration:
-
-```yaml
-op:
-  info_filter_op:
-    params:
-      preserved_scores: "2,3"
-      info_filter_msg_max_size: 200
-  
-  load_today_memory_op:
-    params:
-      top_k: 50
-  
-  contra_repeat_op:
-    params:
-      contra_repeat_max_count: 50
-      enable_contra_repeat: true
-  
-  long_contra_repeat_op:
-    params:
-      long_contra_repeat_max_count: 50
-      enable_long_contra_repeat: true
-  
-  update_insight_op:
-    params:
-      update_insight_threshold: 0.3
-      update_insight_max_count: 5
-  
-  get_reflection_subject_op:
-    params:
-      reflect_obs_cnt_threshold: 10
-      reflect_num_questions: 3
-```
-
-This configuration can be adjusted based on your specific requirements for personal memory processing.

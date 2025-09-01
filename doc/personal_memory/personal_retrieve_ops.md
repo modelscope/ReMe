@@ -1,11 +1,4 @@
-# Personal Memory Retrieve Operations
-
-This document describes the operations used in the personal memory retrieval flow of MemoryScope. The retrieval flow is defined in the configuration as:
-
-```yaml
-retrieve_personal_memory:
-  flow_content: set_query_op >> (extract_time_op | (retrieve_memory_op >> semantic_rank_op)) >> fuse_rerank_op
-```
+# Personal Memory Retrieve Ops
 
 ## SetQueryOp
 
@@ -137,16 +130,3 @@ The operation:
 3. Flattens the messages into a single list
 4. Sorts messages by creation time if available
 5. Stores the filtered messages back in the context
-
-## Complete Flow Execution
-
-When the personal memory retrieval flow executes:
-
-1. `SetQueryOp` prepares the query with timestamp
-2. Two parallel paths execute:
-   - `ExtractTimeOp` extracts time information from the query
-   - `RetrieveMemoryOp` followed by `SemanticRankOp` retrieves and ranks memories
-3. `FuseRerankOp` combines the results, considering both semantic relevance and time information
-4. The final output is a ranked list of memories relevant to the query
-
-This flow provides a sophisticated memory retrieval system that considers semantic relevance, memory types, and temporal context to deliver the most appropriate memories for a given query.
