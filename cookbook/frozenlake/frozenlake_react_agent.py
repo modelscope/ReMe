@@ -32,7 +32,7 @@ class GameResult:
 
 @ray.remote
 class FrozenLakeReactAgent:
-    """A ReAct Agent for FrozenLake game with experience learning."""
+    """A ReAct Agent for FrozenLake game with task memory learning."""
 
     def __init__(self,
                  index: int,
@@ -42,8 +42,8 @@ class FrozenLakeReactAgent:
                  temperature: float = 0.7,
                  max_steps: int = 50,
                  num_runs: int = 1,
-                 use_experience: bool = False,
-                 make_experience: bool = False):
+                 use_task_memory: bool = False,
+                 make_task_memory: bool = False):
 
         self.index = index
         self.task_configs = task_configs
@@ -52,8 +52,8 @@ class FrozenLakeReactAgent:
         self.temperature = temperature
         self.max_steps = max_steps
         self.num_runs = num_runs
-        self.use_experience = use_experience
-        self.make_experience = make_experience
+        self.use_task_memory = use_task_memory
+        self.make_task_memory = make_task_memory
 
         self.llm_client = OpenAI()
         self.action_map = {0: "LEFT", 1: "DOWN", 2: "RIGHT", 3: "UP"}
@@ -121,35 +121,34 @@ class FrozenLakeReactAgent:
         else:
             return self.prompts["frozenlake_sys_prompt_no_slippery"]
 
-    def get_experience(self, map_desc: str, is_slippery: bool) -> str:
-        """Retrieve relevant experience from experience service"""
-        if not self.use_experience:
+    def get_task_memory(self, map_desc: str, is_slippery: bool) -> str:
+        """Retrieve relevant task memory from task memory service"""
+        if not self.use_task_memory:
             return ""
 
         try:
             query = f"FrozenLake game map: {map_desc}, slippery: {is_slippery}"
-            base_url = "http://0.0.0.0:8001/"
+            base_url = "http://0.0.0.0:8002/"
             workspace_id = self.experiment_name
 
             response = requests.post(
-                url=base_url + "retriever",
+                url=base_url + "retrieve_task_memory",
                 json={
                     "workspace_id": workspace_id,
                     "query": query,
-                    "top_k": 3
                 },
                 timeout=60
             )
 
             if response.status_code == 200:
                 data = response.json()
-                return data.get("experience_merged", "")
+                return data.get("answer", "")
             else:
-                logger.warning(f"Experience retrieval failed: {response.status_code}")
+                logger.warning(f"Task memory retrieval failed: {response.status_code}")
                 return ""
 
         except Exception as e:
-            logger.warning(f"Failed to get experience: {e}")
+            logger.warning(f"Failed to get task memory: {e}")
             return ""
 
     def action_parser(self, response: str) -> int:
@@ -194,19 +193,19 @@ class FrozenLakeReactAgent:
 
         env = gym.make("FrozenLake-v1", **env_kwargs)
 
-        # Get map description for experience
+        # Get map description for task memory
         map_str = '\n'.join([''.join([cell.decode('utf-8') for cell in row])
                              for row in env.unwrapped.desc])
 
         # Build messages
         system_prompt = self.build_system_prompt(is_slippery)
-        experience = self.get_experience(map_str, is_slippery)
+        task_memory = self.get_task_memory(map_str, is_slippery)
 
         messages = [{"role": "system", "content": system_prompt}]
 
-        if experience:
-            exp_content = f"Here are some relevant tips from previous successful games:\n\n{experience}\n\nUse these tips to help you succeed."
-            messages.append({"role": "user", "content": exp_content})
+        if task_memory:
+            memory_content = f"Here are some relevant tips from previous successful games:\n\n{task_memory}\n\nUse these tips to help you succeed."
+            messages.append({"role": "user", "content": memory_content})
             messages.append(
                 {"role": "assistant", "content": "I'll use these tips to navigate the frozen lake successfully."})
 
@@ -279,56 +278,54 @@ class FrozenLakeReactAgent:
                 "map_id": map_id,
                 "is_slippery": is_slippery,
                 "map_size": map_size,
-                "use_experience": self.use_experience
+                "use_task_memory": self.use_task_memory
             }
         )
 
         return result, messages
 
-    def save_experience(self, results: List[GameResult], messages_list: List[List[Dict]]):
-        """Save successful trajectories as experience"""
-        if not self.make_experience:
+    def save_task_memory(self, results: List[GameResult], messages_list: List[List[Dict]]):
+        """Save successful trajectories as task memory"""
+        if not self.make_task_memory:
             return
 
-        trajs = []
+        trajectories = []
         for result, messages in zip(results, messages_list):
             if result.success:
-                # Create trajectory for experience service
+                # Create trajectory for task memory service
                 traj = {
                     "messages": messages,
-                    "query" : result.map_config["map_desc"],
                     "score": 1.0,  # Success
                 }
-                trajs.append(traj)
+                trajectories.append(traj)
             else:
                 traj = {
                     "messages": messages,
-                    "query" : result.map_config["map_desc"],
-                    "score": 0.0,  # Success
+                    "score": 0.0,  # Failure
                 }
-                trajs.append(traj)
+                trajectories.append(traj)
 
-        if trajs:
+        if trajectories:
             try:
-                base_url = "http://0.0.0.0:8001/"
+                base_url = "http://0.0.0.0:8002/"
                 workspace_id = self.experiment_name
 
                 response = requests.post(
-                    url=base_url + "summarizer",
+                    url=base_url + "summary_task_memory",
                     json={
                         "workspace_id": workspace_id,
-                        "traj_list": trajs
+                        "trajectories": trajectories
                     },
                     timeout=300
                 )
 
                 if response.status_code == 200:
-                    logger.info(f"Saved {len(trajs)} trajectories as experience")
+                    logger.info(f"Saved {len(trajectories)} trajectories as task memory")
                 else:
-                    logger.warning(f"Failed to save experience: {response.status_code}")
+                    logger.warning(f"Failed to save task memory: {response.status_code}")
 
             except Exception as e:
-                logger.error(f"Error saving experience: {e}")
+                logger.error(f"Error saving task memory: {e}")
 
     def execute(self) -> List[Dict]:
         """Execute all tasks"""
@@ -357,9 +354,9 @@ class FrozenLakeReactAgent:
                 }
                 all_results[-1] = result_dict
 
-        # Save experience if needed
-        if self.make_experience:
-            # Convert back to GameResult objects for experience saving
+        # Save task memory if needed
+        if self.make_task_memory:
+            # Convert back to GameResult objects for task memory saving
             game_results = []
             for i, result_dict in enumerate(all_results):
                 game_result = GameResult(
@@ -374,6 +371,6 @@ class FrozenLakeReactAgent:
                 )
                 game_results.append(game_result)
 
-            self.save_experience(game_results, all_messages)
+            self.save_task_memory(game_results, all_messages)
 
         return all_results
