@@ -22,7 +22,7 @@ integration with MCP-compatible clients.
 ### Option 1: Install from PyPI (Recommended)
 
 ```bash
-pip install reme_ai
+pip install reme-ai
 ```
 
 ### Option 2: Install from Source
