@@ -44,7 +44,7 @@ Extracts task memories from successful trajectories.
 
 ### Functionality
 
-- Processes successful trajectories to identify valuable experiences
+- Processes successful trajectories to identify valuable memories
 - Can work with both entire trajectories and segmented step sequences
 - Uses LLM to extract structured task memories with when-to-use conditions
 

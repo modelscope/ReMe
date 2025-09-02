@@ -5,8 +5,6 @@
 
 WORKFLOW_NAME = "workflow_name"
 
-MEMORYSCOPE_CONTEXT = "memoryscope_context"
-
 RESULT = "result"
 
 MEMORIES = "memories"

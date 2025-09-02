@@ -8,7 +8,7 @@ integration with MCP-compatible clients.
 - How to set up and configure ReMe MCP server
 - How to connect to the server using Python MCP clients
 - How to use task memory operations through MCP
-- How to build experience-enhanced agents with MCP integration
+- How to build memory-enhanced agents with MCP integration
 
 ## 📋 Prerequisites
 

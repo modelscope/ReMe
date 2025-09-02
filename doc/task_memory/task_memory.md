@@ -11,7 +11,7 @@ Task Memory represents knowledge extracted from previous task executions, includ
 
 Each task memory contains:
 - `when_to_use`: Conditions that indicate when this memory is relevant
-- `content`: The actual knowledge or experience to be applied
+- `content`: The actual knowledge or memory to be applied
 - Metadata about the memory's source and utility
 
 ## Configuration Logic
@@ -43,7 +43,7 @@ The `retrieve_task_memory` flow fetches relevant memories based on a query:
 ```yaml
 retrieve_task_memory:
   flow_content: build_query_op >> recall_vector_store_op >> rerank_memory_op >> rewrite_memory_op
-  description: "Retrieves the most relevant top-k memory experiences from historical data based on the current query to enhance task-solving capabilities"
+  description: "Retrieves the most relevant top-k memory from historical data based on the current query to enhance task-solving capabilities"
 ```
 
 This flow:

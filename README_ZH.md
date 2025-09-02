@@ -1,7 +1,7 @@
 
 
 <p align="center">
- <img src="doc/figure/reme_logo.png" alt="ReMe Logo" width="100%">
+ <img src="doc/figure/reme_logo.png" alt="ReMe Logo" width="50%">
 </p>
 
 <p align="center">
@@ -34,7 +34,7 @@ ReMe为AI智能体提供了统一的记忆与经验系统——在跨用户、�
   中找到。
 - **[2025-09]** 🧪 我们在appworld, bfcl(v3)
   以及frozenlake环境验证了任务记忆抽取与复用在Agent中的效果，更多信息请查看 [appworld exp](./cookbook/appworld/quickstart.md), [bfcl exp](./cookbook/bfcl/quickstart.md)
-  and [frozenlake exp](./cookbook/frozenlake/quickstart.md)。
+  和 [frozenlake exp](./cookbook/frozenlake/quickstart.md)。
 - **[2025-08]** 🚀 MCP协议支持已上线-> [快速开始指南](./doc/mcp_quick_start.md)。
 - **[2025-06]** 🚀 多后端向量存储支持 (Elasticsearch & ChromaDB) -> [快速开始指南](./doc/vector_store_api_guide.md)。
 - **[2024-09]** 🧠 [MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch) v0.1.x 发布，个性化和时间感知的记忆存储与使用。
@@ -61,7 +61,7 @@ ReMe整合两种互补的记忆能力：
 - **渐进学习**：通过长期交互逐步建立深度理解
 - **时间感知**：检索和整合时都具备时间敏感性
 
-- 你可以从[personal memory](./doc/personal_memory/personal_memory.md)了解更多如何使用personal memory的方法
+你可以从[personal memory](./doc/personal_memory/personal_memory.md)了解更多如何使用personal memory的方法
 
 
 ---
@@ -101,8 +101,8 @@ FLOW_EMBEDDING_BASE_URL=https://xxxx/v1
 ### HTTP服务启动
 ```bash
 reme \
-  backend=http \ 
-  http.port=8001 \
+  backend=http \
+  http.port=8002 \
   llm.default.model_name=qwen3-30b-a3b-thinking-2507 \
   embedding_model.default.model_name=text-embedding-v4 \
   vector_store.default.backend=local
@@ -385,6 +385,8 @@ Pass@K 衡量的是在生成的 K 个样本中，至少有一个成功完成任�
 - 使用示例和教程
 - 最佳实践指南
 
+[指南](./doc/contribution.md)
+
 ---
 
 ## 📄 引用
@@ -392,7 +394,7 @@ Pass@K 衡量的是在生成的 K 个样本中，至少有一个成功完成任�
 ```bibtex
 @software{ReMe2025,
   title = {ReMe: Memory Framework for AI Agent},
-  author = {jinli.yl, dengjiaji.djj, caozouying.czy},
+  author = {Li Yu, Jiaji Deng, Zouying Cao},
   url = {https://github.com/modelscope/ReMe},
   year = {2025}
 }
