@@ -13,7 +13,7 @@
 
 <p align="center">
   <strong>ReMe (formerly MemoryScope)：为Agent设计的记忆管理框架</strong><br>
-  <em>Remember Me, Refine Me</em>
+  <em>Remember Me, Refine Me.</em>
 </p>
 
 ---

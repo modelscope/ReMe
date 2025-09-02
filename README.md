@@ -11,7 +11,7 @@
 
 <p align="center">
   <strong>ReMe (formerly MemoryScope): Memory Management Framework for Agents</strong><br>
-  <em>Remember Me, Refine Me</em>
+  <em>Remember Me, Refine Me.</em>
 </p>
 
 ---
