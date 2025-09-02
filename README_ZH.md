@@ -41,7 +41,11 @@ ReMe为AI智能体提供了统一的记忆与经验系统——在跨用户、�
 
 ---
 
-## ✨ 架构设计
+## ✨ 功能设计
+
+<p align="center">
+ <img src="doc/figure/reme_structure.jpg" alt="ReMe Logo" width="100%">
+</p>
 
 ReMe整合两种互补的记忆能力：
 

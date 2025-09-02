@@ -45,6 +45,10 @@ Personal memory helps "**understand user needs**", while task memory helps agent
 
 ## ✨ Architecture Design
 
+<p align="center">
+ <img src="doc/figure/reme_structure.jpg" alt="ReMe Logo" width="100%">
+</p>
+
 ReMe integrates two complementary memory capabilities:
 
 #### 🧠 **Task Memory/Experience**
