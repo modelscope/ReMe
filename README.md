@@ -19,7 +19,7 @@ ReMe provides AI agents with a unified memory system—enabling the ability to e
 users, tasks, and agents.
 
 ```
-Personal Memory + Task Memory = Agent Memory Management
+Personal Memory + Task Memory = Agent Memory
 ```
 
 Personal memory helps "**understand user needs**", while task memory helps agents "**perform better**".
@@ -28,16 +28,16 @@ Personal memory helps "**understand user needs**", while task memory helps agent
 
 ## 📰 Latest Updates
 
-- **[2025-09]** 🎉 ReMe v0.1.x
+- **[2025-09]** 🎉 ReMe v0.1
   officially released, integrating task memory and personal memory. If you want to use the original memoryscope project,
   you can find it in [MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch).
 - **[2025-09]** 🧪 We validated the effectiveness of task memory extraction and reuse in agents in appworld, bfcl(v3),
   and frozenlake environments. For more information,
   check [appworld exp](./cookbook/appworld/quickstart.md), [bfcl exp](./cookbook/bfcl/quickstart.md),
   and [frozenlake exp](./cookbook/frozenlake/quickstart.md).
-- **[2025-08]** 🚀 MCP protocol support is now available -> [Quick Start Guide](./doc/mcp_quick_start.md).
+- **[2025-08]** 🚀 MCP protocol support is now available -> [MCP Quick Start](./doc/mcp_quick_start.md).
 - **[2025-06]** 🚀 Multiple backend vector storage support (Elasticsearch &
-  ChromaDB) -> [Quick Start Guide](./doc/vector_store_api_guide.md).
+  ChromaDB) -> [Vector DB quick start](./doc/vector_store_api_guide.md).
 - **[2024-09]** 🧠 [MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch) v0.1.x released,
   personalized and time-aware memory storage and usage.
 
@@ -398,7 +398,7 @@ We tested ReMe on BFCL-V3 multi-turn-base (randomly split 50train/150val) using 
 
 ## 🤝 Contribution
 
-We believe the best memory systems come from collective wisdom. Contributions welcome:
+We believe the best memory systems come from collective wisdom. Contributions welcome 👉[Guide](./doc/contribution.md):
 
 ### Code Contributions
 
@@ -411,7 +411,7 @@ We believe the best memory systems come from collective wisdom. Contributions we
 - Usage examples and tutorials
 - Best practice guides
 
-[Guide](./doc/contribution.md)
+
 ---
 
 ## 📄 Citation

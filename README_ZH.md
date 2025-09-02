@@ -20,7 +20,7 @@
 ReMe为AI智能体提供了统一的记忆与经验系统——在跨用户、跨任务、跨智能体下抽取、复用和分享记忆的能力。
 
 ```
-个性化记忆 (Personal Memory) + 任务经验 (Task Memory)= agent的记忆管理
+个性化记忆 (Personal Memory) + 任务经验 (Task Memory)= agent记忆
 ```
 
 个性化记忆能够"**理解用户需要**"，任务记忆让agent"**做得更好**"，
@@ -29,14 +29,14 @@ ReMe为AI智能体提供了统一的记忆与经验系统——在跨用户、�
 
 ## 📰 最新动态
 
-- **[2025-09]** 🎉 ReMe v0.1.x
+- **[2025-09]** 🎉 ReMe v0.1
   正式发布，整合任务记忆与个人记忆。如果想使用原始的memoryscope项目，你可以在[MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch)
   中找到。
 - **[2025-09]** 🧪 我们在appworld, bfcl(v3)
   以及frozenlake环境验证了任务记忆抽取与复用在Agent中的效果，更多信息请查看 [appworld exp](./cookbook/appworld/quickstart.md), [bfcl exp](./cookbook/bfcl/quickstart.md)
   和 [frozenlake exp](./cookbook/frozenlake/quickstart.md)。
-- **[2025-08]** 🚀 MCP协议支持已上线-> [快速开始指南](./doc/mcp_quick_start.md)。
-- **[2025-06]** 🚀 多后端向量存储支持 (Elasticsearch & ChromaDB) -> [快速开始指南](./doc/vector_store_api_guide.md)。
+- **[2025-08]** 🚀 MCP协议支持已上线-> [MCP指南](./doc/mcp_quick_start.md)。
+- **[2025-06]** 🚀 多后端向量存储支持 (Elasticsearch & ChromaDB) -> [向量数据库指南](./doc/vector_store_api_guide.md)。
 - **[2024-09]** 🧠 [MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch) v0.1.x 发布，个性化和时间感知的记忆存储与使用。
 
 ---
@@ -378,7 +378,7 @@ Pass@K 衡量的是在生成的 K 个样本中，至少有一个成功完成任�
 
 ## 🤝 贡献
 
-我们相信最好的记忆系统来自集体智慧。欢迎贡献：
+我们相信最好的记忆系统来自集体智慧。欢迎贡献👉[指南](./doc/contribution.md)：
 
 ### 代码贡献
 - 新操作和工具开发
@@ -388,8 +388,6 @@ Pass@K 衡量的是在生成的 K 个样本中，至少有一个成功完成任�
 ### 文档改进
 - 使用示例和教程
 - 最佳实践指南
-
-[指南](./doc/contribution.md)
 
 ---
 
