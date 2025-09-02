@@ -1,27 +1,22 @@
-# ReMe (formerly memoryscope)
+# ReMe (formerly MemoryScope)
 
 <p align="center">
- <img src="doc/figure/reme_logo.jpg" alt="ReMe.ai Logo" width="100%">
+ <img src="doc/figure/reme_logo.jpg" alt="ReMe Logo" width="100%">
 </p>
 
 <p align="center">
   <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python Version"></a>
-  <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/pypi-v1.0.0-blue?logo=pypi" alt="PyPI Version"></a>
+  <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/pypi-v0.1.x-blue?logo=pypi" alt="PyPI Version"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black" alt="License"></a>
   <a href="https://github.com/modelscope/ReMe"><img src="https://img.shields.io/github/stars/modelscope/ReMe?style=social" alt="GitHub Stars"></a>
 </p>
 
 <p align="center">
-  <strong>ReMe: 为agent设计的记忆管理框架</strong><br>
+  <strong>ReMe: 为Agent设计的记忆管理框架</strong><br>
   <em>Remember Me, Refine Me</em>
 </p>
 
 ---
-
-agent时代的记忆不单是用于保存个性化的用户信息。agent在完成任务时，我们希望它能够有区分性地记住用户的偏好，以及如何正确地行动。 
-
-当智能体处理任务时，它都在重新发明无数其他智能体已经发现的解决方案。这就像要求每个人都从头发现火、农业和数学一样。
-
 ReMe为AI智能体提供了统一的记忆与经验系统——在跨用户、跨任务、跨智能体下抽取、复用和分享记忆的能力。
 
 ```
@@ -34,12 +29,15 @@ ReMe为AI智能体提供了统一的记忆与经验系统——在跨用户、�
 
 ## 📰 最新动态
 
-- **[2025-09]** 🧪 我们在appworld, bfcl(v3) 以及frozenlake环境验证了记忆抽取与复用在agent中的效果，更多信息请查看 [appworld exp](./cookbook/appworld/quickstart.md), [bfcl exp](./cookbook/bfcl/quickstart.md) & [frozenlake exp](./cookbook/frozenlake/quickstart.md)
-- **[2025-09]** 🎉 ReMe(formerly [MemoryScope](./memoryscope/README.md)) v1.0 正式发布，整合任务经验与个人记忆。 如果想使用原始的memoryscope项目，你可以在[MemoryScope](./memoryscope)找到
-- **[2025-08]** 🚀 MCP协议支持已上线！→ [快速开始指南](./doc/mcp_quick_start.md)
-- **[2025-07]** 📚 完整文档和快速开始指南发布
-- **[2025-06]** 🚀 多后端向量存储支持 (Elasticsearch & ChromaDB) -> [快速开始指南](./doc/vector_store_api_guide.md)
-- **[2024-09]** 🧠 MemoryScope v0.1.1.0 发布，个性化和时间感知的记忆存储与使用
+- **[2025-09]** 🎉 ReMe v0.1.x
+  正式发布，整合任务记忆与个人记忆。如果想使用原始的memoryscope项目，你可以在[MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch)
+  中找到。
+- **[2025-09]** 🧪 我们在appworld, bfcl(v3)
+  以及frozenlake环境验证了任务记忆抽取与复用在Agent中的效果，更多信息请查看 [appworld exp](./cookbook/appworld/quickstart.md), [bfcl exp](./cookbook/bfcl/quickstart.md)
+  and [frozenlake exp](./cookbook/frozenlake/quickstart.md)。
+- **[2025-08]** 🚀 MCP协议支持已上线-> [快速开始指南](./doc/mcp_quick_start.md)。
+- **[2025-06]** 🚀 多后端向量存储支持 (Elasticsearch & ChromaDB) -> [快速开始指南](./doc/vector_store_api_guide.md)。
+- **[2024-09]** 🧠 [MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch) v0.1.x 发布，个性化和时间感知的记忆存储与使用。
 
 ---
 
@@ -58,7 +56,7 @@ ReMe整合两种互补的记忆能力：
 
 你可以从[task memory](./doc/task_memory/task_memory.md)了解更多如何使用task memory的方法
 
-#### 👤 **个人记忆 (personal memory)**
+#### 👤 **个人记忆 (Personal Memory)**
 特定用户的情境化记忆
 - **个体偏好**：用户的习惯、偏好和交互风格
 - **情境适应**：基于时间和上下文的智能记忆管理
@@ -124,7 +122,7 @@ reme \
 
 ### 核心API使用
 
-#### 任务经验管理
+#### 任务记忆管理
 ```python
 import requests
 
@@ -174,21 +172,22 @@ response = requests.post("http://localhost:8002/retrieve_personal_memory", json=
 ReMe提供预构建的经验库，智能体可以立即使用经过验证的最佳实践：
 
 ### 可用经验库
-- **`appworld_v1.jsonl`**：Appworld智能体交互的记忆库，涵盖复杂任务规划和执行模式
-- **`bfcl_v1.jsonl`**：BFCL工具调用的工作记忆库
+
+- **`appworld.jsonl`**：Appworld智能体交互的记忆库，涵盖复杂任务规划和执行模式
+- **`bfcl_v3.jsonl`**：BFCL工具调用的工作记忆库
 
 ### 快速使用
 ```python
 # 加载预构建经验
 response = requests.post("http://localhost:8002/vector_store", json={
-    "workspace_id": "appworld_v1", 
+    "workspace_id": "appworld",
     "action": "load",
     "path": "./library/"
 })
 
 # 查询相关经验
 response = requests.post("http://localhost:8002/retrieve_task_memory", json={
-    "workspace_id": "appworld_v1",
+    "workspace_id": "appworld",
     "query": "如何导航到设置并更新用户资料？",
     "top_k": 1
 })
@@ -200,11 +199,10 @@ response = requests.post("http://localhost:8002/retrieve_task_memory", json={
 
 我们在 Appworld 上使用 qwen3-8b 测试 ReMe：
 
-| 方法                  | pass@1    | pass@2      | pass@4    |
-|---------------------|-----------|-------------|-----------|
-| 不使用 ReMe (baseline) | 0.083     | 0.140       | 0.228     |
-| **使用 ReMe**         |           |             |           |
-| w/ memory(直接使用)     | **0.109** | **0.175**   | **0.281** |
+| 方法           | pass@1    | pass@2    | pass@4    |
+|--------------|-----------|-----------|-----------|
+| without Reme | 0.083     | 0.140     | 0.228     |
+| with Reme    | **0.109** | **0.175** | **0.281** |
 
 Pass@K 衡量的是在生成的 K 个样本中，至少有一个成功完成任务（score=1）的概率。  
 当前实验使用的是一个内部的 AppWorld 环境，可能存在轻微差异。
@@ -220,11 +218,10 @@ Pass@K 衡量的是在生成的 K 个样本中，至少有一个成功完成任�
 
 我们在 100 个随机 frozenlake 地图上使用 qwen3-8b 进行测试：
 
-| 方法                  | pass rate      | 
-|---------------------|----------------|
-| 不使用 ReMe (baseline) | 0.66           | 
-| **使用 ReMe**         |                |
-| w/ memory (直接使用)    | 0.72 **(+9.1%)** |
+| 方法           | pass rate        | 
+|--------------|------------------|
+| without Reme | 0.66             |
+| with Reme    | 0.72 **(+9.1%)** |
 
 你可以在 [quickstart.md](cookbook/frozenlake/quickstart.md) 中找到复现实验的更多细节。
 
@@ -267,7 +264,7 @@ Pass@K 衡量的是在生成的 K 个样本中，至少有一个成功完成任�
 ```bibtex
 @software{ReMe2025,
   title = {ReMe: Memory Framework for AI Agent},
-  author = {The ReMe Team},
+  author = {jinli.yl, dengjiaji.djj, caozouying.czy},
   url = {https://github.com/modelscope/ReMe},
   year = {2025}
 }

@@ -1,6 +1,6 @@
-# Task Memory in Reme
+# Task Memory in ReMe
 
-Task Memory is a key component of Reme that allows AI agents to learn from past experiences and improve their performance on similar tasks in the future. This document explains how task memory works and how to use it in your applications.
+Task Memory is a key component of ReMe that allows AI agents to learn from memories and improve their performance on similar tasks in the future. This document explains how task memory works and how to use it in your applications.
 
 ## What is Task Memory?
 
@@ -16,7 +16,7 @@ Each task memory contains:
 
 ## Configuration Logic
 
-Task Memory in Reme is configured through two main flows:
+Task Memory in ReMe is configured through two main flows:
 
 ### 1. Summary Task Memory
 
@@ -194,9 +194,9 @@ response = requests.post(
 
 ## Advanced Features
 
-Reme also provides additional task memory operations:
+ReMe also provides additional task memory operations:
 
 - `record_task_memory`: Update frequency and utility attributes of retrieved memories
 - `delete_task_memory`: Delete memories based on utility/frequency thresholds
 
-For more detailed examples, see the `use_task_memory_demo.py` file in the cookbook directory of the Reme project.
+For more detailed examples, see the `use_task_memory_demo.py` file in the cookbook directory of the ReMe project.

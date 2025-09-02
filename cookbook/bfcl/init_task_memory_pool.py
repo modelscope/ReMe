@@ -147,7 +147,7 @@ def process_trajectories_with_threads(grouped_trajectories: List[List[Any]],
 def main():
     parser = argparse.ArgumentParser(description='Convert JSONL to memories using ReMe service')
     parser.add_argument('--jsonl_file', type=str, required=True, help='Path to the JSONL file')
-    parser.add_argument('--service_url', type=str, default='http://localhost:8001', help='Reme service URL')
+    parser.add_argument('--service_url', type=str, default='http://localhost:8001', help='ReMe service URL')
     parser.add_argument('--workspace_id', type=str, required=True, help='Workspace ID for the task memory pool')
     parser.add_argument('--output_file', type=str, help='Output file to save results (optional)')
     parser.add_argument('--n_threads', type=int, default=4, help='Number of threads for processing')

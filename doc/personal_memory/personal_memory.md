@@ -1,8 +1,8 @@
-# Personal Memory in Reme
+# Personal Memory in ReMe
 
 ## Configuration Logic
 
-Reme's personal memory system consists of two main components: retrieval and summarization. The configuration for these components is defined in the default.yaml file.
+ReMe's personal memory system consists of two main components: retrieval and summarization. The configuration for these components is defined in the default.yaml file.
 
 ### Retrieval Configuration (`retrieve_personal_memory`)
 
@@ -121,4 +121,4 @@ for query in queries:
 
 ## Complete Example
 
-For a complete working example, refer to `/cookbook/simple_demo/use_personal_memory_demo.py` in the Reme repository.
+For a complete working example, refer to `/cookbook/simple_demo/use_personal_memory_demo.py` in the ReMe repository.

@@ -6,7 +6,11 @@ build-backend = "setuptools.build_meta"
 name = "reme_ai"
 version = "0.1.3"
 description = "Remember me"
-authors = [{ name = "reme_team", email = "reme_team@alibaba-inc.com" }]
+authors = [
+    { name = "jinli.yl", email = "jinli.yl@alibaba-inc.com" },
+    { name = "dengjiaji.djj", email = "dengjiaji.djj@alibaba-inc.com" },
+    { name = "caozouying.czy", email = "caozouying.czy@alibaba-inc.com" },
+]
 license = { file = "LICENSE" }
 readme = "README.md"
 requires-python = ">=3.12"

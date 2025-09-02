@@ -55,7 +55,7 @@ After collecting trajectories, Launch the ReMe service (make sure you have insta
 ```bash
 reme \
   backend=http \
-  http.port=8001 \
+  http.port=8002 \
   llm.default.model_name=qwen-max-2025-01-25 \
   embedding_model.default.model_name=text-embedding-v4 \
   vector_store.default.backend=local
@@ -69,14 +69,14 @@ python init_exp_pool.py
 
 **Configuration options in `init_exp_pool.py`:**
 - `jsonl_file`: Path to the collloaded trajectories
-- `service_url`: ReMe service URL (default: `http://localhost:8001`)
+- `service_url`: ReMe service URL (default: `http://localhost:8002`)
 - `workspace_id`: Workspace ID for the task memory pool (default: `bfcl_test`)
 - `n_threads`: Number of threads for processing (default: `4`)
 - `output_file`: Output file to save results (optional)
 
-Now you have inited the task memory pool using `local` backend (start on `http://localhost:8001`). Then, use `local_file_to_library.py` script to convert the local file to the memory library or run the following `curl` command:
+Now you have inited the task memory pool using `local` backend (start on `http://localhost:8002`). Then, use `local_file_to_library.py` script to convert the local file to the memory library or run the following `curl` command:
 ```bash
-curl -X POST "http://0.0.0.0:8001/vector_store" \
+curl -X POST "http://0.0.0.0:8002/vector_store" \
   -H "Content-Type: application/json" \
   -d '{
     "workspace_id": "bfcl_test",
@@ -88,7 +88,7 @@ to dump the memory library (default in `./library/bfcl_test.jsonl`).
 
 Next time, you can import this previously exported task memory data to populate the new started workspace with existing knowledge:
 ```bash
-curl -X POST "http://0.0.0.0:8001/vector_store" \
+curl -X POST "http://0.0.0.0:8002/vector_store" \
   -H "Content-Type: application/json" \
   -d '{
     "workspace_id": "bfcl_test",

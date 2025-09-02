@@ -56,10 +56,11 @@ Launch the ReMe service to enable memory library functionality:
 
 ```bash
 reme \
-  http_service.port=8001 \
+  backend=http \
+  http.port=8001 \
   llm.default.model_name=qwen-max-latest \
   embedding_model.default.model_name=text-embedding-v4 \
-  vector_store.default.backend=local_file
+  vector_store.default.backend=local
 ```
 
 add memories for appworld:
