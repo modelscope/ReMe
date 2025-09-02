@@ -1,7 +1,7 @@
-# ReMe (formerly MemoryScope)
+
 
 <p align="center">
- <img src="doc/figure/reme_logo.jpg" alt="ReMe Logo" width="100%">
+ <img src="doc/figure/reme_logo.png" alt="ReMe Logo" width="100%">
 </p>
 
 <p align="center">
@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <strong>ReMe: 为Agent设计的记忆管理框架</strong><br>
+  <strong>ReMe (formerly MemoryScope)：为Agent设计的记忆管理框架</strong><br>
   <em>Remember Me, Refine Me</em>
 </p>
 
@@ -43,8 +43,6 @@ ReMe为AI智能体提供了统一的记忆与经验系统——在跨用户、�
 
 ## ✨ 架构设计
 
-### 🎯 双模记忆系统
-
 ReMe整合两种互补的记忆能力：
 
 #### 🧠 **任务经验 (Task Memory/Experience)**
@@ -63,7 +61,7 @@ ReMe整合两种互补的记忆能力：
 - **渐进学习**：通过长期交互逐步建立深度理解
 - **时间感知**：检索和整合时都具备时间敏感性
 
-- 你可以从[personal](./doc/personal_memory/personal_memory.md)了解更多如何使用personal memory的方法
+- 你可以从[personal memory](./doc/personal_memory/personal_memory.md)了解更多如何使用personal memory的方法
 
 
 ---
