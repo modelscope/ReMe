@@ -362,9 +362,9 @@ You can find more details on reproducing the experiment in [quickstart.md](cookb
 
 ### 🧊 [Frozenlake Experiment](./cookbook/frozenlake/quickstart.md)
 
-|                                        without ReMe                                         |                                          with ReMe                                          |
-|:-------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------:|
-| <p align="center"><img src="doc/figure/frozenlake_failure.gif" alt="GIF 1" width="30%"></p> | <p align="center"><img src="doc/figure/frozenlake_success.gif" alt="GIF 2" width="30%"></p> |
+|                                         without ReMe                                         |                                          with ReMe                                           |
+|:--------------------------------------------------------------------------------------------:|:--------------------------------------------------------------------------------------------:|
+| <p align="center"><img src="docs/figure/frozenlake_failure.gif" alt="GIF 1" width="30%"></p> | <p align="center"><img src="docs/figure/frozenlake_success.gif" alt="GIF 2" width="30%"></p> |
 
 We tested on 100 random frozenlake maps using qwen3-8b:
 

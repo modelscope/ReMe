@@ -344,9 +344,9 @@ Pass@K 衡量的是在生成的 K 个样本中，至少有一个成功完成任�
 
 ### 🧊 [Frozenlake 实验](cookbook/frozenlake/quickstart.md)
 
-|                                           不使用ReMe                                           |                                           使用ReMe                                            |
-|:-------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------:|
-| <p align="center"><img src="doc/figure/frozenlake_failure.gif" alt="GIF 1" width="30%"></p> | <p align="center"><img src="doc/figure/frozenlake_success.gif" alt="GIF 2" width="30%"></p> |
+|                                           不使用ReMe                                            |                                            使用ReMe                                            |
+|:--------------------------------------------------------------------------------------------:|:--------------------------------------------------------------------------------------------:|
+| <p align="center"><img src="docs/figure/frozenlake_failure.gif" alt="GIF 1" width="30%"></p> | <p align="center"><img src="docs/figure/frozenlake_success.gif" alt="GIF 2" width="30%"></p> |
 
 我们在 100 个随机 frozenlake 地图上使用 qwen3-8b 进行测试：
 
