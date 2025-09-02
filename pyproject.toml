@@ -21,6 +21,8 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
+keywords = ["llm", "memory", "experience", "memoryscope", "ai", "mcp", "http"]
+
 dependencies = [
     "flowllm>=0.1.3",
 ]

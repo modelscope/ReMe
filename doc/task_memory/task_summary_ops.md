@@ -161,30 +161,3 @@ A simplified version of comparative memory extraction.
 ### Parameters
 
 No specific parameters beyond the LLM configuration.
-
-## PDFPreprocessOp
-
-### Purpose
-
-Processes PDF files to extract content that can be used for memory creation.
-
-### Functionality
-
-- Extracts text content from PDF files
-- Creates markdown representation of PDF content
-- Chunks content into manageable pieces for processing
-
-### Parameters
-
-- `op.pdf_preprocess_op.params.method` (string, default: `"auto"`):
-  - The method to use for PDF processing
-  - Options: `"auto"`, `"text"`, `"layout"`
-- `op.pdf_preprocess_op.params.lang` (string, default: `null` (auto-detect)):
-  - The language of the PDF content
-- `op.pdf_preprocess_op.params.backend` (string, default: `"pipeline"`):
-  - The backend to use for PDF processing
-  - Options: `"pipeline"`, `"pdfminer"`
-- `op.pdf_preprocess_op.params.create_chunks` (boolean, default: `true`):
-  - Whether to create chunks from the PDF content
-- `op.pdf_preprocess_op.params.max_chunk_length` (integer, default: `4000`):
-  - The maximum length of each chunk
