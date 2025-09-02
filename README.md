@@ -22,7 +22,7 @@ users, tasks, and agents.
 Personal Memory + Task Memory = Agent Memory
 ```
 
-Personal memory helps "**understand user needs**", while task memory helps agents "**perform better**".
+Personal memory helps "**understand user preferences**", while task memory helps agents "**perform better**".
 
 ---
 
