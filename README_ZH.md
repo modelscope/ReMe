@@ -142,6 +142,68 @@ response = requests.post("http://localhost:8002/retrieve_task_memory", json={
 })
 ```
 
+<details>
+<summary>curl 版本</summary>
+
+```bash
+# 经验总结器：从执行轨迹学习
+curl -X POST http://localhost:8002/summary_task_memory \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "task_workspace",
+    "trajectories": [
+      {"messages": [{"role": "user", "content": "帮我制定项目计划"}], "score": 1.0}
+    ]
+  }'
+
+# 经验检索器：获取相关经验
+curl -X POST http://localhost:8002/retrieve_task_memory \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "task_workspace",
+    "query": "如何高效管理项目进度？",
+    "top_k": 1
+  }'
+```
+</details>
+
+<details>
+<summary>Node.js 版本</summary>
+
+```javascript
+// 经验总结器：从执行轨迹学习
+fetch("http://localhost:8002/summary_task_memory", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    workspace_id: "task_workspace",
+    trajectories: [
+      {messages: [{role: "user", content: "帮我制定项目计划"}], score: 1.0}
+    ]
+  })
+})
+.then(response => response.json())
+.then(data => console.log(data));
+
+// 经验检索器：获取相关经验
+fetch("http://localhost:8002/retrieve_task_memory", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    workspace_id: "task_workspace",
+    query: "如何高效管理项目进度？",
+    top_k: 1
+  })
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+</details>
+
 #### 个人记忆管理  
 ```python
 # 记忆整合：从用户交互中学习
@@ -164,6 +226,74 @@ response = requests.post("http://localhost:8002/retrieve_personal_memory", json=
     "top_k": 5
 })
 ```
+
+<details>
+<summary>curl 版本</summary>
+
+```bash
+# 记忆整合：从用户交互中学习
+curl -X POST http://localhost:8002/summary_personal_memory \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "task_workspace",
+    "trajectories": [
+      {"messages": [
+        {"role": "user", "content": "我喜欢早上喝咖啡工作"},
+        {"role": "assistant", "content": "了解，您习惯早上用咖啡提神来开始工作"}
+      ]}
+    ]
+  }'
+
+# 记忆检索：获取个人记忆片段
+curl -X POST http://localhost:8002/retrieve_personal_memory \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "task_workspace",
+    "query": "用户的工作习惯是什么？",
+    "top_k": 5
+  }'
+```
+</details>
+
+<details>
+<summary>Node.js 版本</summary>
+
+```javascript
+// 记忆整合：从用户交互中学习
+fetch("http://localhost:8002/summary_personal_memory", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    workspace_id: "task_workspace",
+    trajectories: [
+      {messages: [
+        {role: "user", content: "我喜欢早上喝咖啡工作"},
+        {role: "assistant", content: "了解，您习惯早上用咖啡提神来开始工作"}
+      ]}
+    ]
+  })
+})
+.then(response => response.json())
+.then(data => console.log(data));
+
+// 记忆检索：获取个人记忆片段
+fetch("http://localhost:8002/retrieve_personal_memory", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    workspace_id: "task_workspace",
+    query: "用户的工作习惯是什么？",
+    top_k: 5
+  })
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+</details>
 
 ---
 
