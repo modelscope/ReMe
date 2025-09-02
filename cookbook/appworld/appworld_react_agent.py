@@ -36,9 +36,9 @@ class AppworldReactAgent:
                  max_interactions: int = 30,
                  max_response_size: int = 2048,
                  num_runs: int = 1,
-                 use_experience: bool = False,
-                 make_experience: bool = False,
-                 exp_url: str = "http://0.0.0.0:8001/",
+                 use_task_memory: bool = False,
+                 make_task_memory: bool = False,
+                 api_url: str = "http://0.0.0.0:8002/",
                  workspace_id: str="appworld_v1"):
 
         self.index: int = index
@@ -49,9 +49,9 @@ class AppworldReactAgent:
         self.max_interactions: int = max_interactions
         self.max_response_size: int = max_response_size
         self.num_runs: int = num_runs
-        self.use_experience: bool = use_experience
-        self.make_experience: bool = make_experience
-        self.exp_url = exp_url
+        self.use_task_memory: bool = use_task_memory
+        self.make_task_memory: bool = make_task_memory
+        self.api_url = api_url
         self.workspace_id = workspace_id
 
         self.llm_client = OpenAI()
@@ -75,10 +75,10 @@ class AppworldReactAgent:
         return "call llm error"
 
     def prompt_messages(self,world: AppWorld) -> list[dict]:
-        if self.use_experience:
-            experience = self.get_experience(world.task.instruction)
-            logger.info(f"loaded experience: {experience}")
-            dictionary = {"supervisor": world.task.supervisor, "instruction": world.task.instruction, "experience": experience}
+        if self.use_task_memory:
+            task_memory = self.get_task_memory(world.task.instruction)
+            logger.info(f"loaded task_memory: {task_memory}")
+            dictionary = {"supervisor": world.task.supervisor, "instruction": world.task.instruction, "experience": task_memory}
         else:
             dictionary = {"supervisor": world.task.supervisor, "instruction": world.task.instruction ,"experience": ""}
         print(dictionary)
@@ -144,30 +144,75 @@ class AppworldReactAgent:
                     }
                     result.append(t_result)
 
-        if self.make_experience:
-            self.make_experience(result)
+        if self.make_task_memory:
+            memory_list = self.make_task_memory(result)
+            logger.info(f"Created {len(memory_list) if memory_list else 0} task memories")
 
         return result
 
-    def get_experience(self, query: str):
-        response = requests.post(url=self.exp_url + "retriever", json={
-            "workspace_id": self.workspace_id,
-            "query": query,
-            "top_k": 5
-        })
-
+    def handle_api_response(self, response: requests.Response):
+        """Handle API response with proper error checking"""
         if response.status_code != 200:
+            print(f"Error: {response.status_code}")
             print(response.text)
+            return None
+
+        return response.json()
+
+    def get_task_memory(self, query: str):
+        """Retrieve relevant task memories based on a query"""
+        response = requests.post(
+            url=f"{self.api_url}retrieve_task_memory",
+            json={
+                "workspace_id": self.workspace_id,
+                "query": query,
+            }
+        )
+
+        result = self.handle_api_response(response)
+        if not result:
             return ""
 
-        response = response.json()
-        print(response)
-        experience_merged: str = response["experience_merged"]
-        print(f"experience_merged={experience_merged}")
-        return experience_merged
+        # Extract and return the answer
+        answer = result.get("answer", "")
+        print(f"Retrieved task memory: {answer}")
+        return answer
 
-    def make_experience(self, result):
-        pass
+    def make_task_memory(self, result):
+        """Generate a summary of conversation messages and create task memories"""
+        if not result:
+            print("No results to summarize")
+            return
+            
+        # Prepare trajectories from results
+        trajectories = []
+        for r in result:
+            if "task_history" in r:
+                trajectories.append({
+                    "messages": r["task_history"],
+                    "score": float(r.get("uplift_score", 0.0))
+                })
+        
+        if not trajectories:
+            print("No trajectories to summarize")
+            return
+            
+        response = requests.post(
+            url=f"{self.api_url}summary_task_memory",
+            json={
+                "workspace_id": self.workspace_id,
+                "trajectories": trajectories
+            }
+        )
+
+        result = self.handle_api_response(response)
+        if not result:
+            return
+
+        # Extract memory list from response
+        memory_list = result.get("metadata", {}).get("memory_list", [])
+        print(f"Task memory list created: {len(memory_list)} memories")
+        return memory_list
 
 
 def main():

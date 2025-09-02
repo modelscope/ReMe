@@ -1,5 +1,6 @@
 import os
 import time
+import requests
 
 import ray
 from ray import logger
@@ -17,7 +18,64 @@ from appworld import load_task_ids
 from appworld_react_agent import AppworldReactAgent
 
 
-def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int, num_runs: int = 1, use_experience: bool = False, workspace_id: str="appworld", exp_url: str = "http://0.0.0.0:8001/") :
+def handle_api_response(response: requests.Response):
+    """Handle API response with proper error checking"""
+    if response.status_code != 200:
+        print(f"Error: {response.status_code}")
+        print(response.text)
+        return None
+
+    return response.json()
+
+
+def delete_workspace(workspace_id: str, api_url: str = "http://0.0.0.0:8002/"):
+    """Delete the current workspace from the vector store"""
+    response = requests.post(
+        url=f"{api_url}vector_store",
+        json={
+            "workspace_id": workspace_id,
+            "action": "delete",
+        }
+    )
+
+    result = handle_api_response(response)
+    if result:
+        print(f"Workspace '{workspace_id}' deleted successfully")
+
+
+def dump_memory(workspace_id: str, path: str = "./", api_url: str = "http://0.0.0.0:8002/"):
+    """Dump the vector store memories to disk"""
+    response = requests.post(
+        url=f"{api_url}vector_store",
+        json={
+            "workspace_id": workspace_id,
+            "action": "dump",
+            "path": path,
+        }
+    )
+
+    result = handle_api_response(response)
+    if result:
+        print(f"Memory dumped to {path}")
+
+
+def load_memory(workspace_id: str, path: str = "./", api_url: str = "http://0.0.0.0:8002/"):
+    """Load memories from disk into the vector store"""
+    response = requests.post(
+        url=f"{api_url}vector_store",
+        json={
+            "workspace_id": workspace_id,
+            "action": "load",
+            "path": path,
+        }
+    )
+
+    result = handle_api_response(response)
+    if result:
+        print(f"Memory loaded from {path}")
+
+
+def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int, num_runs: int = 1, use_task_memory: bool = False, make_task_memory: bool = False, workspace_id: str="appworld_v1", api_url: str = "http://0.0.0.0:8002/") :
     experiment_name = dataset_name + "_" + experiment_suffix
     path: Path = Path(f"./exp_result")
     path.mkdir(parents=True, exist_ok=True)
@@ -39,9 +97,10 @@ def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int, num_r
                                               task_ids=worker_task_ids,
                                               experiment_name=experiment_name,
                                               num_runs=num_runs,
-                                              use_experience=use_experience,
+                                              use_task_memory=use_task_memory,
+                                              make_task_memory=make_task_memory,
                                               workspace_id=workspace_id,
-                                              exp_url=exp_url)
+                                              api_url=api_url)
             future = actor.execute.remote()
             future_list.append(future)
             time.sleep(1)
@@ -64,7 +123,10 @@ def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int, num_r
                                      task_ids=[task_id],
                                      experiment_name=experiment_name,
                                      num_runs=num_runs,
-                                     use_experience=use_experience)
+                                     use_task_memory=use_task_memory,
+                                     make_task_memory=make_task_memory,
+                                     workspace_id=workspace_id,
+                                     api_url=api_url)
             task_results = agent.execute()
             if isinstance(task_results, list):
                 result.extend(task_results)
@@ -75,18 +137,43 @@ def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int, num_r
 
 def main():
     max_workers = 8
-    num_runs = 1  # Run each task 4 times
+    num_runs = 1  # Run each task once
+    workspace_id = "appworld_v1"
+    api_url = "http://0.0.0.0:8002/"
+    
     if max_workers > 1:
         ray.init(num_cpus=8)
-
-    logger.info("Start running experiments without experience")
+    
+    # Clean up workspace before starting
+    logger.info("Deleting workspace...")
+    delete_workspace(workspace_id=workspace_id, api_url=api_url)
+    
+    # First run to build task memories
+    logger.info("Start running experiments to build task memories")
+    run_agent(dataset_name="dev", experiment_suffix="build-memory", 
+              max_workers=max_workers, num_runs=1,
+              use_task_memory=False, make_task_memory=True, 
+              workspace_id=workspace_id, api_url=api_url)
+    
+    # Dump memories to disk for persistence
+    logger.info("Dumping memories to disk...")
+    dump_memory(workspace_id=workspace_id, api_url=api_url)
+    
+    # Run experiments without task memory
+    logger.info("Start running experiments without task memory")
     for i in range(num_runs):
-        run_agent(dataset_name="dev", experiment_suffix=f"no-exp", max_workers=max_workers, num_runs=1,
-                  use_experience=False, workspace_id="appworld_v1")
+        run_agent(dataset_name="dev", experiment_suffix=f"no-memory", 
+                  max_workers=max_workers, num_runs=1,
+                  use_task_memory=False, make_task_memory=False, 
+                  workspace_id=workspace_id, api_url=api_url)
 
-    logger.info("Start running experiments with experience")
+    # Run experiments with task memory
+    logger.info("Start running experiments with task memory")
     for i in range(num_runs):
-        run_agent(dataset_name="dev", experiment_suffix=f"add-exp", max_workers=max_workers, num_runs=1, use_experience=True,workspace_id="appworld_v1")
+        run_agent(dataset_name="dev", experiment_suffix=f"with-memory", 
+                  max_workers=max_workers, num_runs=1, 
+                  use_task_memory=True, make_task_memory=False,
+                  workspace_id=workspace_id, api_url=api_url)
 
 
 

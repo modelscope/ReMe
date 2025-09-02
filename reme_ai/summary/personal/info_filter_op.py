@@ -2,7 +2,7 @@ import re
 from typing import List
 
 from flowllm import C, BaseLLMOp
-from flowllm.schema.message import Message
+from flowllm.schema.message import Message, Trajectory
 from loguru import logger
 
 from reme_ai.schema.memory import PersonalMemory
@@ -19,7 +19,12 @@ class InfoFilterOp(BaseLLMOp):
     def execute(self):
         """Filter messages based on information content scores"""
         # Get messages from context - guaranteed to exist by flow input
-        self.context.messages = [Message(**x) if isinstance(x, dict) else x for x in self.context.messages]
+        trajectories: list = self.context.trajectories
+        trajectories: List[Trajectory] = [Trajectory(**x) if isinstance(x, dict) else x for x in trajectories]
+
+        self.context.messages = []
+        for trajectory in trajectories:
+            self.context.messages.extend(trajectory.messages)
         messages: List[Message] = self.context.messages
         if not messages:
             logger.warning("No messages found in context")

@@ -1,14 +1,14 @@
 # AppWorld Experiment Quick Start Guide
 
-This guide helps you quickly set up and run AppWorld experiments with ExperienceMaker integration.
+This guide helps you quickly set up and run AppWorld experiments with ReMe integration.
 
 ## Env Setup
 
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/modelscope/ExperienceMaker.git
-cd ExperienceMaker/cookbook/appworld
+git clone https://github.com/modelscope/ReMe.git
+cd ReMe/cookbook/appworld
 ```
 
 ### 2. Appworld Environment Setup
@@ -36,43 +36,43 @@ appworld download data
 
 **Note**: The AppWorld data will be saved in the current directory.
 
-### 3. Start ExperienceMaker Service
+### 3. Start ReMe Service
 
-Install ExperienceMaker (if not already installed)
-If you haven't installed the ExperienceMaker environment yet, follow these steps:
+Install ReMe (if not already installed)
+If you haven't installed the ReMe environment yet, follow these steps:
 ```bash
 # Go back to the project root
 cd ../..
 
-# Create ExperienceMaker environment
-conda create -p ./em-env python==3.12
-conda activate ./em-env
+# Create ReMe environment
+conda create -p ./reme-env python==3.12
+conda activate ./reme-env
 
-# Install ExperienceMaker
+# Install ReMe
 pip install .
 ```
 
-Launch the ExperienceMaker service to enable experience library functionality:
+Launch the ReMe service to enable memory library functionality:
 
 ```bash
-experiencemaker \
+reme \
   http_service.port=8001 \
   llm.default.model_name=qwen-max-latest \
   embedding_model.default.model_name=text-embedding-v4 \
   vector_store.default.backend=local_file
 ```
 
-add experiences for appworld:
+add memories for appworld:
 ```bash
 curl -X POST "http://0.0.0.0:8001/vector_store" \
   -H "Content-Type: application/json" \
   -d '{
     "workspace_id": "appworld_v1",
     "action": "dump",
-    "path": "./experience_library"
+    "path": "./memory_library"
   }'
 ```
-Now you have loaded the ExperienceMaker experience library to enable experience-based agent!
+Now you have loaded the ReMe memory library to enable memory-based agent!
 
 ### 4. Common Issues
 
@@ -84,9 +84,9 @@ Now you have loaded the ExperienceMaker experience library to enable experience-
 
 ## Run Experiments
 
-### 1. Test: With Experience vs Without Experience
+### 1. Test: With Memory vs Without Memory
 
-Run the main experiment script to compare performance with and without experience:
+Run the main experiment script to compare performance with and without memory:
 
 ```bash
 python run_appworld.py
@@ -94,7 +94,7 @@ python run_appworld.py
 
 **What this does:**
 - Runs AppWorld tasks on the development dataset
-- Compares agent performance with experience (`use_experience=True`) vs without experience
+- Compares agent performance with ReMe memory (`use_memory=True`) vs without memory
 - Uses multiple workers for parallel processing
 - Runs each task multiple times for statistical significance
 - Results are automatically saved to `./exp_result/` directory
@@ -102,7 +102,7 @@ python run_appworld.py
 **Configuration options in `run_appworld.py`:**
 - `max_workers`: Number of parallel workers (default: 6)
 - `num_runs`: Number of times each task is repeated (default: 4)
-- `use_experience`: Whether to use ExperienceMaker experience library
+- `use_memory`: Whether to use ReMe memory library
 
 ### 2. View Experiment Results
 
@@ -131,10 +131,10 @@ python run_exp_statistic.py
 ## Understanding Results
 
 The experiment compares:
-1. **Baseline**: Agent without experience library
-2. **With Experience**: Agent enhanced with ExperienceMaker experience library
+1. **Baseline**: Agent without memory library
+2. **With Memory**: Agent enhanced with ReMe memory library
 
 Key metrics to look for:
 - **best@1**: Average performance across all single runs
 - **best@k**: Performance when taking the best of k attempts
-- Improvement percentage when using experience vs baseline
+- Improvement percentage when using memory vs baseline

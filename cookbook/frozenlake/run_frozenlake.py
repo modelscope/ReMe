@@ -13,7 +13,7 @@ from map_manager import MapManager
 
 
 def generate_training_configs(num_maps: int = 20, map_size: int = 4, is_slippery: bool=False) -> List[Dict]:
-    """Generate random maps for training/experience generation"""
+    """Generate random maps for training/task memory generation"""
     configs = []
 
     for i in range(num_maps):
@@ -46,15 +46,15 @@ def generate_test_configs(num_test_maps: int = 100, is_slippery: bool = False) -
         map_desc = np.array([list(row) for row in map_data["map_desc"]], dtype='c')
         map_id = map_data["map_id"]
 
-        for use_exp in [True, False]:
+        for use_memory in [True, False]:
             config = {
                 "task_type": "test",
                 "map_desc": map_desc,
                 "map_size": 4,
                 "is_slippery": is_slippery,
-                "use_experience": use_exp,
+                "use_task_memory": use_memory,
                 "map_id": map_id,
-                "task_id": f"test_map{map_id}_slip{is_slippery}_exp{use_exp}"
+                "task_id": f"test_map{map_id}_slip{is_slippery}_mem{use_memory}"
             }
             configs.append(config)
 
@@ -63,8 +63,8 @@ def generate_test_configs(num_test_maps: int = 100, is_slippery: bool = False) -
 
 
 def train(experiment_name: str, max_workers: int = 2, num_runs: int = 3, num_training_maps= 15, is_slippery: bool= False) -> None:
-    """Phase 1: Generate experience from random maps"""
-    logger.info("🎯 Starting Training Phase - Generating Experience")
+    """Phase 1: Generate task memory from random maps"""
+    logger.info("🎯 Starting Training Phase - Generating Task Memory")
     logger.info("=" * 60)
 
     training_configs = generate_training_configs(num_maps=num_training_maps, map_size=4, is_slippery=is_slippery)
@@ -91,8 +91,8 @@ def train(experiment_name: str, max_workers: int = 2, num_runs: int = 3, num_tra
                     task_configs=worker_configs,
                     experiment_name=experiment_name,
                     num_runs=num_runs,
-                    use_experience=False,  # No experience in training phase
-                    make_experience=True,# Generate experience
+                    use_task_memory=False,  # No task memory in training phase
+                    make_task_memory=True,  # Generate task memory
                 )
                 future = agent.execute.remote()
                 future_list.append(future)
@@ -115,8 +115,8 @@ def train(experiment_name: str, max_workers: int = 2, num_runs: int = 3, num_tra
             task_configs=training_configs,
             experiment_name=experiment_name,
             num_runs=num_runs,
-            use_experience=False,
-            make_experience=True
+            use_task_memory=False,
+            make_task_memory=True
         )
         results = agent.execute()
         dump_results()
@@ -131,7 +131,7 @@ def train(experiment_name: str, max_workers: int = 2, num_runs: int = 3, num_tra
 
 
 def test(experiment_name: str, max_workers: int = 2, num_runs: int = 5, num_test_maps: int = 100, is_slippery: bool=False) -> None:
-    """Phase 2: Test on fixed maps with/without experience"""
+    """Phase 2: Test on fixed maps with/without task memory"""
     logger.info("🧪 Starting Test Phase - Evaluating Performance")
     logger.info(f"📊 Testing on {num_test_maps} maps with {num_runs} runs each")
     logger.info("=" * 60)
@@ -140,12 +140,12 @@ def test(experiment_name: str, max_workers: int = 2, num_runs: int = 5, num_test
     path = Path("./exp_result")
     path.mkdir(parents=True, exist_ok=True)
 
-    # Group configs by experience usage for separate experiments
-    exp_configs = [c for c in test_configs if c.get("use_experience", False)]
-    no_exp_configs = [c for c in test_configs if not c.get("use_experience", False)]
+    # Group configs by task memory usage for separate experiments
+    memory_configs = [c for c in test_configs if c.get("use_task_memory", False)]
+    no_memory_configs = [c for c in test_configs if not c.get("use_task_memory", False)]
 
-    logger.info(f"📝 Configs without experience: {len(no_exp_configs)}")
-    logger.info(f"📝 Configs with experience: {len(exp_configs)}")
+    logger.info(f"📝 Configs without task memory: {len(no_memory_configs)}")
+    logger.info(f"📝 Configs with task memory: {len(memory_configs)}")
 
 
 
@@ -156,37 +156,37 @@ def test(experiment_name: str, max_workers: int = 2, num_runs: int = 5, num_test
                 f.write(json.dumps(result) + "\n")
         logger.info(f"💾 Test results saved to {output_file}")
 
-    # Test without experience first
-    logger.info("🚫 Testing WITHOUT experience...")
+    # Test without task memory first
+    logger.info("🚫 Testing WITHOUT task memory...")
     all_results = []
-    results_no_exp = run_test_configs(
-        configs=no_exp_configs,
+    results_no_memory = run_test_configs(
+        configs=no_memory_configs,
         experiment_name=experiment_name,
         max_workers=max_workers,
         num_runs=num_runs,
-        use_experience=False
+        use_task_memory=False
     )
-    all_results.extend(results_no_exp)
-    dump_results("no_exp")
+    all_results.extend(results_no_memory)
+    dump_results("no_memory")
 
-    # Test with experience
-    logger.info("✅ Testing WITH experience...")
+    # Test with task memory
+    logger.info("✅ Testing WITH task memory...")
     all_results = []
-    results_with_exp = run_test_configs(
-        configs=exp_configs,
+    results_with_memory = run_test_configs(
+        configs=memory_configs,
         experiment_name=experiment_name,
         max_workers=max_workers,
         num_runs=num_runs,
-        use_experience=True
+        use_task_memory=True
     )
-    all_results.extend(results_with_exp)
-    dump_results("with_exp")
+    all_results.extend(results_with_memory)
+    dump_results("with_memory")
 
     return all_results
 
 
 def run_test_configs(configs: List[Dict], experiment_name: str, max_workers: int,
-                     num_runs: int, use_experience: bool) -> List[Dict]:
+                     num_runs: int, use_task_memory: bool) -> List[Dict]:
     """Run a set of test configurations"""
     results = []
 
@@ -200,8 +200,8 @@ def run_test_configs(configs: List[Dict], experiment_name: str, max_workers: int
                     task_configs=worker_configs,
                     experiment_name=experiment_name,
                     num_runs=num_runs,
-                    use_experience=use_experience,
-                    make_experience=False
+                    use_task_memory=use_task_memory,
+                    make_task_memory=False
                 )
                 future = agent.execute.remote()
                 future_list.append(future)
@@ -219,8 +219,8 @@ def run_test_configs(configs: List[Dict], experiment_name: str, max_workers: int
             task_configs=configs,
             experiment_name=experiment_name,
             num_runs=num_runs,
-            use_experience=use_experience,
-            make_experience=False
+            use_task_memory=use_task_memory,
+            make_task_memory=False
         )
         results = agent.execute()
 
@@ -258,8 +258,8 @@ def main():
             is_slippery=is_slippery
         )
 
-        # Wait a bit for experience service to process
-        logger.info("⏰ Waiting for experience service to process data...")
+        # Wait a bit for task memory service to process
+        logger.info("⏰ Waiting for task memory service to process data...")
         time.sleep(10)
 
 

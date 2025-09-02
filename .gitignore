@@ -19,8 +19,6 @@ runs
 logs
 rag_nodes_index.jsonl
 alfworld_data
-beyondagent/dataset/appworld/data
-beyond*
 step_experiences/*
 build/*
 *.egg-info/*
@@ -29,4 +27,3 @@ cookbook/appworld/experiments/*
 cookbook/appworld/exp_result/*
 file_vector_store/*
 cookbook/appworld/file_vector_store/*
-experiencemaker/tool/web_search_cach/*

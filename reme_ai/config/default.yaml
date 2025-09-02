@@ -34,6 +34,24 @@ flow:
         description: "A list of conversation trajectory information, including message content and score. This field does not need to be filled in, the system will complete it automatically."
         required: false
 
+  retrieve_personal_memory:
+    flow_content: set_query_op >> (extract_time_op | (retrieve_memory_op >> semantic_rank_op)) >> fuse_rerank_op
+    description: "Retrieves the most relevant personal memories from historical data based on the query to enhance response quality"
+    input_schema:
+      query:
+        type: "str"
+        description: "user query"
+        required: true
+
+  summary_personal_memory:
+    flow_content: info_filter_op >> (get_observation_op | get_observation_with_time_op | load_today_memory_op) >> contra_repeat_op >> update_vector_store_op
+    description: "Consolidates user observations and memories by filtering information and removing redundancies for efficient storage"
+    input_schema:
+      trajectories:
+        type: "list"
+        description: "A list of conversation trajectory information, including message content and score. This field does not need to be filled in, the system will complete it automatically."
+        required: false
+
   retrieve_task_memory_simple:
     flow_content: build_query_op >> recall_vector_store_op >> merge_memory_op
     description: "Retrieves the most relevant top-k memory experiences from historical data based on the current query with simplified processing"
@@ -61,24 +79,6 @@ flow:
         description: "vector store operations"
         required: true
         enum: [ copy, delete, delete_ids, dump, load ]
-
-  retrieve_personal_memory:
-    flow_content: set_query_op >> (extract_time_op | (retrieve_memory_op >> semantic_rank_op)) >> fuse_rerank_op
-    description: "Retrieves the most relevant personal memories from historical data based on the query to enhance response quality"
-    input_schema:
-      query:
-        type: "str"
-        description: "user query"
-        required: true
-
-  summary_personal_memory:
-    flow_content: info_filter_op >> (get_observation_op | get_observation_with_time_op | load_today_memory_op) >> contra_repeat_op >> update_vector_store_op
-    description: "Consolidates user observations and memories by filtering information and removing redundancies for efficient storage"
-    input_schema:
-      messages:
-        type: "list"
-        description: "A list of conversation messages information. This field does not need to be filled in, the system will complete it automatically."
-        required: false
 
   record_task_memory:
     flow_content: update_memory_freq_op >> update_memory_utility_op >> update_vector_store_op

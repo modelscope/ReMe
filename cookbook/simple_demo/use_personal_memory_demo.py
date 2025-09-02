@@ -1,5 +1,6 @@
 import asyncio
 import json
+
 import aiohttp
 
 # API base URL
@@ -45,7 +46,9 @@ async def main():
         async with session.post(
             f"{base_url}/summary_personal_memory",
             json={
-                "messages": messages,
+                "trajectories": [
+                    {"messages": messages, "score": 1.0}
+                ],
                 "workspace_id": workspace_id,
             },
             headers={"Content-Type": "application/json"}
