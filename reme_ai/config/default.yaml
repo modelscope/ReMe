@@ -123,6 +123,22 @@ flow:
         description: "user query"
         required: true
 
+op:
+  # retriever ops
+  rerank_memory_op:
+    backend: rerank_memory_op
+    llm: default
+    params:
+      enable_llm_rerank: true
+      enable_score_filter: false
+      top_k: 5
+
+  rewrite_memory_op:
+    backend: rewrite_memory_op
+    llm: default
+    params:
+      enable_llm_rewrite: true
+
 llm:
   default:
     backend: openai_compatible
