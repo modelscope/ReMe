@@ -389,9 +389,7 @@ We tested ReMe on BFCL-V3 multi-turn-base (randomly split 50train/150val) using 
 - **[Quick Start](./cookbook/simple_demo)**: Get started quickly with practical examples
 - **[Vector Storage Setup](./doc/vector_store_api_guide.md)**: Configure local/vector databases and usage
 - **[MCP Guide](./doc/mcp_quick_start.md)**: Create MCP services
-- **Link Description**: Operators used in personal memory and task memory and their meanings can be found
-  in [personal memory](./doc/personal_memory) and [task memory](./doc/task_memory) respectively. You can modify the
-  config to customize the links
+- **[personal memory](./doc/personal_memory)** & **[task memory](./doc/task_memory)** : Operators used in personal memory and task memory, You can modify the config to customize the pipelines.
 - **[Example Collection](./cookbook)**: Real use cases and best practices
 
 ---

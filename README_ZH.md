@@ -371,7 +371,7 @@ Pass@K 衡量的是在生成的 K 个样本中，至少有一个成功完成任�
 - **[快速开始](./cookbook/simple_demo)**：通过实际示例快速上手
 - **[向量存储设置](./doc/vector_store_api_guide.md)**：配置本地/向量数据库以及使用 
 - **[mcp指南](./doc/mcp_quick_start.md)**：创建mcp服务
-- **链路说明**: 个性化记忆与任务记忆中分别使用的算子及其含义可以分别在 [personal memory](./doc/personal_memory) 与 [task memory](./doc/task_memory)中找到，你可以修改config以自定义链路
+- **[个性化记忆](./doc/personal_memory)** 与 [任务记忆](./doc/task_memory): 个性化记忆与任务记忆中分别使用的算子及其含义，你可以修改config以自定义链路
 - **[示例集合](./cookbook)**：实际用例和最佳实践
 
 ---
