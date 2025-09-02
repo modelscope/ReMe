@@ -351,8 +351,8 @@ We tested ReMe on Appworld using qwen3-8b:
 
 | Method       | pass@1    | pass@2    | pass@4    |
 |--------------|-----------|-----------|-----------|
-| without Reme | 0.083     | 0.140     | 0.228     |
-| with Reme    | **0.109** | **0.175** | **0.281** |
+| without ReMe | 0.083     | 0.140     | 0.228     |
+| with ReMe    | **0.109** | **0.175** | **0.281** |
 
 Pass@K measures the probability that at least one of the K generated samples successfully completes the task (
 score=1).  
@@ -362,7 +362,7 @@ You can find more details on reproducing the experiment in [quickstart.md](cookb
 
 ### 🧊 Frozenlake Experiment
 
-|                                       Without memory                                        |                                         With memory                                         |
+|                                        without ReMe                                         |                                          with ReMe                                          |
 |:-------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------:|
 | <p align="center"><img src="doc/figure/frozenlake_failure.gif" alt="GIF 1" width="30%"></p> | <p align="center"><img src="doc/figure/frozenlake_success.gif" alt="GIF 2" width="30%"></p> |
 
@@ -370,8 +370,8 @@ We tested on 100 random frozenlake maps using qwen3-8b:
 
 | Method       | pass rate        |
 |--------------|------------------|
-| without Reme | 0.66             |
-| with Reme    | 0.72 **(+9.1%)** |
+| without ReMe | 0.66             |
+| with ReMe    | 0.72 **(+9.1%)** |
 
 You can find more details on reproducing the experiment in [quickstart.md](cookbook/frozenlake/quickstart.md).
 
@@ -381,8 +381,8 @@ We tested ReMe on BFCL-V3 multi-turn-base (randomly split 50train/150val) using 
 
 | Method       | pass@1              | pass@2              | pass@4              |
 |--------------|---------------------|---------------------|---------------------|
-| without Reme | 0.2472              | 0.2733              | 0.2922              |
-| with Reme    | 0.3061 **(+5.89%)** | 0.3500 **(+7.67%)** | 0.3888 **(+9.66%)** |
+| without ReMe | 0.2472              | 0.2733              | 0.2922              |
+| with ReMe    | 0.3061 **(+5.89%)** | 0.3500 **(+7.67%)** | 0.3888 **(+9.66%)** |
 
 ## 📚 Resources
 
