@@ -1,7 +1,7 @@
 
 
 <p align="center">
- <img src="doc/figure/reme_logo.png" alt="ReMe Logo" width="50%">
+ <img src="docs/figure/reme_logo.png" alt="ReMe Logo" width="50%">
 </p>
 
 <p align="center">
@@ -35,8 +35,8 @@ ReMe为AI智能体提供了统一的记忆与经验系统——在跨用户、�
 - **[2025-09]** 🧪 我们在appworld, bfcl(v3)
   以及frozenlake环境验证了任务记忆抽取与复用在Agent中的效果，更多信息请查看 [appworld exp](./cookbook/appworld/quickstart.md), [bfcl exp](./cookbook/bfcl/quickstart.md)
   和 [frozenlake exp](./cookbook/frozenlake/quickstart.md)。
-- **[2025-08]** 🚀 MCP协议支持已上线-> [MCP指南](./doc/mcp_quick_start.md)。
-- **[2025-06]** 🚀 多后端向量存储支持 (Elasticsearch & ChromaDB) -> [向量数据库指南](./doc/vector_store_api_guide.md)。
+- **[2025-08]** 🚀 MCP协议支持已上线-> [MCP指南](docs/mcp_quick_start.md)。
+- **[2025-06]** 🚀 多后端向量存储支持 (Elasticsearch & ChromaDB) -> [向量数据库指南](docs/vector_store_api_guide.md)。
 - **[2024-09]** 🧠 [MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch) v0.1.x 发布，个性化和时间感知的记忆存储与使用。
 
 ---
@@ -44,7 +44,7 @@ ReMe为AI智能体提供了统一的记忆与经验系统——在跨用户、�
 ## ✨ 功能设计
 
 <p align="center">
- <img src="doc/figure/reme_structure.jpg" alt="ReMe Logo" width="100%">
+ <img src="docs/figure/reme_structure.jpg" alt="ReMe Logo" width="100%">
 </p>
 
 ReMe整合两种互补的记忆能力：
@@ -56,7 +56,7 @@ ReMe整合两种互补的记忆能力：
 - **对比模式**：不同采样轨迹通过对比得到更有价值的经验
 - **验证模式**：经过验证模块确认抽取记忆的有效性
 
-你可以从[task memory](./doc/task_memory/task_memory.md)了解更多如何使用task memory的方法
+你可以从[task memory](docs/task_memory/task_memory.md)了解更多如何使用task memory的方法
 
 #### 👤 **个人记忆 (Personal Memory)**
 特定用户的情境化记忆
@@ -65,7 +65,7 @@ ReMe整合两种互补的记忆能力：
 - **渐进学习**：通过长期交互逐步建立深度理解
 - **时间感知**：检索和整合时都具备时间敏感性
 
-你可以从[personal memory](./doc/personal_memory/personal_memory.md)了解更多如何使用personal memory的方法
+你可以从[personal memory](docs/personal_memory/personal_memory.md)了解更多如何使用personal memory的方法
 
 
 ---
@@ -369,16 +369,16 @@ Pass@K 衡量的是在生成的 K 个样本中，至少有一个成功完成任�
 ## 📚 相关资源
 
 - **[快速开始](./cookbook/simple_demo)**：通过实际示例快速上手
-- **[向量存储设置](./doc/vector_store_api_guide.md)**：配置本地/向量数据库以及使用 
-- **[mcp指南](./doc/mcp_quick_start.md)**：创建mcp服务
-- **[个性化记忆](./doc/personal_memory)** 与 [任务记忆](./doc/task_memory): 个性化记忆与任务记忆中分别使用的算子及其含义，你可以修改config以自定义链路
+- **[向量存储设置](docs/vector_store_api_guide.md)**：配置本地/向量数据库以及使用 
+- **[mcp指南](docs/mcp_quick_start.md)**：创建mcp服务
+- **[个性化记忆](docs/personal_memory)** 与 [任务记忆](docs/task_memory): 个性化记忆与任务记忆中分别使用的算子及其含义，你可以修改config以自定义链路
 - **[示例集合](./cookbook)**：实际用例和最佳实践
 
 ---
 
 ## 🤝 贡献
 
-我们相信最好的记忆系统来自集体智慧。欢迎贡献👉[指南](./doc/contribution.md)：
+我们相信最好的记忆系统来自集体智慧。欢迎贡献👉[指南](docs/contribution.md)：
 
 ### 代码贡献
 - 新操作和工具开发

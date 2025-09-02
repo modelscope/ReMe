@@ -1,5 +1,5 @@
 <p align="center">
- <img src="doc/figure/reme_logo.png" alt="ReMe Logo" width="50%">
+ <img src="docs/figure/reme_logo.png" alt="ReMe Logo" width="50%">
 </p>
 
 <p align="center">
@@ -35,9 +35,9 @@ Personal memory helps "**understand user preferences**", while task memory helps
   and frozenlake environments. For more information,
   check [appworld exp](./cookbook/appworld/quickstart.md), [bfcl exp](./cookbook/bfcl/quickstart.md),
   and [frozenlake exp](./cookbook/frozenlake/quickstart.md).
-- **[2025-08]** 🚀 MCP protocol support is now available -> [MCP Quick Start](./doc/mcp_quick_start.md).
+- **[2025-08]** 🚀 MCP protocol support is now available -> [MCP Quick Start](docs/mcp_quick_start.md).
 - **[2025-06]** 🚀 Multiple backend vector storage support (Elasticsearch &
-  ChromaDB) -> [Vector DB quick start](./doc/vector_store_api_guide.md).
+  ChromaDB) -> [Vector DB quick start](docs/vector_store_api_guide.md).
 - **[2024-09]** 🧠 [MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch) v0.1.x released,
   personalized and time-aware memory storage and usage.
 
@@ -46,7 +46,7 @@ Personal memory helps "**understand user preferences**", while task memory helps
 ## ✨ Architecture Design
 
 <p align="center">
- <img src="doc/figure/reme_structure.jpg" alt="ReMe Logo" width="100%">
+ <img src="docs/figure/reme_structure.jpg" alt="ReMe Logo" width="100%">
 </p>
 
 ReMe integrates two complementary memory capabilities:
@@ -60,7 +60,7 @@ Procedural knowledge reused across agents
 - **Comparative Patterns**: Different sampling trajectories provide more valuable memories through comparison
 - **Validation Patterns**: Confirm the effectiveness of extracted memories through validation modules
 
-Learn more about how to use task memory from [task memory](./doc/task_memory/task_memory.md)
+Learn more about how to use task memory from [task memory](docs/task_memory/task_memory.md)
 
 #### 👤 **Personal Memory**
 
@@ -71,7 +71,7 @@ Contextualized memory for specific users
 - **Progressive Learning**: Gradually build deep understanding through long-term interaction
 - **Time Awareness**: Time sensitivity in both retrieval and integration
 
-Learn more about how to use personal memory from [personal memory](./doc/personal_memory/personal_memory.md)
+Learn more about how to use personal memory from [personal memory](docs/personal_memory/personal_memory.md)
 
 ---
 
@@ -387,16 +387,16 @@ We tested ReMe on BFCL-V3 multi-turn-base (randomly split 50train/150val) using 
 ## 📚 Resources
 
 - **[Quick Start](./cookbook/simple_demo)**: Get started quickly with practical examples
-- **[Vector Storage Setup](./doc/vector_store_api_guide.md)**: Configure local/vector databases and usage
-- **[MCP Guide](./doc/mcp_quick_start.md)**: Create MCP services
-- **[personal memory](./doc/personal_memory)** & **[task memory](./doc/task_memory)** : Operators used in personal memory and task memory, You can modify the config to customize the pipelines.
+- **[Vector Storage Setup](docs/vector_store_api_guide.md)**: Configure local/vector databases and usage
+- **[MCP Guide](docs/mcp_quick_start.md)**: Create MCP services
+- **[personal memory](docs/personal_memory)** & **[task memory](docs/task_memory)** : Operators used in personal memory and task memory, You can modify the config to customize the pipelines.
 - **[Example Collection](./cookbook)**: Real use cases and best practices
 
 ---
 
 ## 🤝 Contribution
 
-We believe the best memory systems come from collective wisdom. Contributions welcome 👉[Guide](./doc/contribution.md):
+We believe the best memory systems come from collective wisdom. Contributions welcome 👉[Guide](docs/contribution.md):
 
 ### Code Contributions
 
