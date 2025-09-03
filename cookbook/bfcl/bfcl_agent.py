@@ -105,12 +105,10 @@ class BFCLAgent:
                 self.init_state(run_id, task_index)
 
     def init_state(self, run_id, i) -> Dict[str, Any]:
-        """载入测试用例并返回首条 user 消息"""
         self.test_entry[run_id].append(load_test_case(self.data_path, self.task_ids[i]))
         self.original_test_entry[run_id].append(self.test_entry[run_id][i].get("extra", {}))
         self.tool_schema[run_id].append(extract_tool_schema(self.test_entry[run_id][i].get("tools", [{}])))
 
-        # 初始历史
         msg = self.test_entry[run_id][i].get("messages", [])[0]
         if self.use_memory:
             query = msg["content"]
@@ -287,8 +285,6 @@ class BFCLAgent:
                     )
                     # decoded_calls:[function(param=xxx)]
                     print(f"decoded_calls: {decoded_calls}")
-                    # todo 实现decode_execute，返回prm
-                    # if self.decode_execute(decoded_calls):
                     if is_empty_execute_response(decoded_calls):
                         warnings.warn(
                             f"is_empty_execute_response: {is_empty_execute_response(decoded_calls)}"
@@ -298,13 +294,13 @@ class BFCLAgent:
                         tool_calls, decoded_calls, self.original_test_entry[run_id][index], self.current_turn[run_id][index]
                     )
                 except Exception as e:
-                    warnings.warn(f"处理工具调用时发生错误: {str(e)}")
+                    warnings.warn(f"Errors during tool invocation: {str(e)}")
                     return handle_user_turn(self.original_test_entry[run_id][index], self.current_turn[run_id][index])
             else:
                 return handle_user_turn(self.original_test_entry[run_id][index], self.current_turn[run_id][index])
 
         except Exception as e:
-            return create_error_response(f"处理请求时发生错误: {str(e)}")
+            return create_error_response(f"Failed to process request: {str(e)}")
 
     def _convert_tool_calls_to_execution_format(
         self, tool_calls: List[Dict[str, Any]]
@@ -524,14 +520,14 @@ class BFCLAgent:
                         self.history[run_id][task_index].append(llm_output)
 
                         env_output = self.env_step(run_id, task_index, self.history[run_id][task_index])
-                        # 与环境交互后env_output有以下几种返回情况: 
-                        # 1. 触发query, 附带着available tools列表, {"messages": [{"role": "user", "content": user_query}], "tools": tools} 
-                        # 2. 返回工具调用结果, {"messages": [{"role": "tool", "content": {<execution_results>}, 'tool_call_id': 'chatcmpl-tool-xxx'}]}
-                        #    <execution_results>: 正确执行时返回结果dict, e.g., {"travel_cost_list": [1140.0]}, 错误时返回error信息, e.g., {"error": "cd: temporary: No such directory. You cannot use path to change directory."}
-                        # 3. 回合结束, 返回{"messages": [{"role": "env", "content": "[CONVERSATION_COMPLETED]"}]}
-                        # 4. 程序出错, 返回{"messages": [{"role": "env", "content": f"[ERROR] {error_message}"}]}
+                        # Possible env_output returns after environment interaction:
+                        # 1. Triggers a query with available tools list: {"messages": [{"role": "user", "content": user_query}], "tools": tools} 
+                        # 2. Returns tool invocation result: {"messages": [{"role": "tool", "content": {<execution_results>}, 'tool_call_id': 'chatcmpl-tool-xxx'}]}
+                        #    <execution_results>: when success, returns result dicts, e.g., {"travel_cost_list": [1140.0]}, when error, returns error message, e.g., {"error": "cd: temporary: No such directory. You cannot use path to change directory."}
+                        # 3. Conversation completion: {"messages": [{"role": "env", "content": "[CONVERSATION_COMPLETED]"}]}
+                        # 4. Program error: {"messages": [{"role": "env", "content": f"[ERROR] {error_message}"}]}
             
-                        # tool_list更新
+                        # tool_list update
                         if "tools" in env_output:
                             self.tool_schema[run_id][task_index] = extract_tool_schema(env_output["tools"])
                         

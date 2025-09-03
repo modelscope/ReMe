@@ -24,7 +24,6 @@ from bfcl_eval.eval_checker.multi_turn_eval.multi_turn_utils import (
 
 
 def load_test_case(data_path: str, test_id: str | None) -> Dict[str, Any]:
-    """按 ID / 行号加载单条 JSONL 测试用例。找不到就抛错。"""
     if not Path(data_path).exists():
         raise FileNotFoundError(f"BFCL data file '{data_path}' not found")
 
@@ -86,7 +85,7 @@ def handle_user_turn(
         return create_user_response(current_turn_message, tools)
 
     except Exception as e:
-        return create_error_response(f"处理用户轮次时发生错误: {str(e)}")
+        return create_error_response(f"Failed to process user message: {str(e)}")
 
 def handle_tool_calls(
     tool_calls: List[Dict[str, Any]],
