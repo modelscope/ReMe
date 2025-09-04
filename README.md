@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/modelscope-reme-badge.png)](https://mseep.ai/app/modelscope-reme)
+
 English | [**中文**](./README_ZH.md)
 
 <p align="center">
