@@ -1,7 +1,5 @@
 import os
 from typing import List
-
-from oauthlib.uri_validate import query
 from tqdm import tqdm
 
 os.environ["APPWORLD_ROOT"] = "."
@@ -63,7 +61,7 @@ class AppworldReactAgent:
                     model=self.model_name,
                     messages=messages,
                     temperature=self.temperature,
-                    extra_body={"enable_thinking": True},
+                    extra_body={"enable_thinking": False},
                     seed=0)
 
                 return response.choices[0].message.content
@@ -84,7 +82,7 @@ class AppworldReactAgent:
         print(dictionary)
         prompt = Template(PROMPT_TEMPLATE_WITH_EXPERIENCE.lstrip()).render(dictionary)
         messages: list[dict] = []
-        last_start = 0
+        # last_start = 0
         # for match in re.finditer("(USER|ASSISTANT|SYSTEM):\n", prompt):
         #     last_end = match.span()[0]
         #     if len(messages) == 0:

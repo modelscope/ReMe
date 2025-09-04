@@ -57,7 +57,7 @@ Launch the ReMe service to enable memory library functionality:
 ```bash
 reme \
   backend=http \
-  http.port=8001 \
+  http.port=8002 \
   llm.default.model_name=qwen-max-latest \
   embedding_model.default.model_name=text-embedding-v4 \
   vector_store.default.backend=local
@@ -65,12 +65,12 @@ reme \
 
 add memories for appworld:
 ```bash
-curl -X POST "http://0.0.0.0:8001/vector_store" \
+curl -X POST "http://0.0.0.0:8002/vector_store" \
   -H "Content-Type: application/json" \
   -d '{
-    "workspace_id": "appworld_v1",
-    "action": "dump",
-    "path": "./memory_library"
+    "workspace_id": "appworld",
+    "action": "load",
+    "path": "./docs/library"
   }'
 ```
 Now you have loaded the ReMe memory library to enable memory-based agent!

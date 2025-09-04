@@ -59,7 +59,7 @@ def dump_memory(workspace_id: str, path: str = "./", api_url: str = "http://0.0.
         print(f"Memory dumped to {path}")
 
 
-def load_memory(workspace_id: str, path: str = "./", api_url: str = "http://0.0.0.0:8002/"):
+def load_memory(workspace_id: str, path: str = "docs/library", api_url: str = "http://0.0.0.0:8002/"):
     """Load memories from disk into the vector store"""
     response = requests.post(
         url=f"{api_url}vector_store",
@@ -138,7 +138,7 @@ def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int, num_r
 def main():
     max_workers = 8
     num_runs = 1  # Run each task once
-    workspace_id = "appworld_v1"
+    workspace_id = "appworld"
     api_url = "http://0.0.0.0:8002/"
     
     if max_workers > 1:
@@ -149,30 +149,27 @@ def main():
     delete_workspace(workspace_id=workspace_id, api_url=api_url)
     
     # First run to build task memories
-    logger.info("Start running experiments to build task memories")
-    run_agent(dataset_name="dev", experiment_suffix="build-memory", 
-              max_workers=max_workers, num_runs=1,
-              use_task_memory=False, make_task_memory=True, 
-              workspace_id=workspace_id, api_url=api_url)
-    
-    # Dump memories to disk for persistence
-    logger.info("Dumping memories to disk...")
-    dump_memory(workspace_id=workspace_id, api_url=api_url)
-    
-    # Run experiments without task memory
-    logger.info("Start running experiments without task memory")
-    for i in range(num_runs):
-        run_agent(dataset_name="dev", experiment_suffix=f"no-memory", 
-                  max_workers=max_workers, num_runs=1,
-                  use_task_memory=False, make_task_memory=False, 
-                  workspace_id=workspace_id, api_url=api_url)
+    logger.info("Start load experiments to build task memories")
+    load_memory(workspace_id=workspace_id, api_url=api_url)
+    # run_agent(dataset_name="dev", experiment_suffix="build-memory",
+    #           max_workers=max_workers, num_runs=1,
+    #           use_task_memory=False, make_task_memory=True,
+    #           workspace_id=workspace_id, api_url=api_url)
 
-    # Run experiments with task memory
-    logger.info("Start running experiments with task memory")
     for i in range(num_runs):
+
+        # Run experiments with task memory
+        logger.info("Start running experiments with task memory")
         run_agent(dataset_name="dev", experiment_suffix=f"with-memory", 
                   max_workers=max_workers, num_runs=1, 
                   use_task_memory=True, make_task_memory=False,
+                  workspace_id=workspace_id, api_url=api_url)
+
+        # Run experiments without task memory
+        logger.info("Start running experiments without task memory")
+        run_agent(dataset_name="dev", experiment_suffix=f"no-memory",
+                  max_workers=max_workers, num_runs=1,
+                  use_task_memory=False, make_task_memory=False,
                   workspace_id=workspace_id, api_url=api_url)
 
 
