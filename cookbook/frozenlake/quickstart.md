@@ -51,9 +51,12 @@ reme \
   vector_store.default.backend=local
 ```
 
-Load default memory library for FrozenLake:
+Add your api key for agent:
 ```bash
+export OPENAI_API_KEY="xxx"
+export OPENAI_BASE_URL="xxx"
 ```
+
 
 ## Run Experiments
 
@@ -62,6 +65,7 @@ Load default memory library for FrozenLake:
 Run the main experiment script to test agent performance using existing memory:
 
 ```bash
+cd cookbook/frozenlake
 python run_frozenlake.py
 ```
 
@@ -130,14 +134,6 @@ python run_exp_statistic.py
    - Processes experiment results
    - Calculates performance metrics
    - Generates comparative analysis
-
-## Understanding Results
-
-The experiment evaluates agent performance on FrozenLake maps:
-
-- **Success Rate**: Percentage of episodes where the agent reaches the goal
-- **With vs. Without Memory**: Compares performance with and without task memory
-- **Slippery vs. Non-slippery**: Compares performance in different environment dynamics
 
 ### Output Files
 

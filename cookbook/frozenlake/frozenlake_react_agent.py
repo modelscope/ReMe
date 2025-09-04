@@ -68,10 +68,7 @@ class FrozenLakeReactAgent:
                 return yaml.safe_load(f)
         except FileNotFoundError:
             logger.warning("Prompt file not found, using default prompts")
-            return {
-                "frozenlake_sys_prompt_no_slippery": "You are playing FrozenLake. Navigate from S to G avoiding H.",
-                "frozenlake_sys_prompt_slippery": "You are playing FrozenLake. Navigate from S to G avoiding H. Ice is slippery!"
-            }
+            raise FileNotFoundError("Prompt file not found. Please check your current path (should be ./cook/frozenlake) and try again.")
 
     def call_llm(self, messages: List[Dict]) -> str:
         """Call LLM with retry logic"""
@@ -158,8 +155,7 @@ class FrozenLakeReactAgent:
             r'["\']action["\']\s*:\s*["\']([0-3])["\']',
             r'"action"\s*:\s*"([0-3])"',
             r"'action'\s*:\s*'([0-3])'",
-            r'\baction["\']?\s*[:=]\s*["\']?([0-3])',
-            r'\b([0-3])\b(?=\s*$)',  # Single digit at end
+            r'\baction["\']?\s*[:=]\s*["\']?([0-3])'
         ]
 
         for pattern in patterns:
@@ -223,6 +219,7 @@ class FrozenLakeReactAgent:
         for step in range(self.max_steps):
             # Get action from LLM
             response = self.call_llm(messages)
+            logger.info(response)
             action = self.action_parser(response)
 
             messages.append({"role": "assistant", "content": response})
