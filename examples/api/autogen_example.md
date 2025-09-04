@@ -2,7 +2,7 @@
 
 1. First, make sure that you have installed AutoGen as well as memoryscope.
     ```
-    pip install pyautogen memoryscope
+    pip install ag2 memoryscope
     ```
 
 
