@@ -395,7 +395,7 @@ Pass@K 衡量的是在生成的 K 个样本中，至少有一个成功完成任�
 
 ```bibtex
 @software{ReMe2025,
-  title = {ReMe: Memory Framework for AI Agent},
+  title = {ReMe: Memory Management Framework for Agents},
   author = {Li Yu, Jiaji Deng, Zouying Cao},
   url = {https://github.com/modelscope/ReMe},
   year = {2025}

@@ -416,7 +416,7 @@ We believe the best memory systems come from collective wisdom. Contributions we
 
 ```bibtex
 @software{ReMe2025,
-  title = {ReMe: Memory Framework for AI Agent},
+  title = {ReMe: Memory Management Framework for Agents},
   author = {Li Yu, Jiaji Deng, Zouying Cao},
   url = {https://github.com/modelscope/ReMe},
   year = {2025}
