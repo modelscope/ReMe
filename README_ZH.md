@@ -1,4 +1,4 @@
-
+中文 | [**English**](./README.md)
 
 <p align="center">
  <img src="docs/figure/reme_logo.png" alt="ReMe Logo" width="50%">
@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python Version"></a>
-  <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/pypi-v0.1.x-blue?logo=pypi" alt="PyPI Version"></a>
+  <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/pypi-v0.1-blue?logo=pypi" alt="PyPI Version"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black" alt="License"></a>
   <a href="https://github.com/modelscope/ReMe"><img src="https://img.shields.io/github/stars/modelscope/ReMe?style=social" alt="GitHub Stars"></a>
 </p>
@@ -37,7 +37,7 @@ ReMe为AI智能体提供了统一的记忆与经验系统——在跨用户、�
   和 [frozenlake exp](./cookbook/frozenlake/quickstart.md)。
 - **[2025-08]** 🚀 MCP协议支持已上线-> [MCP指南](docs/mcp_quick_start.md)。
 - **[2025-06]** 🚀 多后端向量存储支持 (Elasticsearch & ChromaDB) -> [向量数据库指南](docs/vector_store_api_guide.md)。
-- **[2024-09]** 🧠 [MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch) v0.1.x 发布，个性化和时间感知的记忆存储与使用。
+- **[2024-09]** 🧠 [MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch) v0.1 发布，个性化和时间感知的记忆存储与使用。
 
 ---
 
