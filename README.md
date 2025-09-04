@@ -334,7 +334,7 @@ ReMe provides pre-built memory libraries that agents can immediately use with ve
 response = requests.post("http://localhost:8002/vector_store", json={
     "workspace_id": "appworld",
     "action": "load",
-    "path": "./library/"
+    "path": "./docs/library/"
 })
 
 # Query relevant memories

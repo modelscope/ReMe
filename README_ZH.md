@@ -314,7 +314,7 @@ ReMe提供预构建的经验库，智能体可以立即使用经过验证的最�
 response = requests.post("http://localhost:8002/vector_store", json={
     "workspace_id": "appworld",
     "action": "load",
-    "path": "./library/"
+    "path": "./docs/library/"
 })
 
 # 查询相关经验
