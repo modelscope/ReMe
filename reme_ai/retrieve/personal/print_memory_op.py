@@ -13,7 +13,7 @@ class PrintMemoryOp(BaseOp):
     """
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         """
         Executes the primary function, it involves:
         1. Fetches the memories.

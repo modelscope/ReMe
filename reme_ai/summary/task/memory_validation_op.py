@@ -3,6 +3,8 @@ import re
 from typing import List, Dict, Any
 
 from flowllm import C, BaseLLMOp
+from flowllm.enumeration.role import Role
+from flowllm.schema.message import Message as FlowMessage
 from loguru import logger
 
 from reme_ai.schema import Message
@@ -13,7 +15,7 @@ from reme_ai.schema.memory import BaseMemory
 class MemoryValidationOp(BaseLLMOp):
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         """Validate quality of extracted task memories"""
 
         task_memories: List[BaseMemory] = []
@@ -31,7 +33,7 @@ class MemoryValidationOp(BaseLLMOp):
         validated_task_memories = []
 
         for task_memory in task_memories:
-            validation_result = self._validate_single_task_memory(task_memory)
+            validation_result = await self._validate_single_task_memory(task_memory)
             if validation_result and validation_result.get("is_valid", False):
                 task_memory.score = validation_result.get("score", 0.0)
                 validated_task_memories.append(task_memory)
@@ -45,13 +47,13 @@ class MemoryValidationOp(BaseLLMOp):
         self.context.response.answer = json.dumps([x.model_dump() for x in validated_task_memories])
         self.context.response.metadata["memory_list"] = validated_task_memories
 
-    def _validate_single_task_memory(self, task_memory: BaseMemory) -> Dict[str, Any]:
+    async def _validate_single_task_memory(self, task_memory: BaseMemory) -> Dict[str, Any]:
         """Validate single task memory"""
-        validation_info = self._llm_validate_task_memory(task_memory)
+        validation_info = await self._llm_validate_task_memory(task_memory)
         logger.info(f"Validating: {validation_info}")
         return validation_info
 
-    def _llm_validate_task_memory(self, task_memory: BaseMemory) -> Dict[str, Any]:
+    async def _llm_validate_task_memory(self, task_memory: BaseMemory) -> Dict[str, Any]:
         """Validate task memory using LLM"""
         try:
             prompt = self.prompt_format(
@@ -96,7 +98,7 @@ class MemoryValidationOp(BaseLLMOp):
                         "reason": f"Parse error: {str(e_inner)}"
                     }
 
-            return self.llm.chat(messages=[Message(content=prompt)], callback_fn=parse_validation)
+            return await self.llm.achat(messages=[FlowMessage(role=Role.USER, content=prompt)], callback_fn=parse_validation)
 
         except Exception as e:
             logger.error(f"LLM validation failed: {e}")

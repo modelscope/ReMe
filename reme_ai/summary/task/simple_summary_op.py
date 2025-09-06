@@ -2,6 +2,8 @@ import json
 from typing import List
 
 from flowllm import C, BaseLLMOp
+from flowllm.enumeration.role import Role
+from flowllm.schema.message import Message as FlowMessage
 from loguru import logger
 
 from reme_ai.schema import Message, Trajectory
@@ -13,7 +15,7 @@ from reme_ai.utils.op_utils import merge_messages_content
 class SimpleSummaryOp(BaseLLMOp):
     file_path: str = __file__
 
-    def summary_trajectory(self, trajectory: Trajectory) -> List[BaseMemory]:
+    async def summary_trajectory(self, trajectory: Trajectory) -> List[BaseMemory]:
         execution_process = merge_messages_content(trajectory.messages)
         success_score_threshold: float = self.op_params.get("success_score_threshold", 0.9)
         logger.info(f"success_score_threshold={success_score_threshold}")
@@ -49,15 +51,15 @@ class SimpleSummaryOp(BaseLLMOp):
                 logger.exception(f"parse content failed!\n{content}")
                 raise e
 
-        return self.llm.chat(messages=[Message(content=summary_prompt)], callback_fn=parse_content)
+        return await self.llm.achat(messages=[FlowMessage(role=Role.USER, content=summary_prompt)], callback_fn=parse_content)
 
-    def execute(self):
+    async def async_execute(self):
         trajectories: list = self.context.trajectories
         trajectories: List[Trajectory] = [Trajectory(**x) if isinstance(x, dict) else x for x in trajectories]
 
         memory_list: List[BaseMemory] = []
         for trajectory in trajectories:
-            memories = self.summary_trajectory(trajectory)
+            memories = await self.summary_trajectory(trajectory)
             if memories:
                 memory_list.extend(memories)
 

@@ -45,7 +45,7 @@ class FuseRerankOp(BaseLLMOp):
         memory.metadata["match_msg_flag"] = str(int(match_msg_flag))
         return match_event_flag, match_msg_flag
 
-    def execute(self):
+    async def async_execute(self):
         """
         Executes the reranking process on memories considering their scores, types, and temporal relevance.
 

@@ -10,7 +10,7 @@ from reme_ai.schema.memory import BaseMemory
 class MemoryDeduplicationOp(BaseOp):
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         """Remove duplicate task memories"""
         # Get task memories to deduplicate
         task_memories: List[BaseMemory] = self.context.memory_list

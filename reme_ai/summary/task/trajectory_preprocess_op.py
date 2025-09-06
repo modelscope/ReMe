@@ -10,7 +10,7 @@ from reme_ai.schema import Trajectory
 class TrajectoryPreprocessOp(BaseOp):
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         """Preprocess trajectories: validate and classify"""
         trajectories: list = self.context.get("trajectories", [])
         trajectories: List[Trajectory] = [Trajectory(**x) if isinstance(x, dict) else x for x in trajectories]

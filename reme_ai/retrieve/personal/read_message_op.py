@@ -12,7 +12,7 @@ class ReadMessageOp(BaseOp):
     """
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         """
         Executes the primary function to fetch unmemorized chat messages.
         """

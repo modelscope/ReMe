@@ -23,10 +23,9 @@ class ExtractTimeOp(BaseLLMOp):
     """
 
     def get_language_value(self, value_dict: dict):
-
         return value_dict.get(self.language, value_dict.get("en"))
 
-    def execute(self):
+    async def async_execute(self):
         """
         Executes the primary logic of identifying and extracting time data from an LLM's response.
 
@@ -59,7 +58,7 @@ class ExtractTimeOp(BaseLLMOp):
         logger.info(f"Extracting time from query: {query[:100]}...")
 
         # Invoke the LLM to generate a response
-        response = self.llm.chat([Message(role=Role.USER, content=full_prompt)])
+        response = await self.llm.achat([Message(role=Role.USER, content=full_prompt)])
 
         # Handle empty or unsuccessful responses
         if not response or not response.content:

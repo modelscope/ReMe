@@ -2,6 +2,8 @@ import json
 from typing import List, Dict
 
 from flowllm import C, BaseLLMOp
+from flowllm.enumeration.role import Role
+from flowllm.schema.message import Message as FlowMessage
 from loguru import logger
 
 from reme_ai.schema import Message, Trajectory
@@ -13,7 +15,7 @@ from reme_ai.utils.op_utils import merge_messages_content
 class SimpleComparativeSummaryOp(BaseLLMOp):
     file_path: str = __file__
 
-    def compare_summary_trajectory(self, trajectory_a: Trajectory, trajectory_b: Trajectory) -> List[BaseMemory]:
+    async def compare_summary_trajectory(self, trajectory_a: Trajectory, trajectory_b: Trajectory) -> List[BaseMemory]:
         summary_prompt = self.prompt_format(prompt_name="summary_prompt",
                                             execution_process_a=merge_messages_content(trajectory_a.messages),
                                             execution_process_b=merge_messages_content(trajectory_b.messages),
@@ -42,9 +44,9 @@ class SimpleComparativeSummaryOp(BaseLLMOp):
                 logger.exception(f"parse content failed!\n{content}")
                 raise e
 
-        return self.llm.chat(messages=[Message(content=summary_prompt)], callback_fn=parse_content)
+        return await self.llm.achat(messages=[FlowMessage(role=Role.USER, content=summary_prompt)], callback_fn=parse_content)
 
-    def execute(self):
+    async def async_execute(self):
         trajectories: list = self.context.get("trajectories", [])
         trajectories: List[Trajectory] = [Trajectory(**x) if isinstance(x, dict) else x for x in trajectories]
 
@@ -61,7 +63,7 @@ class SimpleComparativeSummaryOp(BaseLLMOp):
                 continue
 
             if task_trajectories[0].score > task_trajectories[-1].score:
-                task_memories = self.compare_summary_trajectory(trajectory_a=task_trajectories[0],
+                task_memories = await self.compare_summary_trajectory(trajectory_a=task_trajectories[0],
                                                                 trajectory_b=task_trajectories[-1])
                 memory_list.extend(task_memories)
 

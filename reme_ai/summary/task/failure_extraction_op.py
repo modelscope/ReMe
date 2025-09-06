@@ -1,6 +1,8 @@
 from typing import List
 
 from flowllm import C, BaseLLMOp
+from flowllm.enumeration.role import Role
+from flowllm.schema.message import Message as FlowMessage
 from loguru import logger
 
 from reme_ai.schema import Message, Trajectory
@@ -12,7 +14,7 @@ from reme_ai.utils.op_utils import merge_messages_content, parse_json_experience
 class FailureExtractionOp(BaseLLMOp):
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         """Extract task memories from failed trajectories"""
         failure_trajectories: List[Trajectory] = self.context.get("failure_trajectories", [])
 
@@ -29,11 +31,11 @@ class FailureExtractionOp(BaseLLMOp):
             if hasattr(trajectory, 'segments') and trajectory.segments:
                 # Process segmented step sequences
                 for segment in trajectory.segments:
-                    task_memories = self._extract_failure_task_memory_from_steps(segment, trajectory)
+                    task_memories = await self._extract_failure_task_memory_from_steps(segment, trajectory)
                     failure_task_memories.extend(task_memories)
             else:
                 # Process entire trajectory
-                task_memories = self._extract_failure_task_memory_from_steps(trajectory.messages, trajectory)
+                task_memories = await self._extract_failure_task_memory_from_steps(trajectory.messages, trajectory)
                 failure_task_memories.extend(task_memories)
 
         logger.info(f"Extracted {len(failure_task_memories)} failure task memories")
@@ -41,7 +43,7 @@ class FailureExtractionOp(BaseLLMOp):
         # Add task memories to context
         self.context.failure_task_memories = failure_task_memories
 
-    def _extract_failure_task_memory_from_steps(self, steps: List[Message], trajectory: Trajectory) -> List[BaseMemory]:
+    async def _extract_failure_task_memory_from_steps(self, steps: List[Message], trajectory: Trajectory) -> List[BaseMemory]:
         """Extract task memory from failed step sequences"""
         step_content = merge_messages_content(steps)
         context = get_trajectory_context(trajectory, steps)
@@ -70,4 +72,4 @@ class FailureExtractionOp(BaseLLMOp):
 
             return task_memories
 
-        return self.llm.chat(messages=[Message(content=prompt)], callback_fn=parse_task_memories)
+        return await self.llm.achat(messages=[FlowMessage(role=Role.USER, content=prompt)], callback_fn=parse_task_memories)

@@ -3,6 +3,8 @@ import re
 from typing import List
 
 from flowllm import C, BaseLLMOp
+from flowllm.enumeration.role import Role
+from flowllm.schema.message import Message as FlowMessage
 from loguru import logger
 
 from reme_ai.schema import Message, Trajectory
@@ -12,7 +14,7 @@ from reme_ai.schema import Message, Trajectory
 class TrajectorySegmentationOp(BaseLLMOp):
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         """Segment trajectories into meaningful steps"""
         # Get trajectories from context
         all_trajectories: List[Trajectory] = self.context.get("all_trajectories", [])
@@ -30,7 +32,7 @@ class TrajectorySegmentationOp(BaseLLMOp):
         # Add segmentation info to trajectories
         segmented_count = 0
         for trajectory in target_trajectories:
-            segments = self._llm_segment_trajectory(trajectory)
+            segments = await self._llm_segment_trajectory(trajectory)
             trajectory.metadata["segments"] = segments
             segmented_count += 1
 
@@ -51,7 +53,7 @@ class TrajectorySegmentationOp(BaseLLMOp):
         else:
             return all_trajectories
 
-    def _llm_segment_trajectory(self, trajectory: Trajectory) -> List[List[Message]]:
+    async def _llm_segment_trajectory(self, trajectory: Trajectory) -> List[List[Message]]:
         """Use LLM for trajectory segmentation"""
         trajectory_content = self._format_trajectory_content(trajectory)
 
@@ -80,7 +82,7 @@ class TrajectorySegmentationOp(BaseLLMOp):
 
             return segments if segments else [trajectory.messages]
 
-        return self.llm.chat(messages=[Message(content=prompt)], callback_fn=parse_segmentation,
+        return await self.llm.achat(messages=[FlowMessage(role=Role.USER, content=prompt)], callback_fn=parse_segmentation,
                              default_value=[trajectory.messages])
 
     @staticmethod

@@ -1,6 +1,8 @@
 from typing import List, Tuple, Optional
 
 from flowllm import C, BaseLLMOp
+from flowllm.enumeration.role import Role
+from flowllm.schema.message import Message as FlowMessage
 from loguru import logger
 
 from reme_ai.schema import Message, Trajectory
@@ -12,7 +14,7 @@ from reme_ai.utils.op_utils import merge_messages_content, parse_json_experience
 class ComparativeExtractionOp(BaseLLMOp):
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         """Extract comparative task memories by comparing different scoring trajectories"""
         all_trajectories: List[Trajectory] = self.context.get("all_trajectories", [])
         success_trajectories: List[Trajectory] = self.context.get("success_trajectories", [])
@@ -26,7 +28,7 @@ class ComparativeExtractionOp(BaseLLMOp):
             if highest_traj and lowest_traj and highest_traj.score > lowest_traj.score:
                 logger.info(
                     f"Extracting soft comparative task memories: highest ({highest_traj.score:.2f}) vs lowest ({lowest_traj.score:.2f})")
-                soft_task_memories = self._extract_soft_comparative_task_memory(highest_traj, lowest_traj)
+                soft_task_memories = await self._extract_soft_comparative_task_memory(highest_traj, lowest_traj)
                 comparative_task_memories.extend(soft_task_memories)
 
         # Hard comparison: success vs failure (if similarity search is enabled)
@@ -37,7 +39,7 @@ class ComparativeExtractionOp(BaseLLMOp):
             logger.info(f"Found {len(similar_pairs)} similar pairs for hard comparison")
 
             for success_steps, failure_steps, similarity_score in similar_pairs:
-                hard_task_memories = self._extract_hard_comparative_task_memory(success_steps, failure_steps,
+                hard_task_memories = await self._extract_hard_comparative_task_memory(success_steps, failure_steps,
                                                                                 similarity_score)
                 comparative_task_memories.extend(hard_task_memories)
 
@@ -73,7 +75,7 @@ class ComparativeExtractionOp(BaseLLMOp):
         """Get trajectory score"""
         return trajectory.score
 
-    def _extract_soft_comparative_task_memory(self, higher_traj: Trajectory, lower_traj: Trajectory) -> List[
+    async def _extract_soft_comparative_task_memory(self, higher_traj: Trajectory, lower_traj: Trajectory) -> List[
         BaseMemory]:
         """Extract soft comparative task memory (high score vs low score)"""
         higher_steps = self._get_trajectory_steps(higher_traj)
@@ -105,9 +107,9 @@ class ComparativeExtractionOp(BaseLLMOp):
 
             return task_memories
 
-        return self.llm.chat(messages=[Message(content=prompt)], callback_fn=parse_task_memories)
+        return await self.llm.achat(messages=[FlowMessage(role=Role.USER, content=prompt)], callback_fn=parse_task_memories)
 
-    def _extract_hard_comparative_task_memory(self, success_steps: List[Message],
+    async def _extract_hard_comparative_task_memory(self, success_steps: List[Message],
                                               failure_steps: List[Message], similarity_score: float) -> List[
         BaseMemory]:
         """Extract hard comparative task memory (success vs failure)"""
@@ -134,7 +136,7 @@ class ComparativeExtractionOp(BaseLLMOp):
 
             return task_memories
 
-        return self.llm.chat(messages=[Message(content=prompt)], callback_fn=parse_task_memories)
+        return await self.llm.achat(messages=[FlowMessage(role=Role.USER, content=prompt)], callback_fn=parse_task_memories)
 
     @staticmethod
     def _get_trajectory_steps(trajectory: Trajectory) -> List[Message]:

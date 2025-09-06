@@ -19,7 +19,7 @@ class SemanticRankOp(BaseLLMOp):
     """
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         """
         Executes the primary workflow of the SemanticRankOp which includes:
         - Retrieves query and memory list from context.
@@ -56,7 +56,7 @@ class SemanticRankOp(BaseLLMOp):
             logger.info(f"After deduplication: {len(memory_list)} memories")
 
             # Perform semantic ranking using LLM
-            ranked_memories = self._semantic_rank_memories(query, memory_list)
+            ranked_memories = await self._semantic_rank_memories(query, memory_list)
             if ranked_memories:
                 memory_list = ranked_memories
 
@@ -71,7 +71,7 @@ class SemanticRankOp(BaseLLMOp):
         # Save ranked memories back to context
         self.context.response.metadata["memory_list"] = memory_list
 
-    def _semantic_rank_memories(self, query: str, memories: List[BaseMemory]) -> List[BaseMemory]:
+    async def _semantic_rank_memories(self, query: str, memories: List[BaseMemory]) -> List[BaseMemory]:
         """
         Use LLM to semantically rank memories based on relevance to the query
         """
@@ -93,7 +93,7 @@ Memories:
 Please respond in JSON format:
 {{"rankings": [{{"index": 0, "score": 0.8}}, {{"index": 1, "score": 0.6}}, ...]}}"""
 
-        response = self.llm.chat([Message(role=Role.USER, content=prompt)])
+        response = await self.llm.achat([Message(role=Role.USER, content=prompt)])
 
         if not response or not response.content:
             logger.warning("LLM ranking failed, using original order")

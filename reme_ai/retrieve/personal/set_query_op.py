@@ -14,7 +14,7 @@ class SetQueryOp(BaseOp):
     into the context, utilizing either provided parameters or details from the context.
     """
 
-    def execute(self):
+    async def async_execute(self):
         """
         Executes the operation's primary function, which involves determining the query and its
         timestamp, then storing these values within the context.
