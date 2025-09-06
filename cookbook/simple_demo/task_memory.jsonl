@@ -1,24 +1,25 @@
 [
   {
     "workspace_id": "test_workspace",
-    "memory_id": "4ff6a7a783a84940a046e557de7542f0",
+    "memory_id": "a410858f28e740e0b51a561302d95549",
     "memory_type": "task",
-    "when_to_use": "When analyzing a complex organization with multiple dimensions (history, products, finances, leadership), especially when the query is open-ended or broad like 'analyze [company]'",
-    "content": "The agent successfully decomposed the task into four targeted web searches: company overview/history, products/services, financial performance, and leadership impact. This multi-angle approach ensured comprehensive coverage of key domains. Each search was designed to extract distinct, high-value information layers, enabling synthesis into a structured, well-rounded analysis. The use of varied queries prevented redundancy and maximized information diversity.",
+    "when_to_use": "When analyzing a complex, multi-faceted company with public data available across financial, historical, technological, and strategic dimensions—especially in fast-evolving industries like EVs or tech.",
+    "content": "The agent successfully decomposed the open-ended query 'Analyze the company Tesla' into three targeted web searches: (1) company overview/history/business model, (2) financial performance (2024), and (3) recent innovations. This structured breakdown ensured comprehensive coverage of key domains without redundancy. Each search used precise, domain-specific keywords that yielded high-quality, actionable results. The agent then synthesized these into a coherent, layered analysis by prioritizing factual accuracy, chronological flow, and thematic grouping (e.g., separating history from business model). This pattern enabled deep insight generation while avoiding hallucination or omission.",
     "score": 0.92,
-    "time_created": "2025-08-31 15:42:44",
-    "time_modified": "2025-08-31 15:42:44",
+    "time_created": "2025-09-06 23:47:57",
+    "time_modified": "2025-09-06 23:47:57",
     "author": "qwen3-30b-a3b-instruct-2507",
     "metadata": {
-      "when_to_use": "When analyzing a complex organization with multiple dimensions (history, products, finances, leadership), especially when the query is open-ended or broad like 'analyze [company]'",
-      "experience": "The agent successfully decomposed the task into four targeted web searches: company overview/history, products/services, financial performance, and leadership impact. This multi-angle approach ensured comprehensive coverage of key domains. Each search was designed to extract distinct, high-value information layers, enabling synthesis into a structured, well-rounded analysis. The use of varied queries prevented redundancy and maximized information diversity.",
+      "when_to_use": "When analyzing a complex, multi-faceted company with public data available across financial, historical, technological, and strategic dimensions—especially in fast-evolving industries like EVs or tech.",
+      "experience": "The agent successfully decomposed the open-ended query 'Analyze the company Tesla' into three targeted web searches: (1) company overview/history/business model, (2) financial performance (2024), and (3) recent innovations. This structured breakdown ensured comprehensive coverage of key domains without redundancy. Each search used precise, domain-specific keywords that yielded high-quality, actionable results. The agent then synthesized these into a coherent, layered analysis by prioritizing factual accuracy, chronological flow, and thematic grouping (e.g., separating history from business model). This pattern enabled deep insight generation while avoiding hallucination or omission.",
       "tags": [
-        "multi-faceted analysis",
-        "information decomposition",
+        "decomposition",
+        "multi-domain analysis",
         "web_search strategy",
-        "comprehensive coverage"
+        "structured inquiry",
+        "synthesis"
       ],
-      "confidence": 0.9,
+      "confidence": 0.95,
       "step_type": "reasoning",
       "tools_used": [
         "web_search"
@@ -27,24 +28,25 @@
   },
   {
     "workspace_id": "test_workspace",
-    "memory_id": "2ad5b6aae8724e87944e69ea4476a97c",
+    "memory_id": "778c5cf1e3574ce4ad55654186358011",
     "memory_type": "task",
-    "when_to_use": "When initial results from a general search are insufficient or too broad, and deeper insights are needed on specific subtopics such as financial trends, product portfolios, or leadership dynamics",
-    "content": "The agent proactively called the same tool (web_search) multiple times with different, focused queries to gather information from various perspectives. This iterative technique allowed for layered understanding—e.g., separating historical milestones from current financial challenges and leadership influence. It demonstrated strategic use of repetition not as redundancy but as a method to triangulate data across domains, significantly improving depth and accuracy.",
-    "score": 0.85,
-    "time_created": "2025-08-31 15:42:44",
-    "time_modified": "2025-08-31 15:42:44",
+    "when_to_use": "When initial information retrieval is incomplete or lacks depth on specific subtopics such as financials, innovation timelines, or strategic direction.",
+    "content": "After retrieving general background on Tesla, the agent proactively performed additional targeted web searches using distinct, focused queries for financials and innovations. This iterative approach allowed it to gather granular, up-to-date data (e.g., 2024 revenue, FSD V12 rollout, 16B km driving data) that would have been missed with a single broad query. By calling the same tool (web_search) multiple times with different parameters, the agent achieved triangulation across perspectives—ensuring completeness and reducing bias. This demonstrates the power of sequential, purpose-driven tool use over monolithic queries.",
+    "score": 0.92,
+    "time_created": "2025-09-06 23:47:57",
+    "time_modified": "2025-09-06 23:47:57",
     "author": "qwen3-30b-a3b-instruct-2507",
     "metadata": {
-      "when_to_use": "When initial results from a general search are insufficient or too broad, and deeper insights are needed on specific subtopics such as financial trends, product portfolios, or leadership dynamics",
-      "experience": "The agent proactively called the same tool (web_search) multiple times with different, focused queries to gather information from various perspectives. This iterative technique allowed for layered understanding—e.g., separating historical milestones from current financial challenges and leadership influence. It demonstrated strategic use of repetition not as redundancy but as a method to triangulate data across domains, significantly improving depth and accuracy.",
+      "when_to_use": "When initial information retrieval is incomplete or lacks depth on specific subtopics such as financials, innovation timelines, or strategic direction.",
+      "experience": "After retrieving general background on Tesla, the agent proactively performed additional targeted web searches using distinct, focused queries for financials and innovations. This iterative approach allowed it to gather granular, up-to-date data (e.g., 2024 revenue, FSD V12 rollout, 16B km driving data) that would have been missed with a single broad query. By calling the same tool (web_search) multiple times with different parameters, the agent achieved triangulation across perspectives—ensuring completeness and reducing bias. This demonstrates the power of sequential, purpose-driven tool use over monolithic queries.",
       "tags": [
-        "iterative querying",
-        "perspective diversification",
+        "iterative research",
+        "query refinement",
         "information triangulation",
-        "search optimization"
+        "depth enhancement",
+        "tool reuse"
       ],
-      "confidence": 0.85,
+      "confidence": 0.9,
       "step_type": "action",
       "tools_used": [
         "web_search"
@@ -53,22 +55,23 @@
   },
   {
     "workspace_id": "test_workspace",
-    "memory_id": "87afc1367c6c4b739bbe191e1f47c875",
+    "memory_id": "2584c54b40ca4f65922aa231c32fd98b",
     "memory_type": "task",
-    "when_to_use": "After gathering raw data from external sources, when synthesizing findings into a coherent, structured response that balances factual reporting with critical insight",
-    "content": "The agent effectively integrated results from multiple searches into a unified summary with clear sectioning: history, products, finance, and leadership. It highlighted both strengths (innovation, mission-driven vision) and risks (financial decline, leadership dependency). This synthesis transformed fragmented data into actionable intelligence, demonstrating how structured summarization enhances usability and decision-making value in agent outputs.",
-    "score": 0.85,
-    "time_created": "2025-08-31 15:42:44",
-    "time_modified": "2025-08-31 15:42:44",
+    "when_to_use": "When synthesizing information from multiple sources into a structured, insightful output suitable for executive-level understanding or decision-making.",
+    "content": "The agent did not simply concatenate results but reorganized them into a logical framework: Overview → History → Business Model → Financials → Innovations → Challenges → Conclusion. It highlighted critical trends (e.g., declining profit despite stable revenue), contextualized technical advances (e.g., 4680 battery + SiC = efficiency gains), and connected innovations to long-term vision (Master Plan 4.0). This synthesis transformed raw facts into narrative insights—making the output not just informative but strategically valuable. The inclusion of both achievements and challenges added balance and credibility.",
+    "score": 0.92,
+    "time_created": "2025-09-06 23:47:57",
+    "time_modified": "2025-09-06 23:47:57",
     "author": "qwen3-30b-a3b-instruct-2507",
     "metadata": {
-      "when_to_use": "After gathering raw data from external sources, when synthesizing findings into a coherent, structured response that balances factual reporting with critical insight",
-      "experience": "The agent effectively integrated results from multiple searches into a unified summary with clear sectioning: history, products, finance, and leadership. It highlighted both strengths (innovation, mission-driven vision) and risks (financial decline, leadership dependency). This synthesis transformed fragmented data into actionable intelligence, demonstrating how structured summarization enhances usability and decision-making value in agent outputs.",
+      "when_to_use": "When synthesizing information from multiple sources into a structured, insightful output suitable for executive-level understanding or decision-making.",
+      "experience": "The agent did not simply concatenate results but reorganized them into a logical framework: Overview → History → Business Model → Financials → Innovations → Challenges → Conclusion. It highlighted critical trends (e.g., declining profit despite stable revenue), contextualized technical advances (e.g., 4680 battery + SiC = efficiency gains), and connected innovations to long-term vision (Master Plan 4.0). This synthesis transformed raw facts into narrative insights—making the output not just informative but strategically valuable. The inclusion of both achievements and challenges added balance and credibility.",
       "tags": [
-        "synthesis",
-        "structured summarization",
-        "critical insight",
-        "data integration"
+        "narrative synthesis",
+        "strategic framing",
+        "insight extraction",
+        "balanced reporting",
+        "structured storytelling"
       ],
       "confidence": 0.9,
       "step_type": "observation",
