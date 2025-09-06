@@ -10,7 +10,7 @@ from reme_ai.schema.memory import BaseMemory
 class UpdateMemoryUtilityOp(BaseOp):
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         memory_dicts: List[dict] = self.context.memory_dicts
         update_utility = self.context.update_utility
 

@@ -10,7 +10,7 @@ from reme_ai.schema.memory import BaseMemory, vector_node_to_memory
 @C.register_op()
 class RecallVectorStoreOp(BaseLLMOp):
 
-    def execute(self):
+    async def async_execute(self):
         recall_key: str = self.op_params.get("recall_key", "query")
         top_k: int = self.op_params.get("top_k", 3)
 
@@ -18,7 +18,7 @@ class RecallVectorStoreOp(BaseLLMOp):
         assert query, "query should be not empty!"
 
         workspace_id: str = self.context.workspace_id
-        nodes: List[VectorNode] = self.vector_store.search(query=query, workspace_id=workspace_id, top_k=top_k)
+        nodes: List[VectorNode] = await self.vector_store.async_search(query=query, workspace_id=workspace_id, top_k=top_k)
         memory_list: List[BaseMemory] = []
         memory_content_list: List[str] = []
         for node in nodes:

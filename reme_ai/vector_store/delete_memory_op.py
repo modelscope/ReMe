@@ -8,7 +8,7 @@ from flowllm.schema.vector_node import VectorNode
 class DeleteMemoryOp(BaseLLMOp):
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         workspace_id: str = self.context.workspace_id
         freq_threshold: int = self.context.freq_threshold
         utility_threshold: float = self.context.utility_threshold
