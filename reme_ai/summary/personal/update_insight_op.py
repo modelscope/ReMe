@@ -17,7 +17,7 @@ class UpdateInsightOp(BaseLLMOp):
     """
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         """
         Update insight values based on new observation memories.
         
@@ -65,7 +65,7 @@ class UpdateInsightOp(BaseLLMOp):
         # Update each selected insight
         updated_insights = []
         for insight_memory, relevance_score, relevant_observations in top_insights:
-            updated_insight = self._update_insight_with_observations(
+            updated_insight = await self._update_insight_with_observations(
                 insight_memory, relevant_observations, user_name
             )
             if updated_insight:
@@ -135,7 +135,7 @@ class UpdateInsightOp(BaseLLMOp):
 
         return intersection / union if union > 0 else 0.0
 
-    def _update_insight_with_observations(self, insight_memory: PersonalMemory,
+    async def _update_insight_with_observations(self, insight_memory: PersonalMemory,
                                           relevant_observations: List[PersonalMemory],
                                           user_name: str) -> PersonalMemory:
         """
@@ -208,7 +208,7 @@ class UpdateInsightOp(BaseLLMOp):
 
         # Use LLM chat with callback function
         try:
-            return self.llm.chat(messages=[Message(content=full_prompt)], callback_fn=parse_update_response)
+            return await self.llm.achat(messages=[Message(content=full_prompt)], callback_fn=parse_update_response)
         except Exception as e:
             logger.error(f"Error updating insight: {e}")
             return insight_memory

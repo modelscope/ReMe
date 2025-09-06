@@ -16,7 +16,7 @@ class LoadTodayMemoryOp(BaseLLMOp):
     """
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         """
         Load today's memories from vector store and perform deduplication.
         

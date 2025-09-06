@@ -16,7 +16,7 @@ class GetObservationOp(BaseLLMOp):
     """
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         """Extract personal observations from chat messages"""
         # Get messages from context - guaranteed to exist by flow input
         messages: List[Message] = self.context.messages
@@ -34,7 +34,7 @@ class GetObservationOp(BaseLLMOp):
         logger.info(f"Extracting observations from {len(filtered_messages)} filtered messages")
 
         # Extract observations using LLM
-        observation_memories = self._extract_observations_from_messages(filtered_messages)
+        observation_memories = await self._extract_observations_from_messages(filtered_messages)
 
         # Store results in context using standardized key
         self.context.observation_memories = observation_memories
@@ -58,7 +58,7 @@ class GetObservationOp(BaseLLMOp):
         logger.info(f"Filtered messages from {len(messages)} to {len(filtered_messages)}")
         return filtered_messages
 
-    def _extract_observations_from_messages(self, filtered_messages: List[Message]) -> List[BaseMemory]:
+    async def _extract_observations_from_messages(self, filtered_messages: List[Message]) -> List[BaseMemory]:
         """Extract observations from filtered messages using LLM"""
         user_name = self.context.get("user_name", "user")
 
@@ -113,7 +113,7 @@ class GetObservationOp(BaseLLMOp):
             return observation_memories
 
         # Use LLM chat with callback function
-        return self.llm.chat(messages=[Message(content=full_prompt)], callback_fn=parse_observations)
+        return await self.llm.achat(messages=[Message(content=full_prompt)], callback_fn=parse_observations)
 
     @staticmethod
     def parse_observation_response(response_text: str) -> List[dict]:

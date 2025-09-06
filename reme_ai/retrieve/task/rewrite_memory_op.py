@@ -17,7 +17,7 @@ class RewriteMemoryOp(BaseLLMOp):
     """
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         """Execute rewrite operation"""
         memory_list: List[BaseMemory] = self.context.response.metadata["memory_list"]
         query: str = self.context.query
@@ -32,13 +32,13 @@ class RewriteMemoryOp(BaseLLMOp):
         logger.info(f"Generating context from {len(memory_list)} memories")
 
         # Generate initial context message
-        rewritten_memory = self._generate_context_message(query, messages, memory_list)
+        rewritten_memory = await self._generate_context_message(query, messages, memory_list)
 
         # Store results in context
         self.context.response.answer = rewritten_memory
         self.context.response.metadata["memory_list"] = [memory.model_dump() for memory in memory_list]
 
-    def _generate_context_message(self, query: str, messages: List[Message], memories: List[BaseMemory]) -> str:
+    async def _generate_context_message(self, query: str, messages: List[Message], memories: List[BaseMemory]) -> str:
         """Generate context message from retrieved memories"""
         if not memories:
             return ""
@@ -49,7 +49,7 @@ class RewriteMemoryOp(BaseLLMOp):
             formatted_memories = self._format_memories_for_context(memories)
 
             if self.op_params.get("enable_llm_rewrite", True):
-                context_content = self._rewrite_context(query, formatted_memories, messages)
+                context_content = await self._rewrite_context(query, formatted_memories, messages)
             else:
                 context_content = formatted_memories
 
@@ -59,7 +59,7 @@ class RewriteMemoryOp(BaseLLMOp):
             logger.error(f"Error generating context message: {e}")
             return self._format_memories_for_context(memories)
 
-    def _rewrite_context(self, query: str, context_content: str, messages: List[Message]) -> str:
+    async def _rewrite_context(self, query: str, context_content: str, messages: List[Message]) -> str:
         """LLM-based context rewriting to make experiences more relevant and actionable"""
         if not context_content:
             return context_content
@@ -74,7 +74,7 @@ class RewriteMemoryOp(BaseLLMOp):
                 current_context=current_context,
                 original_context=context_content)
 
-            response = self.llm.chat([Message(role=Role.USER, content=prompt)])
+            response = await self.llm.achat([Message(role=Role.USER, content=prompt)])
 
             # Extract rewritten context
             rewritten_context = self._parse_json_response(response.content, "rewritten_context")

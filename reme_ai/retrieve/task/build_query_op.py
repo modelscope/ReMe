@@ -9,7 +9,7 @@ from reme_ai.schema import Message, Role
 class BuildQueryOp(BaseLLMOp):
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         if "query" in self.context:
             query = self.context.query
 
@@ -17,7 +17,7 @@ class BuildQueryOp(BaseLLMOp):
             if self.op_params.get("enable_llm_build", True):
                 execution_process = merge_messages_content(self.context.messages)
                 prompt = self.prompt_format(prompt_name="query_build", execution_process=execution_process)
-                message = self.llm.chat(messages=[Message(role=Role.USER, content=prompt)])
+                message = await self.llm.achat(messages=[Message(role=Role.USER, content=prompt)])
                 query = message.content
 
             else:

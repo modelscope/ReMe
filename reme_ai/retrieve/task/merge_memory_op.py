@@ -9,7 +9,7 @@ from reme_ai.schema.memory import BaseMemory
 @C.register_op()
 class MergeMemoryOp(BaseOp):
 
-    def execute(self):
+    async def async_execute(self):
         memory_list: List[BaseMemory] = self.context.response.metadata["memory_list"]
 
         if not memory_list:

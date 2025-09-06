@@ -16,7 +16,7 @@ class InfoFilterOp(BaseLLMOp):
     """
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         """Filter messages based on information content scores"""
         # Get messages from context - guaranteed to exist by flow input
         trajectories: list = self.context.trajectories
@@ -45,7 +45,7 @@ class InfoFilterOp(BaseLLMOp):
         logger.info(f"Filtering {len(info_messages)} messages for information content")
 
         # Filter messages using LLM
-        filtered_memories = self._filter_messages_with_llm(info_messages, user_name, preserved_scores)
+        filtered_memories = await self._filter_messages_with_llm(info_messages, user_name, preserved_scores)
 
         # Store results in context using standardized key
         self.context.messages = filtered_memories
@@ -81,7 +81,7 @@ class InfoFilterOp(BaseLLMOp):
         logger.info(f"Filtered messages from {len(messages)} to {len(info_messages)}")
         return info_messages
 
-    def _filter_messages_with_llm(self, info_messages: List[Message], user_name: str, preserved_scores: str) -> List[
+    async def _filter_messages_with_llm(self, info_messages: List[Message], user_name: str, preserved_scores: str) -> List[
         PersonalMemory]:
         """Filter messages using LLM to score information content"""
 
@@ -146,7 +146,7 @@ class InfoFilterOp(BaseLLMOp):
             return filtered_memories
 
         # Use LLM chat with callback function
-        return self.llm.chat(messages=[Message(content=full_prompt)], callback_fn=parse_and_filter)
+        return await self.llm.achat(messages=[Message(content=full_prompt)], callback_fn=parse_and_filter)
 
     def _get_colon_word(self) -> str:
         """Get language-specific colon word"""

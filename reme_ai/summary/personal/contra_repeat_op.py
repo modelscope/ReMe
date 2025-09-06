@@ -24,7 +24,7 @@ class ContraRepeatOp(BaseLLMOp):
     """
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         """
         Executes the primary routine of the ContraRepeatOp which involves:
         1. Gets memory list from context
@@ -82,7 +82,7 @@ class ContraRepeatOp(BaseLLMOp):
         logger.info(f"contra_repeat_prompt={full_prompt}")
 
         # Call LLM
-        response = self.llm.chat([Message(role=Role.USER, content=full_prompt)])
+        response = await self.llm.achat([Message(role=Role.USER, content=full_prompt)])
 
         # Return if empty
         if not response or not response.content:

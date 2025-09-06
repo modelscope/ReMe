@@ -39,7 +39,7 @@ class GetReflectionSubjectOp(BaseLLMOp):
             }
         )
 
-    def execute(self):
+    async def async_execute(self):
         """
         Generate reflection subjects (topics) from personal memories for insight extraction.
 
@@ -85,7 +85,7 @@ class GetReflectionSubjectOp(BaseLLMOp):
             return
 
         # Generate reflection subjects using LLM
-        insight_memories = self._generate_reflection_subjects(
+        insight_memories = await self._generate_reflection_subjects(
             memory_contents, existing_subjects, user_name, reflect_num_questions
         )
 
@@ -93,7 +93,7 @@ class GetReflectionSubjectOp(BaseLLMOp):
         self.context.response.metadata["insight_memories"] = insight_memories
         logger.info(f"Generated {len(insight_memories)} new reflection subject memories")
 
-    def _generate_reflection_subjects(self, memory_contents: List[str], existing_subjects: List[str],
+    async def _generate_reflection_subjects(self, memory_contents: List[str], existing_subjects: List[str],
                                       user_name: str, num_questions: int) -> List[BaseMemory]:
         """
         Generate new reflection subjects using LLM analysis of memory contents.
@@ -148,7 +148,7 @@ class GetReflectionSubjectOp(BaseLLMOp):
             return insight_memories
 
         # Generate subjects using LLM
-        return self.llm.chat(messages=[Message(content=full_prompt)], callback_fn=parse_reflection_response)
+        return await self.llm.achat(messages=[Message(content=full_prompt)], callback_fn=parse_reflection_response)
 
     def get_language_value(self, value_dict: dict):
         """Get language-specific value from dictionary"""

@@ -1,15 +1,14 @@
 from typing import List
 
-from flowllm import C
+from flowllm import C, BaseLLMOp
 from flowllm.schema.vector_node import VectorNode
 from loguru import logger
 
 from reme_ai.schema.memory import BaseMemory, vector_node_to_memory
-from reme_ai.vector_store import RecallVectorStoreOp
 
 
 @C.register_op()
-class RetrieveMemoryOp(RecallVectorStoreOp):
+class RetrieveMemoryOp(BaseLLMOp):
     """
     Retrieves memories based on specified criteria such as status, type, and timestamp.
     Processes these memories concurrently, sorts them by similarity, and logs the activity,

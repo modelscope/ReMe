@@ -19,7 +19,7 @@ class LongContraRepeatOp(BaseLLMOp):
     """
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         """
         Analyze memories for contradictions and redundancies, resolving conflicts.
         
@@ -62,13 +62,13 @@ class LongContraRepeatOp(BaseLLMOp):
         logger.info(f"Processing {len(sorted_memories)} memories for contradictions and redundancies")
 
         # Analyze and resolve contradictions
-        filtered_memories = self._analyze_and_resolve_conflicts(sorted_memories)
+        filtered_memories = await self._analyze_and_resolve_conflicts(sorted_memories)
 
         # Store results in context
         self.context.response.metadata["memory_list"] = filtered_memories
         logger.info(f"Conflict resolution: {len(sorted_memories)} -> {len(filtered_memories)} memories")
 
-    def _analyze_and_resolve_conflicts(self, memories: List[BaseMemory]) -> List[BaseMemory]:
+    async def _analyze_and_resolve_conflicts(self, memories: List[BaseMemory]) -> List[BaseMemory]:
         """
         Analyze memories for contradictions and redundancies using LLM.
         
@@ -104,7 +104,7 @@ class LongContraRepeatOp(BaseLLMOp):
         logger.info(f"Contradiction analysis prompt length: {len(full_prompt)} chars")
 
         # Get LLM analysis
-        response = self.llm.chat([Message(role=Role.USER, content=full_prompt)])
+        response = await self.llm.achat([Message(role=Role.USER, content=full_prompt)])
 
         if not response or not response.content:
             logger.warning("Empty response from LLM, keeping all memories")

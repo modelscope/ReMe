@@ -17,7 +17,7 @@ class RerankMemoryOp(BaseLLMOp):
     """
     file_path: str = __file__
 
-    def execute(self):
+    async def async_execute(self):
         """Execute rerank operation"""
         memory_list: List[BaseMemory] = self.context.response.metadata["memory_list"]
         retrieval_query: str = self.context.query
@@ -36,7 +36,7 @@ class RerankMemoryOp(BaseLLMOp):
 
         # Step 1: LLM reranking (optional)
         if enable_llm_rerank:
-            memory_list = self._llm_rerank(retrieval_query, memory_list)
+            memory_list = await self._llm_rerank(retrieval_query, memory_list)
             logger.info(f"After LLM reranking: {len(memory_list)} memories")
 
         # Step 2: Score-based filtering (optional)
@@ -51,7 +51,7 @@ class RerankMemoryOp(BaseLLMOp):
         # Store results in context
         self.context.response.metadata["memory_list"] = reranked_memories
 
-    def _llm_rerank(self, query: str, candidates: List[BaseMemory]) -> List[BaseMemory]:
+    async def _llm_rerank(self, query: str, candidates: List[BaseMemory]) -> List[BaseMemory]:
         """LLM-based reranking of candidate experiences"""
         if not candidates:
             return candidates
@@ -65,7 +65,7 @@ class RerankMemoryOp(BaseLLMOp):
             candidates=candidates_text,
             num_candidates=len(candidates))
 
-        response = self.llm.chat([Message(role=Role.USER, content=prompt)])
+        response = await self.llm.achat([Message(role=Role.USER, content=prompt)])
 
         # Parse reranking results
         reranked_indices = self._parse_rerank_response(response.content)
