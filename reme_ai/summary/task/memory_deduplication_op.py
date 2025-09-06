@@ -22,7 +22,7 @@ class MemoryDeduplicationOp(BaseOp):
         logger.info(f"Starting deduplication for {len(task_memories)} task memories")
 
         # Perform deduplication
-        deduplicated_task_memories = self._deduplicate_task_memories(task_memories)
+        deduplicated_task_memories = await self._deduplicate_task_memories(task_memories)
 
         logger.info(
             f"Deduplication complete: {len(deduplicated_task_memories)} deduplicated task memories out of {len(task_memories)}")
@@ -30,7 +30,7 @@ class MemoryDeduplicationOp(BaseOp):
         # Update context
         self.context.memory_list = deduplicated_task_memories
 
-    def _deduplicate_task_memories(self, task_memories: List[BaseMemory]) -> List[BaseMemory]:
+    async def _deduplicate_task_memories(self, task_memories: List[BaseMemory]) -> List[BaseMemory]:
         """Remove duplicate task memories"""
         if not task_memories:
             return task_memories
@@ -41,7 +41,7 @@ class MemoryDeduplicationOp(BaseOp):
         unique_task_memories = []
 
         # Get existing task memory embeddings
-        existing_embeddings = self._get_existing_task_memory_embeddings(workspace_id)
+        existing_embeddings = await self._get_existing_task_memory_embeddings(workspace_id)
 
         for task_memory in task_memories:
             # Generate embedding for current task memory
@@ -67,14 +67,14 @@ class MemoryDeduplicationOp(BaseOp):
 
         return unique_task_memories
 
-    def _get_existing_task_memory_embeddings(self, workspace_id: str) -> List[List[float]]:
+    async def _get_existing_task_memory_embeddings(self, workspace_id: str) -> List[List[float]]:
         """Get embeddings of existing task memories"""
         try:
             if not hasattr(self.context, 'vector_store') or not self.context.vector_store or not workspace_id:
                 return []
 
             # Query existing task memory nodes
-            existing_nodes = self.context.vector_store.search(
+            existing_nodes = await self.context.vector_store.async_search(
                 query="...",  # Empty query to get all
                 workspace_id=workspace_id,
                 top_k=self.op_params.get("max_existing_task_memories", 1000)

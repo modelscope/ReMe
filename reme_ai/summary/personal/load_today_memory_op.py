@@ -36,7 +36,7 @@ class LoadTodayMemoryOp(BaseLLMOp):
         logger.info(f"Loading today's memories for user: {user_name} (top_k: {top_k})")
 
         # Get today's memories from vector store
-        today_memories = self._retrieve_today_memories(workspace_id, user_name, top_k)
+        today_memories = await self._retrieve_today_memories(workspace_id, user_name, top_k)
 
         if not today_memories:
             logger.info("No memories found for today")
@@ -47,7 +47,7 @@ class LoadTodayMemoryOp(BaseLLMOp):
         self.context.today_memories = today_memories
         logger.info(f"Final today's memory list size: {len(today_memories)}")
 
-    def _retrieve_today_memories(self, workspace_id: str, user_name: str, top_k: int) -> List[BaseMemory]:
+    async def _retrieve_today_memories(self, workspace_id: str, user_name: str, top_k: int) -> List[BaseMemory]:
         """
         Retrieve memories from today using vector store with date filtering.
         
@@ -74,7 +74,7 @@ class LoadTodayMemoryOp(BaseLLMOp):
             }
 
             # Search vector store with date filter
-            nodes: List[VectorNode] = self.vector_store.search(
+            nodes: List[VectorNode] = await self.vector_store.async_search(
                 query="",  # Empty query to get all results for today
                 workspace_id=workspace_id,
                 top_k=top_k,

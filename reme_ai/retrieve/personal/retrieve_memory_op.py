@@ -23,7 +23,7 @@ class RetrieveMemoryOp(BaseLLMOp):
         assert query, "query should be not empty!"
 
         workspace_id: str = self.context.workspace_id
-        nodes: List[VectorNode] = self.vector_store.search(query=query, workspace_id=workspace_id, top_k=top_k)
+        nodes: List[VectorNode] = await self.vector_store.async_search(query=query, workspace_id=workspace_id, top_k=top_k)
         memory_list: List[BaseMemory] = []
         memory_content_list: List[str] = []
         for node in nodes:
