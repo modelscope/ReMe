@@ -183,8 +183,7 @@ embedding_model:
 
 vector_store:
   default:
-    backend: elasticsearch
+    backend: memory
     embedding_model: default
 #    params:
 #      hosts: "http://localhost:9200"
-#      hosts: "http://11.160.132.46:8200"

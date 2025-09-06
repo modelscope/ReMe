@@ -8,14 +8,12 @@ through the MCP client interface. It shows how to run an agent, summarize conver
 retrieve memories, and manage the memory workspace.
 """
 
-import json
-import time
 import asyncio
-from typing import List, Dict, Any, Optional
+import json
+from typing import List, Dict, Any
 
-from fastmcp import Client
-from mcp.types import CallToolResult
 from dotenv import load_dotenv
+from fastmcp import Client
 
 # Load environment variables from .env file
 load_dotenv()
@@ -35,55 +33,21 @@ async def delete_workspace(client: Client) -> None:
     Returns:
         None
     """
-    try:
-        result = await client.call_tool(
-            "vector_store",
-            arguments={
-                "workspace_id": WORKSPACE_ID,
-                "action": "delete",
-            }
-        )
-        print(f"Workspace '{WORKSPACE_ID}' deleted successfully")
-    except Exception as e:
-        print(f"Error deleting workspace: {e}")
+    result = await client.call_tool(
+        "vector_store",
+        arguments={
+            "workspace_id": WORKSPACE_ID,
+            "action": "delete",
+        }
+    )
+    print(f"Workspace '{WORKSPACE_ID}' deleted successfully")
 
 
 async def run_agent(client: Client, query: str, dump_messages: bool = False) -> List[Dict[str, Any]]:
-    """
-    Run the agent with a specific query
-    
-    Args:
-        client: MCP client instance
-        query: The query to send to the agent
-        dump_messages: Whether to save messages to a file
-        
-    Returns:
-        List of message objects from the conversation
-    """
-    try:
-        result = await client.call_tool(
-            "react",
-            arguments={"query": query}
-        )
-        
-        # Extract and display the answer
-        response_data = json.loads(result.content)
-        answer = response_data.get("answer", "")
-        print(f"Agent response: {answer}")
-
-        # Get the conversation messages
-        messages = response_data.get("messages", [])
-
-        # Optionally save messages to file
-        if dump_messages and messages:
-            with open("messages.jsonl", "w") as f:
-                f.write(json.dumps(messages, indent=2, ensure_ascii=False))
-            print(f"Messages saved to messages.jsonl")
-        
-        return messages
-    except Exception as e:
-        print(f"Error running agent: {e}")
-        return []
+    with open("task_messages.jsonl") as f:
+        messages = json.loads(f.read())
+    print(f"messages={messages}")
+    return messages
 
 
 async def run_summary(client: Client, messages: List[Dict[str, Any]], enable_dump_memory: bool = True) -> None:
@@ -102,30 +66,25 @@ async def run_summary(client: Client, messages: List[Dict[str, Any]], enable_dum
         print("No messages to summarize")
         return
 
-    try:
-        result = await client.call_tool(
-            "summary_task_memory",
-            arguments={
-                "workspace_id": WORKSPACE_ID,
-                "trajectories": [
-                    {"messages": messages, "score": 1.0}
-                ]
-            }
-        )
-        
-        response_data = json.loads(result.content)
-        
-        # Extract memory list from response
-        memory_list = response_data.get("metadata", {}).get("memory_list", [])
-        print(f"Memory list: {memory_list}")
+    result = await client.call_tool(
+        "summary_task_memory",
+        arguments={
+            "workspace_id": WORKSPACE_ID,
+            "trajectories": [
+                {"messages": messages, "score": 1.0}
+            ]
+        }
+    )
 
-        # Optionally save memory list to file
-        if enable_dump_memory and memory_list:
-            with open("task_memory.jsonl", "w") as f:
-                f.write(json.dumps(memory_list, indent=2, ensure_ascii=False))
-            print(f"Memory saved to task_memory.jsonl")
-    except Exception as e:
-        print(f"Error running summary: {e}")
+    answer = result.content[0].text
+
+    # Extract memory list from response
+    print(f"Memory list: {answer}")
+
+    if enable_dump_memory:
+        with open("mcp_task_memory.jsonl", "w") as f:
+            f.write(answer)
+        print(f"Memory saved to mcp_task_memory.jsonl")
 
 
 async def run_retrieve(client: Client, query: str) -> str:
@@ -139,24 +98,17 @@ async def run_retrieve(client: Client, query: str) -> str:
     Returns:
         String containing the retrieved memory answer
     """
-    try:
-        result = await client.call_tool(
-            "retrieve_task_memory",
-            arguments={
-                "workspace_id": WORKSPACE_ID,
-                "query": query,
-            }
-        )
-        
-        response_data = json.loads(result.content)
-        
-        # Extract and return the answer
-        answer = response_data.get("answer", "")
-        print(f"Retrieved memory: {answer}")
-        return answer
-    except Exception as e:
-        print(f"Error retrieving memory: {e}")
-        return ""
+    result = await client.call_tool(
+        "retrieve_task_memory",
+        arguments={
+            "workspace_id": WORKSPACE_ID,
+            "query": query,
+        }
+    )
+
+    answer = result.content[0].text
+    print(f"Retrieved memory: {answer}")
+    return answer
 
 
 async def run_agent_with_memory(client: Client, query_first: str, query_second: str, enable_dump_memory: bool = True) -> List[Dict[str, Any]]:
@@ -211,18 +163,15 @@ async def dump_memory(client: Client, path: str = "./") -> None:
     Returns:
         None
     """
-    try:
-        result = await client.call_tool(
-            "vector_store",
-            arguments={
-                "workspace_id": WORKSPACE_ID,
-                "action": "dump",
-                "path": path,
-            }
-        )
-        print(f"Memory dumped to {path}")
-    except Exception as e:
-        print(f"Error dumping memory: {e}")
+    result = await client.call_tool(
+        "vector_store",
+        arguments={
+            "workspace_id": WORKSPACE_ID,
+            "action": "dump",
+            "path": path,
+        }
+    )
+    print(f"Memory dumped to {path}")
 
 
 async def load_memory(client: Client, path: str = "./") -> None:
@@ -236,18 +185,15 @@ async def load_memory(client: Client, path: str = "./") -> None:
     Returns:
         None
     """
-    try:
-        result = await client.call_tool(
-            "vector_store",
-            arguments={
-                "workspace_id": WORKSPACE_ID,
-                "action": "load",
-                "path": path,
-            }
-        )
-        print(f"Memory loaded from {path}")
-    except Exception as e:
-        print(f"Error loading memory: {e}")
+    result = await client.call_tool(
+        "vector_store",
+        arguments={
+            "workspace_id": WORKSPACE_ID,
+            "action": "load",
+            "path": path,
+        }
+    )
+    print(f"Memory loaded from {path}")
 
 
 async def main() -> None:

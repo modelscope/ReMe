@@ -9,12 +9,41 @@ flowllm provides multiple vector store backends for different use cases:
 - **LocalVectorStore** (`backend=local`) - 📁 Simple file-based storage for development and small datasets
 - **ChromaVectorStore** (`backend=chroma`) - 🔮 Embedded vector database for moderate scale
 - **EsVectorStore** (`backend=elasticsearch`) - 🔍 Elasticsearch-based storage for production and large scale
+- **MemoryVectorStore** (`backend=memory`) - ⚡ In-memory storage for ultra-fast access and testing
 
 All vector stores implement the `BaseVectorStore` interface, providing a consistent API across implementations.
+
+## 📊 Comparison Table
+
+| Feature              | LocalVectorStore | ChromaVectorStore | EsVectorStore | MemoryVectorStore |
+|----------------------|------------------|-------------------|---------------|-------------------|
+| **Storage**          | File (JSONL)     | Embedded DB       | Elasticsearch | In-Memory         |
+| **Performance**      | Medium           | Good              | Excellent     | Ultra-Fast        |
+| **Scalability**      | < 10K vectors    | < 1M vectors      | > 1M vectors  | < 1M vectors      |
+| **Persistence**      | ✅ Auto           | ✅ Auto            | ✅ Auto        | ⚠️ Manual         |
+| **Setup Complexity** | 🟢 Simple        | 🟡 Medium         | 🔴 Complex    | 🟢 Simple         |
+| **Dependencies**     | None             | ChromaDB          | Elasticsearch | None              |
+| **Filtering**        | ❌ Basic          | ✅ Metadata        | ✅ Advanced    | ❌ Basic           |
+| **Concurrency**      | ❌ Limited        | ✅ Good            | ✅ Excellent   | ❌ Single Process  |
+| **Best For**         | Development      | Local Apps        | Production    | Testing           |
 
 ## 🔄 Common API Methods
 
 All vector store implementations share these core methods:
+
+### 🔄 Async Support
+
+All vector stores provide both synchronous and asynchronous versions of every method:
+
+```python
+# Synchronous methods
+store.search(query="example", workspace_id="workspace", top_k=5)
+store.insert(nodes, workspace_id="workspace")
+
+# Asynchronous methods (with async_ prefix)
+await store.async_search(query="example", workspace_id="workspace", top_k=5)
+await store.async_insert(nodes, workspace_id="workspace")
+```
 
 ### Workspace Management
 
@@ -263,18 +292,37 @@ vector_store = EsVectorStore(
 EsVectorStore supports advanced filtering capabilities:
 
 ```python
-# Add term filters
+# Add term filters (exact match)
 vector_store.add_term_filter("metadata.category", "technology")
+vector_store.add_term_filter("metadata.author", "research_team")
 
-# Add range filters
-vector_store.add_range_filter("metadata.score", gte=0.8)
+# Add range filters (numeric and date ranges)
+vector_store.add_range_filter("metadata.score", gte=0.8)  # Score >= 0.8
+vector_store.add_range_filter("metadata.confidence", gte=0.5, lte=0.9)  # Between 0.5 and 0.9
 vector_store.add_range_filter("metadata.timestamp", gte="2024-01-01", lte="2024-12-31")
 
-# Search with filters applied
+# Search with filters applied (filters are combined with AND logic)
 results = vector_store.search("machine learning", workspace_id, top_k=10)
 
 # Clear filters for next search
 vector_store.clear_filter()
+
+# Method chaining is supported
+results = vector_store.add_term_filter("metadata.category", "AI") \
+                     .add_range_filter("metadata.confidence", gte=0.9) \
+                     .search("deep learning", workspace_id, top_k=5)
+```
+
+#### ⚡ Performance Optimization
+
+```python
+# Refresh index for immediate availability (useful after bulk inserts)
+vector_store.insert(nodes, workspace_id, refresh=True)  # Auto-refresh
+vector_store.refresh(workspace_id)  # Manual refresh
+
+# Bulk operations with custom batch size
+vector_store.insert(large_node_list, workspace_id, refresh=False)  # Skip refresh for speed
+vector_store.refresh(workspace_id)  # Refresh once after all inserts
 ```
 
 #### 💻 Example Usage
@@ -320,6 +368,101 @@ for result in results:
     print(f"Content: {result.content}")
     print(f"Metadata: {result.metadata}")
 ```
+
+### 4. ⚡ MemoryVectorStore (`backend=memory`)
+
+An ultra-fast in-memory vector store that keeps all data in RAM for maximum performance.
+
+#### 💡 When to Use
+- **Testing and development** - Fastest possible operations for unit tests 🧪
+- **Small to medium datasets** that fit in memory (< 1M vectors) 💾
+- **Applications requiring ultra-low latency** search operations ⚡
+- **Temporary workspaces** that don't need persistence 🚀
+
+#### ⚙️ Configuration
+
+```python
+from flowllm.storage.vector_store import MemoryVectorStore
+from flowllm.embedding_model import OpenAICompatibleEmbeddingModel
+from flowllm.utils.common_utils import load_env
+
+# Load environment variables
+load_env()
+
+# Initialize embedding model
+embedding_model = OpenAICompatibleEmbeddingModel(dimensions=1024, model_name="text-embedding-v4")
+
+# Initialize vector store
+vector_store = MemoryVectorStore(
+    embedding_model=embedding_model,
+    store_dir="./memory_vector_store",  # Directory for backup/restore operations
+    batch_size=1024                     # Batch size for operations
+)
+```
+
+#### 💻 Example Usage
+
+```python
+from flowllm.schema.vector_node import VectorNode
+
+workspace_id = "memory_workspace"
+
+# Create workspace in memory
+vector_store.create_workspace(workspace_id)
+
+# Create nodes
+nodes = [
+    VectorNode(
+        unique_id="mem_node1",
+        workspace_id=workspace_id,
+        content="Memory stores provide ultra-fast access to data",
+        metadata={
+            "category": "performance", 
+            "type": "memory",
+            "speed": "ultra_fast"
+        }
+    ),
+    VectorNode(
+        unique_id="mem_node2",
+        workspace_id=workspace_id,
+        content="In-memory databases excel at low-latency operations",
+        metadata={
+            "category": "performance",
+            "type": "database",
+            "latency": "low"
+        }
+    )
+]
+
+# Insert nodes (stored in memory)
+vector_store.insert(nodes, workspace_id)
+
+# Ultra-fast search
+results = vector_store.search("fast memory access", workspace_id, top_k=2)
+for result in results:
+    print(f"Content: {result.content}")
+    print(f"Score: {result.metadata.get('score', 'N/A')}")
+
+# Optional: Save to disk for backup
+vector_store.dump_workspace(workspace_id, path="./backup")
+
+# Optional: Load from disk to memory
+vector_store.load_workspace(workspace_id, path="./backup")
+```
+
+#### ⚡ Performance Benefits
+
+- **Zero I/O latency** - All operations happen in RAM
+- **Instant search results** - No disk or network overhead
+- **Perfect for testing** - Fast setup and teardown
+- **Memory efficient** - Only stores what you need
+
+#### 🚨 Important Notes
+
+- **Data is volatile** - Lost when process ends unless explicitly saved
+- **Memory usage** - Entire dataset must fit in available RAM
+- **No persistence** - Use `dump_workspace()` to save to disk
+- **Single process** - Not suitable for distributed applications
 
 ## 📝 Working with VectorNode
 
@@ -380,7 +523,8 @@ embedding_model = OpenAICompatibleEmbeddingModel(
     batch_size=32                # Batch size for embedding generation
 )
 
-# Pass to vector store
+# Pass to vector store (example with LocalVectorStore)
+# You can also use: ChromaVectorStore, EsVectorStore, or MemoryVectorStore
 vector_store = LocalVectorStore(
     embedding_model=embedding_model,
     store_dir="./vector_store"

@@ -54,7 +54,11 @@ async def main():
             headers={"Content-Type": "application/json"}
         ) as response:
             result = await response.json()
-            print(json.dumps(result, ensure_ascii=False, indent=2))
+            result = json.dumps(result, ensure_ascii=False, indent=2)
+            print(result)
+
+            with open("personal_memory.jsonl", "w") as f:
+                f.write(result)
         
         # Wait for the memories to be processed and stored
         print("\nWaiting for memories to be processed...")

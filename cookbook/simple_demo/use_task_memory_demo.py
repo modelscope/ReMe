@@ -90,7 +90,7 @@ def run_agent(query: str, dump_messages: bool = False) -> List[Dict[str, Any]]:
 
     # Optionally save messages to file
     if dump_messages and messages:
-        with open("messages.jsonl", "w") as f:
+        with open("task_messages.jsonl", "w") as f:
             f.write(json.dumps(messages, indent=2, ensure_ascii=False))
         print(f"Messages saved to messages.jsonl")
     
@@ -133,7 +133,7 @@ def run_summary(messages: List[Dict[str, Any]], enable_dump_memory: bool = True)
 
     # Optionally save memory list to file
     if enable_dump_memory and memory_list:
-        with open("memory.jsonl", "w") as f:
+        with open("task_memory.jsonl", "w") as f:
             f.write(json.dumps(memory_list, indent=2, ensure_ascii=False))
         print(f"Memory saved to memory.jsonl")
 
