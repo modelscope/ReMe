@@ -34,6 +34,13 @@ class VectorStoreActionOp(BaseLLMOp):
                                                                   path=path,
                                                                   callback_fn=node_to_memory)
 
+        elif action == "list":
+            def node_to_memory(node: VectorNode) -> dict:
+                return vector_node_to_memory(node).model_dump()
+
+            result = await self.vector_store.async_iter_workspace_nodes(workspace_id=workspace_id)
+            result = [node_to_memory(node) for node in result]
+
         elif action == "load":
             path: str = self.context.path
 
@@ -48,8 +55,4 @@ class VectorStoreActionOp(BaseLLMOp):
         else:
             raise ValueError(f"invalid action={action}")
 
-        # Store results in context
-        if isinstance(result, dict):
-            self.context.response.metadata["action_result"] = result
-        else:
-            self.context.response.metadata["action_result"] = {"result": str(result)}
+        self.context.response.metadata["action_result"] = result

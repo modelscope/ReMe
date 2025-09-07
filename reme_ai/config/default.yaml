@@ -90,7 +90,7 @@ flow:
   vector_store:
     flow_content: vector_store_action_op
     stream: false
-    use_async: false
+    use_async: true
     service_type: http+mcp
     description: "Directly operates on the vector store with various management actions"
     input_schema:
@@ -98,10 +98,13 @@ flow:
         type: "str"
         description: "vector store operations"
         required: true
-        enum: [ copy, delete, delete_ids, dump, load ]
+        enum: [ copy, delete, delete_ids, dump, load, list]
 
   record_task_memory:
     flow_content: update_memory_freq_op >> update_memory_utility_op >> update_vector_store_op
+    stream: false
+    use_async: true
+    service_type: http+mcp
     description: "Update the freq & utility attributes of retrieved task memories"
     input_schema:
       workspace_id:
@@ -119,6 +122,9 @@ flow:
 
   delete_task_memory:
     flow_content: delete_memory_op >> update_vector_store_op
+    stream: false
+    use_async: true
+    service_type: http+mcp
     description: "Delete task memories when utility/freq < utility_threshold and freq >= freq_threshold"
     input_schema:
       workspace_id:
@@ -136,6 +142,9 @@ flow:
 
   react:
     flow_content: simple_react_op
+    stream: false
+    use_async: true
+    service_type: http+mcp
     description: "React to the current task with an agent"
     input_schema:
       query:

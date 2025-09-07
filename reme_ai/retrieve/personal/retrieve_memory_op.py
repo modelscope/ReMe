@@ -17,7 +17,7 @@ class RetrieveMemoryOp(BaseLLMOp):
 
     async def async_execute(self):
         recall_key: str = self.op_params.get("recall_key", "query")
-        top_k: int = self.op_params.get("top_k", 3)
+        top_k: int = self.context.get("top_k", 3)
 
         query: str = self.context[recall_key]
         assert query, "query should be not empty!"
