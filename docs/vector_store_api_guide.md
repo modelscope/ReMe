@@ -111,7 +111,7 @@ from flowllm.utils.common_utils import load_env
 load_env()
 
 # Initialize embedding model
-embedding_model = OpenAICompatibleEmbeddingModel(dimensions=1024, model_name="text-embedding-v4")
+embedding_model = OpenAICompatibleEmbeddingModel(dimensions=64, model_name="text-embedding-v4")
 
 # Initialize vector store
 vector_store = LocalVectorStore(
@@ -177,7 +177,7 @@ from flowllm.utils.common_utils import load_env
 load_env()
 
 # Initialize embedding model
-embedding_model = OpenAICompatibleEmbeddingModel(dimensions=1024, model_name="text-embedding-v4")
+embedding_model = OpenAICompatibleEmbeddingModel(dimensions=64, model_name="text-embedding-v4")
 
 # Initialize vector store
 vector_store = ChromaVectorStore(
@@ -276,7 +276,7 @@ import os
 load_env()
 
 # Initialize embedding model
-embedding_model = OpenAICompatibleEmbeddingModel(dimensions=1024, model_name="text-embedding-v4")
+embedding_model = OpenAICompatibleEmbeddingModel(dimensions=64, model_name="text-embedding-v4")
 
 # Initialize vector store
 vector_store = EsVectorStore(
@@ -289,28 +289,30 @@ vector_store = EsVectorStore(
 
 #### 🎯 Advanced Filtering
 
-EsVectorStore supports advanced filtering capabilities:
+EsVectorStore supports advanced filtering capabilities through the `filter_dict` parameter:
 
 ```python
-# Add term filters (exact match)
-vector_store.add_term_filter("metadata.category", "technology")
-vector_store.add_term_filter("metadata.author", "research_team")
+# Term filters (exact match)
+term_filter = {
+    "category": "technology",
+    "author": "research_team"
+}
 
-# Add range filters (numeric and date ranges)
-vector_store.add_range_filter("metadata.score", gte=0.8)  # Score >= 0.8
-vector_store.add_range_filter("metadata.confidence", gte=0.5, lte=0.9)  # Between 0.5 and 0.9
-vector_store.add_range_filter("metadata.timestamp", gte="2024-01-01", lte="2024-12-31")
+# Range filters (numeric and date ranges)
+range_filter = {
+    "score": {"gte": 0.8},  # Score >= 0.8
+    "confidence": {"gte": 0.5, "lte": 0.9},  # Between 0.5 and 0.9
+    "timestamp": {"gte": "2024-01-01", "lte": "2024-12-31"}
+}
 
-# Search with filters applied (filters are combined with AND logic)
-results = vector_store.search("machine learning", workspace_id, top_k=10)
+# Combined filters (filters are combined with AND logic)
+combined_filter = {
+    "category": "AI",
+    "confidence": {"gte": 0.9}
+}
 
-# Clear filters for next search
-vector_store.clear_filter()
-
-# Method chaining is supported
-results = vector_store.add_term_filter("metadata.category", "AI") \
-                     .add_range_filter("metadata.confidence", gte=0.9) \
-                     .search("deep learning", workspace_id, top_k=5)
+# Search with filters applied
+results = vector_store.search("machine learning", workspace_id, top_k=10, filter_dict=combined_filter)
 ```
 
 #### ⚡ Performance Optimization
@@ -358,10 +360,12 @@ nodes = [
 vector_store.insert(nodes, workspace_id, refresh=True)
 
 # Advanced search with filters
-vector_store.add_term_filter("metadata.category", "AI")
-vector_store.add_range_filter("metadata.confidence", gte=0.9)
+filter_dict = {
+    "category": "AI",
+    "confidence": {"gte": 0.9}
+}
 
-results = vector_store.search("transformer models", workspace_id, top_k=5)
+results = vector_store.search("transformer models", workspace_id, top_k=5, filter_dict=filter_dict)
 
 for result in results:
     print(f"Score: {result.metadata.get('score', 'N/A')}")
@@ -390,7 +394,7 @@ from flowllm.utils.common_utils import load_env
 load_env()
 
 # Initialize embedding model
-embedding_model = OpenAICompatibleEmbeddingModel(dimensions=1024, model_name="text-embedding-v4")
+embedding_model = OpenAICompatibleEmbeddingModel(dimensions=64, model_name="text-embedding-v4")
 
 # Initialize vector store
 vector_store = MemoryVectorStore(
@@ -518,7 +522,7 @@ from flowllm.embedding_model import OpenAICompatibleEmbeddingModel
 
 # Initialize embedding model
 embedding_model = OpenAICompatibleEmbeddingModel(
-    dimensions=1024,             # Embedding dimensions
+    dimensions=64,               # Embedding dimensions
     model_name="text-embedding-v4",  # Model name
     batch_size=32                # Batch size for embedding generation
 )

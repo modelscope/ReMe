@@ -74,11 +74,11 @@ class LoadTodayMemoryOp(BaseLLMOp):
             }
 
             # Search vector store with date filter
-            nodes: List[VectorNode] = await self.vector_store.add_dict_filter(**filter_dict).async_search(
+            nodes: List[VectorNode] = await self.vector_store.async_search(
                 query=" ",
                 workspace_id=workspace_id,
                 top_k=top_k,
-            )
+                filter_dict=filter_dict)
 
             logger.info(f"Vector store returned {len(nodes)} nodes for today")
 
