@@ -38,7 +38,7 @@ class TaskMemoryService(BaseMemoryService):
         kwargs = {
             "workspace_id": user_id,
             "trajectories": [
-                {"messages": messages, "score": 1.0}
+                {"messages": new_messages, "score": 1.0}
             ]
         }
 
@@ -68,8 +68,8 @@ class TaskMemoryService(BaseMemoryService):
 
         kwargs = {
             "workspace_id": user_id,
-            "messages": messages,
-            "top_k": filters.get("top_k", 1)
+            "messages": new_messages,
+            "top_k": filters.get("top_k", 1) if filters else 1
         }
 
         result: FlowResponse = await retrieve_flow(**kwargs)

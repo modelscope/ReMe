@@ -38,7 +38,7 @@ class PersonalMemoryService(BaseMemoryService):
         kwargs = {
             "workspace_id": user_id,
             "trajectories": [
-                {"messages": messages, "score": 1.0}
+                {"messages": new_messages, "score": 1.0}
             ]
         }
 
@@ -67,7 +67,7 @@ class PersonalMemoryService(BaseMemoryService):
                 raise ValueError(f"Invalid message type={type(message)}")
 
         # Extract query from the last message
-        query = messages[-1]["content"] if messages else ""
+        query = new_messages[-1]["content"] if messages else ""
 
         kwargs = {
             "workspace_id": user_id,
