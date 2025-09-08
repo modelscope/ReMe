@@ -23,7 +23,7 @@ flow:
     description: "Retrieves the most relevant top-k memory experiences from historical data based on the current query to enhance task-solving capabilities"
     input_schema:
       query:
-        type: "str"
+        type: string
         description: "user query"
         required: true
 
@@ -35,7 +35,7 @@ flow:
     description: "Summarizes conversation trajectories or messages into structured memory representations for long-term storage"
     input_schema:
       trajectories:
-        type: "list"
+        type: array
         description: "A list of conversation trajectory information, including message content and score. This field does not need to be filled in, the system will complete it automatically."
         required: false
 
@@ -47,7 +47,7 @@ flow:
     description: "Retrieves the most relevant personal memories from historical data based on the query to enhance response quality"
     input_schema:
       query:
-        type: "str"
+        type: string
         description: "user query"
         required: true
 
@@ -59,7 +59,7 @@ flow:
     description: "Consolidates user observations and memories by filtering information and removing redundancies for efficient storage"
     input_schema:
       trajectories:
-        type: "list"
+        type: array
         description: "A list of conversation trajectory information, including message content and score. This field does not need to be filled in, the system will complete it automatically."
         required: false
 
@@ -71,7 +71,7 @@ flow:
     description: "Retrieves the most relevant top-k memory experiences from historical data based on the current query with simplified processing"
     input_schema:
       query:
-        type: "str"
+        type: string
         description: "current query"
         required: true
 
@@ -83,7 +83,7 @@ flow:
     description: "Summarizes conversation trajectories or messages into memories using a simplified approach"
     input_schema:
       trajectories:
-        type: "list"
+        type: array
         description: "A list of conversation trajectory information, including message content and score. This field does not need to be filled in, the system will complete it automatically."
         required: false
 
@@ -95,7 +95,7 @@ flow:
     description: "Directly operates on the vector store with various management actions"
     input_schema:
       action:
-        type: "str"
+        type: string
         description: "vector store operations"
         required: true
         enum: [ copy, delete, delete_ids, dump, load, list]
@@ -108,15 +108,15 @@ flow:
     description: "Update the freq & utility attributes of retrieved task memories"
     input_schema:
       workspace_id:
-        type: "str"
+        type: string
         description: "workspace id"
         required: true
       memory_dicts:
-        type: "list"
+        type: array
         description: "A list of retrieved task memory corresponding to the current task."
         required: true
       update_utility:
-        type: "bool"
+        type: boolean
         description: "Whether to update the utility attribute of the retrieved task memory."
         required: true
 
@@ -128,15 +128,15 @@ flow:
     description: "Delete task memories when utility/freq < utility_threshold and freq >= freq_threshold"
     input_schema:
       workspace_id:
-        type: "str"
+        type: string
         description: "workspace id"
         required: true
       freq_threshold:
-        type: "int"
+        type: integer
         description: "The retrieved frequency threshold for deleting task memory."
         required: true
       utility_threshold:
-        type: "float"
+        type: number
         description: "The utility/freq threshold for deleting task memory."
         required: true
 
@@ -148,7 +148,7 @@ flow:
     description: "React to the current task with an agent"
     input_schema:
       query:
-        type: "str"
+        type: string
         description: "user query"
         required: true
 
