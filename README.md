@@ -432,3 +432,8 @@ We believe the best memory systems come from collective wisdom. Contributions we
 This project is licensed under the Apache License 2.0 - see the [LICENSE](./LICENSE) file for details.
 
 ---
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=modelscope/ReMe&type=Date)](https://www.star-history.com/#modelscope/ReMe&Date)
+
