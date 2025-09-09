@@ -409,3 +409,6 @@ Pass@K 衡量的是在生成的 K 个样本中，至少有一个成功完成任�
 本项目采用Apache License 2.0许可证 - 详情请参阅[LICENSE](./LICENSE)文件。
 
 ---
+
+## Star 历史
+[![Star History Chart](https://api.star-history.com/svg?repos=modelscope/ReMe&type=Date)](https://www.star-history.com/#modelscope/ReMe&Date)
