@@ -30,9 +30,11 @@ Personal memory helps "**understand user preferences**", while task memory helps
 
 ## 📰 Latest Updates
 
-- **[2025-09]** 🎉 ReMe v0.1
-  officially released, integrating task memory and personal memory. If you want to use the original memoryscope project,
-  you can find it in [MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch).
+- **[2025-09]** 🎉 ReMe v0.1.8 has been officially released, adding support for asynchronous operations. It has also been
+  integrated into the memory service of agentscope-runtime.
+- **[2025-09]** 🎉 ReMe v0.1 officially released, integrating task memory and personal memory. If you want to use the
+  original memoryscope project, you can find it
+  in [MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch).
 - **[2025-09]** 🧪 We validated the effectiveness of task memory extraction and reuse in agents in appworld, bfcl(v3),
   and frozenlake environments. For more information,
   check [appworld exp](./cookbook/appworld/quickstart.md), [bfcl exp](./cookbook/bfcl/quickstart.md),
