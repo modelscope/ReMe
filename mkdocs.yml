@@ -27,8 +27,14 @@ nav:
       - Making SOP Memories: sop_memory/making_sop_memories.md
 
   - Extensions:
-      - Mcp: mcp_quick_start.md
+      - MCP: mcp_quick_start.md
       - Vector Store: vector_store_api_guide.md
+
+  - Experimental Tutorials:
+      - AppWorld: cookbook/appworld/quickstart.md
+      - BFCL: cookbook/bfcl/quickstart.md
+      - FrozenLake: cookbook/frozenlake/quickstart.md
+
 
   - Contributions: contribution.md
 

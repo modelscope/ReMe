@@ -33,8 +33,8 @@ ReMe为AI智能体提供了统一的记忆与经验系统——在跨用户、�
   正式发布，整合任务记忆与个人记忆。如果想使用原始的memoryscope项目，你可以在[MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch)
   中找到。
 - **[2025-09]** 🧪 我们在appworld, bfcl(v3)
-  以及frozenlake环境验证了任务记忆抽取与复用在Agent中的效果，更多信息请查看 [appworld exp](./cookbook/appworld/quickstart.md), [bfcl exp](./cookbook/bfcl/quickstart.md)
-  和 [frozenlake exp](./cookbook/frozenlake/quickstart.md)。
+  以及frozenlake环境验证了任务记忆抽取与复用在Agent中的效果，更多信息请查看 [appworld exp](docs/cookbook/appworld/quickstart.md), [bfcl exp](docs/cookbook/bfcl/quickstart.md)
+  和 [frozenlake exp](docs/cookbook/frozenlake/quickstart.md)。
 - **[2025-08]** 🚀 MCP协议支持已上线-> [MCP指南](docs/mcp_quick_start.md)。
 - **[2025-06]** 🚀 多后端向量存储支持 (Elasticsearch & ChromaDB) -> [向量数据库指南](docs/vector_store_api_guide.md)。
 - **[2024-09]** 🧠 [MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch) v0.1 发布，个性化和时间感知的记忆存储与使用。
@@ -327,7 +327,7 @@ response = requests.post("http://localhost:8002/retrieve_task_memory", json={
 
 ## 🧪 实验
 
-### 🌍 [Appworld 实验](cookbook/appworld/quickstart.md)
+### 🌍 [Appworld 实验](docs/cookbook/appworld/quickstart.md)
 
 我们在 Appworld 上使用 qwen3-8b 测试 ReMe：
 
@@ -339,10 +339,10 @@ response = requests.post("http://localhost:8002/retrieve_task_memory", json={
 Pass@K 衡量的是在生成的 K 个样本中，至少有一个成功完成任务（score=1）的概率。  
 当前实验使用的是一个内部的 AppWorld 环境，可能存在轻微差异。
 
-你可以在 [quickstart.md](cookbook/appworld/quickstart.md) 中找到复现实验的更多细节。
+你可以在 [quickstart.md](docs/cookbook/appworld/quickstart.md) 中找到复现实验的更多细节。
 
 
-### 🧊 [Frozenlake 实验](cookbook/frozenlake/quickstart.md)
+### 🧊 [Frozenlake 实验](docs/cookbook/frozenlake/quickstart.md)
 
 |                                           不使用ReMe                                            |                                            使用ReMe                                            |
 |:--------------------------------------------------------------------------------------------:|:--------------------------------------------------------------------------------------------:|
@@ -355,9 +355,9 @@ Pass@K 衡量的是在生成的 K 个样本中，至少有一个成功完成任�
 | without ReMe | 0.66             |
 | with ReMe    | 0.72 **(+6.0%)** |
 
-你可以在 [quickstart.md](cookbook/frozenlake/quickstart.md) 中找到复现实验的更多细节。
+你可以在 [quickstart.md](docs/cookbook/frozenlake/quickstart.md) 中找到复现实验的更多细节。
 
-### 🔧 [BFCL-V3 实验](cookbook/bfcl/quickstart.md)
+### 🔧 [BFCL-V3 实验](docs/cookbook/bfcl/quickstart.md)
 
 我们在 BFCL-V3 multi-turn-base (随机划分50train/150val) 上使用 qwen3-8b 测试 ReMe：
 

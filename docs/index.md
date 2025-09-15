@@ -354,7 +354,7 @@ response = requests.post("http://localhost:8002/retrieve_task_memory", json={
 
 ## 🧪 Experiments
 
-### 🌍 [Appworld Experiment](./cookbook/appworld/quickstart.md)
+### 🌍 [Appworld Experiment](cookbook/appworld/quickstart.md)
 
 We tested ReMe on Appworld using qwen3-8b:
 

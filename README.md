@@ -37,8 +37,8 @@ Personal memory helps "**understand user preferences**", while task memory helps
   in [MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch).
 - **[2025-09]** 🧪 We validated the effectiveness of task memory extraction and reuse in agents in appworld, bfcl(v3),
   and frozenlake environments. For more information,
-  check [appworld exp](./cookbook/appworld/quickstart.md), [bfcl exp](./cookbook/bfcl/quickstart.md),
-  and [frozenlake exp](./cookbook/frozenlake/quickstart.md).
+  check [appworld exp](docs/cookbook/appworld/quickstart.md), [bfcl exp](docs/cookbook/bfcl/quickstart.md),
+  and [frozenlake exp](docs/cookbook/frozenlake/quickstart.md).
 - **[2025-08]** 🚀 MCP protocol support is now available -> [MCP Quick Start](docs/mcp_quick_start.md).
 - **[2025-06]** 🚀 Multiple backend vector storage support (Elasticsearch &
   ChromaDB) -> [Vector DB quick start](docs/vector_store_api_guide.md).
@@ -349,7 +349,7 @@ response = requests.post("http://localhost:8002/retrieve_task_memory", json={
 
 ## 🧪 Experiments
 
-### 🌍 [Appworld Experiment](./cookbook/appworld/quickstart.md)
+### 🌍 [Appworld Experiment](docs/cookbook/appworld/quickstart.md)
 
 We tested ReMe on Appworld using qwen3-8b:
 
@@ -362,9 +362,9 @@ Pass@K measures the probability that at least one of the K generated samples suc
 score=1).  
 The current experiment uses an internal AppWorld environment, which may have slight differences.
 
-You can find more details on reproducing the experiment in [quickstart.md](cookbook/appworld/quickstart.md).
+You can find more details on reproducing the experiment in [quickstart.md](docs/cookbook/appworld/quickstart.md).
 
-### 🧊 [Frozenlake Experiment](./cookbook/frozenlake/quickstart.md)
+### 🧊 [Frozenlake Experiment](docs/cookbook/frozenlake/quickstart.md)
 
 |                                         without ReMe                                         |                                          with ReMe                                           |
 |:--------------------------------------------------------------------------------------------:|:--------------------------------------------------------------------------------------------:|
@@ -377,9 +377,9 @@ We tested on 100 random frozenlake maps using qwen3-8b:
 | without ReMe | 0.66             |
 | with ReMe    | 0.72 **(+6.0%)** |
 
-You can find more details on reproducing the experiment in [quickstart.md](cookbook/frozenlake/quickstart.md).
+You can find more details on reproducing the experiment in [quickstart.md](docs/cookbook/frozenlake/quickstart.md).
 
-### 🔧 [BFCL-V3 Experiment](./cookbook/bfcl/quickstart.md)
+### 🔧 [BFCL-V3 Experiment](docs/cookbook/bfcl/quickstart.md)
 
 We tested ReMe on BFCL-V3 multi-turn-base (randomly split 50train/150val) using qwen3-8b:
 
