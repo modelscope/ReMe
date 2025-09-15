@@ -3,7 +3,6 @@ new: true
 ---
 # Memory Library
 
-
 <div id="memory-lib-root" class="ml-prose-container">
   <!-- 工具条 -->
   <div class="ml-card">
