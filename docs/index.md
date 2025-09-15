@@ -9,12 +9,12 @@ show_datetime: true
  <img src="figure/reme_logo.png" alt="ReMe Logo" width="50%">
 </p>
 
-<p align="center">
+<div class="flex justify-center space-x-3">
   <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python Version"></a>
   <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/pypi-v0.1-blue?logo=pypi" alt="PyPI Version"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black" alt="License"></a>
   <a href="https://github.com/modelscope/ReMe"><img src="https://img.shields.io/github/stars/modelscope/ReMe?style=social" alt="GitHub Stars"></a>
-</p>
+</div>
 
 <p align="center">
   <strong>ReMe (formerly MemoryScope): Memory Management Framework for Agents</strong><br>

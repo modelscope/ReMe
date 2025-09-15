@@ -1,6 +1,8 @@
 site_name: ReMe
 site_url: https://modelscope.github.io/ReMe/
 site_description: "Memory Management Framework for Agents"
+repo_url: https://github.com/modelscope/ReMe
+repo_name: modelscope/ReMe
 theme:
   name: shadcn
   image: figure/reme_logo.png
