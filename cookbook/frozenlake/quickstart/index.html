@@ -36,11 +36,11 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Library Home - ReMe</title>
+    <title>FrozenLake - ReMe</title>
     
 
 
-<title>Library Home</title>
+<title>FrozenLake</title>
 
 
 
@@ -50,18 +50,18 @@
 
 
 
-<link rel="canonical" href="https://modelscope.github.io/ReMe/library/library/">
+<link rel="canonical" href="https://modelscope.github.io/ReMe/cookbook/frozenlake/quickstart/">
 
 
 <!-- Open Graph (Facebook, LinkedIn) -->
 
-<meta property="og:title" content="Library Home">
+<meta property="og:title" content="FrozenLake">
 
 
 
 
 
-<meta property="og:url" content="https://modelscope.github.io/ReMe/library/library/">
+<meta property="og:url" content="https://modelscope.github.io/ReMe/cookbook/frozenlake/quickstart/">
 
 
 
@@ -70,7 +70,7 @@
 
 <!-- Twitter Card -->
 
-<meta name="twitter:title" content="Library Home">
+<meta name="twitter:title" content="FrozenLake">
 
 
 
@@ -81,18 +81,18 @@
 
 
 
-    <link rel="icon" href="../../img/favicon.ico">
+    <link rel="icon" href="../../../img/favicon.ico">
 
-    <link href="../../css/base.css" rel="stylesheet">
-    <link href="../../css/geist.css" rel="stylesheet">
+    <link href="../../../css/base.css" rel="stylesheet">
+    <link href="../../../css/geist.css" rel="stylesheet">
 
     
     
 
 <link id="pygments-light" rel="stylesheet"
-    href="../../css/pygments/shadcn-light.css">
+    href="../../../css/pygments/shadcn-light.css">
 <link id="pygments-dark" rel="stylesheet"
-    href="../../css/pygments/github-dark.css"
+    href="../../../css/pygments/github-dark.css"
     media="(prefers-color-scheme: dark)">
 
 
@@ -100,15 +100,15 @@
 
     
 
-    <script src="../../js/callbacks.js"></script>
+    <script src="../../../js/callbacks.js"></script>
 
     
     <!-- katex -->
-<link rel="stylesheet" href="../../css/katex.min.css">
+<link rel="stylesheet" href="../../../css/katex.min.css">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
-<script defer src="../../js/katex.min.js"></script>
+<script defer src="../../../js/katex.min.js"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
-<script defer src="../../js/auto-render.min.js"
+<script defer src="../../../js/auto-render.min.js"
     onload='renderMathInElement(document.body, "{}");'></script>
     
 
@@ -520,7 +520,7 @@
             <ul data-slot="sidebar-menu" data-sidebar="menu" class="flex w-full min-w-0 flex-col gap-0.5">
                 
                 <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
-    <a data-slot="sidebar-menu-button" data-active="true" data-sidebar="menu-button"
+    <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
         data-size="default" href="/ReMe/library/library/"
         class="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground peer/menu-button flex items-center gap-2 rounded-md p-2 text-left outline-hidden ring-sidebar-ring transition-[width,height,padding] focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 data-[active=true]:bg-accent data-[active=true]:border-accent 3xl:fixed:w-full 3xl:fixed:max-w-48 relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md">
 
@@ -794,7 +794,7 @@
 </li>
                 
                 <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
-    <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
+    <a data-slot="sidebar-menu-button" data-active="true" data-sidebar="menu-button"
         data-size="default" href="/ReMe/cookbook/frozenlake/quickstart/"
         class="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground peer/menu-button flex items-center gap-2 rounded-md p-2 text-left outline-hidden ring-sidebar-ring transition-[width,height,padding] focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 data-[active=true]:bg-accent data-[active=true]:border-accent 3xl:fixed:w-full 3xl:fixed:max-w-48 relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md">
 
@@ -831,14 +831,14 @@
             <div id="page-header" class="flex items-start justify-between">
 
                 <h1 class="scroll-m-20 text-4xl font-semibold tracking-tight sm:text-3xl xl:text-4xl">
-                    Library Home
+                    FrozenLake
                 </h1>
 
                 <div class="flex items-center gap-2 pt-1.5">
                     
                     <a data-slot="button" id="previous-button"
                         class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 extend-touch-target size-8 shadow-none md:size-7"
-                        href="/ReMe/">
+                        href="/ReMe/cookbook/bfcl/quickstart/">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                             class="tabler-icon tabler-icon-arrow-left ">
@@ -852,7 +852,7 @@
                     
                     <a data-slot="button" id="next-button"
                         class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 extend-touch-target size-8 shadow-none md:size-7"
-                        href="/ReMe/personal_memory/personal_memory/">
+                        href="/ReMe/contribution/">
                         <span class="sr-only">Next</span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -874,447 +874,136 @@
 
     </div>
     <div class="typography w-full flex-1 *:data-[slot=alert]:first:mt-0">
-        <div id="memory-lib-root" class="ml-prose-container">
-  <!-- 工具条 -->
-  <div class="ml-card">
-    <div class="ml-toolbar">
-      <div class="ml-input-wrap">
-        <svg class="ml-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-        </svg>
-        <input id="ml-search" placeholder="Search libraries or memories..." />
-      </div>
-      <button id="ml-clear" class="ml-btn secondary">Clear</button>
-    </div>
-    <div id="ml-stats" class="ml-stats" hidden>
-      <span>Showing <b id="ml-count">0</b> of <b id="ml-total">0</b> <span id="ml-type">items</span></span>
-    </div>
-  </div>
+        <p>This guide helps you quickly set up and run FrozenLake experiments with ReMe integration. The FrozenLake experiment demonstrates how task memory can improve an agent's performance in a navigation task.</p>
+<h2 id="environment-setup">Environment Setup</h2>
+<h3 id="1-clone-the-repository">1. Clone the Repository</h3>
+<div class="codehilite"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/modelscope/ReMe.git
+<span class="nb">cd</span><span class="w"> </span>ReMe/cookbook/frozenlake
+</code></pre></div>
 
-  <!-- 加载/错误 -->
-  <div id="ml-loading" class="ml-loading">
-    <div class="ml-spinner" aria-label="Loading"></div>
-    <div class="ml-muted">Loading memory library…</div>
-  </div>
-  <div id="ml-error" class="ml-error" hidden>
-    <div class="ml-error-icon">⚠️</div>
-    <div class="ml-muted">Failed to load memory library.</div>
-    <button id="ml-retry" class="ml-btn">Try again</button>
-  </div>
+<h3 id="2-frozenlake-environment-setup">2. FrozenLake Environment Setup</h3>
+<p>Install Gymnasium for FrozenLake environment:</p>
+<div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>gymnasium
+</code></pre></div>
 
-  <!-- 面包屑 -->
-  <div id="ml-crumb" class="ml-crumb" hidden>
-    <button id="ml-back" class="ml-link">← Back to Libraries</button>
-    <div class="ml-crumb-title" id="ml-crumb-title">Libraries</div>
-  </div>
+<p>This will install:
+- gymnasium - for the FrozenLake environment
+- ray - for parallel execution
+- openai - for LLM API access
+- other dependencies</p>
+<h3 id="3-start-reme-service">3. Start ReMe Service</h3>
+<p>If you haven't installed ReMe yet, follow these steps:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Go back to the project root</span>
+<span class="nb">cd</span><span class="w"> </span>../..
 
-  <!-- 列表容器 -->
-  <div id="ml-libraries" class="ml-grid" hidden></div>
-  <div id="ml-memories" class="ml-grid" hidden></div>
+<span class="c1"># Create a virtual environment (optional)</span>
+conda<span class="w"> </span>create<span class="w"> </span>-p<span class="w"> </span>./reme-env<span class="w"> </span><span class="nv">python</span><span class="o">==</span><span class="m">3</span>.10
+conda<span class="w"> </span>activate<span class="w"> </span>./reme-env
 
-  <!-- 空态 -->
-  <div id="ml-empty" class="ml-empty" hidden>
-    <div class="ml-empty-icon">🔎</div>
-    <div class="ml-muted">No results found. Try changing your search.</div>
-  </div>
-</div>
+<span class="c1"># Install ReMe</span>
+pip<span class="w"> </span>install<span class="w"> </span>.
+</code></pre></div>
 
-<!-- 详情弹窗 -->
-<p><dialog id="ml-modal" class="ml-modal">
-<br />
-<form method="dialog" class="ml-modal-card">
-    <div class="ml-modal-header">
-      <div>
-        <div class="ml-chip" id="ml-modal-lib"></div>
-        <div class="ml-chip success" id="ml-modal-score" hidden></div>
-      </div>
-      <button class="ml-close" aria-label="Close">✕</button>
-    </div>
+<p>Launch the ReMe service to enable memory library functionality:</p>
+<div class="codehilite"><pre><span></span><code>reme<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="nv">backend</span><span class="o">=</span>http<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>http.port<span class="o">=</span><span class="m">8002</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>llm.default.model_name<span class="o">=</span>qwen-max-2025-01-25<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>embedding_model.default.model_name<span class="o">=</span>text-embedding-v4<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>vector_store.default.backend<span class="o">=</span><span class="nb">local</span>
+</code></pre></div>
 
-    <div class="ml-modal-section">
-      <div class="ml-section-title">When to use</div>
-      <div class="ml-code" id="ml-modal-when"></div>
-    </div>
+<p>Add your api key for agent:</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span><span class="s2">&quot;xxx&quot;</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">OPENAI_BASE_URL</span><span class="o">=</span><span class="s2">&quot;xxx&quot;</span>
+</code></pre></div>
 
-    <div class="ml-modal-section">
-      <div class="ml-section-title">Memory</div>
-      <div class="ml-note" id="ml-modal-content"></div>
-    </div>
+<h2 id="run-experiments">Run Experiments</h2>
+<h3 id="1-quick-test-performance-evaluation-only-default">1. Quick Test: Performance Evaluation Only (Default)</h3>
+<p>Run the main experiment script to test agent performance using existing memory:</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>cookbook/frozenlake
+python<span class="w"> </span>run_frozenlake.py
+</code></pre></div>
 
-    <div class="ml-modal-section">
-      <div class="ml-section-title">Metadata</div>
-      <div class="ml-meta">
-        <div><span>Author</span><b id="ml-modal-author"></b></div>
-        <div><span>Created</span><b id="ml-modal-created"></b></div>
-        <div><span>Memory ID</span><b id="ml-modal-id" class="mono"></b></div>
-        <div><span>Workspace</span><b id="ml-modal-ws" class="mono"></b></div>
-      </div>
-    </div>
+<p><strong>What this does:</strong>
+- Tests the agent on randomly generated FrozenLake maps
+- Uses the default memory library (<code>frozenlake_no_slippery</code>)
+- Evaluates performance with multiple runs for statistical significance
+- Results are automatically saved to <code>./exp_result/</code> directory</p>
+<h3 id="2-advanced-training-testing-memory-generation">2. Advanced: Training + Testing (Memory Generation)</h3>
+<p>To create new memories through training and then test performance:</p>
+<p>You can modify the experiment parameters directly in the <code>run_frozenlake.py</code> file. The main parameters are in the <code>main()</code> function:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="n">experiment_name</span> <span class="o">=</span> <span class="s2">&quot;frozenlake_no_slippery&quot;</span>  <span class="c1"># Name of the experiment</span>
+    <span class="n">max_workers</span> <span class="o">=</span> <span class="mi">4</span>                           <span class="c1"># Number of parallel workers</span>
+    <span class="n">training_runs</span> <span class="o">=</span> <span class="mi">4</span>                         <span class="c1"># Runs per training map</span>
+    <span class="n">num_training_maps</span> <span class="o">=</span> <span class="mi">50</span>                    <span class="c1"># Number of maps for training</span>
+    <span class="n">test_runs</span> <span class="o">=</span> <span class="mi">1</span>                             <span class="c1"># Runs per test configuration</span>
+    <span class="n">num_test_maps</span> <span class="o">=</span> <span class="mi">100</span>                       <span class="c1"># Number of test maps</span>
+    <span class="n">is_slippery</span> <span class="o">=</span> <span class="kc">False</span>                       <span class="c1"># Enable slippery mode</span>
+</code></pre></div>
 
-    <div class="ml-modal-footer">
-      <button class="ml-btn secondary" value="cancel">Close</button>
-    </div>
-  </form></p>
-<p></dialog></p>
-<style>
-/* —— 基于 shadcn/mkdocs 主题变量，尽量少写硬编码颜色 —— */
-:root {
-  --ml-radius: .75rem;
-  --ml-gap: 1rem;
-  --ml-shadow: 0 6px 24px rgba(0,0,0,.08);
-}
-@media (prefers-color-scheme: dark) {
-  /* 主题会处理色板，这里不额外覆盖 */
-}
+<p>Key parameters to consider:
+- <code>experiment_name</code>: Used as the workspace ID for task memory
+- <code>is_slippery</code>: When True, agent movement becomes stochastic (harder)
+- <code>max_workers</code>: Increase for faster execution on multi-core systems</p>
+<h3 id="3-view-experiment-results">3. View Experiment Results</h3>
+<p>After running experiments, analyze the statistical results:</p>
+<div class="codehilite"><pre><span></span><code>python<span class="w"> </span>run_exp_statistic.py
+</code></pre></div>
 
-/* 容器与卡片 */
-.ml-prose-container { display: grid; gap: var(--ml-gap); }
-.ml-card {
-  background: var(--background, #fff);
-  color: var(--foreground, #0a0a0a);
-  border: 1px solid var(--border, rgba(0,0,0,.08));
-  border-radius: var(--ml-radius);
-  padding: 1rem;
-  box-shadow: var(--shadow, 0 1px 0 rgba(0,0,0,.02));
-}
-.ml-grid {
-  display: grid;
-  gap: var(--ml-gap);
-  grid-template-columns: repeat(1, minmax(0,1fr));
-}
-@media (min-width: 640px){ .ml-grid{ grid-template-columns: repeat(2, minmax(0,1fr)); } }
-@media (min-width: 1024px){ .ml-grid{ grid-template-columns: repeat(3, minmax(0,1fr)); } }
-
-.ml-card-item{
-  background: var(--card, var(--background, #fff));
-  border: 1px solid var(--border, rgba(0,0,0,.08));
-  border-radius: var(--ml-radius);
-  padding: 1rem;
-  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
-  cursor: pointer;
-}
-.ml-card-item:hover{
-  transform: translateY(-2px);
-  box-shadow: var(--ml-shadow);
-  border-color: var(--primary, #3b82f6);
-}
-.ml-card-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:.75rem; margin-bottom:.5rem; }
-.ml-card-title{ font-weight: 650; font-size: 1rem; }
-.ml-card-sub{ font-size: .85rem; opacity: .7; }
-.ml-card-sample{ margin-top:.5rem; font-size:.92rem; line-height:1.5; opacity:.9; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-.ml-card-foot{ display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border, rgba(0,0,0,.08)); padding-top:.5rem; margin-top:.75rem; font-size:.85rem; opacity:.8; }
-
-/* 工具条与输入 */
-.ml-toolbar{ display:flex; gap:.75rem; align-items:center; justify-content:space-between; flex-wrap:wrap; }
-.ml-input-wrap{ position:relative; flex:1; min-width: 260px; }
-.ml-input-wrap input{
-  width:100%; padding:.6rem .9rem .6rem 2.2rem; border-radius:.6rem;
-  border:1px solid var(--border, rgba(0,0,0,.12));
-  background: var(--muted, rgba(0,0,0,.02));
-  color: var(--foreground, #0a0a0a);
-  outline:none;
-}
-.ml-input-wrap input:focus{
-  border-color: var(--primary, #3b82f6);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary, #3b82f6) 22%, transparent);
-  background: var(--background, #fff);
-}
-.ml-icon{ position:absolute; left:.6rem; top:50%; transform:translateY(-50%); width:1.1rem; height:1.1rem; opacity:.6; }
-
-.ml-btn{
-  border:1px solid var(--border, rgba(0,0,0,.12));
-  background: var(--accent, var(--background, #fff));
-  color: var(--foreground, #0a0a0a);
-  padding:.55rem .9rem; border-radius:.55rem; cursor:pointer;
-}
-.ml-btn.secondary{ background: var(--muted, rgba(0,0,0,.03)); }
-.ml-btn:hover{ border-color: var(--primary, #3b82f6); }
-
-/* 统计/面包屑 */
-.ml-stats{ margin-top:.5rem; font-size:.9rem; opacity:.8; }
-.ml-crumb{ display:flex; align-items:center; gap:.75rem; }
-.ml-link{ background:none; border:none; color: var(--primary, #3b82f6); cursor:pointer; padding:.25rem .5rem; border-radius:.4rem; }
-.ml-link:hover{ text-decoration: underline; }
-.ml-crumb-title{ font-weight:600; opacity:.8; }
-
-/* 状态区 */
-.ml-loading, .ml-error, .ml-empty{ display:grid; justify-items:center; gap:.5rem; padding:3rem 1rem; }
-.ml-spinner{
-  width:38px; height:38px; border-radius:999px; border:3px solid color-mix(in srgb, var(--foreground,#000) 12%, transparent);
-  border-top-color: var(--primary,#3b82f6); animation: ml-spin 1s linear infinite;
-}
-@keyframes ml-spin{ to{ transform: rotate(360deg); } }
-.ml-muted{ opacity:.7; }
-.ml-error-icon{ font-size:1.4rem; }
-
-/* 标签/块 */
-.ml-chip{ display:inline-block; padding:.25rem .55rem; border-radius:999px; font-size:.78rem;
-  background: color-mix(in srgb, var(--primary,#3b82f6) 12%, transparent); color: var(--primary,#3b82f6);
-}
-.ml-chip.success{
-  background: color-mix(in srgb, #16a34a 14%, transparent);
-  color: #16a34a;
-}
-.ml-code{
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  background: var(--muted, rgba(0,0,0,.04)); border:1px solid var(--border, rgba(0,0,0,.08));
-  padding:.75rem; border-radius:.6rem; white-space:pre-wrap;
-}
-.ml-note{
-  background: color-mix(in srgb, #f59e0b 9%, transparent);
-  border:1px solid color-mix(in srgb, #f59e0b 28%, transparent);
-  padding:.75rem; border-radius:.6rem;
-}
-
-/* 元数据 */
-.ml-meta{ display:grid; grid-template-columns: repeat(1, minmax(0,1fr)); gap:.5rem; }
-@media (min-width: 640px){ .ml-meta{ grid-template-columns: repeat(2, minmax(0,1fr)); } }
-.ml-meta > div{ display:flex; justify-content:space-between; align-items:center; padding:.5rem .75rem;
-  border:1px dashed var(--border, rgba(0,0,0,.12)); border-radius:.5rem; background: var(--background, #fff);
-}
-.ml-meta span{ opacity:.7; }
-.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-
-/* 弹窗 */
-.ml-modal{ padding:0; border:none; background: transparent; }
-.ml-modal[open]{ display:grid; align-items:center; justify-items:center; }
-.ml-modal::backdrop{ background: rgba(0,0,0,.45); }
-.ml-modal-card{
-  width:min(100%, 960px); max-height: 85vh; overflow:auto;
-  background: var(--background, #fff); color: var(--foreground,#0a0a0a);
-  border:1px solid var(--border, rgba(0,0,0,.1)); border-radius: var(--ml-radius);
-  padding: 1rem; box-shadow: var(--ml-shadow);
-}
-.ml-modal-header{ display:flex; justify-content:space-between; align-items:center; gap:.75rem; margin-bottom:.5rem; }
-.ml-close{ border:none; background:none; font-size:1.1rem; cursor:pointer; opacity:.6; }
-.ml-close:hover{ opacity:1; }
-.ml-modal-section{ display:grid; gap:.35rem; margin-top:.75rem; }
-.ml-section-title{ font-weight:650; opacity:.85; }
-.ml-modal-footer{ display:flex; justify-content:flex-end; margin-top:1rem; }
-</style>
-
-<script>
-(() => {
-  // —— State
-  let ALL = [];
-  let GROUPED = {};
-  let VIEW = "libraries"; // "libraries" | "memories"
-  let CURR = null;
-
-  // —— DOM
-  const $ = (id) => document.getElementById(id);
-  const elLoading = $("ml-loading");
-  const elError = $("ml-error");
-  const elRetry = $("ml-retry");
-  const elLibraries = $("ml-libraries");
-  const elMemories = $("ml-memories");
-  const elEmpty = $("ml-empty");
-  const elSearch = $("ml-search");
-  const elClear = $("ml-clear");
-  const elStats = $("ml-stats");
-  const elCount = $("ml-count");
-  const elTotal = $("ml-total");
-  const elType = $("ml-type");
-  const elCrumb = $("ml-crumb");
-  const elBack = $("ml-back");
-  const elCrumbTitle = $("ml-crumb-title");
-  const dlg = $("ml-modal");
-
-  const mLib = $("ml-modal-lib");
-  const mScore = $("ml-modal-score");
-  const mWhen = $("ml-modal-when");
-  const mCont = $("ml-modal-content");
-  const mAuth = $("ml-modal-author");
-  const mCreated = $("ml-modal-created");
-  const mId = $("ml-modal-id");
-  const mWs = $("ml-modal-ws");
-
-  // —— Config：JSONL 文件位于本页同级目录（docs/library/）
-  const BASE = "..";
-  const FILES = [
-    "appworld.jsonl",
-    "bfcl_v3.jsonl",
-    // 需要的话在这里继续添加文件名
-  ];
-
-  // —— Utils
-  function show(el){ el.hidden = false; }
-  function hide(el){ el.hidden = true; }
-  function setLoading(on){
-    on ? (show(elLoading), [elError, elLibraries, elMemories, elEmpty, elStats, elCrumb].forEach(hide))
-       : hide(elLoading);
-  }
-  function setError(on){ on ? (show(elError), [elLoading].forEach(hide)) : hide(elError); }
-  function clampTxt(s, n){ if(!s) return ""; return s.length<=n? s : s.slice(0,n)+"…"; }
-  const fmtDate = (t)=> t ? new Date(t).toLocaleDateString() : "Unknown";
-  function debounce(fn, ms=250){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
-
-  // —— Data Loading
-  async function loadAll(){
-    setLoading(true); setError(false);
-    try{
-      const arr = await Promise.all(FILES.map(async f=>{
-        try{
-          const res = await fetch(`${BASE}/${f}`);
-          if(!res.ok) return [];
-          const txt = await res.text();
-          return txt.split("\n").filter(l=>l.trim()).map(line=>{
-            try{
-              const obj = JSON.parse(line);
-              obj._library = f.replace(/\.jsonl$/,"");
-              return obj;
-            }catch{ return null; }
-          }).filter(Boolean);
-        }catch{ return []; }
-      }));
-      ALL = arr.flat();
-      if(!ALL.length) throw new Error("no data");
-      GROUPED = ALL.reduce((acc,m)=>{
-        (acc[m._library] ||= []).push(m);
-        return acc;
-      }, {});
-      renderLibraries();
-    }catch(e){
-      setError(true);
-    }finally{
-      setLoading(false);
-    }
-  }
-
-  // —— Render
-  function renderLibraries(list){
-    VIEW = "libraries"; CURR = null;
-    hide(elMemories); hide(elEmpty); show(elLibraries);
-    hide(elCrumb);
-    elCrumbTitle.textContent = "Libraries";
-    elType.textContent = "libraries";
-
-    const libs = list ?? Object.keys(GROUPED);
-    if(!libs.length){ hide(elLibraries); show(elEmpty); hide(elStats); return; }
-
-    elLibraries.innerHTML = libs.map(name=>{
-      const arr = GROUPED[name];
-      const sample = arr[0] || {};
-      const sampleText = sample.when_to_use || sample.content || "No description available";
-      const author = sample.author || "Unknown";
-      return `
-        <div class="ml-card-item" data-lib="${name}">
-          <div class="ml-card-head">
-            <div>
-              <div class="ml-card-title">${name}</div>
-              <div class="ml-card-sub">${arr.length} memories</div>
-            </div>
-            <div class="ml-chip">DB</div>
-          </div>
-          <div class="ml-card-sample">${clampTxt(sampleText, 180)}</div>
-          <div class="ml-card-foot">
-            <span>👤 ${author}</span>
-            <span>View →</span>
-          </div>
-        </div>
-      `;
-    }).join("");
-
-    bindLibraryClicks();
-    show(elStats);
-    $("ml-count").textContent = libs.length;
-    $("ml-total").textContent = Object.keys(GROUPED).length;
-  }
-
-  function renderMemories(memList){
-    VIEW = "memories";
-    hide(elLibraries); hide(elEmpty); show(elMemories);
-    show(elCrumb);
-    elType.textContent = "memories";
-    elCrumbTitle.textContent = `Exploring ${CURR}`;
-
-    if(!memList?.length){ hide(elMemories); show(elEmpty); hide(elStats); return; }
-    elMemories.innerHTML = memList.map((m,idx)=>`
-      <div class="ml-card-item" data-idx="${idx}">
-        <div class="ml-card-head">
-          <div class="ml-chip">${m._library}</div>
-          ${m.score ? `<div class="ml-chip success">Score: ${m.score}</div>` : ""}
-        </div>
-        <div class="ml-card-sample"><b>When to use:</b> ${clampTxt(m.when_to_use || "No specific guidance provided", 140)}</div>
-        <div class="ml-card-foot">
-          <span>👤 ${m.author || "Unknown"}</span>
-          <span>Details →</span>
-        </div>
-      </div>
-    `).join("");
-
-    // 绑定卡片 → 打开弹窗
-    [...elMemories.querySelectorAll(".ml-card-item")].forEach(card=>{
-      card.addEventListener("click", ()=>{
-        const idx = Number(card.getAttribute("data-idx"));
-        const m = GROUPED[CURR][idx];
-        mLib.textContent = m._library;
-        const hasScore = "score" in m && m.score !== null && m.score !== undefined;
-        if(hasScore){ mScore.textContent = `Score: ${m.score}`; mScore.hidden = false; } else { mScore.hidden = true; }
-        mWhen.textContent = m.when_to_use || "No specific guidance provided";
-        mCont.textContent = m.content || "No content available";
-        mAuth.textContent = m.author || "Unknown";
-        mCreated.textContent = fmtDate(m.time_created);
-        mId.textContent = m.memory_id || "N/A";
-        mWs.textContent = m.workspace_id || "N/A";
-        dlg.showModal();
-      });
-    });
-
-    show(elStats);
-    $("ml-count").textContent = memList.length;
-    $("ml-total").textContent = memList.length;
-  }
-
-  function bindLibraryClicks(){
-    [...elLibraries.querySelectorAll(".ml-card-item")].forEach(card=>{
-      card.addEventListener("click", ()=>{
-        CURR = card.getAttribute("data-lib");
-        renderMemories(GROUPED[CURR]);
-      });
-    });
-  }
-
-  // —— Search
-  function handleSearch(){
-    const q = elSearch.value.trim().toLowerCase();
-    if(!q){
-      if(VIEW==="libraries") renderLibraries();
-      else renderMemories(GROUPED[CURR]);
-      return;
-    }
-    if(VIEW==="libraries"){
-      const libs = Object.keys(GROUPED).filter(name=>{
-        const arr = GROUPED[name];
-        return name.toLowerCase().includes(q) ||
-          arr.some(m => (m.when_to_use||"").toLowerCase().includes(q) ||
-                         (m.content||"").toLowerCase().includes(q) ||
-                         (m.author||"").toLowerCase().includes(q));
-      });
-      renderLibraries(libs);
-    }else{
-      const arr = GROUPED[CURR] || [];
-      const filtered = arr.filter(m =>
-        (m.when_to_use||"").toLowerCase().includes(q) ||
-        (m.content||"").toLowerCase().includes(q) ||
-        (m.author||"").toLowerCase().includes(q)
-      );
-      renderMemories(filtered);
-    }
-  }
-
-  // —— Events
-  elRetry?.addEventListener("click", loadAll);
-  elBack?.addEventListener("click", ()=> renderLibraries());
-  elSearch?.addEventListener("input", debounce(handleSearch, 250));
-  elClear?.addEventListener("click", ()=>{
-    elSearch.value = ""; handleSearch();
-  });
-
-  // —— Init
-  document.addEventListener("DOMContentLoaded", loadAll);
-})();
-</script>
+<p><strong>What this script does:</strong>
+- Processes all result files in <code>./exp_result/</code>
+- Calculates success rates and performance metrics
+- Generates a summary table showing performance comparisons
+- Analyzes the effect of task memory on performance
+- Saves results to <code>frozenlake_summary.csv</code></p>
+<h2 id="understanding-the-implementation">Understanding the Implementation</h2>
+<h3 id="key-components">Key Components</h3>
+<ol>
+<li><strong>FrozenLakeReactAgent</strong> (<code>frozenlake_react_agent.py</code>)</li>
+<li>Implements a ReAct agent that interacts with the FrozenLake environment</li>
+<li>Handles task memory retrieval and storage</li>
+<li>
+<p>Uses LLM (via OpenAI API) for decision making</p>
+</li>
+<li>
+<p><strong>Experiment Runner</strong> (<code>run_frozenlake.py</code>)</p>
+</li>
+<li>Manages the overall experiment flow</li>
+<li>Handles training and testing phases</li>
+<li>
+<p>Uses Ray for parallel execution</p>
+</li>
+<li>
+<p><strong>Map Manager</strong> (<code>map_manager.py</code>)</p>
+</li>
+<li>Generates and manages test maps</li>
+<li>
+<p>Ensures consistent evaluation across experiments</p>
+</li>
+<li>
+<p><strong>Statistics Analyzer</strong> (<code>run_exp_statistic.py</code>)</p>
+</li>
+<li>Processes experiment results</li>
+<li>Calculates performance metrics</li>
+<li>Generates comparative analysis</li>
+</ol>
+<h3 id="output-files">Output Files</h3>
+<ul>
+<li><code>./exp_result/*_training.jsonl</code>: Results from training phase</li>
+<li><code>./exp_result/*_test_no_memory.jsonl</code>: Test results without task memory</li>
+<li><code>./exp_result/*_test_with_memory.jsonl</code>: Test results with task memory</li>
+<li><code>./exp_result/frozenlake_summary.csv</code>: Statistical summary</li>
+</ul>
+<h3 id="task-memory-mechanism">Task Memory Mechanism</h3>
+<p>The task memory system works as follows:</p>
+<ol>
+<li><strong>Memory Creation</strong>: During training, successful trajectories are sent to the ReMe service</li>
+<li><strong>Memory Retrieval</strong>: During testing, the agent queries relevant memories based on the current map</li>
+<li><strong>Memory Application</strong>: The agent uses retrieved memories to guide its decision-making</li>
+</ol>
+<p>The experiment demonstrates how task memory can significantly improve performance, especially in challenging environments like the slippery FrozenLake.</p>
 
     </div>
 </article>
@@ -1322,7 +1011,7 @@
     
     <a data-slot="button"
         class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 h-8 rounded-md gap-1.5 px-3 has-[&gt;svg]:px-2.5 shadow-none"
-        href="/ReMe/">
+        href="/ReMe/cookbook/bfcl/quickstart/">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
             class="tabler-icon tabler-icon-arrow-left ">
@@ -1330,14 +1019,14 @@
             <path d="M5 12l6 6"></path>
             <path d="M5 12l6 -6"></path>
         </svg>
-        Welcome
+        BFCL
     </a>
     
     
     <a data-slot="button"
         class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 h-8 rounded-md gap-1.5 px-3 has-[&gt;svg]:px-2.5 ml-auto shadow-none"
-        href="/ReMe/personal_memory/personal_memory/">
-        Overview
+        href="/ReMe/contribution/">
+        Contributions
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
             class="tabler-icon tabler-icon-arrow-right ">
@@ -1364,13 +1053,13 @@
                 <div class="text-muted-foreground text-sm font-medium">Menu</div>
                 <div class="flex flex-col gap-3">
                     
-                    <a class="text-2xl font-medium" href="../..">
+                    <a class="text-2xl font-medium" href="../../..">
                         
                         Welcome
                         
                     </a>
                     
-                    <a class="text-2xl font-medium" href="../../contribution/">
+                    <a class="text-2xl font-medium" href="../../../contribution/">
                         
                         Contributions
                         
@@ -1388,7 +1077,7 @@
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="./">
+                        <a class="text-2xl font-medium" href="../../../library/library/">
                             
                             Library Home
                             
@@ -1403,19 +1092,19 @@
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="../../personal_memory/personal_memory/">
+                        <a class="text-2xl font-medium" href="../../../personal_memory/personal_memory/">
                             
                             Overview
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="../../personal_memory/personal_retrieve_ops/">
+                        <a class="text-2xl font-medium" href="../../../personal_memory/personal_retrieve_ops/">
                             
                             Retrieve Ops
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="../../personal_memory/personal_summary_ops/">
+                        <a class="text-2xl font-medium" href="../../../personal_memory/personal_summary_ops/">
                             
                             Summary Ops
                             
@@ -1430,19 +1119,19 @@
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="../../task_memory/task_memory/">
+                        <a class="text-2xl font-medium" href="../../../task_memory/task_memory/">
                             
                             Overview
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="../../task_memory/task_retrieve_ops/">
+                        <a class="text-2xl font-medium" href="../../../task_memory/task_retrieve_ops/">
                             
                             Retrieve Ops
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="../../task_memory/task_summary_ops/">
+                        <a class="text-2xl font-medium" href="../../../task_memory/task_summary_ops/">
                             
                             Summary Ops
                             
@@ -1457,7 +1146,7 @@
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="../../sop_memory/making_sop_memories/">
+                        <a class="text-2xl font-medium" href="../../../sop_memory/making_sop_memories/">
                             
                             Making SOP Memories
                             
@@ -1472,13 +1161,13 @@
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="../../mcp_quick_start/">
+                        <a class="text-2xl font-medium" href="../../../mcp_quick_start/">
                             
                             MCP
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="../../vector_store_api_guide/">
+                        <a class="text-2xl font-medium" href="../../../vector_store_api_guide/">
                             
                             Vector Store
                             
@@ -1493,19 +1182,19 @@
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="../../cookbook/appworld/quickstart/">
+                        <a class="text-2xl font-medium" href="../../appworld/quickstart/">
                             
                             AppWorld
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="../../cookbook/bfcl/quickstart/">
+                        <a class="text-2xl font-medium" href="../../bfcl/quickstart/">
                             
                             BFCL
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="../../cookbook/frozenlake/quickstart/">
+                        <a class="text-2xl font-medium" href="./">
                             
                             FrozenLake
                             
@@ -1529,6 +1218,96 @@
                                 <div view-transition-name="toc" class="no-scrollbar overflow-y-auto px-8">
     <div class="flex flex-col gap-2 p-4 pt-0 text-sm">
         <p class="text-muted-foreground bg-background sticky top-0 h-6 text-xs">On This Page</p>
+        
+        
+        
+        
+        <a href="#environment-setup"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2">
+            Environment Setup
+        </a>
+        
+        
+        <a href="#1-clone-the-repository"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            1. Clone the Repository
+        </a>
+        
+        <a href="#2-frozenlake-environment-setup"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            2. FrozenLake Environment Setup
+        </a>
+        
+        <a href="#3-start-reme-service"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            3. Start ReMe Service
+        </a>
+        
+        
+
+        
+        <a href="#run-experiments"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2">
+            Run Experiments
+        </a>
+        
+        
+        <a href="#1-quick-test-performance-evaluation-only-default"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            1. Quick Test: Performance Evaluation Only (Default)
+        </a>
+        
+        <a href="#2-advanced-training-testing-memory-generation"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            2. Advanced: Training + Testing (Memory Generation)
+        </a>
+        
+        <a href="#3-view-experiment-results"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            3. View Experiment Results
+        </a>
+        
+        
+
+        
+        <a href="#understanding-the-implementation"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2">
+            Understanding the Implementation
+        </a>
+        
+        
+        <a href="#key-components"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Key Components
+        </a>
+        
+        <a href="#output-files"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Output Files
+        </a>
+        
+        <a href="#task-memory-mechanism"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Task Memory Mechanism
+        </a>
+        
+        
+
+        
+        
+        
         
 
     </div>
@@ -1555,19 +1334,19 @@
     </div>
      
 
-<script src="../../search/main.js"></script>
+<script src="../../../search/main.js"></script>
 
 
     
 
-    <script src="../../js/copy-button.js"></script>
+    <script src="../../../js/copy-button.js"></script>
     <script>updatePygmentsStylesheet();</script>
     
     <script>fetchStargazers("https://github.com/modelscope/ReMe");</script>
     
     
     
-    <script src="../../js/socket.io.min.js"></script>
+    <script src="../../../js/socket.io.min.js"></script>
 <script>
     function randomString(length = 10) {
         const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
