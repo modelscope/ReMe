@@ -46,7 +46,7 @@ Personal memory helps "**understand user preferences**", while task memory helps
   and [frozenlake exp](./cookbook/frozenlake/quickstart.md).
 - **[2025-08]** 🚀 MCP protocol support is now available -> [MCP Quick Start](mcp_quick_start.md).
 - **[2025-06]** 🚀 Multiple backend vector storage support (Elasticsearch &
-  ChromaDB) -> [Vector DB quick start](docs/vector_store_api_guide.md).
+  ChromaDB) -> [Vector DB quick start](vector_store_api_guide.md).
 - **[2024-09]** 🧠 [MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch) v0.1 released,
   personalized and time-aware memory storage and usage.
 
