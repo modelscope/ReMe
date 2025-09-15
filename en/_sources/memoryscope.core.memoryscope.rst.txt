@@ -1,6 +1,0 @@
-memoryscope.core.memoryscope
-============================
-.. automodule:: memoryscope.core.memoryscope
-   :members:
-   :undoc-members:
-   :show-inheritance:

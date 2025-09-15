@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReMe - Memory Library</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .library-card, .memory-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+        .library-card:hover, .memory-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            border-left-color: #3b82f6;
+            cursor: pointer;
+        }
+        .tag-chip {
+            transition: all 0.2s ease;
+        }
+        .tag-chip:hover {
+            transform: scale(1.05);
+        }
+        .tag-chip.active {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+        }
+        .loading-spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .back-button {
+            transition: all 0.2s ease;
+        }
+        .back-button:hover {
+            transform: translateX(-2px);
+        }
+        .truncate-text {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .memory-detail {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="gradient-bg text-white py-12">
+        <div class="container mx-auto px-6">
+            <div class="text-center">
+                <h1 class="text-4xl font-bold mb-4">
+                    <i class="fas fa-brain mr-3"></i>ReMe
+                </h1>
+                <p class="text-xl opacity-90" id="header-subtitle">Remember me - Empowering agents with memory libraries</p>
+                <div class="mt-6 flex justify-center items-center space-x-4 text-sm">
+                    <span class="bg-white bg-opacity-20 px-3 py-1 rounded-full">
+                        <i class="fas fa-database mr-1"></i>
+                        <span id="total-memories">Loading...</span> Memories
+                    </span>
+                    <span class="bg-white bg-opacity-20 px-3 py-1 rounded-full">
+                        <i class="fas fa-tags mr-1"></i>
+                        <span id="total-libraries">Loading...</span> Libraries
+                    </span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Breadcrumb -->
+    <div id="breadcrumb" class="bg-white shadow-sm py-3 hidden">
+        <div class="container mx-auto px-6">
+            <button id="back-button" class="back-button flex items-center text-blue-600 hover:text-blue-800">
+                <i class="fas fa-arrow-left mr-2"></i>
+                <span>Back to Libraries</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+        <!-- Search and Filter Section -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+            <div class="flex flex-col lg:flex-row gap-4 items-center">
+                <!-- Search Input -->
+                <div class="flex-1 relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    <input
+                        id="search-input"
+                        type="text"
+                        placeholder="Search libraries or memories..."
+                        class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    >
+                </div>
+                <!-- Clear Button -->
+                <button
+                    id="clear-filters"
+                    class="px-6 py-3 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+                >
+                    <i class="fas fa-times mr-2"></i>Clear All
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading" class="text-center py-12">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <p class="text-gray-600">Loading memory library...</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="error" class="hidden text-center py-12">
+            <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+            <p class="text-gray-600 mb-4">Failed to load memory library</p>
+            <button onclick="loadMemories()" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                Try Again
+            </button>
+        </div>
+
+        <!-- Results Info -->
+        <div id="results-info" class="hidden mb-6">
+            <p class="text-gray-600">
+                Showing <span id="results-count" class="font-semibold text-blue-600">0</span>
+                of <span id="total-count" class="font-semibold">0</span> <span id="results-type">items</span>
+            </p>
+        </div>
+
+        <!-- Libraries Grid (Default View) -->
+        <div id="libraries-container" class="hidden grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <!-- Library cards will be dynamically inserted here -->
+        </div>
+
+        <!-- Memories Grid (Library Detail View) -->
+        <div id="memories-container" class="hidden grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <!-- Memory cards will be dynamically inserted here -->
+        </div>
+
+        <!-- No Results -->
+        <div id="no-results" class="hidden text-center py-12">
+            <i class="fas fa-search text-gray-300 text-4xl mb-4"></i>
+            <p class="text-gray-600 mb-2">No results found</p>
+            <p class="text-gray-400 text-sm">Try adjusting your search criteria</p>
+        </div>
+    </main>
+
+    <!-- Memory Detail Modal -->
+    <div id="memory-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full memory-detail">
+            <div class="p-6">
+                <!-- Modal Header -->
+                <div class="flex items-start justify-between mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900 mb-2">Memory Details</h2>
+                        <div class="flex items-center space-x-2">
+                            <span id="modal-library" class="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full"></span>
+                            <span id="modal-score" class="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full hidden"></span>
+                        </div>
+                    </div>
+                    <button id="close-modal" class="text-gray-400 hover:text-gray-600 text-2xl">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <!-- Modal Content -->
+                <div class="space-y-6">
+                    <!-- When to use -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                            <i class="fas fa-compass mr-2 text-blue-500"></i>When to use
+                        </h3>
+                        <p id="modal-when-to-use" class="text-gray-700 leading-relaxed bg-blue-50 p-4 rounded-lg"></p>
+                    </div>
+
+                    <!-- Memory Content -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                            <i class="fas fa-lightbulb mr-2 text-yellow-500"></i>Memory
+                        </h3>
+                        <p id="modal-content" class="text-gray-700 leading-relaxed bg-yellow-50 p-4 rounded-lg"></p>
+                    </div>
+
+                    <!-- Metadata -->
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                            <i class="fas fa-info-circle mr-2 text-gray-500"></i>Metadata
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span class="font-medium text-gray-600">Author:</span>
+                                <span id="modal-author" class="ml-2 text-gray-800"></span>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">Created:</span>
+                                <span id="modal-created" class="ml-2 text-gray-800"></span>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">Memory ID:</span>
+                                <span id="modal-id" class="ml-2 text-gray-800 font-mono text-xs"></span>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">Workspace:</span>
+                                <span id="modal-workspace" class="ml-2 text-gray-800"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="mt-8 flex justify-end">
+                    <button id="close-modal-btn" class="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 py-8 mt-16">
+        <div class="container mx-auto px-6 text-center text-gray-600">
+            <p>
+                <i class="fas fa-code mr-2"></i>
+                Built for AI agent memory generation and reuse •
+                <a href="https://github.com/modelscope/MemoryScope" class="text-blue-500 hover:text-blue-600">
+                    View on GitHub
+                </a>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        let allMemories = [];
+        let librariesData = {};
+        let currentView = 'libraries'; // 'libraries' or 'memories'
+        let currentLibrary = null;
+
+        // GitHub API configuration
+        const GITHUB_USER = 'modelscope';
+        const REPO_NAME = 'MemoryScope';
+        const MEMORY_FOLDER = 'library';
+
+        // DOM elements
+        const loadingEl = document.getElementById('loading');
+        const errorEl = document.getElementById('error');
+        const resultsInfoEl = document.getElementById('results-info');
+        const librariesContainer = document.getElementById('libraries-container');
+        const memoriesContainer = document.getElementById('memories-container');
+        const noResultsEl = document.getElementById('no-results');
+        const searchInput = document.getElementById('search-input');
+        const clearFiltersBtn = document.getElementById('clear-filters');
+        const totalMemoriesEl = document.getElementById('total-memories');
+        const totalLibrariesEl = document.getElementById('total-libraries');
+        const resultsCountEl = document.getElementById('results-count');
+        const totalCountEl = document.getElementById('total-count');
+        const resultsTypeEl = document.getElementById('results-type');
+        const breadcrumbEl = document.getElementById('breadcrumb');
+        const backButtonEl = document.getElementById('back-button');
+        const headerSubtitleEl = document.getElementById('header-subtitle');
+
+        // Modal elements
+        const memoryModal = document.getElementById('memory-modal');
+        const closeModalBtn = document.getElementById('close-modal');
+        const closeModalBtnFooter = document.getElementById('close-modal-btn');
+
+        // Load memories on page load
+        document.addEventListener('DOMContentLoaded', loadMemories);
+
+        // Event listeners
+        searchInput.addEventListener('input', debounce(handleSearch, 300));
+        clearFiltersBtn.addEventListener('click', clearAllFilters);
+        backButtonEl.addEventListener('click', showLibrariesView);
+        closeModalBtn.addEventListener('click', closeModal);
+        closeModalBtnFooter.addEventListener('click', closeModal);
+        memoryModal.addEventListener('click', (e) => {
+            if (e.target === memoryModal) closeModal();
+        });
+
+        async function loadMemories() {
+            try {
+                showLoading();
+
+                // const baseUrl = `https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/${MEMORY_FOLDER}`;
+                const baseUrl = `./library/`;
+
+                const knownFiles = [
+                    'appworld.jsonl',
+                    'bfcl_v3.jsonl',
+                    // 在这里添加你的其他 JSONL 文件名
+                ];
+
+                console.log('开始加载记忆库文件...');
+
+                const memoryPromises = knownFiles.map(async (fileName) => {
+                    try {
+                        const fileUrl = `${baseUrl}/${fileName}`;
+                        console.log(`加载文件: ${fileUrl}`);
+
+                        const fileResponse = await fetch(fileUrl);
+
+                        if (!fileResponse.ok) {
+                            console.warn(`文件 ${fileName} 加载失败: ${fileResponse.status}`);
+                            return [];
+                        }
+
+                        const content = await fileResponse.text();
+                        console.log(`文件 ${fileName} 加载成功, 大小: ${content.length} 字符`);
+
+                        const memories = content
+                            .split('\n')
+                            .filter(line => line.trim())
+                            .map(line => {
+                                try {
+                                    const memory = JSON.parse(line);
+                                    memory._library = fileName.replace('.jsonl', '');
+                                    return memory;
+                                } catch (e) {
+                                    console.warn('解析失败的行:', line.substring(0, 100));
+                                    return null;
+                                }
+                            })
+                            .filter(mem => mem !== null);
+
+                        console.log(`文件 ${fileName} 解析出 ${memories.length} 条记忆`);
+                        return memories;
+
+                    } catch (error) {
+                        console.error(`加载文件 ${fileName} 时出错:`, error);
+                        return [];
+                    }
+                });
+
+                const memoryArrays = await Promise.all(memoryPromises);
+                allMemories = memoryArrays.flat();
+
+                console.log(`总共加载了 ${allMemories.length} 条记忆`);
+
+                if (allMemories.length === 0) {
+                    throw new Error('没有成功加载任何记忆数据');
+                }
+
+                // Group memories by library
+                librariesData = allMemories.reduce((acc, mem) => {
+                    const libName = mem._library;
+                    if (!acc[libName]) {
+                        acc[libName] = [];
+                    }
+                    acc[libName].push(mem);
+                    return acc;
+                }, {});
+
+                // Update stats
+                totalMemoriesEl.textContent = allMemories.length;
+                totalLibrariesEl.textContent = Object.keys(librariesData).length;
+
+                // Show libraries view
+                showLibrariesView();
+                hideLoading();
+
+            } catch (error) {
+                console.error('Error loading memories:', error);
+                showError();
+            }
+        }
+
+        function showLibrariesView() {
+            currentView = 'libraries';
+            currentLibrary = null;
+            breadcrumbEl.classList.add('hidden');
+            headerSubtitleEl.textContent = 'Remember me - Empowering agents with memory libraries';
+            searchInput.placeholder = 'Search libraries...';
+
+            displayLibraries();
+        }
+
+        function showMemoriesView(libraryName) {
+            currentView = 'memories';
+            currentLibrary = libraryName;
+            breadcrumbEl.classList.remove('hidden');
+            headerSubtitleEl.textContent = `Exploring ${libraryName} memory library`;
+            searchInput.placeholder = 'Search memories in this library...';
+
+            displayMemories(librariesData[libraryName]);
+        }
+
+        function displayLibraries(filteredLibraries = null) {
+            const libraries = filteredLibraries || Object.keys(librariesData);
+
+            if (libraries.length === 0) {
+                showNoResults();
+                return;
+            }
+
+            librariesContainer.innerHTML = libraries.map(libName => {
+                const memories = librariesData[libName];
+                const sampleMem = memories[0];
+
+                return `
+                    <div class="library-card bg-white rounded-lg shadow-sm p-6 fade-in"
+                         onclick="showMemoriesView('${libName}')">
+                        <!-- Header -->
+                        <div class="flex items-start justify-between mb-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-database text-white text-xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-900">${libName}</h3>
+                                    <p class="text-sm text-gray-500">${memories.length} memories</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+
+                        <!-- Sample Content -->
+                        <div class="mb-4">
+                            <h4 class="text-sm font-medium text-gray-700 mb-2">Sample Memory:</h4>
+                            <p class="text-gray-600 text-sm leading-relaxed truncate-text">
+                                ${truncateText(sampleMem.when_to_use || sampleMem.content || 'No description available', 120)}
+                            </p>
+                        </div>
+
+                        <!-- Stats -->
+                        <div class="flex items-center justify-between text-xs text-gray-500 pt-4 border-t border-gray-100">
+                            <span>
+                                <i class="fas fa-user mr-1"></i>
+                                ${sampleMem.author || 'Unknown'}
+                            </span>
+                            <span>
+                                <i class="fas fa-lightbulb mr-1"></i>
+                                ${memories.length} insights
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            showResults('libraries');
+            resultsCountEl.textContent = libraries.length;
+            totalCountEl.textContent = Object.keys(librariesData).length;
+        }
+
+        function displayMemories(memories) {
+            if (memories.length === 0) {
+                showNoResults();
+                return;
+            }
+
+            memoriesContainer.innerHTML = memories.map((memory, index) => `
+                <div class="memory-card bg-white rounded-lg shadow-sm p-6 fade-in"
+                     onclick="showMemoryDetail('${currentLibrary}', ${index})">
+                    <!-- Header -->
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex items-center space-x-2">
+                            <span class="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                                ${memory._library}
+                            </span>
+                            ${memory.score ? `
+                                <span class="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                                    Score: ${memory.score}
+                                </span>
+                            ` : ''}
+                        </div>
+                        <i class="fas fa-eye text-gray-400"></i>
+                    </div>
+
+                    <!-- When to use -->
+                    <div class="mb-4">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-2">
+                            <i class="fas fa-compass mr-1"></i>When to use:
+                        </h3>
+                        <p class="text-gray-600 text-sm leading-relaxed truncate-text">
+                            ${truncateText(memory.when_to_use || 'No specific guidance provided', 100)}
+                        </p>
+                    </div>
+
+                    <!-- Content Preview -->
+                    <div class="mb-4">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-2">
+                            <i class="fas fa-quote-left mr-1"></i>Memory:
+                        </h3>
+                        <p class="text-gray-800 text-sm leading-relaxed truncate-text">
+                            ${truncateText(memory.content || 'No content available', 150)}
+                        </p>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="flex items-center justify-between text-xs text-gray-500 pt-4 border-t border-gray-100">
+                        <div class="flex items-center space-x-4">
+                            <span>
+                                <i class="fas fa-user mr-1"></i>
+                                ${memory.author || 'Unknown'}
+                            </span>
+                        </div>
+                        <span class="text-blue-500 font-medium">
+                            Click to view details <i class="fas fa-arrow-right ml-1"></i>
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+
+            showResults('memories');
+            resultsCountEl.textContent = memories.length;
+            totalCountEl.textContent = memories.length;
+        }
+
+        function showMemoryDetail(libraryName, index) {
+            const memory = librariesData[libraryName][index];
+
+            // Populate modal content
+            document.getElementById('modal-library').textContent = memory._library;
+            document.getElementById('modal-when-to-use').textContent = memory.when_to_use || 'No specific guidance provided';
+            document.getElementById('modal-content').textContent = memory.content || 'No content available';
+            document.getElementById('modal-author').textContent = memory.author || 'Unknown';
+            document.getElementById('modal-created').textContent = memory.time_created ?
+                new Date(memory.time_created).toLocaleDateString() : 'Unknown';
+            document.getElementById('modal-id').textContent = memory.memory_id || 'N/A';
+            document.getElementById('modal-workspace').textContent = memory.workspace_id || 'N/A';
+
+            // Show/hide score
+            const scoreEl = document.getElementById('modal-score');
+            if (memory.score) {
+                scoreEl.textContent = `Score: ${memory.score}`;
+                scoreEl.classList.remove('hidden');
+            } else {
+                scoreEl.classList.add('hidden');
+            }
+
+            // Show modal
+            memoryModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            memoryModal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        function handleSearch() {
+            const searchTerm = searchInput.value.toLowerCase().trim();
+
+            if (currentView === 'libraries') {
+                if (!searchTerm) {
+                    displayLibraries();
+                    return;
+                }
+
+                const filteredLibraries = Object.keys(librariesData).filter(libName => {
+                    const library = librariesData[libName];
+                    return libName.toLowerCase().includes(searchTerm) ||
+                           library.some(mem =>
+                               (mem.when_to_use || '').toLowerCase().includes(searchTerm) ||
+                               (mem.content || '').toLowerCase().includes(searchTerm)
+                           );
+                });
+
+                displayLibraries(filteredLibraries);
+            } else {
+                const memories = librariesData[currentLibrary];
+                if (!searchTerm) {
+                    displayMemories(memories);
+                    return;
+                }
+
+                const filteredMemories = memories.filter(mem =>
+                    (mem.when_to_use || '').toLowerCase().includes(searchTerm) ||
+                    (mem.content || '').toLowerCase().includes(searchTerm) ||
+                    (mem.author || '').toLowerCase().includes(searchTerm)
+                );
+
+                displayMemories(filteredMemories);
+            }
+        }
+
+        function clearAllFilters() {
+            searchInput.value = '';
+            if (currentView === 'libraries') {
+                displayLibraries();
+            } else {
+                displayMemories(librariesData[currentLibrary]);
+            }
+        }
+
+        function truncateText(text, maxLength) {
+            if (text.length <= maxLength) return text;
+            return text.substring(0, maxLength) + '...';
+        }
+
+        // Utility functions
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // UI state management
+        function showLoading() {
+            loadingEl.classList.remove('hidden');
+            errorEl.classList.add('hidden');
+            resultsInfoEl.classList.add('hidden');
+            librariesContainer.classList.add('hidden');
+            memoriesContainer.classList.add('hidden');
+            noResultsEl.classList.add('hidden');
+        }
+
+        function hideLoading() {
+            loadingEl.classList.add('hidden');
+        }
+
+        function showError() {
+            loadingEl.classList.add('hidden');
+            errorEl.classList.remove('hidden');
+            resultsInfoEl.classList.add('hidden');
+            librariesContainer.classList.add('hidden');
+            memoriesContainer.classList.add('hidden');
+            noResultsEl.classList.add('hidden');
+        }
+
+        function showResults(type) {
+            resultsInfoEl.classList.remove('hidden');
+            noResultsEl.classList.add('hidden');
+
+            if (type === 'libraries') {
+                librariesContainer.classList.remove('hidden');
+                memoriesContainer.classList.add('hidden');
+                resultsTypeEl.textContent = 'libraries';
+            } else {
+                librariesContainer.classList.add('hidden');
+                memoriesContainer.classList.remove('hidden');
+                resultsTypeEl.textContent = 'memories';
+            }
+        }
+
+        function showNoResults() {
+            resultsInfoEl.classList.add('hidden');
+            librariesContainer.classList.add('hidden');
+            memoriesContainer.classList.add('hidden');
+            noResultsEl.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

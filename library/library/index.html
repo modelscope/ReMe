@@ -36,11 +36,11 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Welcome - ReMe</title>
+    <title>Library Home - ReMe</title>
     
 
 
-<title>Welcome to ReMe</title>
+<title>Library Home</title>
 
 
 
@@ -50,18 +50,18 @@
 
 
 
-<link rel="canonical" href="https://github.com/modelscope/ReMe/">
+<link rel="canonical" href="https://github.com/modelscope/ReMe/library/library/">
 
 
 <!-- Open Graph (Facebook, LinkedIn) -->
 
-<meta property="og:title" content="Welcome to ReMe">
+<meta property="og:title" content="Library Home">
 
 
 
 
 
-<meta property="og:url" content="https://github.com/modelscope/ReMe/">
+<meta property="og:url" content="https://github.com/modelscope/ReMe/library/library/">
 
 
 
@@ -70,7 +70,7 @@
 
 <!-- Twitter Card -->
 
-<meta name="twitter:title" content="Welcome to ReMe">
+<meta name="twitter:title" content="Library Home">
 
 
 
@@ -81,18 +81,18 @@
 
 
 
-    <link rel="icon" href="img/favicon.ico">
+    <link rel="icon" href="../../img/favicon.ico">
 
-    <link href="css/base.css" rel="stylesheet">
-    <link href="css/geist.css" rel="stylesheet">
+    <link href="../../css/base.css" rel="stylesheet">
+    <link href="../../css/geist.css" rel="stylesheet">
 
     
     
 
 <link id="pygments-light" rel="stylesheet"
-    href="css/pygments/shadcn-light.css">
+    href="../../css/pygments/shadcn-light.css">
 <link id="pygments-dark" rel="stylesheet"
-    href="css/pygments/github-dark.css"
+    href="../../css/pygments/github-dark.css"
     media="(prefers-color-scheme: dark)">
 
 
@@ -100,15 +100,15 @@
 
     
 
-    <script src="js/callbacks.js"></script>
+    <script src="../../js/callbacks.js"></script>
 
     
     <!-- katex -->
-<link rel="stylesheet" href="css/katex.min.css">
+<link rel="stylesheet" href="../../css/katex.min.css">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
-<script defer src="js/katex.min.js"></script>
+<script defer src="../../js/katex.min.js"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
-<script defer src="js/auto-render.min.js"
+<script defer src="../../js/auto-render.min.js"
     onload='renderMathInElement(document.body, "{}");'></script>
     
 
@@ -469,7 +469,7 @@
                 
                 
                 <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
-    <a data-slot="sidebar-menu-button" data-active="true" data-sidebar="menu-button"
+    <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
         data-size="default" href="/modelscope/ReMe/"
         class="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground peer/menu-button flex items-center gap-2 rounded-md p-2 text-left outline-hidden ring-sidebar-ring transition-[width,height,padding] focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 data-[active=true]:bg-accent data-[active=true]:border-accent 3xl:fixed:w-full 3xl:fixed:max-w-48 relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md">
 
@@ -520,7 +520,7 @@
             <ul data-slot="sidebar-menu" data-sidebar="menu" class="flex w-full min-w-0 flex-col gap-0.5">
                 
                 <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
-    <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
+    <a data-slot="sidebar-menu-button" data-active="true" data-sidebar="menu-button"
         data-size="default" href="/modelscope/ReMe/library/library/"
         class="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground peer/menu-button flex items-center gap-2 rounded-md p-2 text-left outline-hidden ring-sidebar-ring transition-[width,height,padding] focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 data-[active=true]:bg-accent data-[active=true]:border-accent 3xl:fixed:w-full 3xl:fixed:max-w-48 relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md">
 
@@ -767,15 +767,28 @@
             <div id="page-header" class="flex items-start justify-between">
 
                 <h1 class="scroll-m-20 text-4xl font-semibold tracking-tight sm:text-3xl xl:text-4xl">
-                    Welcome to ReMe
+                    Library Home
                 </h1>
 
                 <div class="flex items-center gap-2 pt-1.5">
                     
+                    <a data-slot="button" id="previous-button"
+                        class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 extend-touch-target size-8 shadow-none md:size-7"
+                        href="/modelscope/ReMe/">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="tabler-icon tabler-icon-arrow-left ">
+                            <path d="M5 12l14 0"></path>
+                            <path d="M5 12l6 6"></path>
+                            <path d="M5 12l6 -6"></path>
+                        </svg>
+                        <span class="sr-only">Previous</span>
+                    </a>
+                    
                     
                     <a data-slot="button" id="next-button"
                         class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 extend-touch-target size-8 shadow-none md:size-7"
-                        href="/modelscope/ReMe/library/library/">
+                        href="/modelscope/ReMe/personal_memory/personal_memory/">
                         <span class="sr-only">Next</span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -789,491 +802,478 @@
                 </div>
             </div>
             
-            <p id="summary" class="text-muted-foreground text-[1.05rem] text-balance sm:text-base">
-                Memory Management Framework for Agents
-            </p>
-            
         </div>
         <div class="flex justify-end items-center">
             
-            
-            <div class="grow text-muted-foreground pt-4 flex flex-row justify-end items-center">
-    <span id="updated_at" class="text-sm opacity-50 hover:opacity-100 transition-opacity duration-200"
-        title="last update (local time)"></span>
-</div>
-
-<script>
-    const updatedAt = document.getElementById("updated_at");
-    if (updatedAt) {
-        const date = new Date('2025-09-15T14:51:03+08:00');
-        updatedAt.textContent = date.toLocaleDateString();
-    }
-</script>
-
             
         </div>
 
     </div>
     <div class="typography w-full flex-1 *:data-[slot=alert]:first:mt-0">
-        <p align="center">
- <img src="figure/reme_logo.png" alt="ReMe Logo" width="50%">
-</p>
+        <div id="memory-lib-root" class="ml-prose-container">
+  <!-- 工具条 -->
+  <div class="ml-card">
+    <div class="ml-toolbar">
+      <div class="ml-input-wrap">
+        <svg class="ml-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+        </svg>
+        <input id="ml-search" placeholder="Search libraries or memories..." />
+      </div>
+      <button id="ml-clear" class="ml-btn secondary">Clear</button>
+    </div>
+    <div id="ml-stats" class="ml-stats" hidden>
+      <span>Showing <b id="ml-count">0</b> of <b id="ml-total">0</b> <span id="ml-type">items</span></span>
+    </div>
+  </div>
 
-<p align="center">
-  <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python Version"></a>
-  <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/pypi-v0.1-blue?logo=pypi" alt="PyPI Version"></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black" alt="License"></a>
-  <a href="https://github.com/modelscope/ReMe"><img src="https://img.shields.io/github/stars/modelscope/ReMe?style=social" alt="GitHub Stars"></a>
-</p>
+  <!-- 加载/错误 -->
+  <div id="ml-loading" class="ml-loading">
+    <div class="ml-spinner" aria-label="Loading"></div>
+    <div class="ml-muted">Loading memory library…</div>
+  </div>
+  <div id="ml-error" class="ml-error" hidden>
+    <div class="ml-error-icon">⚠️</div>
+    <div class="ml-muted">Failed to load memory library.</div>
+    <button id="ml-retry" class="ml-btn">Try again</button>
+  </div>
 
-<p align="center">
-  <strong>ReMe (formerly MemoryScope): Memory Management Framework for Agents</strong><br>
-  <em>Remember Me, Refine Me.</em>
-</p>
+  <!-- 面包屑 -->
+  <div id="ml-crumb" class="ml-crumb" hidden>
+    <button id="ml-back" class="ml-link">← Back to Libraries</button>
+    <div class="ml-crumb-title" id="ml-crumb-title">Libraries</div>
+  </div>
 
-<hr />
-<p>ReMe provides AI agents with a unified memory system—enabling the ability to extract, reuse, and share memories across
-users, tasks, and agents.</p>
-<div class="codehilite"><pre><span></span><code>Personal Memory + Task Memory = Agent Memory
-</code></pre></div>
+  <!-- 列表容器 -->
+  <div id="ml-libraries" class="ml-grid" hidden></div>
+  <div id="ml-memories" class="ml-grid" hidden></div>
 
-<p>Personal memory helps "<strong>understand user preferences</strong>", while task memory helps agents "<strong>perform better</strong>".</p>
-<hr />
-<h2 id="latest-updates">📰 Latest Updates</h2>
-<ul>
-<li><strong>[2025-09]</strong> 🎉 ReMe v0.1.8 has been officially released, adding support for asynchronous operations. It has also been
-  integrated into the memory service of agentscope-runtime.</li>
-<li><strong>[2025-09]</strong> 🎉 ReMe v0.1 officially released, integrating task memory and personal memory. If you want to use the
-  original memoryscope project, you can find it
-  in <a href="https://github.com/modelscope/Reme/tree/memoryscope_branch">MemoryScope</a>.</li>
-<li><strong>[2025-09]</strong> 🧪 We validated the effectiveness of task memory extraction and reuse in agents in appworld, bfcl(v3),
-  and frozenlake environments. For more information,
-  check <a href="./cookbook/appworld/quickstart.md">appworld exp</a>, <a href="./cookbook/bfcl/quickstart.md">bfcl exp</a>,
-  and <a href="./cookbook/frozenlake/quickstart.md">frozenlake exp</a>.</li>
-<li><strong>[2025-08]</strong> 🚀 MCP protocol support is now available -&gt; <a href="mcp_quick_start/">MCP Quick Start</a>.</li>
-<li><strong>[2025-06]</strong> 🚀 Multiple backend vector storage support (Elasticsearch &amp;
-  ChromaDB) -&gt; <a href="docs/vector_store_api_guide.md">Vector DB quick start</a>.</li>
-<li><strong>[2024-09]</strong> 🧠 <a href="https://github.com/modelscope/Reme/tree/memoryscope_branch">MemoryScope</a> v0.1 released,
-  personalized and time-aware memory storage and usage.</li>
-</ul>
-<hr />
-<h2 id="architecture-design">✨ Architecture Design</h2>
-<p align="center">
- <img src="figure/reme_structure.jpg" alt="ReMe Logo" width="100%">
-</p>
+  <!-- 空态 -->
+  <div id="ml-empty" class="ml-empty" hidden>
+    <div class="ml-empty-icon">🔎</div>
+    <div class="ml-muted">No results found. Try changing your search.</div>
+  </div>
+</div>
 
-<p>ReMe integrates two complementary memory capabilities:</p>
-<h4 id="task-memoryexperience">🧠 <strong>Task Memory/Experience</strong></h4>
-<p>Procedural knowledge reused across agents</p>
-<ul>
-<li><strong>Success Pattern Recognition</strong>: Identify effective strategies and understand their underlying principles</li>
-<li><strong>Failure Analysis Learning</strong>: Learn from mistakes and avoid repeating the same issues</li>
-<li><strong>Comparative Patterns</strong>: Different sampling trajectories provide more valuable memories through comparison</li>
-<li><strong>Validation Patterns</strong>: Confirm the effectiveness of extracted memories through validation modules</li>
-</ul>
-<p>Learn more about how to use task memory from <a href="task_memory/task_memory/">task memory</a></p>
-<h4 id="personal-memory">👤 <strong>Personal Memory</strong></h4>
-<p>Contextualized memory for specific users</p>
-<ul>
-<li><strong>Individual Preferences</strong>: User habits, preferences, and interaction styles</li>
-<li><strong>Contextual Adaptation</strong>: Intelligent memory management based on time and context</li>
-<li><strong>Progressive Learning</strong>: Gradually build deep understanding through long-term interaction</li>
-<li><strong>Time Awareness</strong>: Time sensitivity in both retrieval and integration</li>
-</ul>
-<p>Learn more about how to use personal memory from <a href="personal_memory/personal_memory/">personal memory</a></p>
-<hr />
-<h2 id="installation">🛠️ Installation</h2>
-<h3 id="install-from-pypi-recommended">Install from PyPI (Recommended)</h3>
-<div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>reme-ai
-</code></pre></div>
+<!-- 详情弹窗 -->
+<p><dialog id="ml-modal" class="ml-modal">
+<br />
+<form method="dialog" class="ml-modal-card">
+    <div class="ml-modal-header">
+      <div>
+        <div class="ml-chip" id="ml-modal-lib"></div>
+        <div class="ml-chip success" id="ml-modal-score" hidden></div>
+      </div>
+      <button class="ml-close" aria-label="Close">✕</button>
+    </div>
 
-<h3 id="install-from-source">Install from Source</h3>
-<div class="codehilite"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/modelscope/ReMe.git
-<span class="nb">cd</span><span class="w"> </span>ReMe
-pip<span class="w"> </span>install<span class="w"> </span>.
-</code></pre></div>
+    <div class="ml-modal-section">
+      <div class="ml-section-title">When to use</div>
+      <div class="ml-code" id="ml-modal-when"></div>
+    </div>
 
-<h3 id="environment-configuration">Environment Configuration</h3>
-<p>Copy <code>example.env</code> to .env and modify the corresponding parameters:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># Required: LLM API Configuration</span>
-<span class="nv">FLOW_LLM_API_KEY</span><span class="o">=</span>sk-xxxx
-<span class="nv">FLOW_LLM_BASE_URL</span><span class="o">=</span>https://xxxx/v1
+    <div class="ml-modal-section">
+      <div class="ml-section-title">Memory</div>
+      <div class="ml-note" id="ml-modal-content"></div>
+    </div>
 
-<span class="c1"># Required: Embedding Model Configuration  </span>
-<span class="nv">FLOW_EMBEDDING_API_KEY</span><span class="o">=</span>sk-xxxx
-<span class="nv">FLOW_EMBEDDING_BASE_URL</span><span class="o">=</span>https://xxxx/v1
-</code></pre></div>
+    <div class="ml-modal-section">
+      <div class="ml-section-title">Metadata</div>
+      <div class="ml-meta">
+        <div><span>Author</span><b id="ml-modal-author"></b></div>
+        <div><span>Created</span><b id="ml-modal-created"></b></div>
+        <div><span>Memory ID</span><b id="ml-modal-id" class="mono"></b></div>
+        <div><span>Workspace</span><b id="ml-modal-ws" class="mono"></b></div>
+      </div>
+    </div>
 
-<hr />
-<h2 id="quick-start">🚀 Quick Start</h2>
-<h3 id="http-service-startup">HTTP Service Startup</h3>
-<div class="codehilite"><pre><span></span><code>reme<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span><span class="nv">backend</span><span class="o">=</span>http<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>http.port<span class="o">=</span><span class="m">8002</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>llm.default.model_name<span class="o">=</span>qwen3-30b-a3b-thinking-2507<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>embedding_model.default.model_name<span class="o">=</span>text-embedding-v4<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>vector_store.default.backend<span class="o">=</span><span class="nb">local</span>
-</code></pre></div>
+    <div class="ml-modal-footer">
+      <button class="ml-btn secondary" value="cancel">Close</button>
+    </div>
+  </form></p>
+<p></dialog></p>
+<style>
+/* —— 基于 shadcn/mkdocs 主题变量，尽量少写硬编码颜色 —— */
+:root {
+  --ml-radius: .75rem;
+  --ml-gap: 1rem;
+  --ml-shadow: 0 6px 24px rgba(0,0,0,.08);
+}
+@media (prefers-color-scheme: dark) {
+  /* 主题会处理色板，这里不额外覆盖 */
+}
 
-<h3 id="mcp-server-support">MCP Server Support</h3>
-<div class="codehilite"><pre><span></span><code>reme<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span><span class="nv">backend</span><span class="o">=</span>mcp<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>mcp.transport<span class="o">=</span>stdio<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>llm.default.model_name<span class="o">=</span>qwen3-30b-a3b-thinking-2507<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>embedding_model.default.model_name<span class="o">=</span>text-embedding-v4<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>vector_store.default.backend<span class="o">=</span><span class="nb">local</span>
-</code></pre></div>
+/* 容器与卡片 */
+.ml-prose-container { display: grid; gap: var(--ml-gap); }
+.ml-card {
+  background: var(--background, #fff);
+  color: var(--foreground, #0a0a0a);
+  border: 1px solid var(--border, rgba(0,0,0,.08));
+  border-radius: var(--ml-radius);
+  padding: 1rem;
+  box-shadow: var(--shadow, 0 1px 0 rgba(0,0,0,.02));
+}
+.ml-grid {
+  display: grid;
+  gap: var(--ml-gap);
+  grid-template-columns: repeat(1, minmax(0,1fr));
+}
+@media (min-width: 640px){ .ml-grid{ grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media (min-width: 1024px){ .ml-grid{ grid-template-columns: repeat(3, minmax(0,1fr)); } }
 
-<h3 id="core-api-usage">Core API Usage</h3>
-<h4 id="task-memory-management">Task Memory Management</h4>
-<div class="codehilite"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
+.ml-card-item{
+  background: var(--card, var(--background, #fff));
+  border: 1px solid var(--border, rgba(0,0,0,.08));
+  border-radius: var(--ml-radius);
+  padding: 1rem;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  cursor: pointer;
+}
+.ml-card-item:hover{
+  transform: translateY(-2px);
+  box-shadow: var(--ml-shadow);
+  border-color: var(--primary, #3b82f6);
+}
+.ml-card-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:.75rem; margin-bottom:.5rem; }
+.ml-card-title{ font-weight: 650; font-size: 1rem; }
+.ml-card-sub{ font-size: .85rem; opacity: .7; }
+.ml-card-sample{ margin-top:.5rem; font-size:.92rem; line-height:1.5; opacity:.9; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.ml-card-foot{ display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border, rgba(0,0,0,.08)); padding-top:.5rem; margin-top:.75rem; font-size:.85rem; opacity:.8; }
 
-<span class="c1"># Experience Summarizer: Learn from execution trajectories</span>
-<span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;http://localhost:8002/summary_task_memory&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="p">{</span>
-    <span class="s2">&quot;workspace_id&quot;</span><span class="p">:</span> <span class="s2">&quot;task_workspace&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;trajectories&quot;</span><span class="p">:</span> <span class="p">[</span>
-        <span class="p">{</span><span class="s2">&quot;messages&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Help me create a project plan&quot;</span><span class="p">}],</span> <span class="s2">&quot;score&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">}</span>
-    <span class="p">]</span>
-<span class="p">})</span>
+/* 工具条与输入 */
+.ml-toolbar{ display:flex; gap:.75rem; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+.ml-input-wrap{ position:relative; flex:1; min-width: 260px; }
+.ml-input-wrap input{
+  width:100%; padding:.6rem .9rem .6rem 2.2rem; border-radius:.6rem;
+  border:1px solid var(--border, rgba(0,0,0,.12));
+  background: var(--muted, rgba(0,0,0,.02));
+  color: var(--foreground, #0a0a0a);
+  outline:none;
+}
+.ml-input-wrap input:focus{
+  border-color: var(--primary, #3b82f6);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary, #3b82f6) 22%, transparent);
+  background: var(--background, #fff);
+}
+.ml-icon{ position:absolute; left:.6rem; top:50%; transform:translateY(-50%); width:1.1rem; height:1.1rem; opacity:.6; }
 
-<span class="c1"># Retriever: Get relevant memories</span>
-<span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;http://localhost:8002/retrieve_task_memory&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="p">{</span>
-    <span class="s2">&quot;workspace_id&quot;</span><span class="p">:</span> <span class="s2">&quot;task_workspace&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="s2">&quot;How to efficiently manage project progress?&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;top_k&quot;</span><span class="p">:</span> <span class="mi">1</span>
-<span class="p">})</span>
-</code></pre></div>
+.ml-btn{
+  border:1px solid var(--border, rgba(0,0,0,.12));
+  background: var(--accent, var(--background, #fff));
+  color: var(--foreground, #0a0a0a);
+  padding:.55rem .9rem; border-radius:.55rem; cursor:pointer;
+}
+.ml-btn.secondary{ background: var(--muted, rgba(0,0,0,.03)); }
+.ml-btn:hover{ border-color: var(--primary, #3b82f6); }
 
-<details>
-<summary>curl version</summary>
+/* 统计/面包屑 */
+.ml-stats{ margin-top:.5rem; font-size:.9rem; opacity:.8; }
+.ml-crumb{ display:flex; align-items:center; gap:.75rem; }
+.ml-link{ background:none; border:none; color: var(--primary, #3b82f6); cursor:pointer; padding:.25rem .5rem; border-radius:.4rem; }
+.ml-link:hover{ text-decoration: underline; }
+.ml-crumb-title{ font-weight:600; opacity:.8; }
 
+/* 状态区 */
+.ml-loading, .ml-error, .ml-empty{ display:grid; justify-items:center; gap:.5rem; padding:3rem 1rem; }
+.ml-spinner{
+  width:38px; height:38px; border-radius:999px; border:3px solid color-mix(in srgb, var(--foreground,#000) 12%, transparent);
+  border-top-color: var(--primary,#3b82f6); animation: ml-spin 1s linear infinite;
+}
+@keyframes ml-spin{ to{ transform: rotate(360deg); } }
+.ml-muted{ opacity:.7; }
+.ml-error-icon{ font-size:1.4rem; }
 
-<div class="codehilite"><pre><span></span><code><span class="c1"># Experience Summarizer: Learn from execution trajectories</span>
-curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8002/summary_task_memory<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
-<span class="s1">    &quot;workspace_id&quot;: &quot;task_workspace&quot;,</span>
-<span class="s1">    &quot;trajectories&quot;: [</span>
-<span class="s1">      {&quot;messages&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Help me create a project plan&quot;}], &quot;score&quot;: 1.0}</span>
-<span class="s1">    ]</span>
-<span class="s1">  }&#39;</span>
+/* 标签/块 */
+.ml-chip{ display:inline-block; padding:.25rem .55rem; border-radius:999px; font-size:.78rem;
+  background: color-mix(in srgb, var(--primary,#3b82f6) 12%, transparent); color: var(--primary,#3b82f6);
+}
+.ml-chip.success{
+  background: color-mix(in srgb, #16a34a 14%, transparent);
+  color: #16a34a;
+}
+.ml-code{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  background: var(--muted, rgba(0,0,0,.04)); border:1px solid var(--border, rgba(0,0,0,.08));
+  padding:.75rem; border-radius:.6rem; white-space:pre-wrap;
+}
+.ml-note{
+  background: color-mix(in srgb, #f59e0b 9%, transparent);
+  border:1px solid color-mix(in srgb, #f59e0b 28%, transparent);
+  padding:.75rem; border-radius:.6rem;
+}
 
-<span class="c1"># Retriever: Get relevant memories</span>
-curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8002/retrieve_task_memory<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
-<span class="s1">    &quot;workspace_id&quot;: &quot;task_workspace&quot;,</span>
-<span class="s1">    &quot;query&quot;: &quot;How to efficiently manage project progress?&quot;,</span>
-<span class="s1">    &quot;top_k&quot;: 1</span>
-<span class="s1">  }&#39;</span>
-</code></pre></div>
+/* 元数据 */
+.ml-meta{ display:grid; grid-template-columns: repeat(1, minmax(0,1fr)); gap:.5rem; }
+@media (min-width: 640px){ .ml-meta{ grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.ml-meta > div{ display:flex; justify-content:space-between; align-items:center; padding:.5rem .75rem;
+  border:1px dashed var(--border, rgba(0,0,0,.12)); border-radius:.5rem; background: var(--background, #fff);
+}
+.ml-meta span{ opacity:.7; }
+.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 
+/* 弹窗 */
+.ml-modal{ padding:0; border:none; background: transparent; }
+.ml-modal[open]{ display:grid; align-items:center; justify-items:center; }
+.ml-modal::backdrop{ background: rgba(0,0,0,.45); }
+.ml-modal-card{
+  width:min(100%, 960px); max-height: 85vh; overflow:auto;
+  background: var(--background, #fff); color: var(--foreground,#0a0a0a);
+  border:1px solid var(--border, rgba(0,0,0,.1)); border-radius: var(--ml-radius);
+  padding: 1rem; box-shadow: var(--ml-shadow);
+}
+.ml-modal-header{ display:flex; justify-content:space-between; align-items:center; gap:.75rem; margin-bottom:.5rem; }
+.ml-close{ border:none; background:none; font-size:1.1rem; cursor:pointer; opacity:.6; }
+.ml-close:hover{ opacity:1; }
+.ml-modal-section{ display:grid; gap:.35rem; margin-top:.75rem; }
+.ml-section-title{ font-weight:650; opacity:.85; }
+.ml-modal-footer{ display:flex; justify-content:flex-end; margin-top:1rem; }
+</style>
 
+<script>
+(() => {
+  // —— State
+  let ALL = [];
+  let GROUPED = {};
+  let VIEW = "libraries"; // "libraries" | "memories"
+  let CURR = null;
 
-</details>
+  // —— DOM
+  const $ = (id) => document.getElementById(id);
+  const elLoading = $("ml-loading");
+  const elError = $("ml-error");
+  const elRetry = $("ml-retry");
+  const elLibraries = $("ml-libraries");
+  const elMemories = $("ml-memories");
+  const elEmpty = $("ml-empty");
+  const elSearch = $("ml-search");
+  const elClear = $("ml-clear");
+  const elStats = $("ml-stats");
+  const elCount = $("ml-count");
+  const elTotal = $("ml-total");
+  const elType = $("ml-type");
+  const elCrumb = $("ml-crumb");
+  const elBack = $("ml-back");
+  const elCrumbTitle = $("ml-crumb-title");
+  const dlg = $("ml-modal");
 
-<details>
-<summary>Node.js version</summary>
+  const mLib = $("ml-modal-lib");
+  const mScore = $("ml-modal-score");
+  const mWhen = $("ml-modal-when");
+  const mCont = $("ml-modal-content");
+  const mAuth = $("ml-modal-author");
+  const mCreated = $("ml-modal-created");
+  const mId = $("ml-modal-id");
+  const mWs = $("ml-modal-ws");
 
+  // —— Config：JSONL 文件位于本页同级目录（docs/library/）
+  const BASE = "..";
+  const FILES = [
+    "appworld.jsonl",
+    "bfcl_v3.jsonl",
+    // 需要的话在这里继续添加文件名
+  ];
 
-<div class="codehilite"><pre><span></span><code><span class="c1">// Experience Summarizer: Learn from execution trajectories</span>
-<span class="nx">fetch</span><span class="p">(</span><span class="s2">&quot;http://localhost:8002/summary_task_memory&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;POST&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">headers</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="s2">&quot;Content-Type&quot;</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="p">},</span>
-<span class="w">  </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="nb">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span>
-<span class="w">    </span><span class="nx">workspace_id</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;task_workspace&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">trajectories</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">      </span><span class="p">{</span><span class="nx">messages</span><span class="o">:</span><span class="w"> </span><span class="p">[{</span><span class="nx">role</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;user&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Help me create a project plan&quot;</span><span class="p">}],</span><span class="w"> </span><span class="nx">score</span><span class="o">:</span><span class="w"> </span><span class="mf">1.0</span><span class="p">}</span>
-<span class="w">    </span><span class="p">]</span>
-<span class="w">  </span><span class="p">})</span>
-<span class="p">})</span>
-<span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">response</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">response</span><span class="p">.</span><span class="nx">json</span><span class="p">())</span>
-<span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">data</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">data</span><span class="p">));</span>
+  // —— Utils
+  function show(el){ el.hidden = false; }
+  function hide(el){ el.hidden = true; }
+  function setLoading(on){
+    on ? (show(elLoading), [elError, elLibraries, elMemories, elEmpty, elStats, elCrumb].forEach(hide))
+       : hide(elLoading);
+  }
+  function setError(on){ on ? (show(elError), [elLoading].forEach(hide)) : hide(elError); }
+  function clampTxt(s, n){ if(!s) return ""; return s.length<=n? s : s.slice(0,n)+"…"; }
+  const fmtDate = (t)=> t ? new Date(t).toLocaleDateString() : "Unknown";
+  function debounce(fn, ms=250){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
 
-<span class="c1">// Retriever: Get relevant memories</span>
-<span class="nx">fetch</span><span class="p">(</span><span class="s2">&quot;http://localhost:8002/retrieve_task_memory&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;POST&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">headers</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="s2">&quot;Content-Type&quot;</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="p">},</span>
-<span class="w">  </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="nb">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span>
-<span class="w">    </span><span class="nx">workspace_id</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;task_workspace&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">query</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;How to efficiently manage project progress?&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">top_k</span><span class="o">:</span><span class="w"> </span><span class="mf">1</span>
-<span class="w">  </span><span class="p">})</span>
-<span class="p">})</span>
-<span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">response</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">response</span><span class="p">.</span><span class="nx">json</span><span class="p">())</span>
-<span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">data</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">data</span><span class="p">));</span>
-</code></pre></div>
+  // —— Data Loading
+  async function loadAll(){
+    setLoading(true); setError(false);
+    try{
+      const arr = await Promise.all(FILES.map(async f=>{
+        try{
+          const res = await fetch(`${BASE}/${f}`);
+          if(!res.ok) return [];
+          const txt = await res.text();
+          return txt.split("\n").filter(l=>l.trim()).map(line=>{
+            try{
+              const obj = JSON.parse(line);
+              obj._library = f.replace(/\.jsonl$/,"");
+              return obj;
+            }catch{ return null; }
+          }).filter(Boolean);
+        }catch{ return []; }
+      }));
+      ALL = arr.flat();
+      if(!ALL.length) throw new Error("no data");
+      GROUPED = ALL.reduce((acc,m)=>{
+        (acc[m._library] ||= []).push(m);
+        return acc;
+      }, {});
+      renderLibraries();
+    }catch(e){
+      setError(true);
+    }finally{
+      setLoading(false);
+    }
+  }
 
+  // —— Render
+  function renderLibraries(list){
+    VIEW = "libraries"; CURR = null;
+    hide(elMemories); hide(elEmpty); show(elLibraries);
+    hide(elCrumb);
+    elCrumbTitle.textContent = "Libraries";
+    elType.textContent = "libraries";
 
+    const libs = list ?? Object.keys(GROUPED);
+    if(!libs.length){ hide(elLibraries); show(elEmpty); hide(elStats); return; }
 
-</details>
+    elLibraries.innerHTML = libs.map(name=>{
+      const arr = GROUPED[name];
+      const sample = arr[0] || {};
+      const sampleText = sample.when_to_use || sample.content || "No description available";
+      const author = sample.author || "Unknown";
+      return `
+        <div class="ml-card-item" data-lib="${name}">
+          <div class="ml-card-head">
+            <div>
+              <div class="ml-card-title">${name}</div>
+              <div class="ml-card-sub">${arr.length} memories</div>
+            </div>
+            <div class="ml-chip">DB</div>
+          </div>
+          <div class="ml-card-sample">${clampTxt(sampleText, 180)}</div>
+          <div class="ml-card-foot">
+            <span>👤 ${author}</span>
+            <span>View →</span>
+          </div>
+        </div>
+      `;
+    }).join("");
 
-<h4 id="personal-memory-management">Personal Memory Management</h4>
-<div class="codehilite"><pre><span></span><code><span class="c1"># Memory Integration: Learn from user interactions</span>
-<span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;http://localhost:8002/summary_personal_memory&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="p">{</span>
-    <span class="s2">&quot;workspace_id&quot;</span><span class="p">:</span> <span class="s2">&quot;task_workspace&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;trajectories&quot;</span><span class="p">:</span> <span class="p">[</span>
-        <span class="p">{</span><span class="s2">&quot;messages&quot;</span><span class="p">:</span>
-            <span class="p">[</span>
-                <span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;I like to drink coffee while working in the morning&quot;</span><span class="p">},</span>
-                <span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;assistant&quot;</span><span class="p">,</span>
-                 <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;I understand, you prefer to start your workday with coffee to stay energized&quot;</span><span class="p">}</span>
-            <span class="p">]</span>
-        <span class="p">}</span>
-    <span class="p">]</span>
-<span class="p">})</span>
+    bindLibraryClicks();
+    show(elStats);
+    $("ml-count").textContent = libs.length;
+    $("ml-total").textContent = Object.keys(GROUPED).length;
+  }
 
-<span class="c1"># Memory Retrieval: Get personal memory fragments</span>
-<span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;http://localhost:8002/retrieve_personal_memory&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="p">{</span>
-    <span class="s2">&quot;workspace_id&quot;</span><span class="p">:</span> <span class="s2">&quot;task_workspace&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="s2">&quot;What are the user&#39;s work habits?&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;top_k&quot;</span><span class="p">:</span> <span class="mi">5</span>
-<span class="p">})</span>
-</code></pre></div>
+  function renderMemories(memList){
+    VIEW = "memories";
+    hide(elLibraries); hide(elEmpty); show(elMemories);
+    show(elCrumb);
+    elType.textContent = "memories";
+    elCrumbTitle.textContent = `Exploring ${CURR}`;
 
-<details>
-<summary>curl version</summary>
+    if(!memList?.length){ hide(elMemories); show(elEmpty); hide(elStats); return; }
+    elMemories.innerHTML = memList.map((m,idx)=>`
+      <div class="ml-card-item" data-idx="${idx}">
+        <div class="ml-card-head">
+          <div class="ml-chip">${m._library}</div>
+          ${m.score ? `<div class="ml-chip success">Score: ${m.score}</div>` : ""}
+        </div>
+        <div class="ml-card-sample"><b>When to use:</b> ${clampTxt(m.when_to_use || "No specific guidance provided", 140)}</div>
+        <div class="ml-card-foot">
+          <span>👤 ${m.author || "Unknown"}</span>
+          <span>Details →</span>
+        </div>
+      </div>
+    `).join("");
 
+    // 绑定卡片 → 打开弹窗
+    [...elMemories.querySelectorAll(".ml-card-item")].forEach(card=>{
+      card.addEventListener("click", ()=>{
+        const idx = Number(card.getAttribute("data-idx"));
+        const m = GROUPED[CURR][idx];
+        mLib.textContent = m._library;
+        const hasScore = "score" in m && m.score !== null && m.score !== undefined;
+        if(hasScore){ mScore.textContent = `Score: ${m.score}`; mScore.hidden = false; } else { mScore.hidden = true; }
+        mWhen.textContent = m.when_to_use || "No specific guidance provided";
+        mCont.textContent = m.content || "No content available";
+        mAuth.textContent = m.author || "Unknown";
+        mCreated.textContent = fmtDate(m.time_created);
+        mId.textContent = m.memory_id || "N/A";
+        mWs.textContent = m.workspace_id || "N/A";
+        dlg.showModal();
+      });
+    });
 
-<div class="codehilite"><pre><span></span><code><span class="c1"># Memory Integration: Learn from user interactions</span>
-curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8002/summary_personal_memory<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
-<span class="s1">    &quot;workspace_id&quot;: &quot;task_workspace&quot;,</span>
-<span class="s1">    &quot;trajectories&quot;: [</span>
-<span class="s1">      {&quot;messages&quot;: [</span>
-<span class="s1">        {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;I like to drink coffee while working in the morning&quot;},</span>
-<span class="s1">        {&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: &quot;I understand, you prefer to start your workday with coffee to stay energized&quot;}</span>
-<span class="s1">      ]}</span>
-<span class="s1">    ]</span>
-<span class="s1">  }&#39;</span>
+    show(elStats);
+    $("ml-count").textContent = memList.length;
+    $("ml-total").textContent = memList.length;
+  }
 
-<span class="c1"># Memory Retrieval: Get personal memory fragments</span>
-curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8002/retrieve_personal_memory<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
-<span class="s1">    &quot;workspace_id&quot;: &quot;task_workspace&quot;,</span>
-<span class="s1">    &quot;query&quot;: &quot;What are the user&#39;</span>s<span class="w"> </span>work<span class="w"> </span>habits?<span class="s2">&quot;,</span>
-<span class="s2">    &quot;</span>top_k<span class="s2">&quot;: 5</span>
-<span class="s2">  }&#39;</span>
-</code></pre></div>
+  function bindLibraryClicks(){
+    [...elLibraries.querySelectorAll(".ml-card-item")].forEach(card=>{
+      card.addEventListener("click", ()=>{
+        CURR = card.getAttribute("data-lib");
+        renderMemories(GROUPED[CURR]);
+      });
+    });
+  }
 
+  // —— Search
+  function handleSearch(){
+    const q = elSearch.value.trim().toLowerCase();
+    if(!q){
+      if(VIEW==="libraries") renderLibraries();
+      else renderMemories(GROUPED[CURR]);
+      return;
+    }
+    if(VIEW==="libraries"){
+      const libs = Object.keys(GROUPED).filter(name=>{
+        const arr = GROUPED[name];
+        return name.toLowerCase().includes(q) ||
+          arr.some(m => (m.when_to_use||"").toLowerCase().includes(q) ||
+                         (m.content||"").toLowerCase().includes(q) ||
+                         (m.author||"").toLowerCase().includes(q));
+      });
+      renderLibraries(libs);
+    }else{
+      const arr = GROUPED[CURR] || [];
+      const filtered = arr.filter(m =>
+        (m.when_to_use||"").toLowerCase().includes(q) ||
+        (m.content||"").toLowerCase().includes(q) ||
+        (m.author||"").toLowerCase().includes(q)
+      );
+      renderMemories(filtered);
+    }
+  }
 
+  // —— Events
+  elRetry?.addEventListener("click", loadAll);
+  elBack?.addEventListener("click", ()=> renderLibraries());
+  elSearch?.addEventListener("input", debounce(handleSearch, 250));
+  elClear?.addEventListener("click", ()=>{
+    elSearch.value = ""; handleSearch();
+  });
 
-</details>
-
-<details>
-<summary>Node.js version</summary>
-
-
-<div class="codehilite"><pre><span></span><code><span class="c1">// Memory Integration: Learn from user interactions</span>
-<span class="nx">fetch</span><span class="p">(</span><span class="s2">&quot;http://localhost:8002/summary_personal_memory&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;POST&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">headers</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="s2">&quot;Content-Type&quot;</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="p">},</span>
-<span class="w">  </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="nb">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span>
-<span class="w">    </span><span class="nx">workspace_id</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;task_workspace&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">trajectories</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">      </span><span class="p">{</span><span class="nx">messages</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">        </span><span class="p">{</span><span class="nx">role</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;user&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;I like to drink coffee while working in the morning&quot;</span><span class="p">},</span>
-<span class="w">        </span><span class="p">{</span><span class="nx">role</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;assistant&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;I understand, you prefer to start your workday with coffee to stay energized&quot;</span><span class="p">}</span>
-<span class="w">      </span><span class="p">]}</span>
-<span class="w">    </span><span class="p">]</span>
-<span class="w">  </span><span class="p">})</span>
-<span class="p">})</span>
-<span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">response</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">response</span><span class="p">.</span><span class="nx">json</span><span class="p">())</span>
-<span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">data</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">data</span><span class="p">));</span>
-
-<span class="c1">// Memory Retrieval: Get personal memory fragments</span>
-<span class="nx">fetch</span><span class="p">(</span><span class="s2">&quot;http://localhost:8002/retrieve_personal_memory&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;POST&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">headers</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="s2">&quot;Content-Type&quot;</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="p">},</span>
-<span class="w">  </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="nb">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span>
-<span class="w">    </span><span class="nx">workspace_id</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;task_workspace&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">query</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;What are the user&#39;s work habits?&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">top_k</span><span class="o">:</span><span class="w"> </span><span class="mf">5</span>
-<span class="w">  </span><span class="p">})</span>
-<span class="p">})</span>
-<span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">response</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">response</span><span class="p">.</span><span class="nx">json</span><span class="p">())</span>
-<span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">data</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">data</span><span class="p">));</span>
-</code></pre></div>
-
-
-
-</details>
-
-<hr />
-<h2 id="ready-to-use-libraries">📦 Ready-to-Use Libraries</h2>
-<p>ReMe provides pre-built memory libraries that agents can immediately use with verified best practices:</p>
-<h3 id="available-libraries">Available Libraries</h3>
-<ul>
-<li><strong><code>appworld.jsonl</code></strong>: Memory library for Appworld agent interactions, covering complex task planning and execution
-  patterns</li>
-<li><strong><code>bfcl_v3.jsonl</code></strong>: Working memory library for BFCL tool calls</li>
-</ul>
-<h3 id="quick-usage">Quick Usage</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1"># Load pre-built memories</span>
-<span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;http://localhost:8002/vector_store&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="p">{</span>
-    <span class="s2">&quot;workspace_id&quot;</span><span class="p">:</span> <span class="s2">&quot;appworld&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;action&quot;</span><span class="p">:</span> <span class="s2">&quot;load&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;./docs/library/&quot;</span>
-<span class="p">})</span>
-
-<span class="c1"># Query relevant memories</span>
-<span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;http://localhost:8002/retrieve_task_memory&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="p">{</span>
-    <span class="s2">&quot;workspace_id&quot;</span><span class="p">:</span> <span class="s2">&quot;appworld&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="s2">&quot;How to navigate to settings and update user profile?&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;top_k&quot;</span><span class="p">:</span> <span class="mi">1</span>
-<span class="p">})</span>
-</code></pre></div>
-
-<h2 id="experiments">🧪 Experiments</h2>
-<h3 id="appworld-experiment">🌍 <a href="./cookbook/appworld/quickstart.md">Appworld Experiment</a></h3>
-<p>We tested ReMe on Appworld using qwen3-8b:</p>
-<table>
-<thead>
-<tr>
-<th>Method</th>
-<th>pass@1</th>
-<th>pass@2</th>
-<th>pass@4</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>without ReMe</td>
-<td>0.083</td>
-<td>0.140</td>
-<td>0.228</td>
-</tr>
-<tr>
-<td>with ReMe</td>
-<td>0.109 <strong>(+2.6%)</strong></td>
-<td>0.175 <strong>(+3.5%)</strong></td>
-<td>0.281 <strong>(+5.3%)</strong></td>
-</tr>
-</tbody>
-</table>
-<p>Pass@K measures the probability that at least one of the K generated samples successfully completes the task (
-score=1).<br />
-The current experiment uses an internal AppWorld environment, which may have slight differences.</p>
-<p>You can find more details on reproducing the experiment in <a href="cookbook/appworld/quickstart.md">quickstart.md</a>.</p>
-<h3 id="frozenlake-experiment">🧊 <a href="./cookbook/frozenlake/quickstart.md">Frozenlake Experiment</a></h3>
-<table>
-<thead>
-<tr>
-<th style="text-align: center;">without ReMe</th>
-<th style="text-align: center;">with ReMe</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: center;"><p align="center"><img src="figure/frozenlake_failure.gif" alt="GIF 1" width="30%"></p></td>
-<td style="text-align: center;"><p align="center"><img src="figure/frozenlake_success.gif" alt="GIF 2" width="30%"></p></td>
-</tr>
-</tbody>
-</table>
-<p>We tested on 100 random frozenlake maps using qwen3-8b:</p>
-<table>
-<thead>
-<tr>
-<th>Method</th>
-<th>pass rate</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>without ReMe</td>
-<td>0.66</td>
-</tr>
-<tr>
-<td>with ReMe</td>
-<td>0.72 <strong>(+6.0%)</strong></td>
-</tr>
-</tbody>
-</table>
-<p>You can find more details on reproducing the experiment in <a href="cookbook/frozenlake/quickstart.md">quickstart.md</a>.</p>
-<h3 id="bfcl-v3-experiment">🔧 <a href="./cookbook/bfcl/quickstart.md">BFCL-V3 Experiment</a></h3>
-<p>We tested ReMe on BFCL-V3 multi-turn-base (randomly split 50train/150val) using qwen3-8b:</p>
-<table>
-<thead>
-<tr>
-<th>Method</th>
-<th>pass@1</th>
-<th>pass@2</th>
-<th>pass@4</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>without ReMe</td>
-<td>0.2472</td>
-<td>0.2733</td>
-<td>0.2922</td>
-</tr>
-<tr>
-<td>with ReMe</td>
-<td>0.3061 <strong>(+5.89%)</strong></td>
-<td>0.3500 <strong>(+7.67%)</strong></td>
-<td>0.3888 <strong>(+9.66%)</strong></td>
-</tr>
-</tbody>
-</table>
-<h2 id="resources">📚 Resources</h2>
-<ul>
-<li><strong><a href="./cookbook/simple_demo">Quick Start</a></strong>: Get started quickly with practical examples</li>
-<li><strong><a href="vector_store_api_guide/">Vector Storage Setup</a></strong>: Configure local/vector databases and usage</li>
-<li><strong><a href="mcp_quick_start/">MCP Guide</a></strong>: Create MCP services</li>
-<li><strong><a href="personal_memory">personal memory</a></strong> &amp; <strong><a href="task_memory">task memory</a></strong> : Operators used in personal memory and task memory, You can modify the config to customize the pipelines.</li>
-<li><strong><a href="./cookbook">Example Collection</a></strong>: Real use cases and best practices</li>
-</ul>
-<hr />
-<h2 id="contribution">🤝 Contribution</h2>
-<p>We believe the best memory systems come from collective wisdom. Contributions welcome 👉<a href="contribution/">Guide</a>:</p>
-<h3 id="code-contributions">Code Contributions</h3>
-<ul>
-<li>New operation and tool development</li>
-<li>Backend implementation and optimization</li>
-<li>API enhancements and new endpoints</li>
-</ul>
-<h3 id="documentation-improvements">Documentation Improvements</h3>
-<ul>
-<li>Usage examples and tutorials</li>
-<li>Best practice guides</li>
-</ul>
-<hr />
-<h2 id="citation">📄 Citation</h2>
-<div class="codehilite"><pre><span></span><code><span class="nc">@software</span><span class="p">{</span><span class="nl">ReMe2025</span><span class="p">,</span>
-<span class="w">  </span><span class="na">title</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{ReMe: Memory Management Framework for Agents}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">author</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{Li Yu, Jiaji Deng, Zouying Cao}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">url</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{https://github.com/modelscope/ReMe}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">year</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{2025}</span>
-<span class="p">}</span>
-</code></pre></div>
-
-<hr />
-<h2 id="license">⚖️ License</h2>
-<p>This project is licensed under the Apache License 2.0 - see the <a href="./LICENSE">LICENSE</a> file for details.</p>
-<hr />
-<h2 id="star-history">Star History</h2>
-<p><a href="https://www.star-history.com/#modelscope/ReMe&amp;Date"><img alt="Star History Chart" src="https://api.star-history.com/svg?repos=modelscope/ReMe&amp;type=Date" /></a></p>
+  // —— Init
+  document.addEventListener("DOMContentLoaded", loadAll);
+})();
+</script>
 
     </div>
 </article>
                                 <div class="mx-auto flex flex-wrap h-16 w-full max-w-2xl items-center gap-2 px-4 md:px-0">
     
+    <a data-slot="button"
+        class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 h-8 rounded-md gap-1.5 px-3 has-[&gt;svg]:px-2.5 shadow-none"
+        href="/modelscope/ReMe/">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            class="tabler-icon tabler-icon-arrow-left ">
+            <path d="M5 12l14 0"></path>
+            <path d="M5 12l6 6"></path>
+            <path d="M5 12l6 -6"></path>
+        </svg>
+        Welcome
+    </a>
+    
     
     <a data-slot="button"
         class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 h-8 rounded-md gap-1.5 px-3 has-[&gt;svg]:px-2.5 ml-auto shadow-none"
-        href="/modelscope/ReMe/library/library/">
-        Library Home
+        href="/modelscope/ReMe/personal_memory/personal_memory/">
+        Overview
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
             class="tabler-icon tabler-icon-arrow-right ">
@@ -1300,13 +1300,13 @@ The current experiment uses an internal AppWorld environment, which may have sli
                 <div class="text-muted-foreground text-sm font-medium">Menu</div>
                 <div class="flex flex-col gap-3">
                     
-                    <a class="text-2xl font-medium" href=".">
+                    <a class="text-2xl font-medium" href="../..">
                         
                         Welcome
                         
                     </a>
                     
-                    <a class="text-2xl font-medium" href="contribution/">
+                    <a class="text-2xl font-medium" href="../../contribution/">
                         
                         Contributions
                         
@@ -1324,7 +1324,7 @@ The current experiment uses an internal AppWorld environment, which may have sli
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="library/library/">
+                        <a class="text-2xl font-medium" href="./">
                             
                             Library Home
                             
@@ -1339,19 +1339,19 @@ The current experiment uses an internal AppWorld environment, which may have sli
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="personal_memory/personal_memory/">
+                        <a class="text-2xl font-medium" href="../../personal_memory/personal_memory/">
                             
                             Overview
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="personal_memory/personal_retrieve_ops/">
+                        <a class="text-2xl font-medium" href="../../personal_memory/personal_retrieve_ops/">
                             
                             Retrieve Ops
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="personal_memory/personal_summary_ops/">
+                        <a class="text-2xl font-medium" href="../../personal_memory/personal_summary_ops/">
                             
                             Summary Ops
                             
@@ -1366,19 +1366,19 @@ The current experiment uses an internal AppWorld environment, which may have sli
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="task_memory/task_memory/">
+                        <a class="text-2xl font-medium" href="../../task_memory/task_memory/">
                             
                             Overview
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="task_memory/task_retrieve_ops/">
+                        <a class="text-2xl font-medium" href="../../task_memory/task_retrieve_ops/">
                             
                             Retrieve Ops
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="task_memory/task_summary_ops/">
+                        <a class="text-2xl font-medium" href="../../task_memory/task_summary_ops/">
                             
                             Summary Ops
                             
@@ -1393,7 +1393,7 @@ The current experiment uses an internal AppWorld environment, which may have sli
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="sop_memory/making_sop_memories/">
+                        <a class="text-2xl font-medium" href="../../sop_memory/making_sop_memories/">
                             
                             Making SOP Memories
                             
@@ -1408,13 +1408,13 @@ The current experiment uses an internal AppWorld environment, which may have sli
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="mcp_quick_start/">
+                        <a class="text-2xl font-medium" href="../../mcp_quick_start/">
                             
                             Mcp
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="vector_store_api_guide/">
+                        <a class="text-2xl font-medium" href="../../vector_store_api_guide/">
                             
                             Vector Store
                             
@@ -1438,202 +1438,6 @@ The current experiment uses an internal AppWorld environment, which may have sli
                                 <div view-transition-name="toc" class="no-scrollbar overflow-y-auto px-8">
     <div class="flex flex-col gap-2 p-4 pt-0 text-sm">
         <p class="text-muted-foreground bg-background sticky top-0 h-6 text-xs">On This Page</p>
-        
-        
-        
-        
-        <a href="#latest-updates"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            📰 Latest Updates
-        </a>
-        
-
-        
-        <a href="#architecture-design"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            ✨ Architecture Design
-        </a>
-        
-        
-        <a href="#task-memoryexperience"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            🧠 Task Memory/Experience
-        </a>
-        
-        <a href="#personal-memory"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            👤 Personal Memory
-        </a>
-        
-        
-
-        
-        <a href="#installation"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            🛠️ Installation
-        </a>
-        
-        
-        <a href="#install-from-pypi-recommended"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            Install from PyPI (Recommended)
-        </a>
-        
-        <a href="#install-from-source"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            Install from Source
-        </a>
-        
-        <a href="#environment-configuration"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            Environment Configuration
-        </a>
-        
-        
-
-        
-        <a href="#quick-start"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            🚀 Quick Start
-        </a>
-        
-        
-        <a href="#http-service-startup"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            HTTP Service Startup
-        </a>
-        
-        <a href="#mcp-server-support"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            MCP Server Support
-        </a>
-        
-        <a href="#core-api-usage"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            Core API Usage
-        </a>
-        
-        
-
-        
-        <a href="#ready-to-use-libraries"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            📦 Ready-to-Use Libraries
-        </a>
-        
-        
-        <a href="#available-libraries"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            Available Libraries
-        </a>
-        
-        <a href="#quick-usage"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            Quick Usage
-        </a>
-        
-        
-
-        
-        <a href="#experiments"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            🧪 Experiments
-        </a>
-        
-        
-        <a href="#appworld-experiment"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            🌍 Appworld Experiment
-        </a>
-        
-        <a href="#frozenlake-experiment"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            🧊 Frozenlake Experiment
-        </a>
-        
-        <a href="#bfcl-v3-experiment"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            🔧 BFCL-V3 Experiment
-        </a>
-        
-        
-
-        
-        <a href="#resources"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            📚 Resources
-        </a>
-        
-
-        
-        <a href="#contribution"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            🤝 Contribution
-        </a>
-        
-        
-        <a href="#code-contributions"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            Code Contributions
-        </a>
-        
-        <a href="#documentation-improvements"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            Documentation Improvements
-        </a>
-        
-        
-
-        
-        <a href="#citation"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            📄 Citation
-        </a>
-        
-
-        
-        <a href="#license"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            ⚖️ License
-        </a>
-        
-
-        
-        <a href="#star-history"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            Star History
-        </a>
-        
-
-        
-        
-        
         
 
     </div>
@@ -1660,19 +1464,19 @@ The current experiment uses an internal AppWorld environment, which may have sli
     </div>
      
 
-<script src="search/main.js"></script>
+<script src="../../search/main.js"></script>
 
 
     
 
-    <script src="js/copy-button.js"></script>
+    <script src="../../js/copy-button.js"></script>
     <script>updatePygmentsStylesheet();</script>
     
     <script>fetchStargazers("None");</script>
     
     
     
-    <script src="js/socket.io.min.js"></script>
+    <script src="../../js/socket.io.min.js"></script>
 <script>
     function randomString(length = 10) {
         const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';

@@ -1,7 +1,0 @@
-memoryscope.scheme
-==================
-
-.. automodule:: memoryscope.scheme
-   :members:
-   :undoc-members:
-   :show-inheritance:

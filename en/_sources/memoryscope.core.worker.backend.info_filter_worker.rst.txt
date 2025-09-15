@@ -1,6 +1,0 @@
-memoryscope.core.worker.backend.info_filter_worker
-==================================================
-.. automodule:: memoryscope.core.worker.backend.info_filter_worker
-   :members:
-   :undoc-members:
-   :show-inheritance:

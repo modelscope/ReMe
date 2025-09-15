@@ -1,6 +1,0 @@
-memoryscope.core.service.base_memory_service
-============================================
-.. automodule:: memoryscope.core.service.base_memory_service
-   :members:
-   :undoc-members:
-   :show-inheritance:

@@ -1,6 +1,0 @@
-memoryscope.core.worker.frontend.semantic_rank_worker
-=====================================================
-.. automodule:: memoryscope.core.worker.frontend.semantic_rank_worker
-   :members:
-   :undoc-members:
-   :show-inheritance:

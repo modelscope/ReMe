@@ -1,6 +1,0 @@
-memoryscope.core.operation.backend_operation
-============================================
-.. automodule:: memoryscope.core.operation.backend_operation
-   :members:
-   :undoc-members:
-   :show-inheritance:

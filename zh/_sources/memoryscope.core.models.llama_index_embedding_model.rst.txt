@@ -1,6 +1,0 @@
-memoryscope.core.models.llama_index_embedding_model
-===================================================
-.. automodule:: memoryscope.core.models.llama_index_embedding_model
-   :members:
-   :undoc-members:
-   :show-inheritance:
