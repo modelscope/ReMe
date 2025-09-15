@@ -1,0 +1,56 @@
+site_name: ReMe
+site_url: https://github.com/modelscope/ReMe/
+site_description: "Memory Management Framework for Agents"
+theme:
+  name: shadcn
+  image: figure/reme_logo.png
+  show_stargazers: true
+
+
+nav:
+  - Welcome: index.md
+
+  - Library:
+      - Library Home: library/library.md
+
+  - Personal Memory:
+      - Overview: personal_memory/personal_memory.md
+      - Retrieve Ops: personal_memory/personal_retrieve_ops.md
+      - Summary Ops: personal_memory/personal_summary_ops.md
+
+  - Task Memory:
+      - Overview: task_memory/task_memory.md
+      - Retrieve Ops: task_memory/task_retrieve_ops.md
+      - Summary Ops: task_memory/task_summary_ops.md
+
+  - SOP Memory:
+      - Making SOP Memories: sop_memory/making_sop_memories.md
+
+  - Extensions:
+      - Mcp: mcp_quick_start.md
+      - Vector Store: vector_store_api_guide.md
+
+  - Contributions: contribution.md
+
+plugins:
+  - search
+  - excalidraw
+
+markdown_extensions:
+  admonition:
+  codehilite:
+  fenced_code:
+  footnotes:
+  extra:
+  pymdownx.blocks.details:
+  pymdownx.tabbed:
+  pymdownx.blocks.tab:
+    combine_header_slug: true
+    separator: ___
+  pymdownx.progressbar:
+  pymdownx.snippets:
+  pymdownx.arithmatex:
+    generic: true
+  shadcn.extensions.echarts.alpha:
+  shadcn.extensions.codexec:
+  shadcn.extensions.iconify:
