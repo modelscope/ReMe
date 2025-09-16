@@ -34,13 +34,13 @@ nav:
       - Vector Store: vector_store_api_guide.md
 
   - Experimental Tutorials:
-      - Overview: experiment_overview.md
+      - Overview: cookbook/experiment_overview.md
       - AppWorld: cookbook/appworld/quickstart.md
       - BFCL: cookbook/bfcl/quickstart.md
       - FrozenLake: cookbook/frozenlake/quickstart.md
 
 
-  - Contributions: contribution.md
+  - Contribution Guide: contribution.md
 
 plugins:
   - search

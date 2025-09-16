@@ -22,18 +22,17 @@ show_datetime: true
 </p>
 
 ---
+
 ReMe provides AI agents with a unified memory system—enabling the ability to extract, reuse, and share memories across
 users, tasks, and agents.
 
-```
-Personal Memory + Task Memory = Agent Memory
-```
+!!! info "Personal Memory + Task Memory = Agent Memory"
 
 Personal memory helps "**understand user preferences**", while task memory helps agents "**perform better**".
 
----
 
-## ✨ Architecture Design
+
+## Architecture Design
 
 <p align="center">
  <img src="figure/reme_structure.jpg" alt="ReMe Logo" width="100%">
@@ -41,31 +40,32 @@ Personal memory helps "**understand user preferences**", while task memory helps
 
 ReMe integrates two complementary memory capabilities:
 
-#### 🧠 **Task Memory/Experience**
+!!! note "Task Memory/Experience"
 
-Procedural knowledge reused across agents
+    ---
 
-- **Success Pattern Recognition**: Identify effective strategies and understand their underlying principles
-- **Failure Analysis Learning**: Learn from mistakes and avoid repeating the same issues
-- **Comparative Patterns**: Different sampling trajectories provide more valuable memories through comparison
-- **Validation Patterns**: Confirm the effectiveness of extracted memories through validation modules
+    Procedural knowledge reused across agents
 
-Learn more about how to use task memory from [task memory](task_memory/task_memory.md)
+    - **Success Pattern Recognition**: Identify effective strategies and understand their underlying principles
+    - **Failure Analysis Learning**: Learn from mistakes and avoid repeating the same issues
+    - **Comparative Patterns**: Different sampling trajectories provide more valuable memories through comparison
+    - **Validation Patterns**: Confirm the effectiveness of extracted memories through validation modules
 
-#### 👤 **Personal Memory**
+    Learn more about how to use task memory from [task memory](task_memory/task_memory.md)
 
-Contextualized memory for specific users
+!!! note "Personal Memory"
 
-- **Individual Preferences**: User habits, preferences, and interaction styles
-- **Contextual Adaptation**: Intelligent memory management based on time and context
-- **Progressive Learning**: Gradually build deep understanding through long-term interaction
-- **Time Awareness**: Time sensitivity in both retrieval and integration
+    Contextualized memory for specific users
 
-Learn more about how to use personal memory from [personal memory](personal_memory/personal_memory.md)
+    - **Individual Preferences**: User habits, preferences, and interaction styles
+    - **Contextual Adaptation**: Intelligent memory management based on time and context
+    - **Progressive Learning**: Gradually build deep understanding through long-term interaction
+    - **Time Awareness**: Time sensitivity in both retrieval and integration
 
----
+    Learn more about how to use personal memory from [personal memory](personal_memory/personal_memory.md)
 
-## 🛠️ Installation
+
+## Installation
 
 ### Install from PyPI (Recommended)
 
@@ -95,7 +95,7 @@ FLOW_EMBEDDING_BASE_URL=https://xxxx/v1
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### HTTP Service Startup
 
@@ -303,14 +303,13 @@ fetch("http://localhost:8002/retrieve_personal_memory", {
 
 ---
 
-## 📚 Resources
-- 
+## Resources
+- **[Personal memory](personal_memory/personal_memory.md)** & **[Task memory](task_memory/task_memory.md)** : Operators used in personal memory and task memory, You can modify the config to customize the pipelines.
+- **[Example Collection](cookbook/experiment_overview.md)**: Real use cases and best practices
+- **[Library](./library/library.md)**: Directly use existing task memory/experience for your tasks, and you can also contribute more task memory/experience to us.
+- **[Contribution](contribution.md)**: welcome to your contributions!
 - **[Vector Storage Setup](vector_store_api_guide.md)**: Configure local/vector databases and usage
 - **[MCP Guide](mcp_quick_start.md)**: Create MCP services
-- **[personal memory](personal_memory/personal_memory.md)** & **[task memory](task_memory/task_memory.md)** : Operators used in personal memory and task memory, You can modify the config to customize the pipelines.
-- **[Example Collection](./experiment_overview.md)**: Real use cases and best practices
-- **[Library](./library/library.md)**: Directly use existing task memory/experience for your tasks, and you can also contribute more task memory/experience to us.
-- **[Contribution](contribution.md)**: welcome to your Contributions!
 
 ---
 
