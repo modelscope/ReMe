@@ -96,6 +96,8 @@ FLOW_LLM_BASE_URL=https://xxxx/v1
 # 必需：嵌入模型配置  
 FLOW_EMBEDDING_API_KEY=sk-xxxx
 FLOW_EMBEDDING_BASE_URL=https://xxxx/v1
+
+FLOW_USE_FRAMEWORK=true
 ```
 
 ---
