@@ -24,7 +24,7 @@ classifiers = [
 keywords = ["llm", "memory", "experience", "memoryscope", "ai", "mcp", "http"]
 
 dependencies = [
-    "flowllm>=0.1.9",
+    "flowllm==0.1.9",
 ]
 
 [tool.setuptools.packages.find]
