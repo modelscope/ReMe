@@ -94,8 +94,6 @@ FLOW_LLM_API_KEY=sk-xxxx
 FLOW_LLM_BASE_URL=https://xxxx/v1
 FLOW_EMBEDDING_API_KEY=sk-xxxx
 FLOW_EMBEDDING_BASE_URL=https://xxxx/v1
-
-FLOW_USE_FRAMEWORK=true
 ```
 
 ---
