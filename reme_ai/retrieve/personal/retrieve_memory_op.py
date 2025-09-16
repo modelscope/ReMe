@@ -1,6 +1,6 @@
 from typing import List
 
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from flowllm.schema.vector_node import VectorNode
 from loguru import logger
 
@@ -8,7 +8,7 @@ from reme_ai.schema.memory import BaseMemory, vector_node_to_memory
 
 
 @C.register_op()
-class RetrieveMemoryOp(BaseLLMOp):
+class RetrieveMemoryOp(BaseAsyncOp):
     """
     Retrieves memories based on specified criteria such as status, type, and timestamp.
     Processes these memories concurrently, sorts them by similarity, and logs the activity,

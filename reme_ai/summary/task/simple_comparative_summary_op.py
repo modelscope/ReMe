@@ -1,7 +1,7 @@
 import json
 from typing import List, Dict
 
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from flowllm.enumeration.role import Role
 from flowllm.schema.message import Message as FlowMessage
 from loguru import logger
@@ -12,7 +12,7 @@ from reme_ai.utils.op_utils import merge_messages_content
 
 
 @C.register_op()
-class SimpleComparativeSummaryOp(BaseLLMOp):
+class SimpleComparativeSummaryOp(BaseAsyncOp):
     file_path: str = __file__
 
     async def compare_summary_trajectory(self, trajectory_a: Trajectory, trajectory_b: Trajectory) -> List[BaseMemory]:

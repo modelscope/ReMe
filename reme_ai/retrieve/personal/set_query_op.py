@@ -1,14 +1,14 @@
 import datetime
 from typing import Tuple
 
-from flowllm import C, BaseOp
+from flowllm import C, BaseAsyncOp
 from loguru import logger
 
 from reme_ai.constants.common_constants import QUERY_WITH_TS
 
 
 @C.register_op()
-class SetQueryOp(BaseOp):
+class SetQueryOp(BaseAsyncOp):
     """
     The `SetQueryOp` class is responsible for setting a query and its associated timestamp
     into the context, utilizing either provided parameters or details from the context.

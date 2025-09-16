@@ -1,6 +1,6 @@
 from typing import Dict, List
 
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from loguru import logger
 
 from reme_ai.constants.common_constants import EXTRACT_TIME_DICT
@@ -8,7 +8,7 @@ from reme_ai.schema.memory import BaseMemory
 
 
 @C.register_op()
-class FuseRerankOp(BaseLLMOp):
+class FuseRerankOp(BaseAsyncOp):
     """
     Reranks the memory nodes by scores, types, and temporal relevance. Formats the top-K reranked nodes to print.
     """

@@ -1,11 +1,11 @@
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from flowllm.schema.vector_node import VectorNode
 
 from reme_ai.schema.memory import vector_node_to_memory, dict_to_memory, BaseMemory
 
 
 @C.register_op()
-class VectorStoreActionOp(BaseLLMOp):
+class VectorStoreActionOp(BaseAsyncOp):
 
     async def async_execute(self):
         workspace_id: str = self.context.workspace_id

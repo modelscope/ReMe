@@ -2,7 +2,7 @@ import json
 import re
 from typing import List
 
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from flowllm.enumeration.role import Role
 from flowllm.schema.message import Message as FlowMessage
 from loguru import logger
@@ -11,7 +11,7 @@ from reme_ai.schema import Message, Trajectory
 
 
 @C.register_op()
-class TrajectorySegmentationOp(BaseLLMOp):
+class TrajectorySegmentationOp(BaseAsyncOp):
     file_path: str = __file__
 
     async def async_execute(self):

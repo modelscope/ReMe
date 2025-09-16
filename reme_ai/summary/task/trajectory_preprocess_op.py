@@ -1,13 +1,13 @@
 from typing import List, Dict
 
-from flowllm import C, BaseOp
+from flowllm import C, BaseAsyncOp
 from loguru import logger
 
 from reme_ai.schema import Trajectory
 
 
 @C.register_op()
-class TrajectoryPreprocessOp(BaseOp):
+class TrajectoryPreprocessOp(BaseAsyncOp):
     file_path: str = __file__
 
     async def async_execute(self):

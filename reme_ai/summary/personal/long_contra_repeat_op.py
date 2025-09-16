@@ -1,7 +1,7 @@
 import re
 from typing import List
 
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from flowllm.enumeration.role import Role
 from flowllm.schema.message import Message
 from loguru import logger
@@ -10,10 +10,10 @@ from reme_ai.schema.memory import BaseMemory, PersonalMemory
 
 
 @C.register_op()
-class LongContraRepeatOp(BaseLLMOp):
+class LongContraRepeatOp(BaseAsyncOp):
     """
     Manages and updates memory entries within a conversation scope by identifying
-    and handling contradictions or redundancies. It extends BaseLLMOp to provide
+    and handling contradictions or redundancies. It extends BaseAsyncOp to provide
     specialized functionality for long conversations with potential contradictory
     or repetitive statements.
     """

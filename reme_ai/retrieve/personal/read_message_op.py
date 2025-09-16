@@ -1,12 +1,12 @@
 from typing import List
 
-from flowllm import C, BaseOp
+from flowllm import C, BaseAsyncOp
 from flowllm.schema.message import Message
 from loguru import logger
 
 
 @C.register_op()
-class ReadMessageOp(BaseOp):
+class ReadMessageOp(BaseAsyncOp):
     """
     Fetches unmemorized chat messages.
     """

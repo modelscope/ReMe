@@ -1,13 +1,13 @@
 from typing import List
 
-from flowllm import C, BaseOp
+from flowllm import C, BaseAsyncOp
 from loguru import logger
 
 from reme_ai.schema.memory import BaseMemory
 
 
 @C.register_op()
-class PrintMemoryOp(BaseOp):
+class PrintMemoryOp(BaseAsyncOp):
     """
     Formats the memories to print.
     """

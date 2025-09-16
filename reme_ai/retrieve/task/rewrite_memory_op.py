@@ -2,7 +2,7 @@ import json
 import re
 from typing import List
 
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from flowllm.enumeration.role import Role
 from flowllm.schema.message import Message
 from loguru import logger
@@ -11,7 +11,7 @@ from reme_ai.schema.memory import BaseMemory
 
 
 @C.register_op()
-class RewriteMemoryOp(BaseLLMOp):
+class RewriteMemoryOp(BaseAsyncOp):
     """
     Generate and rewrite context messages from reranked experiences
     """

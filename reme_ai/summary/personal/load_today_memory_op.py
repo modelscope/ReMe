@@ -1,6 +1,6 @@
 from typing import List
 
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from flowllm.schema.vector_node import VectorNode
 from loguru import logger
 
@@ -9,7 +9,7 @@ from reme_ai.utils.datetime_handler import DatetimeHandler
 
 
 @C.register_op()
-class LoadTodayMemoryOp(BaseLLMOp):
+class LoadTodayMemoryOp(BaseAsyncOp):
     """
     Operation to load today's memories from vector store for deduplication.
     Focuses specifically on retrieving and deduplicating memories from the current date.

@@ -89,11 +89,9 @@ pip install .
 复制  `example.env` 为 .env并修改其中对应参数：
 
 ```bash
-# 必需：LLM API配置
+FLOW_APP_NAME=ReMe
 FLOW_LLM_API_KEY=sk-xxxx
 FLOW_LLM_BASE_URL=https://xxxx/v1
-
-# 必需：嵌入模型配置  
 FLOW_EMBEDDING_API_KEY=sk-xxxx
 FLOW_EMBEDDING_BASE_URL=https://xxxx/v1
 
