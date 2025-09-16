@@ -2,7 +2,7 @@ import json
 import re
 from typing import List
 
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from loguru import logger
 
 from reme_ai.schema import Message, Role
@@ -10,7 +10,7 @@ from reme_ai.schema.memory import BaseMemory
 
 
 @C.register_op()
-class SemanticRankOp(BaseLLMOp):
+class SemanticRankOp(BaseAsyncOp):
     """
     The SemanticRankOp class processes queries by retrieving memory nodes,
     removing duplicates, ranking them based on semantic relevance using a model,

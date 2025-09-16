@@ -1,7 +1,7 @@
 import re
 from typing import List
 
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from flowllm.schema.message import Message, Trajectory
 from loguru import logger
 
@@ -9,9 +9,9 @@ from reme_ai.schema.memory import PersonalMemory
 
 
 @C.register_op()
-class InfoFilterOp(BaseLLMOp):
+class InfoFilterOp(BaseAsyncOp):
     """
-    A specialized operation class to filter messages based on information content scores using BaseLLMOp.
+    A specialized operation class to filter messages based on information content scores using BaseAsyncOp.
     This filters chat messages by retaining only those that include significant information about the user.
     """
     file_path: str = __file__

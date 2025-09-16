@@ -1,4 +1,4 @@
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from flowllm.utils.llm_utils import merge_messages_content
 from loguru import logger
 
@@ -6,7 +6,7 @@ from reme_ai.schema import Message, Role
 
 
 @C.register_op()
-class BuildQueryOp(BaseLLMOp):
+class BuildQueryOp(BaseAsyncOp):
     file_path: str = __file__
 
     async def async_execute(self):

@@ -1,7 +1,7 @@
 import re
 from typing import Dict
 
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from flowllm.enumeration.role import Role
 from flowllm.schema.message import Message
 from loguru import logger
@@ -12,7 +12,7 @@ from reme_ai.utils.datetime_handler import DatetimeHandler
 
 
 @C.register_op()
-class ExtractTimeOp(BaseLLMOp):
+class ExtractTimeOp(BaseAsyncOp):
     file_path: str = __file__
     EXTRACT_TIME_PATTERN = r"-\s*(\S+)[：:]\s*(\S+)"
 

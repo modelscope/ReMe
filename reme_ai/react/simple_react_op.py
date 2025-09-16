@@ -2,7 +2,7 @@ import asyncio
 
 from flowllm import C
 from flowllm.context.flow_context import FlowContext
-from flowllm.op.llm.react_llm_op import ReactLLMOp
+from flowllm.op.gallery.react_llm_op import ReactLLMOp
 
 
 @C.register_op()

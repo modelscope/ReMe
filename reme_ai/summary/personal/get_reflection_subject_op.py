@@ -1,6 +1,6 @@
 from typing import List
 
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from flowllm.schema.message import Message
 from loguru import logger
 
@@ -8,7 +8,7 @@ from reme_ai.schema.memory import BaseMemory, PersonalMemory
 
 
 @C.register_op()
-class GetReflectionSubjectOp(BaseLLMOp):
+class GetReflectionSubjectOp(BaseAsyncOp):
     """
     A specialized operation class responsible for retrieving unreflected memory nodes,
     generating reflection prompts with current insights, invoking an LLM for fresh insights,

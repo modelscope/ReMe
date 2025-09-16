@@ -1,6 +1,6 @@
 from typing import List
 
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from flowllm.schema.vector_node import VectorNode
 from loguru import logger
 
@@ -8,7 +8,7 @@ from reme_ai.schema.memory import BaseMemory, vector_node_to_memory
 
 
 @C.register_op()
-class RecallVectorStoreOp(BaseLLMOp):
+class RecallVectorStoreOp(BaseAsyncOp):
 
     async def async_execute(self):
         recall_key: str = self.op_params.get("recall_key", "query")

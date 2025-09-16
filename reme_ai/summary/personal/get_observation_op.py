@@ -1,7 +1,7 @@
 import re
 from typing import List
 
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from flowllm.schema.message import Message
 from loguru import logger
 
@@ -10,9 +10,9 @@ from reme_ai.utils.datetime_handler import DatetimeHandler
 
 
 @C.register_op()
-class GetObservationOp(BaseLLMOp):
+class GetObservationOp(BaseAsyncOp):
     """
-    A specialized operation class to generate observations from chat messages using BaseLLMOp.
+    A specialized operation class to generate observations from chat messages using BaseAsyncOp.
     """
     file_path: str = __file__
 

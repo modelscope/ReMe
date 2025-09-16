@@ -21,7 +21,7 @@ framework.
 Each operation (Op) needs to define the following core attributes:
 
 ```python
-class BaseOp:
+class BaseAsyncToolOp:
     description: str  # Description of the operation
     input_schema: Dict[str, ParamAttr]  # Input parameter schema definition
     output_schema: Dict[str, ParamAttr]  # Output parameter schema definition

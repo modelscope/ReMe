@@ -1,7 +1,7 @@
 import json
 from typing import List
 
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from flowllm.schema.vector_node import VectorNode
 from loguru import logger
 
@@ -9,7 +9,7 @@ from reme_ai.schema.memory import BaseMemory
 
 
 @C.register_op()
-class UpdateVectorStoreOp(BaseLLMOp):
+class UpdateVectorStoreOp(BaseAsyncOp):
 
     async def async_execute(self):
         workspace_id: str = self.context.workspace_id

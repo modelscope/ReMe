@@ -2,7 +2,7 @@ import json
 import re
 from typing import List, Dict, Any
 
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from flowllm.enumeration.role import Role
 from flowllm.schema.message import Message as FlowMessage
 from loguru import logger
@@ -12,7 +12,7 @@ from reme_ai.schema.memory import BaseMemory
 
 
 @C.register_op()
-class MemoryValidationOp(BaseLLMOp):
+class MemoryValidationOp(BaseAsyncOp):
     file_path: str = __file__
 
     async def async_execute(self):

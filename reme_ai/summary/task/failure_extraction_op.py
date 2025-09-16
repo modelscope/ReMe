@@ -1,6 +1,6 @@
 from typing import List
 
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from flowllm.enumeration.role import Role
 from flowllm.schema.message import Message as FlowMessage
 from loguru import logger
@@ -11,7 +11,7 @@ from reme_ai.utils.op_utils import merge_messages_content, parse_json_experience
 
 
 @C.register_op()
-class FailureExtractionOp(BaseLLMOp):
+class FailureExtractionOp(BaseAsyncOp):
     file_path: str = __file__
 
     async def async_execute(self):

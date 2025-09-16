@@ -2,7 +2,7 @@ import json
 import re
 from typing import List, Tuple
 
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from flowllm.enumeration.role import Role
 from flowllm.schema.message import Message
 from loguru import logger
@@ -11,10 +11,10 @@ from reme_ai.schema.memory import BaseMemory
 
 
 @C.register_op()
-class ContraRepeatOp(BaseLLMOp):
+class ContraRepeatOp(BaseAsyncOp):
     """
     The `ContraRepeatOp` class specializes in processing memory nodes to identify and handle
-    contradictory and repetitive information. It extends the base functionality of `BaseLLMOp`.
+    contradictory and repetitive information. It extends the base functionality of `BaseAsyncOp`.
 
     Responsibilities:
     - Collects observation memories from context.

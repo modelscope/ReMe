@@ -1,31 +1,26 @@
 import asyncio
 from typing import Optional, Dict, Any, List
 
-from flowllm import C
-from flowllm.flow import BaseToolFlow
 from flowllm.schema.flow_response import FlowResponse
 from loguru import logger
 from pydantic import Field, BaseModel
 
-from reme_ai.config.config_parser import ConfigParser
 from reme_ai.schema.memory import TaskMemory
-from reme_ai.service.base_memory_service import BaseMemoryService
+from reme_ai.service.agentscope_runtime_memory_service import AgentscopeRuntimeMemoryService
 
 
-class TaskMemoryService(BaseMemoryService):
+class TaskMemoryService(AgentscopeRuntimeMemoryService):
 
-    async def start(self) -> None:
-        C.set_service_config(parser=ConfigParser, config_name="config=default").init_by_service_config()
+    async def start(self):
+        return await self.app.async_start()
 
     async def stop(self) -> None:
-        C.stop_by_service_config()
+        return await self.app.async_stop()
 
     async def health(self) -> bool:
         return True
 
     async def add_memory(self, user_id: str, messages: list, session_id: Optional[str] = None) -> None:
-        summary_flow: BaseToolFlow = C.flow_dict["summary_task_memory"]
-
         new_messages: List[dict] = []
         for message in messages:
             if isinstance(message, dict):
@@ -42,7 +37,7 @@ class TaskMemoryService(BaseMemoryService):
             ]
         }
 
-        result: FlowResponse = await summary_flow(**kwargs)
+        result: FlowResponse = await self.app.async_execute_flow(name="summary_task_memory", **kwargs)
         memory_list: List[TaskMemory] = result.metadata.get("memory_list", [])
         for memory in memory_list:
             memory_id = memory.memory_id
@@ -54,9 +49,6 @@ class TaskMemoryService(BaseMemoryService):
                     "such as top_k, score etc.",
         default=None,
     )) -> list:
-
-        retrieve_flow: BaseToolFlow = C.flow_dict["retrieve_task_memory"]
-
         new_messages: List[dict] = []
         for message in messages:
             if isinstance(message, dict):
@@ -72,7 +64,7 @@ class TaskMemoryService(BaseMemoryService):
             "top_k": filters.get("top_k", 1) if filters else 1
         }
 
-        result: FlowResponse = await retrieve_flow(**kwargs)
+        result: FlowResponse = await self.app.async_execute_flow(name="retrieve_task_memory", **kwargs)
         logger.info(f"[task_memory_service] user_id={user_id} add result: {result.model_dump_json()}")
 
         return [result.answer]
@@ -82,10 +74,8 @@ class TaskMemoryService(BaseMemoryService):
                     "such as top_k, score etc.",
         default=None,
     )) -> list:
-        vector_store_flow: BaseToolFlow = C.flow_dict["vector_store"]
-        result = await vector_store_flow(workspace_id=user_id, action="list")
+        result = await self.app.async_execute_flow(name="vector_store", workspace_id=user_id, action="list")
         print("list_memory result:", result)
-
 
         result = result.metadata["action_result"]
         for i, line in enumerate(result):
@@ -97,8 +87,10 @@ class TaskMemoryService(BaseMemoryService):
         if not delete_ids:
             return
 
-        vector_store_flow: BaseToolFlow = C.flow_dict["vector_store"]
-        result = await vector_store_flow(workspace_id=user_id, action="delete_ids", memory_ids=delete_ids)
+        result = await self.app.async_execute_flow(name="vector_store",
+                                                   workspace_id=user_id,
+                                                   action="delete_ids",
+                                                   memory_ids=delete_ids)
         result = result.metadata["action_result"]
         logger.info(f"[task_memory_service] delete memory result={result}")
 

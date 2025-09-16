@@ -1,7 +1,7 @@
 import re
 from typing import List
 
-from flowllm import C, BaseLLMOp
+from flowllm import C, BaseAsyncOp
 from flowllm.schema.message import Message
 from loguru import logger
 
@@ -9,7 +9,7 @@ from reme_ai.schema.memory import PersonalMemory
 
 
 @C.register_op()
-class UpdateInsightOp(BaseLLMOp):
+class UpdateInsightOp(BaseAsyncOp):
     """
     This class is responsible for updating insight value in a memory system. It filters insight nodes
     based on their association with observed nodes, utilizes a ranking model to prioritize them,
