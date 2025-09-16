@@ -395,11 +395,11 @@ We tested ReMe on BFCL-V3 multi-turn-base (randomly split 50train/150val) using 
 
 ## 📚 Resources
 
-- **[Quick Start](./cookbook/simple_demo)**: Get started quickly with practical examples
+- **[Quick Start](https://github.com/modelscope/ReMe/tree/main/cookbook/simple_demo)**: Get started quickly with practical examples
 - **[Vector Storage Setup](vector_store_api_guide.md)**: Configure local/vector databases and usage
 - **[MCP Guide](mcp_quick_start.md)**: Create MCP services
-- **[personal memory](personal_memory)** & **[task memory](task_memory)** : Operators used in personal memory and task memory, You can modify the config to customize the pipelines.
-- **[Example Collection](./cookbook)**: Real use cases and best practices
+- **[personal memory](personal_memory/personal_memory.md)** & **[task memory](task_memory/task_memory.md)** : Operators used in personal memory and task memory, You can modify the config to customize the pipelines.
+- **[Example Collection](./cookbook/appworld/quickstart.md)**: Real use cases and best practices
 
 ---
 
@@ -436,7 +436,7 @@ We believe the best memory systems come from collective wisdom. Contributions we
 
 ## ⚖️ License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](./LICENSE) file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](https://github.com/modelscope/ReMe/blob/main/LICENSE) file for details.
 
 ---
 
