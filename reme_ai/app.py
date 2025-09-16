@@ -1,12 +1,8 @@
-import os
 import sys
 import warnings
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="websockets")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="uvicorn")
-
-assert "FLOW_APP_NAME" in os.environ, "please set FLOW_APP_NAME in `.env`"
-
 
 from flowllm.app import FlowLLMApp
 
