@@ -1,7 +1,3 @@
-import os
-
-assert "FLOW_APP_NAME" in os.environ, "please set FLOW_APP_NAME in `.env`"
-
 from reme_ai import react
 from reme_ai import retrieve
 from reme_ai import summary
