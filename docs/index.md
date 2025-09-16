@@ -33,25 +33,6 @@ Personal memory helps "**understand user preferences**", while task memory helps
 
 ---
 
-## 📰 Latest Updates
-
-- **[2025-09]** 🎉 ReMe v0.1.8 has been officially released, adding support for asynchronous operations. It has also been
-  integrated into the memory service of agentscope-runtime.
-- **[2025-09]** 🎉 ReMe v0.1 officially released, integrating task memory and personal memory. If you want to use the
-  original memoryscope project, you can find it
-  in [MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch).
-- **[2025-09]** 🧪 We validated the effectiveness of task memory extraction and reuse in agents in appworld, bfcl(v3),
-  and frozenlake environments. For more information,
-  check [appworld exp](./cookbook/appworld/quickstart.md), [bfcl exp](./cookbook/bfcl/quickstart.md),
-  and [frozenlake exp](./cookbook/frozenlake/quickstart.md).
-- **[2025-08]** 🚀 MCP protocol support is now available -> [MCP Quick Start](mcp_quick_start.md).
-- **[2025-06]** 🚀 Multiple backend vector storage support (Elasticsearch &
-  ChromaDB) -> [Vector DB quick start](vector_store_api_guide.md).
-- **[2024-09]** 🧠 [MemoryScope](https://github.com/modelscope/Reme/tree/memoryscope_branch) v0.1 released,
-  personalized and time-aware memory storage and usage.
-
----
-
 ## ✨ Architecture Design
 
 <p align="center">
@@ -322,104 +303,18 @@ fetch("http://localhost:8002/retrieve_personal_memory", {
 
 ---
 
-## 📦 Ready-to-Use Libraries
-
-ReMe provides pre-built memory libraries that agents can immediately use with verified best practices:
-
-### Available Libraries
-
-- **`appworld.jsonl`**: Memory library for Appworld agent interactions, covering complex task planning and execution
-  patterns
-- **`bfcl_v3.jsonl`**: Working memory library for BFCL tool calls
-
-### Quick Usage
-
-```python
-# Load pre-built memories
-response = requests.post("http://localhost:8002/vector_store", json={
-    "workspace_id": "appworld",
-    "action": "load",
-    "path": "./docs/library/"
-})
-
-# Query relevant memories
-response = requests.post("http://localhost:8002/retrieve_task_memory", json={
-    "workspace_id": "appworld",
-    "query": "How to navigate to settings and update user profile?",
-    "top_k": 1
-})
-```
-
-## 🧪 Experiments
-
-### 🌍 [Appworld Experiment](cookbook/appworld/quickstart.md)
-
-We tested ReMe on Appworld using qwen3-8b:
-
-| Method       | pass@1            | pass@2            | pass@4            |
-|--------------|-------------------|-------------------|-------------------|
-| without ReMe | 0.083             | 0.140             | 0.228             |
-| with ReMe    | 0.109 **(+2.6%)** | 0.175 **(+3.5%)** | 0.281 **(+5.3%)** |
-
-Pass@K measures the probability that at least one of the K generated samples successfully completes the task (
-score=1).  
-The current experiment uses an internal AppWorld environment, which may have slight differences.
-
-You can find more details on reproducing the experiment in [quickstart.md](cookbook/appworld/quickstart.md).
-
-### 🧊 [Frozenlake Experiment](./cookbook/frozenlake/quickstart.md)
-
-|                                        without ReMe                                         |                                          with ReMe                                          |
-|:-------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------:|
-|   <p align="center"><img src="figure/frozenlake_failure.gif" alt="GIF 1" width="30%"></p>   |   <p align="center"><img src="figure/frozenlake_success.gif" alt="GIF 2" width="30%"></p>   |
-
-We tested on 100 random frozenlake maps using qwen3-8b:
-
-| Method       | pass rate        |
-|--------------|------------------|
-| without ReMe | 0.66             |
-| with ReMe    | 0.72 **(+6.0%)** |
-
-You can find more details on reproducing the experiment in [quickstart.md](cookbook/frozenlake/quickstart.md).
-
-### 🔧 [BFCL-V3 Experiment](./cookbook/bfcl/quickstart.md)
-
-We tested ReMe on BFCL-V3 multi-turn-base (randomly split 50train/150val) using qwen3-8b:
-
-| Method       | pass@1              | pass@2              | pass@4              |
-|--------------|---------------------|---------------------|---------------------|
-| without ReMe | 0.2472              | 0.2733              | 0.2922              |
-| with ReMe    | 0.3061 **(+5.89%)** | 0.3500 **(+7.67%)** | 0.3888 **(+9.66%)** |
-
 ## 📚 Resources
-
-- **[Quick Start](https://github.com/modelscope/ReMe/tree/main/cookbook/simple_demo)**: Get started quickly with practical examples
+- 
 - **[Vector Storage Setup](vector_store_api_guide.md)**: Configure local/vector databases and usage
 - **[MCP Guide](mcp_quick_start.md)**: Create MCP services
 - **[personal memory](personal_memory/personal_memory.md)** & **[task memory](task_memory/task_memory.md)** : Operators used in personal memory and task memory, You can modify the config to customize the pipelines.
-- **[Example Collection](./cookbook/appworld/quickstart.md)**: Real use cases and best practices
+- **[Example Collection](./experiment_overview.md)**: Real use cases and best practices
+- **[Library](./library/library.md)**: Directly use existing task memory/experience for your tasks, and you can also contribute more task memory/experience to us.
+- **[Contribution](contribution.md)**: welcome to your Contributions!
 
 ---
 
-## 🤝 Contribution
-
-We believe the best memory systems come from collective wisdom. Contributions welcome 👉[Guide](contribution.md):
-
-### Code Contributions
-
-- New operation and tool development
-- Backend implementation and optimization
-- API enhancements and new endpoints
-
-### Documentation Improvements
-
-- Usage examples and tutorials
-- Best practice guides
-
-
----
-
-## 📄 Citation
+## Citation
 
 ```bibtex
 @software{ReMe2025,
@@ -429,16 +324,3 @@ We believe the best memory systems come from collective wisdom. Contributions we
   year = {2025}
 }
 ```
-
----
-
-## ⚖️ License
-
-This project is licensed under the Apache License 2.0 - see the [LICENSE](https://github.com/modelscope/ReMe/blob/main/LICENSE) file for details.
-
----
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=modelscope/ReMe&type=Date)](https://www.star-history.com/#modelscope/ReMe&Date)
-
