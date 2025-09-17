@@ -199,6 +199,10 @@ new: true
   background: color-mix(in srgb, #f59e0b 14%, transparent);
   color: #b45309;
 }
+.ml-chip.contribute {
+  background: color-mix(in srgb, #3b82f6 14%, transparent);
+  color: #1d4ed8;
+}
 
 /* code/note */
 .ml-code{
@@ -294,20 +298,17 @@ new: true
 
   // —— Config：JSONL 文件位于本页同级目录（docs/library/）
   const BASE = "..";
-  const FILES = [
-    "appworld.jsonl",
-    "bfcl_v3.jsonl",
-    "research_plan.jsonl",
-    "research_tips.jsonl",
-    // 需要的话在这里继续添加文件名
-  ];
 
   // —— Categories
   const CATEGORY_MAP = {
     "Academic Datasets": ["appworld", "bfcl_v3"],
     "Finance": ["research_plan", "research_tips"],
-    "Medical": [] // header only if empty
+    "Medical/Law/Education": [] // header only if empty
   };
+
+  const FILES = Array.from(new Set(
+    Object.values(CATEGORY_MAP).flat().map(n => `${n}.jsonl`)
+  ));
 
   // —— Utils
   function show(el){ el.hidden = false; }
@@ -354,7 +355,7 @@ new: true
     }
   }
 
-  // —— Render — Libraries (stacked categories; libs 1 per row)
+  // —— Render — Libraries (stacked categories)
   function renderLibraries(){
     VIEW = "libraries"; CURR = null;
     PAGE = 1; CURRENT_MEM_LIST = [];
@@ -393,14 +394,15 @@ new: true
 
       // Category header with Finance (beta) chip
       const betaChip = (cat === "Finance") ? `<span class="ml-chip beta">beta</span>` : "";
+      const contributeChip = (cat === "Medical/Law/Education") ? `<span class="ml-chip contribute">Feel free to contribute</span>` : "";
 
       return `
-        <section class="ml-section">
-          <h3>${cat} ${betaChip}</h3>
-          <div class="ml-grid">
-            ${itemsHtml}
-          </div>
-        </section>
+      <section class="ml-section">
+        <h3>${cat} ${betaChip} ${contributeChip}</h3>
+        <div class="ml-grid">
+          ${itemsHtml}
+        </div>
+      </section>
       `;
     }).join("");
 
@@ -410,8 +412,10 @@ new: true
 
     show(elStats);
     const catsShown = Object.keys(CATEGORY_MAP).length;
-    $("ml-count").textContent = catsShown;
-    $("ml-total").textContent = catsShown;
+    const libsShown = Object.values(CATEGORY_MAP)
+  .reduce((acc, prefixes) => acc + prefixes.filter(p => availableLibs.includes(p)).length, 0);
+    $("ml-count").textContent = libsShown;
+    $("ml-total").textContent = libsShown;
   }
 
   // —— Render — Memories with Pagination
