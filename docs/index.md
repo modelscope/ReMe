@@ -55,6 +55,8 @@ ReMe integrates two complementary memory capabilities:
 
 !!! note "Personal Memory"
 
+    ---
+
     Contextualized memory for specific users
 
     - **Individual Preferences**: User habits, preferences, and interaction styles
