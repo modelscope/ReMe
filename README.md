@@ -30,7 +30,8 @@ Personal memory helps "**understand user preferences**", while task memory helps
 
 ## 📰 Latest Updates
 
-- **[2025-09]** 🎉 ReMe v0.1.8 has been officially released, adding support for asynchronous operations. It has also been
+- **[2025-09-25]** 🎉 ReMe is exploring the directions of tool memory and Personal Memory Application/Agent.
+- **[2025-09]** 🎉 ReMe v0.1.9 has been officially released, adding support for asynchronous operations. It has also been
   integrated into the memory service of agentscope-runtime.
 - **[2025-09]** 🎉 ReMe v0.1 officially released, integrating task memory and personal memory. If you want to use the
   original memoryscope project, you can find it
