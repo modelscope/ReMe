@@ -869,7 +869,7 @@
 <script>
     const updatedAt = document.getElementById("updated_at");
     if (updatedAt) {
-        const date = new Date('2025-09-16T11:06:03+08:00');
+        const date = new Date('2025-09-16T16:51:12+08:00');
         updatedAt.textContent = date.toLocaleDateString();
     }
 </script>
@@ -959,11 +959,9 @@ pip<span class="w"> </span>install<span class="w"> </span>.
 
 <h3 id="environment-configuration">Environment Configuration</h3>
 <p>Copy <code>example.env</code> to .env and modify the corresponding parameters:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># Required: LLM API Configuration</span>
+<div class="codehilite"><pre><span></span><code><span class="nv">FLOW_APP_NAME</span><span class="o">=</span>ReMe
 <span class="nv">FLOW_LLM_API_KEY</span><span class="o">=</span>sk-xxxx
 <span class="nv">FLOW_LLM_BASE_URL</span><span class="o">=</span>https://xxxx/v1
-
-<span class="c1"># Required: Embedding Model Configuration  </span>
 <span class="nv">FLOW_EMBEDDING_API_KEY</span><span class="o">=</span>sk-xxxx
 <span class="nv">FLOW_EMBEDDING_BASE_URL</span><span class="o">=</span>https://xxxx/v1
 </code></pre></div>
@@ -1799,6 +1797,7 @@ The current experiment uses an internal AppWorld environment, which may have sli
 
         return new Promise((resolve, reject) => {
             let timeout;
+            let result = ""
             let ok = true;
 
             socket.on("connect_error", (err) => {
@@ -1813,6 +1812,10 @@ The current experiment uses an internal AppWorld environment, which may have sli
             });
 
             socket.on("disconnect", () => {
+                clearTimeout(timeout);
+                // remove bottom marker and trim
+                result = result.replace("=== Code Execution Successful ===", "").trim(); // trim trailing newlines
+                resolve({ output: result, ok });
                 console.log(`[${id}] Disconnected`);
             });
 
@@ -1823,9 +1826,8 @@ The current experiment uses an internal AppWorld environment, which may have sli
                     // we try to retrieve the error message in the next message
                     return
                 }
-                clearTimeout(timeout);
-                resolve({ output, ok });
-                socket.disconnect();
+                // append output
+                result += output;
             });
 
             // safety timeout

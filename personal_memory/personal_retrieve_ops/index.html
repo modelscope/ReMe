@@ -1479,6 +1479,7 @@
 
         return new Promise((resolve, reject) => {
             let timeout;
+            let result = ""
             let ok = true;
 
             socket.on("connect_error", (err) => {
@@ -1493,6 +1494,10 @@
             });
 
             socket.on("disconnect", () => {
+                clearTimeout(timeout);
+                // remove bottom marker and trim
+                result = result.replace("=== Code Execution Successful ===", "").trim(); // trim trailing newlines
+                resolve({ output: result, ok });
                 console.log(`[${id}] Disconnected`);
             });
 
@@ -1503,9 +1508,8 @@
                     // we try to retrieve the error message in the next message
                     return
                 }
-                clearTimeout(timeout);
-                resolve({ output, ok });
-                socket.disconnect();
+                // append output
+                result += output;
             });
 
             // safety timeout
