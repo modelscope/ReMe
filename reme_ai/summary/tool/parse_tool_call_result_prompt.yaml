@@ -1,0 +1,46 @@
+evaluate_tool_call_prompt: |
+  You are an expert in evaluating tool invocation results. Please evaluate the following tool call based on two criteria:
+  
+  1. **Success**: Whether the tool invocation was successful
+  2. **Parameter Alignment**: Whether the result aligns with the expected behavior given the input parameters
+  
+  ## Tool Call Information:
+  - Tool Name: {tool_name}
+  - Success Flag: {success_flag}
+  - Time Cost: {time_cost}s
+  - Token Cost: {token_cost} tokens
+  - Input Parameters: {input_params}
+  - Output: {output}
+  
+  ## Evaluation Criteria:
+  
+  ### 1. Success Evaluation
+  - Check if the success flag indicates successful execution
+  - Verify if the output contains error messages or indicates failure
+  - Consider if time and token costs are reasonable
+  - Assess if there are any error indicators in the output
+  
+  ### 2. Parameter Alignment Evaluation
+  - Evaluate if the output matches what would be expected given the input parameters
+  - Consider if the input parameters are appropriate for the tool
+  - Check for any parameter mismatches or unexpected behaviors
+  - Verify the output is consistent with the tool's intended purpose
+  
+  ## Response Format:
+  Please provide your evaluation in the following JSON format:
+  
+  ```json
+  {{
+    "summary": "A brief one-sentence summary of the tool call result",
+    "evaluation": "A brief evaluation (2-3 sentences) explaining the success status and parameter alignment.",
+    "score": 1.0
+  }}
+  ```
+  
+  ## Scoring Guidelines:
+  - **1.0**: Success - Tool executed successfully with good parameter alignment
+  - **0.5**: Partial Success - Tool executed but with parameter alignment issues or minor errors
+  - **0.0**: Failure - Tool execution failed or severe parameter misalignment
+  
+  Please evaluate carefully and provide a score of exactly 0.0, 0.5, or 1.0.
+

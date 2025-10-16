@@ -115,9 +115,9 @@ class ToolCallResult(BaseModel):
     token_cost: int = Field(default=-1, description="Token consumption of the tool")
     success: bool = Field(default=True, description="Whether the tool invocation was successful")
     time_cost: float = Field(default=0, description="Time consumed by the tool invocation, in seconds")
-    evaluation: str = Field(default="", description="Evaluation for the tool invocation")
-    score: float = Field(default=0, description="Score of the Evaluation")
-    # updated: bool = Field(default=False, description="Whether tool memory has been updated by `ToolCallMetadata`")
+    summary: str = Field(default="", description="Brief summary of the tool call result")
+    evaluation: str = Field(default="", description="Detailed evaluation for the tool invocation")
+    score: float = Field(default=0, description="Score of the Evaluation (0.0, 0.5, or 1.0)")
 
     metadata: dict = Field(default_factory=dict)
 
@@ -135,7 +135,7 @@ class ToolCallResult(BaseModel):
             content = content[:max_char_len]
         self.output = content
 
-        self.success = tool_result.is_error
+        self.success = not tool_result.is_error
         self.metadata.update(tool_result.meta)
 
 
@@ -160,7 +160,7 @@ class ToolMemory(BaseMemory):
 
     def statistic(self, recent_frequency: int = 20) -> dict:
         """
-        Calculate statistical information for the most recent 20 tool calls.
+        Calculate statistical information for the most recent N tool calls.
         Returns avg token_cost, success rate, avg time_cost, and avg score.
         """
         if not self.tool_call_results:
@@ -173,8 +173,8 @@ class ToolMemory(BaseMemory):
                 "avg_score": 0.0
             }
         
-        # Get the most recent 20 tool calls (or all if less than 20)
-        recent_calls = self.tool_call_results[-20:]
+        # Get the most recent N tool calls (or all if less than N)
+        recent_calls = self.tool_call_results[-recent_frequency:]
         total_calls = len(self.tool_call_results)
         recent_calls_count = len(recent_calls)
         
@@ -219,7 +219,7 @@ class ToolMemory(BaseMemory):
 
 
 
-def vector_node_to_memory(node: VectorNode) -> BaseMemory:
+def vector_node_to_memory(node: VectorNode):
     memory_type = node.metadata.get("memory_type")
     if memory_type == "task":
         return TaskMemory.from_vector_node(node)

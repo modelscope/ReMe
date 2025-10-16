@@ -50,30 +50,34 @@ flow:
         required: false
 
   retrieve_tool_memory:
-    flow_content: parse_tool_call_result_op
-    description: "Retrieve tool related memories from the memory database based on queries to improve tool recall"
+    flow_content: retrieve_tool_memory_op
+    description: "Retrieves tool memories from the vector database based on tool names to provide tool usage patterns and best practices"
     input_schema:
       tool_names:
         type: string
-        description: "tool_name1,tool_name2"
+        description: "Comma-separated tool names (e.g., 'tool_name1,tool_name2')"
         required: true
 
   add_tool_call_result:
-    flow_content: parse_tool_call_result_op
-    description: "Retrieves the most relevant top-k memory experiences from historical data based on the current query with simplified processing"
+    flow_content: parse_tool_call_result_op >> update_vector_store_op
+    description: "Evaluates and adds tool call results to the tool memory database, creating new memory or updating existing memory for the specified tool"
     input_schema:
+      tool_name:
+        type: string
+        description: "The name of the tool to add call results for"
+        required: true
       tool_call_results:
         type: array
-        description: "tool_call_result"
+        description: "List of tool call result objects, each containing: tool_name, input, output, success, time_cost, token_cost, create_time"
         required: true
 
-  summary_tool_call_result:
-    flow_content: parse_tool_call_result_op
-    description: "Retrieves the most relevant top-k memory experiences from historical data based on the current query with simplified processing"
+  summary_tool_memory:
+    flow_content: summary_tool_memory_op >> update_vector_store_op
+    description: "Analyzes tool call history and generates comprehensive usage patterns, best practices, and recommendations for the specified tools"
     input_schema:
       tool_names:
         type: string
-        description: "tool_name1,tool_name2"
+        description: "Comma-separated tool names to summarize (e.g., 'tool_name1,tool_name2')"
         required: true
 
   summary_task_memory_simple:
@@ -153,6 +157,21 @@ op:
     llm: default
     params:
       enable_llm_rewrite: true
+
+  # tool memory ops
+  parse_tool_call_result_op:
+    backend: parse_tool_call_result_op
+    llm: default
+    params:
+      max_history_tool_call_cnt: 100
+      evaluation_sleep_interval: 1.0
+
+  summary_tool_memory_op:
+    backend: summary_tool_memory_op
+    llm: default
+    params:
+      recent_call_count: 20
+      summary_sleep_interval: 1.0
 
 llm:
   default:
