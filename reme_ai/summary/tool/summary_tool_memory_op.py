@@ -16,7 +16,7 @@ class SummaryToolMemoryOp(BaseAsyncOp):
     file_path: str = __file__
 
     def __init__(self,
-                 recent_call_count: int = 20,
+                 recent_call_count: int = 30,
                  summary_sleep_interval: float = 1.0,
                  **kwargs):
         super().__init__(**kwargs)
