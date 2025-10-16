@@ -49,13 +49,31 @@ flow:
         description: "A list of conversation trajectory information, including message content and score. This field does not need to be filled in, the system will complete it automatically."
         required: false
 
-  retrieve_task_memory_simple:
-    flow_content: build_query_op >> recall_vector_store_op >> merge_memory_op
+  retrieve_tool_memory:
+    flow_content: parse_tool_call_result_op
+    description: "Retrieve tool related memories from the memory database based on queries to improve tool recall"
+    input_schema:
+      tool_names:
+        type: string
+        description: "tool_name1,tool_name2"
+        required: true
+
+  add_tool_call_result:
+    flow_content: parse_tool_call_result_op
     description: "Retrieves the most relevant top-k memory experiences from historical data based on the current query with simplified processing"
     input_schema:
-      query:
+      tool_call_results:
+        type: array
+        description: "tool_call_result"
+        required: true
+
+  summary_tool_call_result:
+    flow_content: parse_tool_call_result_op
+    description: "Retrieves the most relevant top-k memory experiences from historical data based on the current query with simplified processing"
+    input_schema:
+      tool_names:
         type: string
-        description: "current query"
+        description: "tool_name1,tool_name2"
         required: true
 
   summary_task_memory_simple:
@@ -138,6 +156,12 @@ op:
 
 llm:
   default:
+    backend: openai_compatible
+    model_name: qwen3-30b-a3b-instruct-2507
+    params:
+      temperature: 0.6
+
+  wk1:
     backend: openai_compatible
     model_name: qwen3-30b-a3b-instruct-2507
     params:
