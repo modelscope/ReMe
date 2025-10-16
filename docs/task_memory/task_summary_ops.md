@@ -138,13 +138,66 @@ A simplified version of memory extraction that processes entire trajectories in 
 ### Functionality
 
 - Classifies trajectories as success or failure based on score threshold
-- Extracts memories directly from complete trajectories
+- Extracts memories directly from complete trajectories without segmentation
+- Uses a single LLM prompt to extract multiple memories from each trajectory
+- Parses JSON response containing `when_to_use` and `memory` pairs
 - Useful for simpler use cases where detailed segmentation is not required
+
+### Processing Flow
+
+1. **Receive Trajectories**: Get a list of Trajectory objects with messages and scores
+2. **For Each Trajectory**:
+   - Merge all messages into execution_process text
+   - Determine execution_result ("success" or "fail") based on score threshold
+   - Format prompt with execution_process and execution_result
+   - Call LLM to extract memories in JSON format
+3. **Parse Response**: Extract JSON array of {when_to_use, memory} objects
+4. **Create TaskMemory**: Create TaskMemory objects for each extracted memory
+5. **Return**: Set memory_list in context.response.metadata
 
 ### Parameters
 
 - `op.simple_summary_op.params.success_score_threshold` (float, default: `0.9`):
   - The threshold score that determines if a trajectory is considered successful
+  - Trajectories with `score >= success_score_threshold` are marked as "success"
+  - Trajectories with `score < success_score_threshold` are marked as "fail"
+
+### Usage Example
+
+```python
+import requests
+
+# Prepare trajectory with messages
+trajectory = {
+    "messages": [
+        {"role": "user", "content": "How do I sort a list in Python?"},
+        {"role": "assistant", "content": "You can use the sorted() function..."},
+        {"role": "user", "content": "Thanks! What about reverse sorting?"},
+        {"role": "assistant", "content": "Use sorted(list, reverse=True)..."}
+    ],
+    "score": 1.0  # Successful trajectory
+}
+
+# Summarize using simple summary
+response = requests.post(
+    url="http://0.0.0.0:8002/summary_task_memory_simple",
+    json={
+        "workspace_id": "my_workspace",
+        "trajectories": [trajectory]
+    }
+)
+```
+
+### Comparison with Full Summary Pipeline
+
+| Feature | SimpleSummaryOp | Full Summary Pipeline |
+|---------|-----------------|----------------------|
+| **Complexity** | Single operation | Multi-stage pipeline |
+| **Segmentation** | No segmentation | Optional segmentation |
+| **Extraction** | Single prompt per trajectory | Separate prompts for success/failure/comparative |
+| **Validation** | No validation | LLM validation step |
+| **Deduplication** | No deduplication | Optional deduplication |
+| **Use Case** | Quick prototyping | Production environments |
 
 ## SimpleComparativeSummaryOp
 
