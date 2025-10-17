@@ -61,12 +61,12 @@ def get_possible_k_values(total_runs: int) -> list:
 
 
 def run_exp_statistic():
-    path: Path = Path(f"./exp_result")
+    path: Path = Path(f"./exp_result/qwen3-14b/with_think/")
 
     # Store results for all experiments
     all_results = {}
 
-    for file in [f for f in path.glob("*.jsonl") if not f.stem[-1].isdigit()]:
+    for file in [f for f in path.glob("*.jsonl") ]: # if not f.stem[-1].isdigit()
         # Group results by task_id
         task_results = defaultdict(list)
 
@@ -137,7 +137,7 @@ def run_exp_statistic():
         df = df.set_index('file')
 
         # Sort columns by the number in column name (best@8, best@4, best@2, best@1)
-        pass_columns = [col for col in df.columns if col.startswith('pass@')]
+        pass_columns = [col for col in df.columns ]#if col.startswith('pass@')
         # best_columns = [col for col in df.columns]
         pass_columns.sort(key=lambda x: x, reverse=False)
         df = df[pass_columns]

@@ -71,6 +71,8 @@ def group_trajectories_by_task_id(jsonl_entries: List[Dict[str, Any]]) -> List[L
             filtered_groups.append(trajectories)
         else:
             # 多个trajectory，选择最大和最小reward的
+            # import random
+            # random.shuffle(trajectories)
             trajectories.sort(key=lambda t: t["reward"])
             min_reward_traj = trajectories[0]  # 最小reward
             max_reward_traj = trajectories[-1]  # 最大reward
@@ -237,7 +239,7 @@ if __name__ == "__main__":
     else:
         # 保持原有的行为（向后兼容）
         print("Running in compatibility mode...")
-        with open("exp_result/qwen3-14b/with_think/bfcl-multi-turn-base-train50_wo-exp.jsonl", "r") as f:
+        with open("exp_result/bfcl-multi-turn-train50_wo-exp-w-think-mix-8b&14b&32b.jsonl", "r") as f:
             data = [json.loads(line) for line in f]
         
         # 分组
@@ -246,8 +248,8 @@ if __name__ == "__main__":
         
         results = process_trajectories_with_threads(
             grouped_trajectories, 
-            "http://localhost:8002", 
-            "bfcl_train50_qwen3_14b_extract_compare_validate_w_score",
+            "http://localhost:8003", 
+            "bfcl_train50_qwen3_mix_32b&8b&14b_extract_compare_validate_categorized-noshuffle",
             n_threads=4
         )
         print(f"Processed {len(results)} groups")

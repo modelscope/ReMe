@@ -11,6 +11,9 @@ from experiencemaker.schema.vector_node import VectorNode
 
 class ExperienceMeta(BaseModel):
     author: str = Field(default="")
+    task_query: str = Field(default="")
+    when_to_use: str = Field(default="")
+    category: str = Field(default="")
     created_time: str = Field(default_factory=lambda: datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     modified_time: str = Field(default_factory=lambda: datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     extra_info: dict | None = Field(default=None)
@@ -28,6 +31,9 @@ class BaseExperience(BaseModel, ABC):
     when_to_use: str = Field(default="")
     content: str | bytes = Field(default="")
     score: float | None = Field(default=None)
+    task_query: str = Field(default="")
+    freq: int = Field(default=0)
+    utility: int = Field(default=0)
     metadata: ExperienceMeta = Field(default_factory=ExperienceMeta)
 
     def to_vector_node(self) -> VectorNode:
@@ -47,11 +53,16 @@ class TextExperience(BaseExperience):
     def to_vector_node(self) -> VectorNode:
         return VectorNode(unique_id=self.experience_id,
                           workspace_id=self.workspace_id,
+                        #   content=",".join(self.metadata.extra_info["tags"]),
                           content=self.when_to_use,
+                        #   content=self.task_query,
+                        #   content=self.metadata.extra_info["generalized_query"],
                           metadata={
                               "experience_type": self.experience_type,
                               "experience_content": self.content,
                               "score": self.score,
+                              "when_to_use": self.when_to_use, # new added
+                              "task_query": self.task_query,
                               "metadata": self.metadata.model_dump(),
                           })
 
@@ -60,9 +71,13 @@ class TextExperience(BaseExperience):
         return cls(workspace_id=node.workspace_id,
                    experience_id=node.unique_id,
                    experience_type=node.metadata.get("experience_type"),
-                   when_to_use=node.content,
+                #    when_to_use=node.content,
+                   when_to_use=node.metadata.get("when_to_use"),
+                   task_query=node.metadata.get("task_query"),
                    content=node.metadata.get("experience_content"),
                    score=node.metadata.get("score"),
+                   freq=node.freq,
+                   utility=node.utility,
                    metadata=node.metadata.get("metadata"))
 
 

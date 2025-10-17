@@ -61,6 +61,8 @@ class FileVectorStore(BaseVectorStore):
             nodes.append(node)
 
         nodes = sorted(nodes, key=lambda x: x.metadata["score"], reverse=True)
+        # import random
+        # random.shuffle(nodes)
         return nodes[:top_k]
 
     def insert(self, nodes: VectorNode | List[VectorNode], workspace_id: str, **kwargs):
@@ -114,21 +116,15 @@ class FileVectorStore(BaseVectorStore):
 
         all_nodes: List[VectorNode] = list(self._load_from_path(path=self.store_path, workspace_id=workspace_id))
         all_new_nodes = []
-        freq_counter = []
         for n in all_nodes:
             if n.unique_id in node_ids:
                 n.freq += 1
-                
-            if n.freq not in freq_counter:
-                freq_counter[n.freq] = 0
-            freq_counter[n.freq] += 1
             
             all_new_nodes.append(n)
 
         self._dump_to_path(nodes=all_new_nodes, workspace_id=workspace_id, path=self.store_path, **kwargs)
         logger.info(f"update workspace_id={workspace_id} update_cnt={len(node_ids)}")
         
-        return freq_counter
     
     def update_utility(self, node_ids: str | List[str], workspace_id: str, **kwargs):
         if not self.exist_workspace(workspace_id=workspace_id):

@@ -17,9 +17,12 @@ from appworld import load_task_ids
 from appworld_react_agent import AppworldReactAgent
 
 
-def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int, num_runs: int = 1, use_experience: bool = False, workspace_id: str="appworld", exp_url: str = "http://0.0.0.0:8001/") :
+def run_agent(model_name: str, dataset_name: str, experiment_suffix: str, max_workers: int, num_runs: int = 1, enable_thinking: bool=False, use_experience: bool = False, workspace_id: str="appworld", exp_url: str = "http://0.0.0.0:8001/") :
     experiment_name = dataset_name + "_" + experiment_suffix
-    path: Path = Path(f"./exp_result")
+    if enable_thinking:
+        path: Path = Path(f"./exp_result/{model_name}/with_think")
+    else:
+        path: Path = Path(f"./exp_result/{model_name}/no_think")
     path.mkdir(parents=True, exist_ok=True)
 
     task_ids = load_task_ids(dataset_name)
@@ -36,6 +39,8 @@ def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int, num_r
             # Assign tasks to each worker, ensuring each task runs num_runs times
             worker_task_ids = task_ids[i::max_workers]
             actor = AppworldReactAgent.remote(index=i,
+                                              model_name=model_name,
+                                              enable_thinking=enable_thinking,
                                               task_ids=worker_task_ids,
                                               experiment_name=experiment_name,
                                               num_runs=num_runs,
@@ -61,10 +66,12 @@ def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int, num_r
     else:
         for index, task_id in enumerate(task_ids):
             agent = AppworldReactAgent(index=index,
-                                     task_ids=[task_id],
-                                     experiment_name=experiment_name,
-                                     num_runs=num_runs,
-                                     use_experience=use_experience)
+                                       model_name=model_name,
+                                       enable_thinking=enable_thinking,
+                                       task_ids=[task_id],
+                                       experiment_name=experiment_name,
+                                       num_runs=num_runs,
+                                       use_experience=use_experience)
             task_results = agent.execute()
             if isinstance(task_results, list):
                 result.extend(task_results)
@@ -74,19 +81,35 @@ def run_agent(dataset_name: str, experiment_suffix: str, max_workers: int, num_r
 
 
 def main():
-    max_workers = 8
-    num_runs = 1  # Run each task 4 times
+    max_workers = 12
+    num_runs = 4  # Run each task 4 times
     if max_workers > 1:
         ray.init(num_cpus=8)
 
     logger.info("Start running experiments without experience")
     for i in range(num_runs):
-        run_agent(dataset_name="dev", experiment_suffix=f"no-exp", max_workers=max_workers, num_runs=1,
-                  use_experience=False, workspace_id="appworld_v1")
+        run_agent(
+            model_name="qwen3-8b",
+            dataset_name="test_normal", 
+            experiment_suffix=f"no-exp-1015-new_prompt_nosplit_new", 
+            max_workers=max_workers, 
+            num_runs=1,
+            enable_thinking=True,
+            use_experience=False, 
+            workspace_id="appworld_v1"
+        )
 
-    logger.info("Start running experiments with experience")
-    for i in range(num_runs):
-        run_agent(dataset_name="dev", experiment_suffix=f"add-exp", max_workers=max_workers, num_runs=1, use_experience=True,workspace_id="appworld_v1")
+    # logger.info("Start running experiments with experience")
+    # for i in range(num_runs):
+    #     run_agent(
+    #       dataset_name="dev", 
+    #       experiment_suffix=f"add-exp", 
+    #       max_workers=max_workers, 
+    #       num_runs=1, 
+    #       use_experience=True,
+    #       enable_thinking=False,
+    #       workspace_id="appworld_v1"
+    #     )
 
 
 

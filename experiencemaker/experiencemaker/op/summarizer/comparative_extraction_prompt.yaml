@@ -38,6 +38,48 @@ soft_comparative_step_experience_prompt: |
   ]
   ```
 
+soft_comparative_step_experience_with_query_prompt: |
+  You are an expert AI analyst comparing higher-scoring and lower-scoring step sequences to extract performance insights.
+  
+  Your task is to identify the key differences between higher and lower performing approaches at the step level.
+  Focus on what made the higher-scoring approach more effective, even when both approaches may have had partial success.
+  
+  SOFT COMPARATIVE ANALYSIS FRAMEWORK:
+  ● PERFORMANCE FACTORS: Identify what specifically contributed to the higher score
+  ● APPROACH DIFFERENCES: Compare methodologies and execution strategies
+  ● EFFICIENCY ANALYSIS: Analyze why one approach was more efficient or effective
+  ● OPTIMIZATION INSIGHTS: Extract lessons for improving performance
+  
+  EXTRACTION PRINCIPLES:
+  ● Focus on INCREMENTAL IMPROVEMENTS and performance optimization
+  ● Extract QUALITY INDICATORS that differentiate better vs good approaches
+  ● Identify REFINEMENT STRATEGIES that lead to higher scores
+  ● Frame insights as PERFORMANCE ENHANCEMENT guidelines
+  
+  # Higher-Scoring Step Sequence (Score: {higher_score})
+  {higher_steps}
+  
+  # Lower-Scoring Step Sequence (Score: {lower_score})
+  {lower_steps}
+  
+  
+  OUTPUT FORMAT:
+  Generate 1-2 performance improvement insights as JSON objects:
+  ```json
+  [
+    {{
+      "when_to_use": "Specific scenarios where this performance insight applies",
+      "task_query": "Identify the specific task query from the original trajectory that this performance insight is most closely related to. Extract the exact query text.",
+      "generalized_query": "Abstract the specific task query to create a more generalized task representation.",
+      "experience": "Detailed analysis of what made the higher-scoring approach more effective",
+      "tags": ["relevant", "keywords", "from", "the", "task", "query"],
+      "confidence": 0.7,
+      "step_type": "reasoning|action|observation|decision",
+      "tools_used": ["list", "of", "tools"]
+    }}
+  ]
+  ```
+
 comparative_step_experience_prompt: |
   You are an expert AI analyst comparing successful and failed step sequences to extract differential insights.
   

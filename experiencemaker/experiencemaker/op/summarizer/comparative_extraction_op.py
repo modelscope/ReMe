@@ -81,7 +81,7 @@ class ComparativeExtractionOp(BaseOp):
         lower_score = self._get_trajectory_score(lower_traj)
 
         prompt = self.prompt_format(
-            prompt_name="soft_comparative_step_experience_prompt",
+            prompt_name="soft_comparative_step_experience_with_query_prompt",# 
             higher_steps=merge_messages_content(higher_steps),
             lower_steps=merge_messages_content(lower_steps),
             higher_score=f"{higher_score:.2f}",
@@ -97,7 +97,15 @@ class ComparativeExtractionOp(BaseOp):
                     workspace_id=self.context.request.workspace_id,
                     when_to_use=exp_data.get("when_to_use", exp_data.get("condition", "")),
                     content=exp_data.get("experience", ""),
-                    metadata=exp_data
+                    task_query=exp_data.get('task_query', ''),
+                    metadata=ExperienceMeta(
+                        category="comparative", 
+                        author=self.llm.model_name if hasattr(self, 'llm') else "system", 
+                        task_query=exp_data.get('task_query', ''), 
+                        when_to_use=exp_data.get("when_to_use", exp_data.get("condition", "")),
+                        extra_info={"tags": exp_data.get('tags', ''),
+                                    "generalized_query": exp_data.get('generalized_query', ''),}
+                    )
                 )
                 experiences.append(experience)
 

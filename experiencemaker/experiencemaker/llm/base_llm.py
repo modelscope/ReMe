@@ -37,7 +37,7 @@ class BaseLLM(BaseModel, ABC):
     parallel_tool_calls: bool = Field(default=True, description="Allow multiple tool calls in parallel")
 
     # Error handling and reliability
-    max_retries: int = Field(default=5, description="Maximum number of retry attempts on failure")
+    max_retries: int = Field(default=50, description="Maximum number of retry attempts on failure")
     raise_exception: bool = Field(default=False, description="Whether to raise exceptions or return default values")
 
     def stream_chat(self, messages: List[Message], tools: List[BaseTool] = None, **kwargs):

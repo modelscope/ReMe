@@ -49,10 +49,11 @@ class SuccessExtractionOp(BaseOp):
     def _extract_success_experience_from_steps(self, steps: List[Message], trajectory: Trajectory) -> List[BaseExperience]:
         """Extract experience from successful step sequences"""
         step_content = merge_messages_content(steps)
+        print(step_content)
         context = get_trajectory_context(trajectory, steps)
 
         prompt = self.prompt_format(
-            prompt_name="success_step_experience_prompt",
+            prompt_name="success_step_experience_with_query_prompt",#
             query=trajectory.metadata.get('query', ''),
             step_sequence=step_content,
             context=context,
@@ -67,8 +68,16 @@ class SuccessExtractionOp(BaseOp):
                 experience = TextExperience(
                     workspace_id=self.context.request.workspace_id,
                     when_to_use=exp_data.get("when_to_use", exp_data.get("condition", "")),
+                    task_query=exp_data.get('task_query', ''),
                     content=exp_data.get("experience", ""),
-                    metadata=ExperienceMeta(author=self.llm.model_name if hasattr(self, 'llm') else "system")
+                    metadata=ExperienceMeta(
+                        category="success", 
+                        author=self.llm.model_name if hasattr(self, 'llm') else "system", 
+                        task_query=exp_data.get('task_query', ''), 
+                        when_to_use=exp_data.get("when_to_use", exp_data.get("condition", "")),
+                        extra_info={"tags": exp_data.get('tags', ''),
+                                    "generalized_query": exp_data.get('generalized_query', ''),}
+                    )
                 )
                 experiences.append(experience)
 

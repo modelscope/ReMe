@@ -27,7 +27,9 @@ class RerankExperienceOp(BaseOp):
         retrieval_query: str = self.context.get_context(RecallVectorStoreOp.SEARCH_QUERY, "")
         enable_llm_rerank = self.op_params.get("enable_llm_rerank", True)
         enable_score_filter = self.op_params.get("enable_score_filter", False)
-        min_score_threshold = self.op_params.get("min_score_threshold", 0.3)
+        min_score_threshold = self.op_params.get("min_score_threshold", 0.8)
+        min_freq_threshold = self.op_params.get("min_freq_threshold", 5)
+        min_utility_threshold = self.op_params.get("min_score_threshold", 0.6)
         top_k = self.op_params.get("top_k", 5)
 
         logger.info(f"top_k: {top_k}")
@@ -47,7 +49,8 @@ class RerankExperienceOp(BaseOp):
 
             # Step 2: Score-based filtering (optional)
             if enable_score_filter:
-                experiences = self._score_based_filter(experiences, min_score_threshold)
+                # experiences = self._score_based_filter(experiences, min_score_threshold)
+                experiences = self._utility_based_filter(experiences, min_score_threshold, min_freq_threshold, min_utility_threshold)
                 logger.info(f"After score filtering: {len(experiences)} experiences")
 
             # Step 3: Return top-k results
@@ -119,6 +122,23 @@ class RerankExperienceOp(BaseOp):
                 filtered_experiences.append(exp)
             else:
                 logger.debug(f"Filtered out experience with score {combined_score:.2f}")
+
+        logger.info(f"Score filtering: {len(filtered_experiences)}/{len(experiences)} experiences retained")
+        return filtered_experiences
+    
+    def _utility_based_filter(self, experiences: List[BaseExperience], min_score: float, freq_threshold: float, utility_threshold: float) -> List[BaseExperience]:
+        """Filter experiences based on quality scores"""
+        filtered_experiences = []
+
+        for exp in experiences:
+            # Get confidence score from metadata
+            validation_score = exp.score
+            utility_score = exp.utility*1.0/ exp.freq if exp.freq > freq_threshold else utility_threshold
+
+            if validation_score >= min_score and utility_score >= utility_threshold:
+                filtered_experiences.append(exp)
+            else:
+                logger.debug(f"Filtered out experience with score {validation_score:.2f}")
 
         logger.info(f"Score filtering: {len(filtered_experiences)}/{len(experiences)} experiences retained")
         return filtered_experiences

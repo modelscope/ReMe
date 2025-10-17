@@ -64,7 +64,7 @@ class BFCLAgent:
                  num_runs: int = 1,
                  enable_thinking: bool = False,
                  use_experience: bool = False,              
-                 use_experience_addition: bool = True,              
+                 use_experience_addition: bool = False,              
                  use_experience_deletion: bool = False,              
                  delete_freq: int = 10,
                  freq_threshold: int = 5, 
@@ -111,28 +111,43 @@ class BFCLAgent:
         self.tool_schema[run_id].append(extract_tool_schema(self.test_entry[run_id][i].get("tools", [{}])))
 
         # 初始历史
-        msg = self.test_entry[run_id][i].get("messages", [])[0]
-        if self.use_experience:
-            query = msg["content"]
+        msg = self.test_entry[run_id][i].get("messages", [])[0]    
+        self.history[run_id].append([msg])
+        self.retrieved_experience_ids[run_id].append([])
+        self.current_turn[run_id][i] = 1
+
+    def update_task_history_with_experience(self, run_id, task_index, previous_experiences: None):
+        msg = self.history[run_id][task_index][0]
+        query = msg["content"]
+        if not previous_experiences:
             response = self.get_experience(query)
             if len(response["experience_list"]):
-                self.retrieved_experience_ids[run_id].append([e["experience_id"] for e in response["experience_list"]])
+                self.retrieved_experience_ids[run_id][task_index] = [e["experience_id"] for e in response["experience_list"]]
                 exp: str = response["experience_merged"]
                 print(f"experience_merged={exp}")
-                self.history[run_id].append([self.get_query_with_experience(query, exp)])
-                self.update_experience_freq(self.retrieved_experience_ids[run_id][i])
-            else:
-                self.retrieved_experience_ids[run_id].append([])
-                self.history[run_id].append([msg])
-        else:
-            self.history[run_id].append([msg])
-        self.current_turn[run_id][i] = 1
+                self.history[run_id][task_index][0] = self.get_query_with_experience(query, exp)
+                self.update_experience_freq(self.retrieved_experience_ids[run_id][task_index])
+        elif len(previous_experiences): # use experience from previous trails
+            formatted_experiences = []
+            for i, exp in enumerate(previous_experiences, 1):
+                condition = exp["when_to_use"]
+                experience_content = exp["content"]
+                exp_text = f"Experience {i} :\n When to use: {condition}\n Content: {experience_content}\n"
+                self.retrieved_experience_ids[run_id][task_index].append(exp["experience_id"])
+                formatted_experiences.append(exp_text)
+            self.history[run_id][task_index][0] = self.get_query_with_experience(query, "\n".join(formatted_experiences))
+            self.update_experience_freq(self.retrieved_experience_ids[run_id][task_index])
 
     def get_query_with_experience(self, query: str, experience: str):
         return {
             "role": "user",
             "content": "Task:\n" + query + "\n\nSome Related Experience to help you to complete the task:\n" + experience
         }
+    
+    def get_query_without_experience(self, query: str):
+        if "\n\nSome Related Experience" in query:
+            query = query.split("\n\nSome Related Experience")[0].split("Task:\n")[-1]
+        return query
     
     def get_experience(self, query: str):
         response = requests.post(url=self.experience_base_url + "retriever", json={
@@ -157,7 +172,9 @@ class BFCLAgent:
         })
         response.raise_for_status()
         response = response.json()
-        logger.info(f"add new experiences: {response["experience_list"]}")
+        print(response)
+        logger.info(f"add new experiences: {response['experience_list']}")
+        return response["experience_list"]
     
     def update_experience_freq(self, experience_ids):
         response = requests.post(url=self.experience_base_url + "vector_store", json={
@@ -184,7 +201,97 @@ class BFCLAgent:
             "utility_threshold": self.utility_threshold
         })
         response.raise_for_status()
+    def delete_experience_by_ids(self, experience_ids):
+        response = requests.post(url=self.experience_base_url + "vector_store", json={
+            "workspace_id": self.experience_workspace_id,
+            "action": "delete_ids",
+            "experience_ids": experience_ids
+        })
+        response.raise_for_status()
+    def remove_previous_experiences(self, task_history):
+        new_task_history = []
+        for msg in task_history:
+            if msg["role"] == "user":
+                pattern = r'Task:\n(.*?)\n\nSome Related Experience'
+                match = re.search(pattern, msg["content"], re.DOTALL)
+                if match:
+                    msg["content"] = match.group(1).strip()
+            new_task_history.append(msg)
+        return new_task_history
+    
+    def get_similar_query_traj(self, run_id, current_index, current_traj, current_reward, history_results):
+        if len(history_results) == 0:
+            return None
+        embedding_model_name = "text-embedding-v4"
+        dimensions=1024
+        encoding_format="float"
+        similarity_threshold=0.5
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_BASE_URL"))
         
+        current_query = self.get_query_without_experience(current_traj[0]["content"])
+        current_query_emb = client.embeddings.create(
+            model=embedding_model_name,
+            input=current_query,
+            dimensions=dimensions,
+            encoding_format=encoding_format
+        ).data[0].embedding
+
+        index_length = run_id * len(self.task_ids) + current_index
+        similar_pairs = []
+        for index in range(index_length):
+            history_result=history_results[index]
+            if history_result["reward"] == current_reward:
+                continue
+            query = self.get_query_without_experience(history_result["task_history"][0]["content"])
+            query_emb = client.embeddings.create(
+                model=embedding_model_name,
+                input=query,
+                dimensions=dimensions,
+                encoding_format=encoding_format
+            ).data[0].embedding
+            
+            similarity = self.calculate_cosine_similarity(current_query_emb, query_emb)
+            
+            if similarity > similarity_threshold:
+                similar_pairs.append((
+                    history_result["task_id"],
+                    history_result["task_history"],
+                    history_result["reward"],
+                    similarity
+                ))
+
+        if len(similar_pairs):
+            # Return top most similar traj
+            similar_traj = sorted(similar_pairs, key=lambda x: x[3], reverse=True)[0]
+            return self.get_traj_from_task_history(similar_traj[0], similar_traj[1], similar_traj[2])
+        else:
+            return None
+    
+    def get_traj_from_task_history(self, task_id: str, task_history: list, reward: float):
+        task_history[0]["content"] = self.get_query_without_experience(task_history[0]["content"])
+        return {
+            "task_id": task_id,
+            "messages": task_history,
+            "score": reward
+        }
+
+    def calculate_cosine_similarity(self, embedding1: List[float], embedding2: List[float]) -> float:
+        """Calculate cosine similarity"""
+        import numpy as np
+
+        vec1 = np.array(embedding1)
+        vec2 = np.array(embedding2)
+
+        # Calculate cosine similarity
+        dot_product = np.dot(vec1, vec2)
+        norm1 = np.linalg.norm(vec1)
+        norm2 = np.linalg.norm(vec2)
+
+        if norm1 == 0 or norm2 == 0:
+            return 0.0
+
+        return dot_product / (norm1 * norm2) 
+    
     def call_llm(self, messages: list, tool_schemas: list[dict]) -> str:
         for i in range(100):
             try:
@@ -519,10 +626,14 @@ class BFCLAgent:
         result = []
         counter = 0
         for task_index, task_id in enumerate(tqdm(self.task_ids, desc=f"ray_index={self.index}")):
+            t_result = None
+            previous_experiences = None
             for run_id in range(self.num_runs):
                 try:
                     start_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     for i in range(self.max_interactions):
+                        if self.use_experience and i == 0: # add the experience in the first step
+                            self.update_task_history_with_experience(run_id, task_index, previous_experiences)
                         llm_output = self.call_llm(self.history[run_id][task_index], self.tool_schema[run_id][task_index])
                         self.history[run_id][task_index].append(llm_output)
 
@@ -550,11 +661,12 @@ class BFCLAgent:
                                 # if self.use_experience:
                                 #     response = self.get_experience(next_user_msg)
                                 #     if len(response["experience_list"]):
+                                #         # self.history[run_id][task_index]=self.remove_previous_experiences(self.history[run_id][task_index])
                                 #         new_retrieved_experience_ids=[e["experience_id"] for e in response["experience_list"]]
                                 #         self.retrieved_experience_ids[run_id][task_index].extend(new_retrieved_experience_ids)
                                 #         self.retrieved_experience_ids[run_id][task_index]=list(set(self.retrieved_experience_ids[run_id][task_index]))  
                                 #         exp: str = response["experience_merged"]
-                                #         print(f"experience_merged={exp}")
+                                #         # print(f"experience_merged={exp}")
                                 #         next_user_msg = "Task:\n" + next_user_msg + "\n\nSome Related Experience to help you to complete the task:\n" + exp
                                 #         self.update_experience_freq(new_retrieved_experience_ids)
                                 self.current_turn[run_id][task_index] += 1
@@ -573,19 +685,24 @@ class BFCLAgent:
                             break
 
                     reward = self.get_reward(run_id, task_index)
-                    if self.use_experience: # reward == 1 and 
-                        if self.use_experience_addition:
-                            # selectively add experiences when succeed
-                            self.add_experience([{
-                                "task_id":task_id,
-                                "messages":self.history[run_id][task_index],
-                                "score":reward
-                            }]) 
-                    
-                        if len(self.retrieved_experience_ids[run_id][task_index]):
-                            # update the utility-related attributes of retrieved experiences
-                            self.update_experience_utility(self.retrieved_experience_ids[run_id][task_index])
+                    if self.use_experience:
+                        if self.use_experience_addition:# and reward == 1
+                            new_traj_list = [self.get_traj_from_task_history(task_id, self.history[run_id][task_index], reward)]
+                            # similar_traj = self.get_similar_query_traj(run_id, task_index, self.history[run_id][task_index], reward, result)
+                            # if similar_traj:
+                            #     new_traj_list.append(similar_traj)
+                            # if run_id > 0 and reward == 1: # exist previous failed trails
+                            #     new_traj_list.append(self.get_traj_from_task_history(task_index, self.history[run_id-1][task_index], 0))
+                            previous_experiences = self.add_experience(new_traj_list) 
+                            if reward != 1:
+                                self.delete_experience_by_ids([e["experience_id"] for e in previous_experiences])
                         
+                        if len(self.retrieved_experience_ids[run_id][task_index]):
+                            # self.update_experience_freq(self.retrieved_experience_ids[run_id][task_index])
+                            if reward == 1:
+                                # update the utility-related attributes of retrieved experiences
+                                self.update_experience_utility(self.retrieved_experience_ids[run_id][task_index])
+                            
                     counter += 1
                     if self.use_experience_deletion and counter % self.delete_freq == 0:
                         self.delete_experience()
@@ -599,11 +716,13 @@ class BFCLAgent:
                         "task_history": self.history[run_id][task_index],
                         "task_start_time": start_time,
                     }
-                    result.append(t_result)
+                    # result.append(t_result)
+                    if reward == 1:
+                        break
 
                 except Exception as e:
                     logger.exception(f"encounter error with {e.args}")
-                    result.append({})
+            result.append(t_result)
         return result
 
     def task_completed(self, run_id, index):

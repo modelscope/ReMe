@@ -11,9 +11,10 @@ def merge_messages_content(messages: List[Message | dict]) -> str:
     for i, message in enumerate(messages):
         if isinstance(message, dict):
             message = Message(**message)
+            
 
-        if message.role is Role.ASSISTANT:
-            line = f"### step.{i} role={message.role.value} content=\n{message.reasoning_content}\n\n{message.content}\n"
+        if message.role is Role.ASSISTANT:#\n{message.reasoning_content}\n
+            line = f"### step.{i} role={message.role.value} content=\n{message.content}\n"
             if message.tool_calls:
                 for tool_call in message.tool_calls:
                     line += f" - tool call={tool_call.name}\n   params={tool_call.arguments}\n"

@@ -53,7 +53,7 @@ class FailureExtractionOp(BaseOp):
         context = get_trajectory_context(trajectory, steps)
 
         prompt = self.prompt_format(
-            prompt_name="failure_step_experience_prompt",
+            prompt_name="failure_step_experience_with_query_prompt",#
             query=trajectory.metadata.get('query', ''),
             step_sequence=step_content,
             context=context,
@@ -68,8 +68,16 @@ class FailureExtractionOp(BaseOp):
                 experience: BaseExperience = TextExperience(
                     workspace_id=self.context.request.workspace_id,
                     when_to_use=exp_data.get("when_to_use", exp_data.get("condition", "")),
+                    task_query=exp_data.get('task_query', ''),
                     content=exp_data.get("experience", ""),
-                    metadata=ExperienceMeta(author=self.llm.model_name if hasattr(self, 'llm') else "system")
+                    metadata=ExperienceMeta(
+                        category="failure", 
+                        author=self.llm.model_name if hasattr(self, 'llm') else "system", 
+                        task_query=exp_data.get('task_query', ''), 
+                        when_to_use=exp_data.get("when_to_use", exp_data.get("condition", "")),
+                        extra_info={"tags": exp_data.get('tags', ''),
+                                    "generalized_query": exp_data.get('generalized_query', ''),}
+                    )
                 )
                 experiences.append(experience)
 

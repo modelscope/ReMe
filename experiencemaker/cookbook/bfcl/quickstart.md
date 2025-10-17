@@ -21,6 +21,7 @@ cd gorilla/berkeley-function-call-leaderboard
 conda create -n bfcl-env python==3.12
 conda activate bfcl-env
 pip install -e .
+pip install loguru
 ```
 
 #### Move the dataset to the data folder under bfcl

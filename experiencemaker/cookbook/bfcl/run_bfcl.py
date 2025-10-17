@@ -17,12 +17,12 @@ from bfcl_agent import BFCLAgent
 def run_agent(dataset_name: str, 
               experiment_suffix: str, 
               max_workers: int, 
-              num_runs: int = 4, 
+              num_runs: int = 4,
               model_name: str = "qwen3-8b",
               data_path: str = "data/multiturn_data_base_val.jsonl",
               answer_path: Path = Path("data/possible_answer"),
               use_experience: bool = False,         
-              use_experience_addition: bool = True,    
+              use_experience_addition: bool = False,    
               use_experience_deletion: bool = False,
               delete_freq: int = 10,
               freq_threshold: int = 5,
@@ -79,28 +79,29 @@ def run_agent(dataset_name: str,
 
         logger.info(f"{i + 1}/{len(task_ids)} complete")
     dump_file()
-    
+
 
 def main():
     max_workers = 4
     num_runs = 1
+    num_trials = 3
     use_experience = True
-    use_experience_addition = False
-    use_experience_deletion = False
-    experience_base_url = "http://0.0.0.0:8000/"
-    experience_workspace_id = "bfcl_train50_qwen3_14b_extract_compare_validate"
+    use_experience_addition = True
+    use_experience_deletion = True
+    experience_base_url = "http://0.0.0.0:8002/"
+    experience_workspace_id = "bfcl_train50_qwen3_32b_extract_compare_validate_fromself_wo_reasoning"
     if max_workers > 1:
         ray.init(num_cpus=max_workers)
     for run_id in range(num_runs):
         run_agent(
             dataset_name="bfcl-multi-turn-base-val", 
-            experiment_suffix=f"w-exp-fixed-recall-only",
-            model_name="qwen3-14b", # qwen-max-latest,qwen-max-2025-01-25,qwen3-14b
+            experiment_suffix=f"w-exp-fromself-add-delete-wo-reasoning-recall-only-1014",
+            model_name="qwen3-32b", # qwen-max-latest,qwen-max-2025-01-25,qwen3-14b
             max_workers=max_workers, 
-            num_runs=1, 
+            num_runs=num_trials,
             data_path="data/multiturn_data_base_val.jsonl",
             answer_path=Path("data/possible_answer"),
-            enable_thinking=False,
+            enable_thinking=True,
             use_experience=use_experience,
             use_experience_addition=use_experience_addition,
             use_experience_deletion=use_experience_deletion,

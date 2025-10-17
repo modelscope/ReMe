@@ -35,7 +35,7 @@ class ExperienceValidationOp(BaseOp):
         
         for i, result in enumerate(validation_results):
             if result and result.get("is_valid", False):
-                experiences[i].update_score(result.get("score", 0))
+                # experiences[i].update_score(result.get("score", 0))
                 validated_experiences.append(experiences[i])
             else:
                 reason = result.get("reason", "Unknown reason") if result else "Validation failed"
