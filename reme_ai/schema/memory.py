@@ -117,7 +117,7 @@ class ToolCallResult(BaseModel):
     time_cost: float = Field(default=0, description="Time consumed by the tool invocation, in seconds")
     summary: str = Field(default="", description="Brief summary of the tool call result")
     evaluation: str = Field(default="", description="Detailed evaluation for the tool invocation")
-    score: float = Field(default=0, description="Score of the Evaluation (0.0, 0.5, or 1.0)")
+    score: float = Field(default=0, description="Score of the Evaluation (0.0 for failure, 1.0 for complete success)")
 
     metadata: dict = Field(default_factory=dict)
 
@@ -193,11 +193,9 @@ class ToolMemory(BaseMemory):
         avg_score = total_score / recent_calls_count if recent_calls_count > 0 else 0.0
         
         return {
-            "total_calls": total_calls,
-            "recent_calls_analyzed": recent_calls_count,
             "avg_token_cost": round(avg_token_cost, 2),
-            "success_rate": round(success_rate, 4),
             "avg_time_cost": round(avg_time_cost, 3),
+            "success_rate": round(success_rate, 4),
             "avg_score": round(avg_score, 3)
         }
 

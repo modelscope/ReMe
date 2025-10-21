@@ -7,14 +7,11 @@ summarize_tool_usage_prompt: |
   ## Recent Tool Call History:
   {call_summaries}
 
-  ## Statistical Summary:
-  {statistics}
-
   ## Your Task:
   Based on the tool call history, generate a concise and logical tool usage description following this structure:
 
   1. **Core Function**: What this tool does and when to use it
-  2. **Success Patterns**: Parameter patterns and usage scenarios that work well (with key metrics)
+  2. **Success Patterns**: Parameter patterns and usage scenarios that work well
   3. **Common Issues**: Main pitfalls to avoid and why they fail
   4. **Best Practices**: 2-3 actionable recommendations
 

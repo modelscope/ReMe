@@ -1,41 +1,157 @@
 # Tool Memory in ReMe
 
-Tool Memory is a specialized component of ReMe that captures and learns from tool usage patterns, enabling AI agents to improve their tool invocation strategies over time. This document explains how tool memory works and how to use it in your applications.
+## 1. Background: Why Tool Memory?
 
-## What is Tool Memory?
+### The MCP Tool Selection Challenge
 
-Tool Memory represents knowledge extracted from historical tool invocations, including:
-- Usage patterns and best practices for specific tools
-- Common parameter configurations that lead to success or failure
-- Performance characteristics (time cost, token cost, success rate)
-- Actionable recommendations based on real usage data
+In modern AI agent systems, LLMs face a rapidly expanding ecosystem of MCP (Model Context Protocol) tools. With hundreds or thousands of available tools, a critical problem emerges:
 
-Each tool memory contains:
-- `when_to_use`: The tool name (used as the unique identifier)
-- `content`: Synthesized usage guidelines and best practices
-- `tool_call_results`: Historical invocation records with evaluations
-- Statistical metrics about tool performance
+**The Core Problem: Tool Description is Not Enough**
 
-## Tool Memory Data Structure
+When an LLM faces numerous MCP tools, it relies heavily on tool descriptions to decide which tool to use and how to use it. However:
 
-### ToolMemory
+- **Ambiguous Descriptions**: Many tools have similar descriptions but different performance characteristics
+- **Hidden Complexity**: Static descriptions can't capture runtime behaviors, edge cases, or failure patterns
+- **Parameter Confusion**: Tools may accept similar parameters with different optimal values
+- **No Quality Signal**: Descriptions don't tell you which tools are reliable, fast, or cost-effective
+
+**Example: Web Search Tools**
+
+Imagine an LLM choosing between three search tools:
+```
+Tool A: "Search the web for information"
+Tool B: "Perform web searches with customizable parameters"  
+Tool C: "Query search engines and return results"
+```
+
+The descriptions are nearly identical, but in reality:
+- Tool A: 95% success rate, avg 2.3s, best for technical queries
+- Tool B: 70% success rate, avg 5.8s, often times out with >20 results
+- Tool C: 85% success rate, avg 3.1s, good for general queries
+
+**Without historical data, the LLM can't make informed decisions.**
+
+### The Solution: Tool Memory as Context Enhancement
+
+Tool Memory solves this by providing **learned context from historical usage**, transforming static tool descriptions into dynamic, data-driven guidance:
+
+**1. Rule-Based Statistics** (Objective Metrics)
+- **Success Rate**: "This tool succeeds 92% of the time"
+- **Performance**: "Average execution time: 2.3s, token cost: 150"
+- **Usage Patterns**: "Most successful calls use max_results=10-20"
+
+**2. LLM-as-Judge Evaluation** (Qualitative Insights)
+- **Quality Assessment**: LLM evaluates each call's effectiveness
+- **Pattern Recognition**: Identifies why some calls succeed and others fail
+- **Actionable Recommendations**: Synthesizes guidelines from patterns
+
+**3. Enhanced Context for LLM Decision-Making**
+
+Instead of just a tool description, the LLM now receives:
+
+```
+Tool: web_search
+
+Static Description:
+"Search the web for information"
+
++ Tool Memory Context:
+"Based on 150 historical calls:
+- Success rate: 92% (138 successful, 12 failed)
+- Avg time: 2.3s, Avg tokens: 150
+- Best for: Technical documentation, tutorials (95% success)
+- Optimal params: max_results=5-20, language='en'
+- Common failures: Generic queries timeout, max_results>50 unreliable
+- Recommendation: Use specific multi-word queries with filter_type='technical_docs'"
+```
+
+This enriched context enables the LLM to:
+- **Choose the right tool** based on task requirements and reliability
+- **Use optimal parameters** learned from successful historical calls
+- **Avoid known pitfalls** that caused previous failures
+- **Estimate costs** (time and tokens) before execution
+
+### The Impact: From Static Descriptions to Dynamic Intelligence
+
+**Traditional Approach (Static Descriptions Only):**
+```
+LLM: "I have 50 search tools, all with similar descriptions"
+→ Random choice or first match
+→ Trial-and-error parameter selection
+→ 75% success rate, repeated failures
+```
+
+**Tool Memory Approach (Description + Historical Context):**
+```
+LLM: "I have 50 search tools, but Tool A has 95% success for technical queries"
+→ Informed choice based on data
+→ Use proven parameter configurations
+→ 92% success rate, optimized performance
+```
+
+**Real-World Impact:**
+
+```
+Before Tool Memory:
+- Success rate: 75%
+- Average time cost: 5.2s  
+- Token cost: 200+ per call
+- Repeated parameter errors
+- Random tool selection
+
+After Tool Memory:
+- Success rate: 92% (+17%)
+- Average time cost: 2.8s (-46%)
+- Token cost: 150 per call (-25%)
+- Consistent best practices
+- Data-driven tool selection
+```
+
+### Why This Matters for MCP Ecosystem
+
+As the MCP ecosystem grows, Tool Memory becomes essential:
+
+1. **Scalability**: LLMs can navigate thousands of tools with confidence
+2. **Quality Control**: Tools with poor performance get flagged automatically
+3. **Continuous Improvement**: Every call improves the knowledge base
+4. **Transfer Learning**: Insights from one agent benefit all agents in the workspace
+
+**Tool Memory transforms tool descriptions from static documentation into living, learned manuals that improve with every use.**
+
+## 2. What is Tool Memory?
+
+Tool Memory is a structured knowledge base that captures insights from tool usage history. Each Tool Memory represents accumulated wisdom about a specific tool.
+
+### Data Structure
+
+#### ToolMemory
+
+`ToolMemory` is the core data structure that stores comprehensive information about a tool's usage patterns:
 
 ```python
 class ToolMemory(BaseMemory):
-    memory_type: str = "tool"
-    workspace_id: str                    # Workspace identifier
-    memory_id: str                       # Unique memory ID
-    when_to_use: str                     # Tool name (serves as identifier)
-    content: str                         # Synthesized usage guidelines
-    score: float                         # Overall quality score
-    time_created: str                    # Creation timestamp
-    time_modified: str                   # Last modification timestamp
-    author: str                          # Creator (typically LLM model name)
-    tool_call_results: List[ToolCallResult]  # Historical invocation records
-    metadata: dict                       # Additional metadata
+    memory_type: str = "tool"                    # Type identifier
+    workspace_id: str                            # Workspace identifier
+    memory_id: str                               # Unique memory ID
+    when_to_use: str                             # Tool name (serves as unique identifier)
+    content: str                                 # Synthesized usage guidelines
+    score: float                                 # Overall quality score
+    time_created: str                            # Creation timestamp
+    time_modified: str                           # Last modification timestamp
+    author: str                                  # Creator (typically LLM model name)
+    tool_call_results: List[ToolCallResult]      # Historical invocation records
+    metadata: dict                               # Additional metadata
 ```
 
-### ToolCallResult
+**Key Fields:**
+- **`when_to_use`**: The tool name, used as the unique identifier for retrieval
+- **`content`**: Human-readable usage guidelines synthesized from historical data
+- **`tool_call_results`**: Complete history of tool invocations with evaluations
+- **`score`**: Overall quality metric for the tool's performance
+
+#### ToolCallResult
+
+Each tool invocation is captured as a `ToolCallResult`:
 
 ```python
 class ToolCallResult(BaseModel):
@@ -47,164 +163,139 @@ class ToolCallResult(BaseModel):
     success: bool           # Whether invocation succeeded
     time_cost: float        # Time consumed (seconds)
     summary: str            # Brief summary of the result
-    evaluation: str         # Detailed evaluation
-    score: float            # Evaluation score (0.0, 0.5, or 1.0)
+    evaluation: str         # Detailed evaluation (generated by LLM)
+    score: float            # Evaluation score (0.0 for failure, 1.0 for success)
     metadata: dict          # Additional metadata
 ```
 
-Tool Memory learns from each tool invocation by evaluating the result and accumulating insights over time.
+**Key Fields:**
+- **`input`/`output`**: The complete I/O data for analysis
+- **`summary`**: LLM-generated brief summary of what happened
+- **`evaluation`**: LLM-generated detailed analysis of the call quality
+- **`score`**: Binary evaluation (0.0 = failure, 1.0 = success)
+- **Performance metrics**: `time_cost`, `token_cost`, `success` for statistical analysis
 
-## Configuration Logic
+### Tool Memory Lifecycle
 
-Tool Memory in ReMe is configured through three main flows:
+```mermaid
+graph LR
+    A[Tool Call] --> B[Evaluate]
+    B --> C[Store Memory]
+    C --> D[(Vector Store)]
+    D --> E[Agent Retrieves]
+    E --> A
+    C -.Periodic.-> F[Summarize]
+    F --> C
+```
 
-### 1. Add Tool Call Result
+## 3. How Tool Memory Works: The Complete Flow
 
-The `add_tool_call_result` flow processes individual tool invocations and adds them to memory:
+Tool Memory operates through three complementary operations that work together to create a learning loop:
 
+```mermaid
+graph LR
+    A[Agent] -->|1. retrieve_tool_memory| B[(Vector Store)]
+    B -->|Guidelines| A
+    A -->|Execute Tool| C[Tool]
+    C -->|Result| A
+    A -->|add_tool_call_result| D[LLM Evaluate]
+    D -->|Store| B
+    B -->|Periodic| E[summary_tool_memory]
+    E -->|Update Guidelines| B
+```
+
+### Operation Flow
+
+**1. retrieve_tool_memory** (Before Execution)
+- Agent queries: "How should I use `web_search` tool?"
+- Retrieves stored guidelines and historical patterns
+- Returns: Usage recommendations, parameter suggestions, common pitfalls
+
+**2. Tool Execution**
+- Agent executes tool with informed parameters
+- Collects: input, output, time_cost, token_cost, success status
+
+**3. add_tool_call_result** (After Execution)
+- Submits execution data for evaluation
+- LLM analyzes: Was it successful? What could be improved?
+- Generates: summary, evaluation, score (0.0 or 1.0)
+- Appends to tool's historical record in Vector Store
+
+**4. summary_tool_memory** (Periodic)
+- Analyzes recent N tool calls (e.g., last 20-30)
+- Calculates statistics: success rate, avg costs, avg score
+- LLM synthesizes: Actionable usage guidelines
+- Updates the `content` field with comprehensive guidance
+
+### Example Flow from Demo
+
+Based on `use_tool_memory_demo.py`, here's a typical workflow:
+
+```python
+# Step 1: Add tool call results (accumulate history)
+add_tool_call_results([
+    {"tool_name": "web_search", "input": {...}, "output": "...", "success": True},
+    {"tool_name": "web_search", "input": {...}, "output": "...", "success": False},
+    # ... more results
+])
+
+# Step 2: Generate usage guidelines (periodic)
+summarize_tool_memory("web_search")
+
+# Step 3: Retrieve guidelines before next use
+memory = retrieve_tool_memory("web_search")
+# Returns:
+# "For web_search tool:
+#  - Use max_results=5-20 for optimal performance
+#  - Avoid generic queries, be specific
+#  - Language parameter 'en' has 95% success rate
+#  Statistics: 83% success, avg 2.3s, avg 150 tokens"
+
+# Step 4: Agent uses guidelines for better execution
+execute_with_recommended_parameters()
+```
+
+## 4. Operation Details: How to Use Each Component
+
+### 4.1 `add_tool_call_result`
+
+**Purpose**: Evaluate and store tool call results into Tool Memory.
+
+**Flow**:
 ```yaml
 add_tool_call_result:
   flow_content: parse_tool_call_result_op >> update_vector_store_op
   description: "Evaluates and adds tool call results to the tool memory database"
 ```
 
-```mermaid
-graph LR
-    A[Tool Call Results] --> B[parse_tool_call_result_op]
-    B --> C[Evaluate Each Call]
-    C --> D[Generate Summary & Score]
-    D --> E[Update/Create ToolMemory]
-    E --> F[update_vector_store_op]
-    F --> G[Store in Vector DB]
-```
+**Process**:
+1. Receives raw tool call results
+2. Uses LLM to evaluate each call (generates summary, evaluation, score)
+3. Groups results by tool name
+4. Creates or updates ToolMemory objects
+5. Stores in Vector Store
 
-This flow:
-1. Receives tool call results with input, output, and metadata
-2. Evaluates each call using LLM (generates summary, evaluation, score)
-3. Appends evaluated results to the tool's memory
-4. Updates the vector store with the modified memory
-
-### 2. Retrieve Tool Memory
-
-The `retrieve_tool_memory` flow fetches usage guidelines for specific tools:
-
+**Configuration** (`default.yaml`):
 ```yaml
-retrieve_tool_memory:
-  flow_content: retrieve_tool_memory_op
-  description: "Retrieves tool memories from the vector database based on tool names"
+op:
+  parse_tool_call_result_op:
+    backend: parse_tool_call_result_op
+    llm: default
+    params:
+      max_history_tool_call_cnt: 100      # Max calls to retain per tool
+      evaluation_sleep_interval: 1.0      # Delay between evaluations (seconds)
 ```
 
-```mermaid
-graph LR
-    A[Tool Names] --> B[retrieve_tool_memory_op]
-    B --> C[Search by Tool Name]
-    C --> D[Exact Match Check]
-    D --> E[Return ToolMemory]
-    E --> F[Usage Guidelines + History]
-```
+#### Usage with curl
 
-This flow:
-1. Takes comma-separated tool names as input
-2. Searches the vector store for exact matches
-3. Returns tool memories with usage guidelines and call history
-
-### 3. Summary Tool Memory
-
-The `summary_tool_memory` flow analyzes historical data and generates comprehensive usage guidelines:
-
-```yaml
-summary_tool_memory:
-  flow_content: summary_tool_memory_op >> update_vector_store_op
-  description: "Analyzes tool call history and generates comprehensive usage patterns"
-```
-
-```mermaid
-graph LR
-    A[Tool Names] --> B[summary_tool_memory_op]
-    B --> C[Retrieve Tool Memory]
-    C --> D[Analyze Recent Calls]
-    D --> E[Calculate Statistics]
-    E --> F[Generate Guidelines]
-    F --> G[update_vector_store_op]
-    G --> H[Update Vector DB]
-```
-
-This flow:
-1. Retrieves existing tool memories by tool name
-2. Analyzes recent N tool calls (default: 20)
-3. Calculates statistical metrics (success rate, avg score, costs)
-4. Uses LLM to synthesize actionable usage guidelines
-5. Updates the tool memory content with new insights
-
-## Complete Interaction Flow
-
-The following diagram illustrates how the three operations interact with the vector store and agent tool calls:
-
-```mermaid
-graph LR
-    Agent[Agent] -->|1. Before tool call| Retrieve[retrieve_tool_memory]
-    Retrieve -->|Read| VectorStore[(Vector Store)]
-    VectorStore -->|Usage Guidelines| Agent
-    
-    Agent -->|2. Execute| Tool[Tool Call]
-    Tool -->|Result| Agent
-    
-    Agent -->|3. After tool call| Add[add_tool_call_result]
-    Add -->|Evaluate & Write| VectorStore
-    
-    Summary[summary_tool_memory] -->|4. Periodic| VectorStore
-    VectorStore -->|Read History| Summary
-    Summary -->|Update Guidelines| VectorStore
-    
-    style Agent fill:#e1f5ff
-    style Retrieve fill:#fff4e1
-    style Add fill:#ffe1f5
-    style Summary fill:#e1ffe1
-    style VectorStore fill:#f0f0f0
-```
-
-### Workflow Steps
-
-**1. retrieve_tool_memory** (Before tool execution)
-- Agent queries usage guidelines from Vector Store
-- Returns best practices and historical patterns
-
-**2. Tool Call Execution**
-- Agent executes tool with recommended parameters
-- Gets result (success/failure, output, costs)
-
-**3. add_tool_call_result** (After tool execution)
-- Evaluates the tool call result
-- Stores evaluated result to Vector Store
-
-**4. summary_tool_memory** (Periodic)
-- Analyzes accumulated call history
-- Generates comprehensive usage guidelines
-- Updates Vector Store with new insights
-
-## Basic Usage
-
-Here's how to use Tool Memory in your application:
-
-### Step 1: Set Up Your Environment
-
-```python
-import requests
-
-# API configuration
-BASE_URL = "http://0.0.0.0:8002/"
-WORKSPACE_ID = "your_workspace_id"
-```
-
-### Step 2: Record Tool Call Results
-
-After your agent executes a tool, record the invocation:
-
-```python
-# Example: Record a web search tool call
-tool_call_results = [
-    {
-        "create_time": "2025-10-15 14:30:00",
+```bash
+curl -X POST http://0.0.0.0:8002/add_tool_call_result \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "my_workspace",
+    "tool_call_results": [
+      {
+        "create_time": "2025-10-21 10:30:00",
         "tool_name": "web_search",
         "input": {
             "query": "Python asyncio tutorial",
@@ -213,345 +304,518 @@ tool_call_results = [
         },
         "output": "Found 10 relevant results including official docs and tutorials",
         "token_cost": 150,
-        "success": True,
+        "success": true,
         "time_cost": 2.3
-    }
-]
-
-# Add the tool call result
-response = requests.post(
-    url=f"{BASE_URL}add_tool_call_result",
-    json={
-        "workspace_id": WORKSPACE_ID,
+      },
+      {
+        "create_time": "2025-10-21 10:32:00",
         "tool_name": "web_search",
-        "tool_call_results": tool_call_results
-    }
-)
+        "input": {
+          "query": "test",
+          "max_results": 100,
+          "language": "unknown"
+        },
+        "output": "Error: Invalid language parameter",
+        "token_cost": 50,
+        "success": false,
+        "time_cost": 0.5
+      }
+    ]
+  }'
 ```
 
-### Step 3: Retrieve Tool Usage Guidelines
-
-Before using a tool, retrieve its usage guidelines:
-
-```python
-# Retrieve memory for specific tools
-response = requests.post(
-    url=f"{BASE_URL}retrieve_tool_memory",
-    json={
-        "workspace_id": WORKSPACE_ID,
-        "tool_names": "web_search,file_reader"  # Comma-separated
-    }
-)
-
-memory_list = response.json().get("metadata", {}).get("memory_list", [])
-for memory in memory_list:
-    print(f"Tool: {memory['when_to_use']}")
-    print(f"Guidelines: {memory['content']}")
-    print(f"Total Calls: {len(memory['tool_call_results'])}")
+**Response**:
+```json
+{
+  "success": true,
+  "answer": "Successfully evaluated and stored 2 tool call results",
+  "metadata": {
+    "memory_list": [
+      {
+        "when_to_use": "web_search",
+        "memory_id": "abc123...",
+        "tool_call_results": [
+          {
+            "tool_name": "web_search",
+            "summary": "Successfully retrieved relevant Python asyncio documentation",
+            "evaluation": "Good parameter choices with appropriate max_results and language settings",
+            "score": 1.0,
+            ...
+          },
+          {
+            "tool_name": "web_search",
+            "summary": "Failed due to invalid language parameter",
+            "evaluation": "Query too generic and language parameter not supported",
+            "score": 0.0,
+            ...
+          }
+        ]
+      }
+    ]
+  }
+}
 ```
 
-### Step 4: Generate Comprehensive Usage Guidelines
-
-After accumulating sufficient call history, generate synthesized guidelines:
-
-```python
-# Summarize tool usage patterns
-response = requests.post(
-    url=f"{BASE_URL}summary_tool_memory",
-    json={
-        "workspace_id": WORKSPACE_ID,
-        "tool_names": "web_search"
-    }
-)
-
-if response.json().get("success"):
-    print("Successfully generated usage guidelines")
-```
-
-## Complete Example Workflow
-
-Here's a complete example demonstrating the tool memory lifecycle:
+#### Usage with Python
 
 ```python
 import requests
 from datetime import datetime
 
-BASE_URL = "http://0.0.0.0:8002/"
-WORKSPACE_ID = "demo_workspace"
-
-def record_tool_usage(tool_name, input_params, output, success, time_cost, token_cost):
-    """Record a single tool invocation"""
-    tool_call_result = {
-        "create_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "tool_name": tool_name,
-        "input": input_params,
-        "output": output,
-        "token_cost": token_cost,
-        "success": success,
-        "time_cost": time_cost
-    }
-    
+def add_tool_call_results(tool_call_results: list) -> dict:
+    """Add tool call results to Tool Memory"""
     response = requests.post(
         url=f"{BASE_URL}add_tool_call_result",
         json={
             "workspace_id": WORKSPACE_ID,
-            "tool_name": tool_name,
-            "tool_call_results": [tool_call_result]
+            "tool_call_results": tool_call_results
         }
     )
     return response.json()
 
-def get_tool_guidelines(tool_name):
-    """Retrieve usage guidelines for a tool"""
+# Example: Record a tool invocation
+result = add_tool_call_results([{
+    "create_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    "tool_name": "web_search",
+    "input": {"query": "Python asyncio", "max_results": 10},
+    "output": "Found 10 relevant results...",
+    "token_cost": 150,
+    "success": True,
+    "time_cost": 2.3
+}])
+```
+
+**Complete examples**: See `cookbook/simple_demo/use_tool_memory_demo.py` for full working code.
+
+---
+
+### 4.2 `retrieve_tool_memory`
+
+**Purpose**: Retrieve usage guidelines and historical data for specific tools.
+
+**Flow**:
+```yaml
+retrieve_tool_memory:
+  flow_content: retrieve_tool_memory_op
+  description: "Retrieves tool memories from the vector database based on tool names"
+```
+
+**Process**:
+1. Takes comma-separated tool names as input
+2. Searches Vector Store for exact matches (by `when_to_use` field)
+3. Returns complete ToolMemory objects with:
+   - Usage guidelines (`content`)
+   - Historical call records (`tool_call_results`)
+   - Statistics and metadata
+
+#### Usage with curl
+
+```bash
+# Retrieve single tool
+curl -X POST http://0.0.0.0:8002/retrieve_tool_memory \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "my_workspace",
+    "tool_names": "web_search"
+  }'
+
+# Retrieve multiple tools (comma-separated)
+curl -X POST http://0.0.0.0:8002/retrieve_tool_memory \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "my_workspace",
+    "tool_names": "web_search,database_query,file_processor"
+  }'
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "answer": "Successfully retrieved 1 tool memories",
+  "metadata": {
+    "memory_list": [
+      {
+        "memory_type": "tool",
+        "workspace_id": "my_workspace",
+        "memory_id": "abc123...",
+        "when_to_use": "web_search",
+        "content": "## Usage Guidelines\n\n**Best Practices:**\n- Use max_results between 5-20 for optimal performance\n- Always specify language parameter (en has 95% success rate)\n- Avoid generic single-word queries\n\n**Common Pitfalls:**\n- max_results > 50 often causes timeouts\n- Unknown language values default to 'en' with warning\n\n## Statistics\n- **Success Rate**: 83.33%\n- **Average Score**: 0.833\n- **Average Time Cost**: 2.345s\n- **Average Token Cost**: 156.7",
+        "score": 0.85,
+        "time_created": "2025-10-20 10:00:00",
+        "time_modified": "2025-10-21 10:35:00",
+        "author": "gpt-4",
+        "tool_call_results": [
+          {
+            "create_time": "2025-10-21 10:30:00",
+            "tool_name": "web_search",
+            "input": {"query": "Python asyncio", "max_results": 10},
+            "output": "Found 10 results...",
+            "summary": "Successfully retrieved relevant documentation",
+            "evaluation": "Good parameter choices...",
+            "score": 1.0,
+            "token_cost": 150,
+            "success": true,
+            "time_cost": 2.3
+          }
+          // ... more historical calls
+        ]
+      }
+    ]
+  }
+}
+```
+
+#### Usage with Python
+
+```python
+import requests
+
+def retrieve_tool_memory(tool_names: str) -> dict:
+    """Retrieve tool memories by tool names"""
     response = requests.post(
         url=f"{BASE_URL}retrieve_tool_memory",
         json={
             "workspace_id": WORKSPACE_ID,
-            "tool_names": tool_name
-        }
-    )
-    
-    result = response.json()
-    if result.get("success"):
-        memory_list = result.get("metadata", {}).get("memory_list", [])
-        if memory_list:
-            return memory_list[0]
-    return None
-
-def generate_guidelines(tool_name):
-    """Generate comprehensive usage guidelines"""
-    response = requests.post(
-        url=f"{BASE_URL}summary_tool_memory",
-        json={
-            "workspace_id": WORKSPACE_ID,
-            "tool_names": tool_name
+            "tool_names": tool_names
         }
     )
     return response.json()
 
-# Example usage
-if __name__ == "__main__":
-    tool_name = "web_search"
-    
-    # 1. Record multiple tool invocations
-    print("Recording tool invocations...")
-    for i in range(5):
-        record_tool_usage(
-            tool_name=tool_name,
-            input_params={"query": f"test query {i}", "max_results": 10},
-            output=f"Found results for query {i}",
-            success=True,
-            time_cost=2.0 + i * 0.5,
-            token_cost=100 + i * 20
-        )
-    
-    # 2. Generate usage guidelines
-    print("\nGenerating usage guidelines...")
-    generate_guidelines(tool_name)
-    
-    # 3. Retrieve and display guidelines
-    print("\nRetrieving guidelines...")
-    memory = get_tool_guidelines(tool_name)
-    if memory:
-        print(f"\nTool: {memory['when_to_use']}")
-        print(f"Guidelines:\n{memory['content']}")
-        print(f"\nTotal invocations: {len(memory['tool_call_results'])}")
+# Example: Retrieve and use guidelines
+result = retrieve_tool_memory("web_search")
+if result['success']:
+    memory = result['metadata']['memory_list'][0]
+    print(f"Tool: {memory['when_to_use']}")
+    print(f"Guidelines:\n{memory['content']}")
 ```
 
-## Use Cases
+**Complete examples**: See `cookbook/simple_demo/use_tool_memory_demo.py` for full working code.
 
-### Use Case 1: Learning Optimal Parameters
+---
 
-```mermaid
-sequenceDiagram
-    participant Agent
-    participant ToolMemory
-    participant Tool
-    
-    Agent->>ToolMemory: retrieve_tool_memory("api_caller")
-    ToolMemory-->>Agent: Guidelines: Use timeout=30s, retry=3
-    Agent->>Tool: Call with recommended params
-    Tool-->>Agent: Success (time: 2.5s)
-    Agent->>ToolMemory: add_tool_call_result(success=True)
-    ToolMemory->>ToolMemory: Update statistics
-```
+### 4.3 `summary_tool_memory`
 
-**Scenario**: An agent needs to call an external API. Tool Memory has learned from 50+ previous calls that:
-- Setting `timeout=30s` achieves 95% success rate
-- Using `retry=3` handles transient failures effectively
-- Requests with `max_results > 100` often timeout
+**Purpose**: Analyze historical tool calls and generate comprehensive usage guidelines.
 
-The agent retrieves these guidelines before making the call, leading to higher success rates.
-
-### Use Case 2: Avoiding Common Pitfalls
-
-```mermaid
-sequenceDiagram
-    participant Agent
-    participant ToolMemory
-    participant FileReader
-    
-    Agent->>ToolMemory: retrieve_tool_memory("file_reader")
-    ToolMemory-->>Agent: Warning: Large files (>10MB) cause timeouts
-    Agent->>Agent: Check file size first
-    Agent->>FileReader: Read file with streaming mode
-    FileReader-->>Agent: Success
-    Agent->>ToolMemory: add_tool_call_result(success=True)
-```
-
-**Scenario**: Tool Memory has recorded that the `file_reader` tool fails when:
-- File paths contain special characters without escaping
-- Files larger than 10MB are read without streaming mode
-- Binary files are opened in text mode
-
-The agent retrieves these warnings and adjusts its approach accordingly.
-
-### Use Case 3: Performance Optimization
-
-```python
-# Before using Tool Memory
-average_time_cost = 5.2s
-success_rate = 75%
-
-# After learning from Tool Memory
-# - Use batch processing for multiple queries
-# - Set appropriate timeout values
-# - Cache frequently accessed data
-
-average_time_cost = 2.8s  # 46% improvement
-success_rate = 92%        # 17% improvement
-```
-
-**Scenario**: Tool Memory analyzes 100+ invocations of a `database_query` tool and discovers:
-- Batch queries are 3x faster than individual queries
-- Connection pooling reduces overhead by 40%
-- Queries during peak hours (2-4 PM) have higher failure rates
-
-The synthesized guidelines help the agent optimize its database interactions.
-
-## Managing Tool Memories
-
-### Delete a Workspace
-
-```python
-response = requests.post(
-    url=f"{BASE_URL}vector_store",
-    json={
-        "workspace_id": WORKSPACE_ID,
-        "action": "delete"
-    }
-)
-```
-
-### Dump Memories to Disk
-
-```python
-response = requests.post(
-    url=f"{BASE_URL}vector_store",
-    json={
-        "workspace_id": WORKSPACE_ID,
-        "action": "dump",
-        "path": "./"
-    }
-)
-```
-
-### Load Memories from Disk
-
-```python
-response = requests.post(
-    url=f"{BASE_URL}vector_store",
-    json={
-        "workspace_id": WORKSPACE_ID,
-        "action": "load",
-        "path": "./"
-    }
-)
-```
-
-## Configuration Parameters
-
-### ParseToolCallResultOp Parameters
-
-Configure in `default.yaml`:
-
+**Flow**:
 ```yaml
-op:
-  parse_tool_call_result_op:
-    backend: parse_tool_call_result_op
-    llm: default
-    params:
-      max_history_tool_call_cnt: 100      # Max historical calls to retain
-      evaluation_sleep_interval: 1.0      # Delay between evaluations (seconds)
+summary_tool_memory:
+  flow_content: summary_tool_memory_op >> update_vector_store_op
+  description: "Analyzes tool call history and generates comprehensive usage patterns"
 ```
 
-- `max_history_tool_call_cnt`: Limits the number of historical tool call results stored per tool. Older results are removed when this limit is exceeded.
-- `evaluation_sleep_interval`: Controls the delay between concurrent evaluations to avoid rate limiting.
+**Process**:
+1. Retrieves existing ToolMemory by tool name
+2. Analyzes recent N tool calls (default: 30)
+3. Calculates statistics:
+   - Success rate
+   - Average score
+   - Average time cost
+   - Average token cost
+4. Uses LLM to synthesize actionable guidelines from call summaries
+5. Appends statistics to guidelines
+6. Updates ToolMemory content in Vector Store
 
-### SummaryToolMemoryOp Parameters
-
+**Configuration** (`default.yaml`):
 ```yaml
 op:
   summary_tool_memory_op:
     backend: summary_tool_memory_op
     llm: default
     params:
-      recent_call_count: 20               # Number of recent calls to analyze
+      recent_call_count: 30               # Number of recent calls to analyze
       summary_sleep_interval: 1.0         # Delay between summaries (seconds)
 ```
 
-- `recent_call_count`: Number of most recent tool calls to analyze when generating guidelines.
-- `summary_sleep_interval`: Controls the delay between concurrent summarizations.
+#### Usage with curl
 
-## Best Practices
+```bash
+# Summarize single tool
+curl -X POST http://0.0.0.0:8002/summary_tool_memory \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "my_workspace",
+    "tool_names": "web_search"
+  }'
 
-1. **Regular Recording**:
-   - Record every tool invocation, including failures
-   - Include detailed input parameters and output
-   - Capture performance metrics (time_cost, token_cost)
-
-2. **Periodic Summarization**:
-   - Generate guidelines after accumulating 20-50 tool calls
-   - Re-summarize when usage patterns change significantly
-   - Update guidelines when new tool versions are deployed
-
-3. **Retrieval Strategy**:
-   - Always retrieve guidelines before using unfamiliar tools
-   - Cache retrieved guidelines for the duration of a task
-   - Re-retrieve after tool memory updates
-
-4. **Quality Maintenance**:
-   - Monitor success rates and average scores
-   - Investigate tools with declining performance
-   - Clean up outdated memories when tools are deprecated
-
-5. **Parameter Tuning**:
-   - Adjust `max_history_tool_call_cnt` based on tool usage frequency
-   - Increase `recent_call_count` for tools with diverse usage patterns
-   - Reduce `evaluation_sleep_interval` if rate limiting is not a concern
-
-## Integration with Agent Workflows
-
-```mermaid
-graph TB
-    A[Agent Receives Task] --> B{Tool Required?}
-    B -->|Yes| C[Retrieve Tool Memory]
-    C --> D[Apply Guidelines]
-    D --> E[Execute Tool]
-    E --> F[Record Result]
-    F --> G{Sufficient History?}
-    G -->|Yes| H[Generate Summary]
-    G -->|No| I[Continue]
-    H --> I
-    B -->|No| I[Process Task]
-    I --> J[Task Complete]
+# Summarize multiple tools (comma-separated)
+curl -X POST http://0.0.0.0:8002/summary_tool_memory \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "my_workspace",
+    "tool_names": "web_search,database_query,file_processor"
+  }'
 ```
 
-Tool Memory seamlessly integrates into agent workflows:
-1. Before tool execution: Retrieve usage guidelines
-2. During execution: Apply recommended parameters
-3. After execution: Record results with evaluation
-4. Periodically: Generate updated guidelines
+**Response**:
+```json
+{
+  "success": true,
+  "answer": "Successfully summarized 1 tool memories",
+  "metadata": {
+    "memory_list": [
+      {
+        "memory_type": "tool",
+        "when_to_use": "web_search",
+        "content": "## Usage Guidelines\n\n**Optimal Parameters:**\n- Set max_results between 5-20 for best balance of coverage and speed\n- Always specify language='en' for technical queries (95% success rate)\n- Use filter_type='technical_docs' for development-related searches\n\n**Success Patterns:**\n- Specific, multi-word queries perform significantly better than generic terms\n- Queries with clear intent (e.g., 'Python asyncio tutorial') return high-quality results\n- Technical terms and version numbers improve result relevance\n\n**Common Failures:**\n- Generic single-word queries (e.g., 'test') return poor results\n- max_results > 50 increases timeout risk (5 failures observed)\n- Invalid language codes cause fallback to default with warnings\n\n**Performance Insights:**\n- Typical response time: 1.5-3.5s for successful queries\n- Timeout threshold: 10s (consider simplifying complex queries)\n- Token cost scales with result count: ~150 tokens for 10 results\n\n**Recommendations:**\n1. Always validate language parameter before calling\n2. Start with max_results=10, adjust based on needs\n3. For time-sensitive operations, set timeout < 5s\n4. Monitor token costs for high-frequency usage\n\n## Statistics\n- **Success Rate**: 83.33%\n- **Average Score**: 0.833\n- **Average Time Cost**: 2.345s\n- **Average Token Cost**: 156.7",
+        "memory_id": "abc123...",
+        "time_modified": "2025-10-21 10:40:00",
+        ...
+      }
+    ]
+  }
+}
+```
 
-For more detailed examples, see the implementation in `reme_ai/summary/tool/` directory of the ReMe project.
+#### Usage with Python
 
+```python
+import requests
+
+def summarize_tool_memory(tool_names: str) -> dict:
+    """Generate comprehensive usage guidelines for tools"""
+    response = requests.post(
+        url=f"{BASE_URL}summary_tool_memory",
+        json={
+            "workspace_id": WORKSPACE_ID,
+            "tool_names": tool_names
+        }
+    )
+    return response.json()
+
+# Example: Generate guidelines
+result = summarize_tool_memory("web_search")
+if result['success']:
+    memory = result['metadata']['memory_list'][0]
+    print(f"Tool: {memory['when_to_use']}")
+    print(f"Guidelines:\n{memory['content']}")
+```
+
+**Complete examples**: See `cookbook/simple_demo/use_tool_memory_demo.py` for full working code.
+
+---
+
+## 5. Best Practices
+
+### When to Record Tool Calls
+- **Always**: Record every tool invocation, including failures
+- **Include**: Complete input parameters, output, and performance metrics
+- **Timing**: Record immediately after tool execution completes
+
+### When to Generate Summaries
+- **Initial**: After accumulating 20-30 tool calls for meaningful patterns
+- **Periodic**: Re-summarize every 50-100 new calls or weekly
+- **Trigger-based**: When success rate drops or patterns change significantly
+
+### When to Retrieve Guidelines
+- **Before first use**: Always retrieve before using an unfamiliar tool
+- **Before critical operations**: Check latest guidelines for important tasks
+- **After updates**: Re-retrieve when tool memory has been updated
+
+### Performance Tuning
+
+**For High-Volume Tools** (>100 calls/day):
+```yaml
+op:
+  parse_tool_call_result_op:
+    params:
+      max_history_tool_call_cnt: 200      # Keep more history
+      evaluation_sleep_interval: 0.5      # Faster evaluation
+  
+  summary_tool_memory_op:
+    params:
+      recent_call_count: 50               # Analyze more calls
+```
+
+**For Low-Volume Tools** (<20 calls/day):
+```yaml
+op:
+  parse_tool_call_result_op:
+    params:
+      max_history_tool_call_cnt: 50       # Less history needed
+      evaluation_sleep_interval: 1.0      # Standard rate
+  
+  summary_tool_memory_op:
+    params:
+      recent_call_count: 20               # Analyze fewer calls
+```
+
+### Quality Maintenance
+
+1. **Monitor Metrics**:
+```python
+   memory = retrieve_tool_memory("web_search")['metadata']['memory_list'][0]
+   stats = ToolMemory(**memory).statistic(recent_frequency=30)
+   
+   print(f"Success Rate: {stats['success_rate']:.2%}")
+   print(f"Avg Score: {stats['avg_score']:.2f}")
+   
+   if stats['success_rate'] < 0.7:
+       print("⚠️ Low success rate - investigate tool issues")
+   ```
+
+2. **Clean Old Memories**:
+   - Delete tool memories for deprecated tools
+   - Reset memories when tool behavior changes significantly
+
+3. **Validate Guidelines**:
+   - Periodically review generated guidelines for accuracy
+   - Test recommended parameters in production scenarios
+
+## 6. Memory Management
+
+### Delete Workspace
+```bash
+curl -X POST http://0.0.0.0:8002/vector_store \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "my_workspace",
+    "action": "delete"
+  }'
+```
+
+```python
+def delete_workspace(workspace_id: str):
+    response = requests.post(
+        url=f"{BASE_URL}vector_store",
+        json={"workspace_id": workspace_id, "action": "delete"}
+    )
+    return response.json()
+```
+
+### Dump Memories to Disk
+```bash
+curl -X POST http://0.0.0.0:8002/vector_store \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "my_workspace",
+    "action": "dump",
+    "path": "./memory_backup/"
+  }'
+```
+
+```python
+def dump_memory(workspace_id: str, path: str = "./"):
+    response = requests.post(
+        url=f"{BASE_URL}vector_store",
+        json={"workspace_id": workspace_id, "action": "dump", "path": path}
+    )
+    return response.json()
+```
+
+### Load Memories from Disk
+```bash
+curl -X POST http://0.0.0.0:8002/vector_store \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "my_workspace",
+    "action": "load",
+    "path": "./memory_backup/"
+  }'
+```
+
+```python
+def load_memory(workspace_id: str, path: str = "./"):
+    response = requests.post(
+        url=f"{BASE_URL}vector_store",
+        json={"workspace_id": workspace_id, "action": "load", "path": path}
+    )
+    return response.json()
+```
+
+## 7. Complete Working Example
+
+For a complete, runnable example demonstrating the full Tool Memory lifecycle, see:
+
+**`cookbook/simple_demo/use_tool_memory_demo.py`**
+
+This demo includes:
+- **Workspace management**: Clean, delete, dump, and load operations
+- **Tool call recording**: Adding 30+ mock tool invocations with various scenarios
+- **Summarization**: Generating usage guidelines from historical data
+- **Retrieval**: Fetching and displaying tool memories
+- **Statistics**: Analyzing success rates, costs, and performance
+
+Run the demo:
+```bash
+cd cookbook/simple_demo
+python use_tool_memory_demo.py
+```
+
+**Key Workflow Steps:**
+1. **Clean workspace**: Remove existing data
+2. **Add tool calls**: Record 30+ invocations (success/failure scenarios)
+3. **Generate guidelines**: LLM analyzes patterns and creates recommendations
+4. **Retrieve memory**: Get usage guidelines for agent consumption
+5. **Persistence**: Test dump/load operations
+
+## 8. Advanced Use Cases
+
+### Use Case 1: Adaptive Parameter Tuning
+
+Retrieve tool memory statistics and adapt parameters based on historical performance:
+- If `avg_time_cost > 5s`: Increase timeout
+- If `success_rate < 80%`: Enable retry logic
+- If `avg_token_cost` high: Reduce result limits
+
+### Use Case 2: Multi-Tool Workflow Optimization
+
+Retrieve memories for multiple tools at once and optimize workflow order based on:
+- Success rates: Execute reliable tools first
+- Time costs: Parallelize slow operations
+- Token costs: Budget-aware tool selection
+
+### Use Case 3: Automated Quality Monitoring
+
+Periodically check tool memory statistics and alert on:
+- Success rate degradation
+- Increasing time/token costs
+- Unusual failure patterns
+
+**Implementation examples**: See `cookbook/simple_demo/use_tool_memory_demo.py` and the ToolBench evaluation scripts.
+
+## 9. Benchmark Results
+
+### Tool Memory Performance Evaluation
+
+We evaluated Tool Memory effectiveness using a controlled benchmark with three mock search tools, each optimized for different query complexity levels (simple, moderate, complex). The benchmark compares agent performance with and without tool memory guidance across multiple epochs.
+
+**Experimental Settings:**
+- **Model**: Qwen3-30B-Instruct with default parameters
+- **Task**: Single-turn tool selection and invocation
+- **Dataset**: 60 training queries + 60 test queries per epoch
+- **Tools**: 3 mock search tools with varying performance profiles
+- **Metrics**: Average quality score (0.0-1.0) based on LLM evaluation
+- **Baseline**: Test set performance without tool memory
+- **Replication**: Results averaged across 3 independent experimental runs
+
+**Results (averaged across 3 epochs):**
+
+| Scenario | Avg Score | Improvement |
+|----------|-----------|-------------|
+| Train (No Memory) | 0.650 | - |
+| Test (No Memory) | 0.672 | Baseline |
+| **Test (With Memory)** | **0.772** | **+14.88%** |
+
+**Key Findings:**
+- **Consistent improvement**: Tool Memory boosted test performance by ~15% on average
+- **Knowledge transfer**: Training data successfully informed test-time tool selection
+- **Stability**: Improvement remained consistent across all 3 epochs (9.90% → 17.39% → 17.13%)
+
+The benchmark demonstrates that Tool Memory enables agents to make data-driven tool selection decisions, significantly improving task success rates compared to relying solely on static tool descriptions.
+
+**Benchmark Resources:**
+- **Design Documentation**: [`docs/tool_memory/tool_bench.md`](tool_bench.md) - Complete benchmark methodology and workflow
+- **Implementation**: [`cookbook/tool_memory/run_reme_tool_bench.py`](../../cookbook/tool_memory/run_reme_tool_bench.py) - Full benchmark script
+- **Query Dataset**: [`cookbook/tool_memory/query.json`](../../cookbook/tool_memory/query.json) - 60 train + 60 test queries across 3 complexity levels
+
+---
+
+## 10. References
+
+- **Implementation**: See `reme_ai/summary/tool/` and `reme_ai/retrieve/tool/`
+- **Demo**: `cookbook/simple_demo/use_tool_memory_demo.py`
+- **Benchmark**: `cookbook/tool_memory/run_reme_tool_bench.py`
+- **Schema**: `reme_ai/schema/memory.py`
+- **Utilities**: `reme_ai/utils/tool_memory_utils.py`

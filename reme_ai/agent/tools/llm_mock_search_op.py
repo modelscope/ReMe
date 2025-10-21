@@ -34,6 +34,7 @@ class LLMMockSearchOp(BaseAsyncToolOp):
                  simple_config: Dict[str, Any] = None,
                  medium_config: Dict[str, Any] = None,
                  complex_config: Dict[str, Any] = None,
+                 seed: int = 0,
                  **kwargs):
         """
         Initialize the LLM Mock Search Op.
@@ -52,8 +53,13 @@ class LLMMockSearchOp(BaseAsyncToolOp):
                 - success_rate: float (0-1), default 0.70
                 - extra_time: float (seconds), default 1.5
                 - relevance_ratio: float (0-1), default 0.80
+            seed: Random seed for deterministic behavior, default 0
         """
         super().__init__(llm=llm, **kwargs)
+        
+        # Set random seed for deterministic behavior
+        self.seed = seed
+        random.seed(self.seed)
 
         # Default configurations for each scenario
         self.simple_config = {
@@ -221,13 +227,16 @@ class LLMMockSearchOp(BaseAsyncToolOp):
         # Step 5: Check relevance ratio
         if random.random() > config["relevance_ratio"]:
             # Generate random/irrelevant result
-            logger.info("Generating low relevance result")
+            # NOTE: success=True because technically the tool executed without errors,
+            # but the content is irrelevant (low quality), which should result in score=0.0 during evaluation
+            logger.info("Generating low relevance result (success=True but low quality)")
             content = await self.generate_random_result()
             result_dict = {
-                "success": False,
+                "success": True,  # Technical execution succeeded
                 "content": content,
                 "query": query,
-                "complexity": complexity
+                "complexity": complexity,
+                "is_relevant": False  # Mark as irrelevant for debugging
             }
         else:
             # Generate relevant result
@@ -237,7 +246,8 @@ class LLMMockSearchOp(BaseAsyncToolOp):
                 "success": True,
                 "content": content,
                 "query": query,
-                "complexity": complexity
+                "complexity": complexity,
+                "is_relevant": True  # Mark as relevant for debugging
             }
 
         self.set_result(json.dumps(result_dict, ensure_ascii=False))

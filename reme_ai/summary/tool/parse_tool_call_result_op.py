@@ -1,4 +1,5 @@
 import asyncio
+from collections import defaultdict
 from typing import List
 
 from flowllm import C, BaseAsyncOp
@@ -44,18 +45,19 @@ class ParseToolCallResultOp(BaseAsyncOp):
             tool_call_result.evaluation = eval_data.get("evaluation", "")
             tool_call_result.score = float(eval_data.get("score", 0.0))
 
-            # 验证 score 是否符合 3 档要求 (0.0, 0.5, 1.0)
-            if tool_call_result.score not in [0.0, 0.5, 1.0]:
-                logger.warning(f"Score {tool_call_result.score} not in [0.0, 0.5, 1.0], rounding to nearest")
-                if tool_call_result.score < 0.25:
+            # 验证 score 是否符合 2 档要求 (0.0, 1.0)
+            if tool_call_result.score not in [0.0, 1.0]:
+                if tool_call_result.score < 0.5:
                     tool_call_result.score = 0.0
-                elif tool_call_result.score < 0.75:
-                    tool_call_result.score = 0.5
                 else:
                     tool_call_result.score = 1.0
 
-            logger.info(f"Evaluated tool call {index}: tool_name={tool_call_result.tool_name}, "
-                        f"score={tool_call_result.score}, summary={tool_call_result.summary[:50]}...")
+            # 打印完整的prompt和result
+            logger.info(f"\n{'='*80}\nLLM Evaluation [Index {index}]\n{'='*80}\n"
+                       f"PROMPT:\n{prompt}\n\n"
+                       f"RESULT:\n{content}\n"
+                       f"{'='*80}\n")
+            
             return tool_call_result
 
         # 调用 LLM 进行评估
@@ -66,79 +68,68 @@ class ParseToolCallResultOp(BaseAsyncOp):
     async def async_execute(self):
         tool_call_results: list = self.context.get("tool_call_results", [])
         tool_call_results = [ToolCallResult(**x) if isinstance(x, dict) else x for x in tool_call_results]
-        tool_name: str = self.context.get("tool_name", "")
         workspace_id: str = self.context.workspace_id
-        logger.info(f"workspace_id={workspace_id} count={len(tool_call_results)} tool_name={tool_name}")
-
-        if not tool_name:
-            logger.warning("tool_name is empty, skipping processing")
-            self.context.response.answer = "tool_name is required"
-            self.context.response.success = False
-            return
 
         if not tool_call_results:
-            logger.info("No valid tool_call_results to process")
             self.context.response.answer = "No valid tool_call_results"
             self.context.response.success = False
             return
 
-        # 并发评估所有 tool_call_results
-        logger.info(f"Starting concurrent evaluation of {len(tool_call_results)} tool call results")
-        
         # 使用基类的 submit_async_task 提交所有评估任务
         for index, tool_call_result in enumerate(tool_call_results):
             self.submit_async_task(self._evaluate_single_tool_call, tool_call_result, index)
 
         # 使用基类的 join_async_task 等待所有任务完成
         # 注意: 基类已经过滤掉异常,返回的只包含成功的结果
-        tool_call_results = await self.join_async_task(return_exceptions=True)
-        logger.info(f"Completed evaluation of {len(tool_call_results)} tool call results")
+        evaluated_results = await self.join_async_task(return_exceptions=True)
 
-        nodes: List[VectorNode] = await self.vector_store.async_search(query=tool_name,
-                                                                       workspace_id=workspace_id,
-                                                                       top_k=1)
+        tool_results_by_name = defaultdict(list)
+        for result in evaluated_results:
+            tool_results_by_name[result.tool_name].append(result)
 
-        tool_memory: ToolMemory | None = None
-        exist_node: bool = False
+        # 处理每个 tool_name 的结果
+        all_memory_list = []
+        all_deleted_memory_ids = []
 
-        if nodes:
-            top_node = nodes[0]
-            memory: ToolMemory = vector_node_to_memory(top_node)
+        for tool_name, tool_call_results in tool_results_by_name.items():
+            nodes: List[VectorNode] = await self.vector_store.async_search(query=tool_name,
+                                                                           workspace_id=workspace_id,
+                                                                           top_k=1)
 
-            # 确保是 ToolMemory 类型且 when_to_use 与 tool_name 匹配
-            if isinstance(memory, ToolMemory) and memory.when_to_use == tool_name:
-                tool_memory = memory
-                exist_node = True
-                logger.info(f"Found existing tool_memory for tool_name={tool_name}, memory_id={tool_memory.memory_id}")
-            else:
-                logger.info(f"Top result does not match tool_name={tool_name}, will create new memory")
+            tool_memory: ToolMemory | None = None
+            exist_node: bool = False
 
-        # 如果没有找到匹配的 memory，创建新的
-        if tool_memory is None:
-            tool_memory = ToolMemory(workspace_id=workspace_id, when_to_use=tool_name)
-            logger.info(f"Created new tool_memory for tool_name={tool_name}, memory_id={tool_memory.memory_id}")
+            if nodes:
+                top_node = nodes[0]
+                memory: ToolMemory = vector_node_to_memory(top_node)
 
-        tool_memory.tool_call_results.extend(tool_call_results)
+                # 确保是 ToolMemory 类型且 when_to_use 与 tool_name 匹配
+                if isinstance(memory, ToolMemory) and memory.when_to_use == tool_name:
+                    tool_memory = memory
+                    exist_node = True
 
-        # 保留最近的 n 个
-        if len(tool_memory.tool_call_results) > self.max_history_tool_call_cnt:
-            tool_memory.tool_call_results = tool_memory.tool_call_results[-self.max_history_tool_call_cnt:]
-            logger.info(f"Trimmed tool_call_results to {self.max_history_tool_call_cnt} most recent entries")
+            # 如果没有找到匹配的 memory，创建新的
+            if tool_memory is None:
+                tool_memory = ToolMemory(workspace_id=workspace_id, when_to_use=tool_name)
 
-        # 更新修改时间
-        tool_memory.update_modified_time()
+            tool_memory.tool_call_results.extend(tool_call_results)
 
-        # 4. 将更新后的 memory 保存到向量数据库
-        # 如果是更新现有的 memory，需要先删除旧的
-        deleted_memory_ids = []
-        if exist_node:
-            deleted_memory_ids = [tool_memory.memory_id]
+            # 保留最近的 n 个
+            if len(tool_memory.tool_call_results) > self.max_history_tool_call_cnt:
+                tool_memory.tool_call_results = tool_memory.tool_call_results[-self.max_history_tool_call_cnt:]
+
+            # 更新修改时间
+            tool_memory.update_modified_time()
+
+            # 如果是更新现有的 memory，需要先删除旧的
+            if exist_node:
+                all_deleted_memory_ids.append(tool_memory.memory_id)
+
+            all_memory_list.append(tool_memory)
 
         # 设置返回结果
-        self.context.response.metadata["deleted_memory_ids"] = deleted_memory_ids
-        self.context.response.metadata["memory_list"] = [tool_memory]
-
-        logger.info(f"Updated tool_memory: tool_name={tool_name}, total_results={len(tool_memory.tool_call_results)}")
+        self.context.response.metadata["deleted_memory_ids"] = all_deleted_memory_ids
+        self.context.response.metadata["memory_list"] = all_memory_list
 
 
 async def main():
@@ -166,10 +157,9 @@ async def main():
                 "time_cost": 2.3
             }
         ]
-        tool_name = "test_tool"
         workspace_id = "test_workspace1"
 
-        await op.async_call(tool_call_results=tool_call_results, tool_name=tool_name, workspace_id=workspace_id)
+        await op.async_call(tool_call_results=tool_call_results, workspace_id=workspace_id)
         logger.info(f"Response: {op.context.response.model_dump_json()}")
 
 

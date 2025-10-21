@@ -45,12 +45,8 @@ class SummaryToolMemoryOp(BaseAsyncOp):
     @staticmethod
     def _format_statistics_markdown(statistics: dict) -> str:
         """Format statistics as markdown."""
-        lines = [f"- **Total Calls**: {statistics.get('total_calls', 0)}",
-                 f"- **Recent Calls**: {statistics.get('recent_calls', 0)}",
-                 f"- **Success Rate**: {statistics.get('success_rate', 0):.2%}",
-                 f"- **Recent Success Rate**: {statistics.get('recent_success_rate', 0):.2%}",
+        lines = [f"- **Success Rate**: {statistics.get('success_rate', 0):.2%}",
                  f"- **Average Score**: {statistics.get('avg_score', 0):.3f}",
-                 f"- **Recent Average Score**: {statistics.get('recent_avg_score', 0):.3f}",
                  f"- **Average Time Cost**: {statistics.get('avg_time_cost', 0):.3f}s",
                  f"- **Average Token Cost**: {statistics.get('avg_token_cost', 0):.1f}"]
 
@@ -73,15 +69,18 @@ class SummaryToolMemoryOp(BaseAsyncOp):
         call_summaries_md = self._format_call_summaries_markdown(recent_calls)
         statistics_md = self._format_statistics_markdown(statistics)
 
+        # Don't include statistics in prompt - only call summaries
         prompt = self.prompt_format(prompt_name="summarize_tool_usage_prompt",
                                     tool_name=tool_memory.when_to_use,
-                                    call_summaries=call_summaries_md,
-                                    statistics=statistics_md)
+                                    call_summaries=call_summaries_md)
 
         def parse_summary(message: Message) -> ToolMemory:
             content = message.content.strip()
             # Extract content from txt code block
-            tool_memory.content = extract_content(content, "txt")
+            llm_summary = extract_content(content, "txt")
+            
+            # Append statistics markdown to LLM result
+            tool_memory.content = f"{llm_summary}\n\n## Statistics\n{statistics_md}"
 
             # Update modified time
             tool_memory.update_modified_time()
@@ -334,7 +333,7 @@ async def main():
             logger.info(f"\n工具名称: {summarized_memory.when_to_use}")
             logger.info(f"\n统计信息:")
             stats = summarized_memory.statistic(recent_frequency=30)
-            logger.info(f"  总调用次数: {stats['total_calls']}")
+            logger.info(f"  总调用次数: {len(summarized_memory.tool_call_results)}")
             logger.info(f"  成功率: {stats['success_rate']:.1%}")
             logger.info(f"  平均评分: {stats['avg_score']:.2f}")
             logger.info(f"  平均耗时: {stats['avg_time_cost']:.2f}s")

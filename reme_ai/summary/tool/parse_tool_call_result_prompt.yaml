@@ -14,17 +14,23 @@ evaluate_tool_call_prompt: |
   
   ## Evaluation Criteria:
   
-  ### 1. Success Evaluation
-  - Check if the success flag indicates successful execution
-  - Verify if the output contains error messages or indicates failure
-  - Consider if time and token costs are reasonable
-  - Assess if there are any error indicators in the output
+  ### Important: Score independently from the success flag
+  The `success_flag` indicates whether the tool executed without technical errors.
+  The `score` should evaluate the QUALITY and RELEVANCE of the result.
   
-  ### 2. Parameter Alignment Evaluation
-  - Evaluate if the output matches what would be expected given the input parameters
-  - Consider if the input parameters are appropriate for the tool
-  - Check for any parameter mismatches or unexpected behaviors
-  - Verify the output is consistent with the tool's intended purpose
+  A tool can execute successfully (success=True) but still produce low-quality or irrelevant results (score=0.0).
+  
+  ### Evaluation Dimensions:
+  
+  1. **Technical Execution** (reflected in success_flag):
+     - Did the tool run without errors?
+     - Are there error messages or exceptions in the output?
+  
+  2. **Result Quality** (what you should score):
+     - Is the output relevant to the input query/parameters?
+     - Does the output provide meaningful and useful information?
+     - Is the result appropriate given the input parameters?
+     - Does the output match the tool's intended purpose?
   
   ## Response Format:
   Please provide your evaluation in the following JSON format:
@@ -32,15 +38,20 @@ evaluate_tool_call_prompt: |
   ```json
   {{
     "summary": "A brief one-sentence summary of the tool call result",
-    "evaluation": "A brief evaluation (2-3 sentences) explaining the success status and parameter alignment.",
+    "evaluation": "A brief evaluation (2-3 sentences) explaining the result quality and relevance, NOT just repeating the success flag.",
     "score": 1.0
   }}
   ```
   
-  ## Scoring Guidelines:
-  - **1.0**: Success - Tool executed successfully with good parameter alignment
-  - **0.5**: Partial Success - Tool executed but with parameter alignment issues or minor errors
-  - **0.0**: Failure - Tool execution failed or severe parameter misalignment
+  ## Scoring Guidelines (Focus on Result Quality):
+  - **1.0**: High Quality - The output is relevant, useful, and appropriate for the given input parameters
+  - **0.0**: Low Quality - The output is irrelevant, incorrect, unhelpful, or inappropriate for the input
   
-  Please evaluate carefully and provide a score of exactly 0.0, 0.5, or 1.0.
+  ## Examples:
+  - success=True, but output is "No results found" for a reasonable query → score=0.0 (technically succeeded but unhelpful)
+  - success=True, but output contains generic/irrelevant information → score=0.0 (poor quality)
+  - success=True, and output provides relevant, useful information → score=1.0 (good quality)
+  - success=False, with error messages → score=0.0 (failed execution)
+  
+  Please evaluate carefully and provide a score of exactly 0.0 or 1.0 based on OUTPUT QUALITY, not just the success flag.
 
