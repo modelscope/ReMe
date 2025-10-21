@@ -25,6 +25,12 @@ nav:
       - Retrieve Ops: task_memory/task_retrieve_ops.md
       - Summary Ops: task_memory/task_summary_ops.md
 
+  - Tool Memory:
+      - Overview: tool_memory/tool_memory.md
+      - Retrieve Ops: tool_memory/tool_retrieve_ops.md
+      - Summary Ops: tool_memory/tool_summary_ops.md
+      - Benchmark: tool_memory/tool_bench.md
+
   - SOP Memory:
       - Making SOP Memories: sop_memory/making_sop_memories.md
 
@@ -62,3 +68,9 @@ markdown_extensions:
   shadcn.extensions.echarts.alpha:
   shadcn.extensions.codexec:
   shadcn.extensions.iconify:
+
+
+# pip install mkdocs-shadcn
+# mkdocs build
+# mkdocs serve
+# mkdocs gh-deploy --force
