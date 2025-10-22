@@ -45,7 +45,8 @@ nav:
       - BFCL: cookbook/bfcl/quickstart.md
       - FrozenLake: cookbook/frozenlake/quickstart.md
 
-  - TODO: todo.md
+  - Future Work:
+      - future_work.md
 
   - Contribution Guide: contribution.md
 
