@@ -22,6 +22,7 @@ show_datetime: true
 </p>
 
 ---
+
 ReMe provides AI agents with a unified memory system—enabling the ability to extract, reuse, and share memories across
 users, tasks, and agents.
 
@@ -31,9 +32,7 @@ Personal Memory + Task Memory + Tool Memory = Agent Memory
 
 Personal memory helps "**understand user preferences**", task memory helps agents "**perform better**", and tool memory enables "**smarter tool usage**".
 
----
-
-## ✨ Architecture Design
+## Architecture Design
 
 <p align="center">
  <img src="figure/reme_structure.jpg" alt="ReMe Logo" width="100%">
@@ -41,27 +40,24 @@ Personal memory helps "**understand user preferences**", task memory helps agent
 
 ReMe integrates three complementary memory capabilities:
 
-#### 🧠 **Task Memory/Experience**
+!!! note "Task Memory/Experience"
 
-Procedural knowledge reused across agents
+    ---
 
-- **Success Pattern Recognition**: Identify effective strategies and understand their underlying principles
-- **Failure Analysis Learning**: Learn from mistakes and avoid repeating the same issues
-- **Comparative Patterns**: Different sampling trajectories provide more valuable memories through comparison
-- **Validation Patterns**: Confirm the effectiveness of extracted memories through validation modules
+    Procedural knowledge reused across agents
 
-Learn more about how to use task memory from [task memory](task_memory/task_memory.md)
+    - **Success Pattern Recognition**: Identify effective strategies and understand their underlying principles
+    - **Failure Analysis Learning**: Learn from mistakes and avoid repeating the same issues
+    - **Comparative Patterns**: Different sampling trajectories provide more valuable memories through comparison
+    - **Validation Patterns**: Confirm the effectiveness of extracted memories through validation modules
 
-#### 👤 **Personal Memory**
+    Learn more about how to use task memory from [task memory](task_memory/task_memory.md)
 
-Contextualized memory for specific users
+!!! note "Personal Memory"
 
-- **Individual Preferences**: User habits, preferences, and interaction styles
-- **Contextual Adaptation**: Intelligent memory management based on time and context
-- **Progressive Learning**: Gradually build deep understanding through long-term interaction
-- **Time Awareness**: Time sensitivity in both retrieval and integration
+    ---
 
-Learn more about how to use personal memory from [personal memory](personal_memory/personal_memory.md)
+    Contextualized memory for specific users
 
 #### 🔧 **Tool Memory**
 
@@ -76,7 +72,10 @@ Learn more about how to use tool memory from [tool memory](tool_memory/tool_memo
 
 ---
 
-## 🛠️ Installation
+    Learn more about how to use personal memory from [personal memory](personal_memory/personal_memory.md)
+
+
+## Installation
 
 ### Install from PyPI (Recommended)
 
@@ -106,7 +105,7 @@ FLOW_EMBEDDING_BASE_URL=https://xxxx/v1
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### HTTP Service Startup
 
@@ -545,25 +544,7 @@ You can find more details in [tool_bench.md](tool_memory/tool_bench.md) and the 
 
 ---
 
-## 🤝 Contribution
-
-We believe the best memory systems come from collective wisdom. Contributions welcome 👉[Guide](contribution.md):
-
-### Code Contributions
-
-- New operation and tool development
-- Backend implementation and optimization
-- API enhancements and new endpoints
-
-### Documentation Improvements
-
-- Usage examples and tutorials
-- Best practice guides
-
-
----
-
-## 📄 Citation
+## Citation
 
 ```bibtex
 @software{ReMe2025,
@@ -573,16 +554,3 @@ We believe the best memory systems come from collective wisdom. Contributions we
   year = {2025}
 }
 ```
-
----
-
-## ⚖️ License
-
-This project is licensed under the Apache License 2.0 - see the [LICENSE](https://github.com/modelscope/ReMe/blob/main/LICENSE) file for details.
-
----
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=modelscope/ReMe&type=Date)](https://www.star-history.com/#modelscope/ReMe&Date)
-

@@ -14,6 +14,7 @@ nav:
 
   - Library:
       - Library Home: library/library.md
+      - Use Library: library/use_library.md
 
   - Personal Memory:
       - Overview: personal_memory/personal_memory.md
@@ -39,13 +40,14 @@ nav:
       - Vector Store: vector_store_api_guide.md
 
   - Experimental Tutorials:
+      - Overview: cookbook/experiment_overview.md
       - AppWorld: cookbook/appworld/quickstart.md
       - BFCL: cookbook/bfcl/quickstart.md
       - FrozenLake: cookbook/frozenlake/quickstart.md
 
   - TODO: todo.md
 
-  - Contributions: contribution.md
+  - Contribution Guide: contribution.md
 
 plugins:
   - search

@@ -38,8 +38,18 @@ new: true
   </div>
 
   <!-- 列表容器 -->
-  <div id="ml-libraries" class="ml-grid" hidden></div>
+  <div id="ml-libraries" class="ml-stacked" hidden></div>
+
   <div id="ml-memories" class="ml-grid" hidden></div>
+  <div id="ml-pagination" class="ml-pagination" hidden>
+    <div class="ml-page-info">
+      <span id="ml-page-range"></span>
+    </div>
+    <div class="ml-page-controls">
+      <button id="ml-prev" class="ml-btn secondary">← Prev</button>
+      <button id="ml-next" class="ml-btn">Next →</button>
+    </div>
+  </div>
 
   <!-- 空态 -->
   <div id="ml-empty" class="ml-empty" hidden>
@@ -86,17 +96,11 @@ new: true
 </dialog>
 
 <style>
-/* —— 基于 shadcn/mkdocs 主题变量，尽量少写硬编码颜色 —— */
 :root {
   --ml-radius: .75rem;
   --ml-gap: 1rem;
   --ml-shadow: 0 6px 24px rgba(0,0,0,.08);
 }
-@media (prefers-color-scheme: dark) {
-  /* 主题会处理色板，这里不额外覆盖 */
-}
-
-/* 容器与卡片 */
 .ml-prose-container { display: grid; gap: var(--ml-gap); }
 .ml-card {
   background: var(--background, #fff);
@@ -106,6 +110,8 @@ new: true
   padding: 1rem;
   box-shadow: var(--shadow, 0 1px 0 rgba(0,0,0,.02));
 }
+
+/* general card/grid */
 .ml-grid {
   display: grid;
   gap: var(--ml-gap);
@@ -113,6 +119,11 @@ new: true
 }
 @media (min-width: 640px){ .ml-grid{ grid-template-columns: repeat(2, minmax(0,1fr)); } }
 @media (min-width: 1024px){ .ml-grid{ grid-template-columns: repeat(3, minmax(0,1fr)); } }
+
+/* libraries stacked (categories vertical, libraries 1 per row) */
+.ml-stacked { display: grid; gap: 1.25rem; }
+.ml-section{ display:grid; gap:.5rem; }
+.ml-section h3{ margin:.25rem 0; font-size:1.05rem; font-weight:700; opacity:.85; display:flex; gap:.5rem; align-items:center; }
 
 .ml-card-item{
   background: var(--card, var(--background, #fff));
@@ -133,7 +144,7 @@ new: true
 .ml-card-sample{ margin-top:.5rem; font-size:.92rem; line-height:1.5; opacity:.9; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
 .ml-card-foot{ display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border, rgba(0,0,0,.08)); padding-top:.5rem; margin-top:.75rem; font-size:.85rem; opacity:.8; }
 
-/* 工具条与输入 */
+/* toolbar */
 .ml-toolbar{ display:flex; gap:.75rem; align-items:center; justify-content:space-between; flex-wrap:wrap; }
 .ml-input-wrap{ position:relative; flex:1; min-width: 260px; }
 .ml-input-wrap input{
@@ -159,14 +170,14 @@ new: true
 .ml-btn.secondary{ background: var(--muted, rgba(0,0,0,.03)); }
 .ml-btn:hover{ border-color: var(--primary, #3b82f6); }
 
-/* 统计/面包屑 */
+/* stats/breadcrumb */
 .ml-stats{ margin-top:.5rem; font-size:.9rem; opacity:.8; }
 .ml-crumb{ display:flex; align-items:center; gap:.75rem; }
 .ml-link{ background:none; border:none; color: var(--primary, #3b82f6); cursor:pointer; padding:.25rem .5rem; border-radius:.4rem; }
 .ml-link:hover{ text-decoration: underline; }
 .ml-crumb-title{ font-weight:600; opacity:.8; }
 
-/* 状态区 */
+/* states */
 .ml-loading, .ml-error, .ml-empty{ display:grid; justify-items:center; gap:.5rem; padding:3rem 1rem; }
 .ml-spinner{
   width:38px; height:38px; border-radius:999px; border:3px solid color-mix(in srgb, var(--foreground,#000) 12%, transparent);
@@ -176,7 +187,7 @@ new: true
 .ml-muted{ opacity:.7; }
 .ml-error-icon{ font-size:1.4rem; }
 
-/* 标签/块 */
+/* chips */
 .ml-chip{ display:inline-block; padding:.25rem .55rem; border-radius:999px; font-size:.78rem;
   background: color-mix(in srgb, var(--primary,#3b82f6) 12%, transparent); color: var(--primary,#3b82f6);
 }
@@ -184,6 +195,16 @@ new: true
   background: color-mix(in srgb, #16a34a 14%, transparent);
   color: #16a34a;
 }
+.ml-chip.beta{
+  background: color-mix(in srgb, #f59e0b 14%, transparent);
+  color: #b45309;
+}
+.ml-chip.contribute {
+  background: color-mix(in srgb, #3b82f6 14%, transparent);
+  color: #1d4ed8;
+}
+
+/* code/note */
 .ml-code{
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   background: var(--muted, rgba(0,0,0,.04)); border:1px solid var(--border, rgba(0,0,0,.08));
@@ -195,7 +216,7 @@ new: true
   padding:.75rem; border-radius:.6rem;
 }
 
-/* 元数据 */
+/* meta */
 .ml-meta{ display:grid; grid-template-columns: repeat(1, minmax(0,1fr)); gap:.5rem; }
 @media (min-width: 640px){ .ml-meta{ grid-template-columns: repeat(2, minmax(0,1fr)); } }
 .ml-meta > div{ display:flex; justify-content:space-between; align-items:center; padding:.5rem .75rem;
@@ -204,7 +225,7 @@ new: true
 .ml-meta span{ opacity:.7; }
 .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 
-/* 弹窗 */
+/* modal */
 .ml-modal{ padding:0; border:none; background: transparent; }
 .ml-modal[open]{ display:grid; align-items:center; justify-items:center; }
 .ml-modal::backdrop{ background: rgba(0,0,0,.45); }
@@ -220,6 +241,14 @@ new: true
 .ml-modal-section{ display:grid; gap:.35rem; margin-top:.75rem; }
 .ml-section-title{ font-weight:650; opacity:.85; }
 .ml-modal-footer{ display:flex; justify-content:flex-end; margin-top:1rem; }
+
+/* pagination */
+.ml-pagination{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:.5rem .25rem;
+}
+.ml-page-controls{ display:flex; gap:.5rem; }
+.ml-page-info{ font-size:.9rem; opacity:.8; }
 </style>
 
 <script>
@@ -230,6 +259,11 @@ new: true
   let VIEW = "libraries"; // "libraries" | "memories"
   let CURR = null;
 
+  // pagination state for memories
+  let PAGE = 1;
+  const PAGE_SIZE = 30;
+  let CURRENT_MEM_LIST = [];
+
   // —— DOM
   const $ = (id) => document.getElementById(id);
   const elLoading = $("ml-loading");
@@ -237,6 +271,10 @@ new: true
   const elRetry = $("ml-retry");
   const elLibraries = $("ml-libraries");
   const elMemories = $("ml-memories");
+  const elPagination = $("ml-pagination");
+  const elPageRange = $("ml-page-range");
+  const elPrev = $("ml-prev");
+  const elNext = $("ml-next");
   const elEmpty = $("ml-empty");
   const elSearch = $("ml-search");
   const elClear = $("ml-clear");
@@ -260,23 +298,30 @@ new: true
 
   // —— Config：JSONL 文件位于本页同级目录（docs/library/）
   const BASE = "..";
-  const FILES = [
-    "appworld.jsonl",
-    "bfcl_v3.jsonl",
-    // 需要的话在这里继续添加文件名
-  ];
+
+  // —— Categories
+  const CATEGORY_MAP = {
+    "Academic Datasets": ["appworld", "bfcl_v3"],
+    "Finance": ["research_plan", "research_tips"],
+    "Medical/Law/Education": [] // header only if empty
+  };
+
+  const FILES = Array.from(new Set(
+    Object.values(CATEGORY_MAP).flat().map(n => `${n}.jsonl`)
+  ));
 
   // —— Utils
   function show(el){ el.hidden = false; }
   function hide(el){ el.hidden = true; }
   function setLoading(on){
-    on ? (show(elLoading), [elError, elLibraries, elMemories, elEmpty, elStats, elCrumb].forEach(hide))
+    on ? (show(elLoading), [elError, elLibraries, elMemories, elEmpty, elStats, elCrumb, elPagination].forEach(hide))
        : hide(elLoading);
   }
   function setError(on){ on ? (show(elError), [elLoading].forEach(hide)) : hide(elError); }
   function clampTxt(s, n){ if(!s) return ""; return s.length<=n? s : s.slice(0,n)+"…"; }
   const fmtDate = (t)=> t ? new Date(t).toLocaleDateString() : "Unknown";
   function debounce(fn, ms=250){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+  function fileBase(name){ return name.replace(/\.jsonl$/,""); }
 
   // —— Data Loading
   async function loadAll(){
@@ -290,7 +335,7 @@ new: true
           return txt.split("\n").filter(l=>l.trim()).map(line=>{
             try{
               const obj = JSON.parse(line);
-              obj._library = f.replace(/\.jsonl$/,"");
+              obj._library = fileBase(f);
               return obj;
             }catch{ return null; }
           }).filter(Boolean);
@@ -310,46 +355,70 @@ new: true
     }
   }
 
-  // —— Render
-  function renderLibraries(list){
+  // —— Render — Libraries (stacked categories)
+  function renderLibraries(){
     VIEW = "libraries"; CURR = null;
-    hide(elMemories); hide(elEmpty); show(elLibraries);
+    PAGE = 1; CURRENT_MEM_LIST = [];
+    hide(elMemories); hide(elEmpty); hide(elPagination); show(elLibraries);
     hide(elCrumb);
     elCrumbTitle.textContent = "Libraries";
     elType.textContent = "libraries";
 
-    const libs = list ?? Object.keys(GROUPED);
-    if(!libs.length){ hide(elLibraries); show(elEmpty); hide(elStats); return; }
+    const availableLibs = Object.keys(GROUPED);
 
-    elLibraries.innerHTML = libs.map(name=>{
-      const arr = GROUPED[name];
-      const sample = arr[0] || {};
-      const sampleText = sample.when_to_use || sample.content || "No description available";
-      const author = sample.author || "Unknown";
-      return `
-        <div class="ml-card-item" data-lib="${name}">
-          <div class="ml-card-head">
-            <div>
-              <div class="ml-card-title">${name}</div>
-              <div class="ml-card-sub">${arr.length} memories</div>
+    const sections = Object.entries(CATEGORY_MAP).map(([cat, prefixes])=>{
+      // build libraries list for this category
+      const libs = (prefixes || []).filter(p => availableLibs.includes(p));
+      const itemsHtml = libs.map(name=>{
+        const arr = GROUPED[name];
+        const sample = arr[0] || {};
+        const sampleText = sample.when_to_use || sample.content || "No description available";
+        const author = sample.author || "Unknown";
+        return `
+          <div class="ml-card-item" data-lib="${name}">
+            <div class="ml-card-head">
+              <div>
+                <div class="ml-card-title">${name}</div>
+                <div class="ml-card-sub">${arr.length} memories</div>
+              </div>
+              <div class="ml-chip">DB</div>
             </div>
-            <div class="ml-chip">DB</div>
+            <div class="ml-card-sample">${clampTxt(sampleText, 180)}</div>
+            <div class="ml-card-foot">
+              <span>👤 ${author}</span>
+              <span>View →</span>
+            </div>
           </div>
-          <div class="ml-card-sample">${clampTxt(sampleText, 180)}</div>
-          <div class="ml-card-foot">
-            <span>👤 ${author}</span>
-            <span>View →</span>
-          </div>
+        `;
+      }).join("");
+
+      // Category header with Finance (beta) chip
+      const betaChip = (cat === "Finance") ? `<span class="ml-chip beta">beta</span>` : "";
+      const contributeChip = (cat === "Medical/Law/Education") ? `<span class="ml-chip contribute">Feel free to contribute</span>` : "";
+
+      return `
+      <section class="ml-section">
+        <h3>${cat} ${betaChip} ${contributeChip}</h3>
+        <div class="ml-grid">
+          ${itemsHtml}
         </div>
+      </section>
       `;
     }).join("");
 
+    elLibraries.innerHTML = sections;
+
     bindLibraryClicks();
+
     show(elStats);
-    $("ml-count").textContent = libs.length;
-    $("ml-total").textContent = Object.keys(GROUPED).length;
+    const catsShown = Object.keys(CATEGORY_MAP).length;
+    const libsShown = Object.values(CATEGORY_MAP)
+  .reduce((acc, prefixes) => acc + prefixes.filter(p => availableLibs.includes(p)).length, 0);
+    $("ml-count").textContent = libsShown;
+    $("ml-total").textContent = libsShown;
   }
 
+  // —— Render — Memories with Pagination
   function renderMemories(memList){
     VIEW = "memories";
     hide(elLibraries); hide(elEmpty); show(elMemories);
@@ -357,12 +426,24 @@ new: true
     elType.textContent = "memories";
     elCrumbTitle.textContent = `Exploring ${CURR}`;
 
-    if(!memList?.length){ hide(elMemories); show(elEmpty); hide(elStats); return; }
-    elMemories.innerHTML = memList.map((m,idx)=>`
-      <div class="ml-card-item" data-idx="${idx}">
+    CURRENT_MEM_LIST = memList || [];
+    if(!CURRENT_MEM_LIST.length){
+      hide(elMemories); hide(elPagination); show(elEmpty); hide(elStats); return;
+    }
+
+    const total = CURRENT_MEM_LIST.length;
+    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if(PAGE > pages) PAGE = pages;
+
+    const startIdx = (PAGE - 1) * PAGE_SIZE;
+    const endIdx = Math.min(startIdx + PAGE_SIZE, total);
+    const pageItems = CURRENT_MEM_LIST.slice(startIdx, endIdx);
+
+    elMemories.innerHTML = pageItems.map((m,idxOnPage)=>`
+      <div class="ml-card-item" data-idx="${startIdx + idxOnPage}">
         <div class="ml-card-head">
           <div class="ml-chip">${m._library}</div>
-          ${m.score ? `<div class="ml-chip success">Score: ${m.score}</div>` : ""}
+          ${("score" in m && m.score !== null && m.score !== undefined) ? `<div class="ml-chip success">Score: ${m.score}</div>` : ""}
         </div>
         <div class="ml-card-sample"><b>When to use:</b> ${clampTxt(m.when_to_use || "No specific guidance provided", 140)}</div>
         <div class="ml-card-foot">
@@ -372,11 +453,11 @@ new: true
       </div>
     `).join("");
 
-    // 绑定卡片 → 打开弹窗
+    // modal binding
     [...elMemories.querySelectorAll(".ml-card-item")].forEach(card=>{
       card.addEventListener("click", ()=>{
-        const idx = Number(card.getAttribute("data-idx"));
-        const m = GROUPED[CURR][idx];
+        const absIdx = Number(card.getAttribute("data-idx"));
+        const m = CURRENT_MEM_LIST[absIdx];
         mLib.textContent = m._library;
         const hasScore = "score" in m && m.score !== null && m.score !== undefined;
         if(hasScore){ mScore.textContent = `Score: ${m.score}`; mScore.hidden = false; } else { mScore.hidden = true; }
@@ -390,15 +471,25 @@ new: true
       });
     });
 
+    // pagination controls
+    show(elPagination);
+    elPageRange.textContent = `Showing ${startIdx + 1}–${endIdx} of ${total}`;
+    elPrev.disabled = PAGE <= 1;
+    elNext.disabled = PAGE >= pages;
+
+    elPrev.onclick = ()=>{ if(PAGE > 1){ PAGE--; renderMemories(CURRENT_MEM_LIST); } };
+    elNext.onclick = ()=>{ if(PAGE < pages){ PAGE++; renderMemories(CURRENT_MEM_LIST); } };
+
     show(elStats);
-    $("ml-count").textContent = memList.length;
-    $("ml-total").textContent = memList.length;
+    elCount.textContent = pageItems.length;
+    elTotal.textContent = total;
   }
 
   function bindLibraryClicks(){
-    [...elLibraries.querySelectorAll(".ml-card-item")].forEach(card=>{
+    [...elLibraries.querySelectorAll(".ml-card-item[data-lib]")].forEach(card=>{
       card.addEventListener("click", ()=>{
         CURR = card.getAttribute("data-lib");
+        PAGE = 1;
         renderMemories(GROUPED[CURR]);
       });
     });
@@ -409,18 +500,32 @@ new: true
     const q = elSearch.value.trim().toLowerCase();
     if(!q){
       if(VIEW==="libraries") renderLibraries();
-      else renderMemories(GROUPED[CURR]);
+      else { PAGE = 1; renderMemories(GROUPED[CURR]); }
       return;
     }
     if(VIEW==="libraries"){
-      const libs = Object.keys(GROUPED).filter(name=>{
-        const arr = GROUPED[name];
-        return name.toLowerCase().includes(q) ||
-          arr.some(m => (m.when_to_use||"").toLowerCase().includes(q) ||
-                         (m.content||"").toLowerCase().includes(q) ||
-                         (m.author||"").toLowerCase().includes(q));
+      // filter categories if name matches, or any of their libs/memories match
+      const availableLibs = Object.keys(GROUPED);
+      const filteredEntries = Object.entries(CATEGORY_MAP).filter(([cat, prefixes])=>{
+        if(cat.toLowerCase().includes(q)) return true;
+        return (prefixes || []).some(name=>{
+          if(!availableLibs.includes(name)) return false;
+          const arr = GROUPED[name] || [];
+          if(name.toLowerCase().includes(q)) return true;
+          return arr.some(m =>
+            (m.when_to_use||"").toLowerCase().includes(q) ||
+            (m.content||"").toLowerCase().includes(q) ||
+            (m.author||"").toLowerCase().includes(q)
+          );
+        });
       });
-      renderLibraries(libs);
+      const tmp = Object.fromEntries(filteredEntries);
+      const backup = {...CATEGORY_MAP};
+      Object.keys(CATEGORY_MAP).forEach(k=> delete CATEGORY_MAP[k]);
+      Object.assign(CATEGORY_MAP, tmp);
+      renderLibraries();
+      Object.keys(CATEGORY_MAP).forEach(k=> delete CATEGORY_MAP[k]);
+      Object.assign(CATEGORY_MAP, backup);
     }else{
       const arr = GROUPED[CURR] || [];
       const filtered = arr.filter(m =>
@@ -428,6 +533,7 @@ new: true
         (m.content||"").toLowerCase().includes(q) ||
         (m.author||"").toLowerCase().includes(q)
       );
+      PAGE = 1;
       renderMemories(filtered);
     }
   }
