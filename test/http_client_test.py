@@ -110,23 +110,34 @@ async def run2(session):
         result = await response.json()
         print(json.dumps(result, ensure_ascii=False))
 
+
+async def run3(session):
+    workspace_id = "default2"
+
+    async with session.post(
+            f"{base_url}/add_tool_call_result",
+            json={
+                "tool_call_results": [
+                    {"a": 1},
+                    {"a": 2},
+                ],
+                "workspace_id": workspace_id,
+            },
+            headers={"Content-Type": "application/json"}
+    ) as response:
+        result = await response.json()
+        print(json.dumps(result, ensure_ascii=False))
+
+
 async def main():
 
     async with aiohttp.ClientSession() as session:
         # 获取工具列表
         print("获取工具列表...")
-        async with session.get(f"{base_url}/list") as response:
-            if response.status == 200:
-                tools = await response.json()
-                print("可用工具:")
-                for tool in tools:
-                    print(json.dumps(tool, ensure_ascii=False))
-            else:
-                print(f"获取工具列表失败: {response.status}")
-                return
 
         # await run1(session)
-        await run2(session)
+        # await run2(session)
+        await run3(session)
 
 if __name__ == "__main__":
     asyncio.run(main())

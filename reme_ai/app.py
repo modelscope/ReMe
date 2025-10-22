@@ -1,8 +1,4 @@
 import sys
-import warnings
-
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="websockets")
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="uvicorn")
 
 from flowllm.app import FlowLLMApp
 

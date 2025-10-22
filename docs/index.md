@@ -26,11 +26,11 @@ show_datetime: true
 ReMe provides AI agents with a unified memory system—enabling the ability to extract, reuse, and share memories across
 users, tasks, and agents.
 
-!!! info "Personal Memory + Task Memory = Agent Memory"
+```
+Personal Memory + Task Memory + Tool Memory = Agent Memory
+```
 
-Personal memory helps "**understand user preferences**", while task memory helps agents "**perform better**".
-
-
+Personal memory helps "**understand user preferences**", task memory helps agents "**perform better**", and tool memory enables "**smarter tool usage**".
 
 ## Architecture Design
 
@@ -38,7 +38,7 @@ Personal memory helps "**understand user preferences**", while task memory helps
  <img src="figure/reme_structure.jpg" alt="ReMe Logo" width="100%">
 </p>
 
-ReMe integrates two complementary memory capabilities:
+ReMe integrates three complementary memory capabilities:
 
 !!! note "Task Memory/Experience"
 
@@ -59,10 +59,18 @@ ReMe integrates two complementary memory capabilities:
 
     Contextualized memory for specific users
 
-    - **Individual Preferences**: User habits, preferences, and interaction styles
-    - **Contextual Adaptation**: Intelligent memory management based on time and context
-    - **Progressive Learning**: Gradually build deep understanding through long-term interaction
-    - **Time Awareness**: Time sensitivity in both retrieval and integration
+#### 🔧 **Tool Memory**
+
+Data-driven tool selection and usage optimization
+
+- **Historical Performance Tracking**: Success rates, execution times, and token costs from real usage
+- **LLM-as-Judge Evaluation**: Qualitative insights on why tools succeed or fail
+- **Parameter Optimization**: Learn optimal parameter configurations from successful calls
+- **Dynamic Guidelines**: Transform static tool descriptions into living, learned manuals
+
+Learn more about how to use tool memory from [tool memory](tool_memory/tool_memory.md)
+
+---
 
     Learn more about how to use personal memory from [personal memory](personal_memory/personal_memory.md)
 
@@ -303,15 +311,236 @@ fetch("http://localhost:8002/retrieve_personal_memory", {
 
 </details>
 
+#### Tool Memory Management
+
+```python
+import requests
+
+# Record tool execution results
+response = requests.post("http://localhost:8002/add_tool_call_result", json={
+    "workspace_id": "tool_workspace",
+    "tool_call_results": [
+        {
+            "create_time": "2025-10-21 10:30:00",
+            "tool_name": "web_search",
+            "input": {"query": "Python asyncio tutorial", "max_results": 10},
+            "output": "Found 10 relevant results...",
+            "token_cost": 150,
+            "success": True,
+            "time_cost": 2.3
+        }
+    ]
+})
+
+# Generate usage guidelines from history
+response = requests.post("http://localhost:8002/summary_tool_memory", json={
+    "workspace_id": "tool_workspace",
+    "tool_names": "web_search"
+})
+
+# Retrieve tool guidelines before use
+response = requests.post("http://localhost:8002/retrieve_tool_memory", json={
+    "workspace_id": "tool_workspace",
+    "tool_names": "web_search"
+})
+```
+
+<details>
+<summary>curl version</summary>
+
+```bash
+# Record tool execution results
+curl -X POST http://localhost:8002/add_tool_call_result \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "tool_workspace",
+    "tool_call_results": [
+      {
+        "create_time": "2025-10-21 10:30:00",
+        "tool_name": "web_search",
+        "input": {"query": "Python asyncio tutorial", "max_results": 10},
+        "output": "Found 10 relevant results...",
+        "token_cost": 150,
+        "success": true,
+        "time_cost": 2.3
+      }
+    ]
+  }'
+
+# Generate usage guidelines from history
+curl -X POST http://localhost:8002/summary_tool_memory \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "tool_workspace",
+    "tool_names": "web_search"
+  }'
+
+# Retrieve tool guidelines before use
+curl -X POST http://localhost:8002/retrieve_tool_memory \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": "tool_workspace",
+    "tool_names": "web_search"
+  }'
+```
+
+</details>
+
+<details>
+<summary>Node.js version</summary>
+
+```javascript
+// Record tool execution results
+fetch("http://localhost:8002/add_tool_call_result", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    workspace_id: "tool_workspace",
+    tool_call_results: [
+      {
+        create_time: "2025-10-21 10:30:00",
+        tool_name: "web_search",
+        input: {query: "Python asyncio tutorial", max_results: 10},
+        output: "Found 10 relevant results...",
+        token_cost: 150,
+        success: true,
+        time_cost: 2.3
+      }
+    ]
+  })
+})
+.then(response => response.json())
+.then(data => console.log(data));
+
+// Generate usage guidelines from history
+fetch("http://localhost:8002/summary_tool_memory", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    workspace_id: "tool_workspace",
+    tool_names: "web_search"
+  })
+})
+.then(response => response.json())
+.then(data => console.log(data));
+
+// Retrieve tool guidelines before use
+fetch("http://localhost:8002/retrieve_tool_memory", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    workspace_id: "tool_workspace",
+    tool_names: "web_search"
+  })
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+
+</details>
+
 ---
 
-## Resources
-- **[Personal memory](personal_memory/personal_memory.md)** & **[Task memory](task_memory/task_memory.md)** : Operators used in personal memory and task memory, You can modify the config to customize the pipelines.
-- **[Example Collection](cookbook/experiment_overview.md)**: Real use cases and best practices
-- **[Library](./library/library.md)**: Directly use existing task memory/experience for your tasks, and you can also contribute more task memory/experience to us.
-- **[Contribution](contribution.md)**: welcome to your contributions!
+## 📦 Ready-to-Use Libraries
+
+ReMe provides pre-built memory libraries that agents can immediately use with verified best practices:
+
+### Available Libraries
+
+- **`appworld.jsonl`**: Memory library for Appworld agent interactions, covering complex task planning and execution
+  patterns
+- **`bfcl_v3.jsonl`**: Working memory library for BFCL tool calls
+
+### Quick Usage
+
+```python
+# Load pre-built memories
+response = requests.post("http://localhost:8002/vector_store", json={
+    "workspace_id": "appworld",
+    "action": "load",
+    "path": "./docs/library/"
+})
+
+# Query relevant memories
+response = requests.post("http://localhost:8002/retrieve_task_memory", json={
+    "workspace_id": "appworld",
+    "query": "How to navigate to settings and update user profile?",
+    "top_k": 1
+})
+```
+
+## 🧪 Experiments
+
+### 🌍 [Appworld Experiment](cookbook/appworld/quickstart.md)
+
+We tested ReMe on Appworld using qwen3-8b:
+
+| Method       | pass@1            | pass@2            | pass@4            |
+|--------------|-------------------|-------------------|-------------------|
+| without ReMe | 0.083             | 0.140             | 0.228             |
+| with ReMe    | 0.109 **(+2.6%)** | 0.175 **(+3.5%)** | 0.281 **(+5.3%)** |
+
+Pass@K measures the probability that at least one of the K generated samples successfully completes the task (
+score=1).  
+The current experiment uses an internal AppWorld environment, which may have slight differences.
+
+You can find more details on reproducing the experiment in [quickstart.md](cookbook/appworld/quickstart.md).
+
+### 🧊 [Frozenlake Experiment](./cookbook/frozenlake/quickstart.md)
+
+|                                        without ReMe                                         |                                          with ReMe                                          |
+|:-------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------:|
+|   <p align="center"><img src="figure/frozenlake_failure.gif" alt="GIF 1" width="30%"></p>   |   <p align="center"><img src="figure/frozenlake_success.gif" alt="GIF 2" width="30%"></p>   |
+
+We tested on 100 random frozenlake maps using qwen3-8b:
+
+| Method       | pass rate        |
+|--------------|------------------|
+| without ReMe | 0.66             |
+| with ReMe    | 0.72 **(+6.0%)** |
+
+You can find more details on reproducing the experiment in [quickstart.md](cookbook/frozenlake/quickstart.md).
+
+### 🔧 [BFCL-V3 Experiment](./cookbook/bfcl/quickstart.md)
+
+We tested ReMe on BFCL-V3 multi-turn-base (randomly split 50train/150val) using qwen3-8b:
+
+| Method       | pass@1              | pass@2              | pass@4              |
+|--------------|---------------------|---------------------|---------------------|
+| without ReMe | 0.2472              | 0.2733              | 0.2922              |
+| with ReMe    | 0.3061 **(+5.89%)** | 0.3500 **(+7.67%)** | 0.3888 **(+9.66%)** |
+
+### 🛠️ [Tool Memory Benchmark](tool_memory/tool_bench.md)
+
+We evaluated Tool Memory effectiveness using a controlled benchmark with three mock search tools using Qwen3-30B-Instruct:
+
+| Scenario              | Avg Score | Improvement        |
+|-----------------------|-----------|--------------------|
+| Train (No Memory)     | 0.650     | -                  |
+| Test (No Memory)      | 0.672     | Baseline           |
+| **Test (With Memory)** | **0.772** | **+14.88%** |
+
+**Key Findings:**
+- Tool Memory enables data-driven tool selection based on historical performance
+- Success rates improved by ~15% with learned parameter configurations
+
+You can find more details in [tool_bench.md](tool_memory/tool_bench.md) and the implementation at [run_reme_tool_bench.py](https://github.com/modelscope/ReMe/tree/main/cookbook/tool_memory/run_reme_tool_bench.py).
+
+## 📚 Resources
+
+- **[Quick Start](https://github.com/modelscope/ReMe/tree/main/cookbook/simple_demo)**: Get started quickly with practical examples
+  - [Tool Memory Demo](https://github.com/modelscope/ReMe/tree/main/cookbook/simple_demo/use_tool_memory_demo.py): Complete lifecycle demonstration of tool memory
+  - [Tool Memory Benchmark](https://github.com/modelscope/ReMe/tree/main/cookbook/tool_memory/run_reme_tool_bench.py): Evaluate tool memory effectiveness
 - **[Vector Storage Setup](vector_store_api_guide.md)**: Configure local/vector databases and usage
 - **[MCP Guide](mcp_quick_start.md)**: Create MCP services
+- **[Personal Memory](personal_memory/personal_memory.md)**, **[Task Memory](task_memory/task_memory.md)** & **[Tool Memory](tool_memory/tool_memory.md)**: Operators used in personal memory, task memory and tool memory. You can modify the config to customize the pipelines.
+- **[Example Collection](./cookbook/appworld/quickstart.md)**: Real use cases and best practices
 
 ---
 
