@@ -31,7 +31,6 @@ Personal memory helps "**understand user preferences**", task memory helps agent
 ## 📰 Latest Updates
 
 - **[2025-10]** 🔧 Tool Memory support is now available! Enables data-driven tool selection and parameter optimization through historical performance tracking. Check out the [Tool Memory Guide](docs/tool_memory/tool_memory.md) and [benchmark results](docs/tool_memory/tool_bench.md).
-- **[2025-09-25]** 🎉 ReMe is now exploring tool memory and its applications for Personal Memory Agents.
 - **[2025-09]** 🎉 ReMe v0.1.9 has been officially released, adding support for asynchronous operations. It has also been
   integrated into the memory service of agentscope-runtime.
 - **[2025-09]** 🎉 ReMe v0.1 officially released, integrating task memory and personal memory. If you want to use the
