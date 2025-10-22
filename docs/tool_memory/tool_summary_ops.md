@@ -76,7 +76,4 @@ The operation returns a response message indicating:
 
 Example: `"Successfully processed 5 tool memories: 2 summarized, 3 skipped (already up-to-date)"`
 
-### See Also
-
-For detailed implementation and examples, see [is_summarized Feature Documentation](is_summarized_feature.md).
 
