@@ -62,6 +62,11 @@ class SummaryToolMemoryOp(BaseAsyncOp):
             logger.warning(f"No tool call results found for tool: {tool_memory.when_to_use}")
             return tool_memory
 
+        # Log how many unsummarized calls we're processing
+        unsummarized_count = sum(1 for call in recent_calls if not call.is_summarized)
+        logger.info(f"Summarizing tool {tool_memory.when_to_use}: "
+                   f"{unsummarized_count}/{len(recent_calls)} unsummarized calls")
+
         # Get statistics
         statistics = tool_memory.statistic(recent_frequency=self.recent_call_count)
 
@@ -82,11 +87,16 @@ class SummaryToolMemoryOp(BaseAsyncOp):
             # Append statistics markdown to LLM result
             tool_memory.content = f"{llm_summary}\n\n## Statistics\n{statistics_md}"
 
+            # Mark all recent calls as summarized
+            for call in recent_calls:
+                call.is_summarized = True
+
             # Update modified time
             tool_memory.update_modified_time()
 
             logger.info(f"Summarized tool {index}: tool_name={tool_memory.when_to_use}, "
-                        f"content_length={len(tool_memory.content)}")
+                        f"content_length={len(tool_memory.content)}, "
+                        f"marked {len(recent_calls)} calls as summarized")
             return tool_memory
 
         # Call LLM to generate summary
@@ -137,23 +147,46 @@ class SummaryToolMemoryOp(BaseAsyncOp):
             self.context.response.success = False
             return
 
-        # Concurrently summarize all tool memories
-        logger.info(f"Starting concurrent summarization of {len(matched_tool_memories)} tool memories")
+        # Check which tools need summarization
+        tools_need_summary = []
+        tools_skipped = []
+        
+        for tool_memory in matched_tool_memories:
+            recent_calls = tool_memory.tool_call_results[-self.recent_call_count:]
+            unsummarized_count = sum(1 for call in recent_calls if not call.is_summarized)
+            
+            if unsummarized_count > 0:
+                tools_need_summary.append(tool_memory)
+            else:
+                tools_skipped.append(tool_memory)
+                logger.info(f"Skipping tool {tool_memory.when_to_use}: all recent {len(recent_calls)} calls already summarized")
 
-        # 使用基类的 submit_async_task 提交所有总结任务
-        for index, tool_memory in enumerate(matched_tool_memories):
-            self.submit_async_task(self._summarize_single_tool, tool_memory, index)
+        # Concurrently summarize tool memories that need it
+        if tools_need_summary:
+            logger.info(f"Starting concurrent summarization of {len(tools_need_summary)} tool memories")
 
-        # 使用基类的 join_async_task 等待所有任务完成
-        # 注意: 基类已经过滤掉异常,返回的只包含成功的结果
-        valid_summarized_memories = await self.join_async_task(return_exceptions=True)
-        logger.info(f"Completed summarization of {len(valid_summarized_memories)} tool memories")
+            # 使用基类的 submit_async_task 提交所有总结任务
+            for index, tool_memory in enumerate(tools_need_summary):
+                self.submit_async_task(self._summarize_single_tool, tool_memory, index)
+
+            # 使用基类的 join_async_task 等待所有任务完成
+            # 注意: 基类已经过滤掉异常,返回的只包含成功的结果
+            valid_summarized_memories = await self.join_async_task(return_exceptions=True)
+            logger.info(f"Completed summarization of {len(valid_summarized_memories)} tool memories")
+        else:
+            valid_summarized_memories = []
+            logger.info("All tool memories are up-to-date, no summarization needed")
+
+        # Combine summarized and skipped memories
+        all_memories = valid_summarized_memories + tools_skipped
 
         # Set response
-        self.context.response.answer = f"Successfully summarized {len(valid_summarized_memories)} tool memories"
+        self.context.response.answer = (f"Successfully processed {len(all_memories)} tool memories: "
+                                       f"{len(valid_summarized_memories)} summarized, "
+                                       f"{len(tools_skipped)} skipped (already up-to-date)")
         self.context.response.success = True
-        self.context.response.metadata["memory_list"] = valid_summarized_memories
-        self.context.response.metadata["deleted_memory_ids"] = [m.memory_id for m in valid_summarized_memories]
+        self.context.response.metadata["memory_list"] = all_memories
+        self.context.response.metadata["deleted_memory_ids"] = [m.memory_id for m in all_memories]
 
         # Log summary for each tool
         for memory in valid_summarized_memories:
@@ -339,11 +372,90 @@ async def main():
             logger.info(f"  平均耗时: {stats['avg_time_cost']:.2f}s")
             logger.info(f"  平均Token消耗: {stats['avg_token_cost']:.1f}")
 
-            logger.info(f"\n" + "=" * 60)
-            logger.info("Summary 生成的使用指南 (从30条分散记录中提取):")
-            logger.info("=" * 60)
-            logger.info(summarized_memory.content)
-            logger.info("=" * 60)
+        logger.info(f"\n" + "=" * 60)
+        logger.info("Summary 生成的使用指南 (从30条分散记录中提取):")
+        logger.info("=" * 60)
+        logger.info(summarized_memory.content)
+        logger.info("=" * 60)
+
+        # ===== 第五步: 验证跳过逻辑 - 再次运行应该跳过 =====
+        logger.info("\n" + "=" * 80)
+        logger.info("步骤5: 验证跳过逻辑 - 再次运行 SummaryToolMemoryOp 应该跳过已总结的记录")
+        logger.info("=" * 80)
+
+        # 需要先保存更新后的 memory (带有 is_summarized=True 标记)
+        from reme_ai.vector_store.update_vector_store_op import UpdateVectorStoreOp
+        update_op = UpdateVectorStoreOp()
+        await update_op.async_call(
+            memory_list=summarized_memories,
+            workspace_id=workspace_id
+        )
+        logger.info("✓ 已保存带有 is_summarized 标记的 tool memory")
+
+        # 再次运行总结
+        summary_op2 = SummaryToolMemoryOp(
+            recent_call_count=30,
+            summary_sleep_interval=0.5
+        )
+        await summary_op2.async_call(
+            tool_names=tool_name,
+            workspace_id=workspace_id
+        )
+
+        if summary_op2.context.response.success:
+            logger.info("✓ 第二次总结完成 (预期应该跳过)")
+        else:
+            logger.info(f"第二次总结失败: {summary_op2.context.response.answer}")
+
+        # ===== 第六步: 添加新记录并验证增量总结 =====
+        logger.info("\n" + "=" * 80)
+        logger.info("步骤6: 添加 1 条新记录,验证会触发重新总结")
+        logger.info("=" * 80)
+
+        # 添加一条新的工具调用记录
+        new_tool_call = {
+            "create_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "tool_name": tool_name,
+            "input": {
+                "query": "FastAPI async best practices",
+                "max_results": 15,
+                "language": "en",
+                "filter_type": "technical_docs"
+            },
+            "output": "Found 12 excellent resources on FastAPI async patterns including official docs, real-world examples, and performance tips.",
+            "token_cost": 180,
+            "success": True,
+            "time_cost": 2.1
+        }
+
+        # 使用 ParseToolCallResultOp 评估新记录
+        new_pipeline = ParseToolCallResultOp(evaluation_sleep_interval=0.1) >> UpdateVectorStoreOp()
+        await new_pipeline.async_call(
+            tool_call_results=[new_tool_call],
+            tool_name=tool_name,
+            workspace_id=workspace_id
+        )
+        logger.info("✓ 添加并评估了 1 条新记录")
+
+        # 第三次运行总结 - 这次应该会执行
+        summary_op3 = SummaryToolMemoryOp(
+            recent_call_count=30,
+            summary_sleep_interval=0.5
+        )
+        await summary_op3.async_call(
+            tool_names=tool_name,
+            workspace_id=workspace_id
+        )
+
+        if summary_op3.context.response.success:
+            logger.info("✓ 第三次总结完成 (因为有新记录)")
+            summarized_memories3 = summary_op3.context.response.metadata.get("memory_list", [])
+            if summarized_memories3:
+                summarized_memory3 = summarized_memories3[0]
+                unsummarized = sum(1 for call in summarized_memory3.tool_call_results[-30:] if not call.is_summarized)
+                logger.info(f"  最近30条中未总结的记录数: {unsummarized} (应该为 0)")
+        else:
+            logger.info(f"第三次总结失败: {summary_op3.context.response.answer}")
 
 
 if __name__ == "__main__":

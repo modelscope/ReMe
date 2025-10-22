@@ -118,6 +118,7 @@ class ToolCallResult(BaseModel):
     summary: str = Field(default="", description="Brief summary of the tool call result")
     evaluation: str = Field(default="", description="Detailed evaluation for the tool invocation")
     score: float = Field(default=0, description="Score of the Evaluation (0.0 for failure, 1.0 for complete success)")
+    is_summarized: bool = Field(default=False, description="Whether this tool call has been included in a summary")
 
     metadata: dict = Field(default_factory=dict)
 
