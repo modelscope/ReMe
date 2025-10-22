@@ -2,62 +2,82 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://modelscope.github.io/ReMe/</loc>
-         <lastmod>2025-10-15</lastmod>
+         <lastmod>2025-10-22</lastmod>
     </url>
     <url>
          <loc>https://modelscope.github.io/ReMe/contribution/</loc>
-         <lastmod>2025-10-15</lastmod>
+         <lastmod>2025-10-22</lastmod>
     </url>
     <url>
          <loc>https://modelscope.github.io/ReMe/mcp_quick_start/</loc>
-         <lastmod>2025-10-15</lastmod>
+         <lastmod>2025-10-22</lastmod>
+    </url>
+    <url>
+         <loc>https://modelscope.github.io/ReMe/todo/</loc>
+         <lastmod>2025-10-22</lastmod>
     </url>
     <url>
          <loc>https://modelscope.github.io/ReMe/vector_store_api_guide/</loc>
-         <lastmod>2025-10-15</lastmod>
+         <lastmod>2025-10-22</lastmod>
     </url>
     <url>
          <loc>https://modelscope.github.io/ReMe/cookbook/appworld/quickstart/</loc>
-         <lastmod>2025-10-15</lastmod>
+         <lastmod>2025-10-22</lastmod>
     </url>
     <url>
          <loc>https://modelscope.github.io/ReMe/cookbook/bfcl/quickstart/</loc>
-         <lastmod>2025-10-15</lastmod>
+         <lastmod>2025-10-22</lastmod>
     </url>
     <url>
          <loc>https://modelscope.github.io/ReMe/cookbook/frozenlake/quickstart/</loc>
-         <lastmod>2025-10-15</lastmod>
+         <lastmod>2025-10-22</lastmod>
     </url>
     <url>
          <loc>https://modelscope.github.io/ReMe/library/library/</loc>
-         <lastmod>2025-10-15</lastmod>
+         <lastmod>2025-10-22</lastmod>
     </url>
     <url>
          <loc>https://modelscope.github.io/ReMe/personal_memory/personal_memory/</loc>
-         <lastmod>2025-10-15</lastmod>
+         <lastmod>2025-10-22</lastmod>
     </url>
     <url>
          <loc>https://modelscope.github.io/ReMe/personal_memory/personal_retrieve_ops/</loc>
-         <lastmod>2025-10-15</lastmod>
+         <lastmod>2025-10-22</lastmod>
     </url>
     <url>
          <loc>https://modelscope.github.io/ReMe/personal_memory/personal_summary_ops/</loc>
-         <lastmod>2025-10-15</lastmod>
+         <lastmod>2025-10-22</lastmod>
     </url>
     <url>
          <loc>https://modelscope.github.io/ReMe/sop_memory/making_sop_memories/</loc>
-         <lastmod>2025-10-15</lastmod>
+         <lastmod>2025-10-22</lastmod>
     </url>
     <url>
          <loc>https://modelscope.github.io/ReMe/task_memory/task_memory/</loc>
-         <lastmod>2025-10-15</lastmod>
+         <lastmod>2025-10-22</lastmod>
     </url>
     <url>
          <loc>https://modelscope.github.io/ReMe/task_memory/task_retrieve_ops/</loc>
-         <lastmod>2025-10-15</lastmod>
+         <lastmod>2025-10-22</lastmod>
     </url>
     <url>
          <loc>https://modelscope.github.io/ReMe/task_memory/task_summary_ops/</loc>
-         <lastmod>2025-10-15</lastmod>
+         <lastmod>2025-10-22</lastmod>
+    </url>
+    <url>
+         <loc>https://modelscope.github.io/ReMe/tool_memory/tool_bench/</loc>
+         <lastmod>2025-10-22</lastmod>
+    </url>
+    <url>
+         <loc>https://modelscope.github.io/ReMe/tool_memory/tool_memory/</loc>
+         <lastmod>2025-10-22</lastmod>
+    </url>
+    <url>
+         <loc>https://modelscope.github.io/ReMe/tool_memory/tool_retrieve_ops/</loc>
+         <lastmod>2025-10-22</lastmod>
+    </url>
+    <url>
+         <loc>https://modelscope.github.io/ReMe/tool_memory/tool_summary_ops/</loc>
+         <lastmod>2025-10-22</lastmod>
     </url>
 </urlset>

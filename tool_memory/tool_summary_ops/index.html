@@ -36,11 +36,11 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>BFCL - ReMe</title>
+    <title>Summary Ops - ReMe</title>
     
 
 
-<title>BFCL</title>
+<title>Summary Ops</title>
 
 
 
@@ -50,18 +50,18 @@
 
 
 
-<link rel="canonical" href="https://modelscope.github.io/ReMe/cookbook/bfcl/quickstart/">
+<link rel="canonical" href="https://modelscope.github.io/ReMe/tool_memory/tool_summary_ops/">
 
 
 <!-- Open Graph (Facebook, LinkedIn) -->
 
-<meta property="og:title" content="BFCL">
+<meta property="og:title" content="Summary Ops">
 
 
 
 
 
-<meta property="og:url" content="https://modelscope.github.io/ReMe/cookbook/bfcl/quickstart/">
+<meta property="og:url" content="https://modelscope.github.io/ReMe/tool_memory/tool_summary_ops/">
 
 
 
@@ -70,7 +70,7 @@
 
 <!-- Twitter Card -->
 
-<meta name="twitter:title" content="BFCL">
+<meta name="twitter:title" content="Summary Ops">
 
 
 
@@ -81,18 +81,18 @@
 
 
 
-    <link rel="icon" href="../../../img/favicon.ico">
+    <link rel="icon" href="../../img/favicon.ico">
 
-    <link href="../../../css/base.css" rel="stylesheet">
-    <link href="../../../css/geist.css" rel="stylesheet">
+    <link href="../../css/base.css" rel="stylesheet">
+    <link href="../../css/geist.css" rel="stylesheet">
 
     
     
 
 <link id="pygments-light" rel="stylesheet"
-    href="../../../css/pygments/shadcn-light.css">
+    href="../../css/pygments/shadcn-light.css">
 <link id="pygments-dark" rel="stylesheet"
-    href="../../../css/pygments/github-dark.css"
+    href="../../css/pygments/github-dark.css"
     media="(prefers-color-scheme: dark)">
 
 
@@ -100,15 +100,15 @@
 
     
 
-    <script src="../../../js/callbacks.js"></script>
+    <script src="../../js/callbacks.js"></script>
 
     
     <!-- katex -->
-<link rel="stylesheet" href="../../../css/katex.min.css">
+<link rel="stylesheet" href="../../css/katex.min.css">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
-<script defer src="../../../js/katex.min.js"></script>
+<script defer src="../../js/katex.min.js"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
-<script defer src="../../../js/auto-render.min.js"
+<script defer src="../../js/auto-render.min.js"
     onload='renderMathInElement(document.body, "{}");'></script>
     
 
@@ -736,7 +736,7 @@
 </li>
                 
                 <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
-    <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
+    <a data-slot="sidebar-menu-button" data-active="true" data-sidebar="menu-button"
         data-size="default" href="/ReMe/tool_memory/tool_summary_ops/"
         class="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground peer/menu-button flex items-center gap-2 rounded-md p-2 text-left outline-hidden ring-sidebar-ring transition-[width,height,padding] focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 data-[active=true]:bg-accent data-[active=true]:border-accent 3xl:fixed:w-full 3xl:fixed:max-w-48 relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md">
 
@@ -877,7 +877,7 @@
 </li>
                 
                 <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
-    <a data-slot="sidebar-menu-button" data-active="true" data-sidebar="menu-button"
+    <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
         data-size="default" href="/ReMe/cookbook/bfcl/quickstart/"
         class="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground peer/menu-button flex items-center gap-2 rounded-md p-2 text-left outline-hidden ring-sidebar-ring transition-[width,height,padding] focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 data-[active=true]:bg-accent data-[active=true]:border-accent 3xl:fixed:w-full 3xl:fixed:max-w-48 relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md">
 
@@ -931,14 +931,14 @@
             <div id="page-header" class="flex items-start justify-between">
 
                 <h1 class="scroll-m-20 text-4xl font-semibold tracking-tight sm:text-3xl xl:text-4xl">
-                    BFCL
+                    Summary Ops
                 </h1>
 
                 <div class="flex items-center gap-2 pt-1.5">
                     
                     <a data-slot="button" id="previous-button"
                         class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 extend-touch-target size-8 shadow-none md:size-7"
-                        href="/ReMe/cookbook/appworld/quickstart/">
+                        href="/ReMe/tool_memory/tool_retrieve_ops/">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                             class="tabler-icon tabler-icon-arrow-left ">
@@ -952,7 +952,7 @@
                     
                     <a data-slot="button" id="next-button"
                         class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 extend-touch-target size-8 shadow-none md:size-7"
-                        href="/ReMe/cookbook/frozenlake/quickstart/">
+                        href="/ReMe/tool_memory/tool_bench/">
                         <span class="sr-only">Next</span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -974,98 +974,78 @@
 
     </div>
     <div class="typography w-full flex-1 *:data-[slot=alert]:first:mt-0">
-        <p>This guide helps you quickly set up and run BFCL experiments with ReMe integration.</p>
-<h2 id="env-setup">Env Setup</h2>
-<h3 id="1-bfcl-installation">1. BFCL installation</h3>
-<h4 id="clone-the-repository">clone the repository</h4>
-<div class="codehilite"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/ShishirPatil/gorilla.git
+        <h2 id="parsetoolcallresultop">ParseToolCallResultOp</h2>
+<h3 id="purpose">Purpose</h3>
+<p>Evaluates individual tool invocations and adds them to the tool memory database with comprehensive assessments.</p>
+<h3 id="functionality">Functionality</h3>
+<ul>
+<li>Receives tool call results with input parameters, output, and metadata</li>
+<li>Uses LLM to evaluate each tool call based on success and parameter alignment</li>
+<li>Generates summary, evaluation, and score (0.0 or 1.0) for each call</li>
+<li>Appends evaluated results to existing tool memory or creates new memory</li>
+<li>Maintains a sliding window of recent tool calls (configurable limit)</li>
+</ul>
+<h3 id="parameters">Parameters</h3>
+<ul>
+<li><code>op.parse_tool_call_result_op.params.max_history_tool_call_cnt</code> (integer, default: <code>100</code>):</li>
+<li>Maximum number of historical tool call results to retain per tool</li>
+<li>
+<p>When exceeded, oldest results are removed (FIFO)</p>
+</li>
+<li>
+<p><code>op.parse_tool_call_result_op.params.evaluation_sleep_interval</code> (float, default: <code>1.0</code>):</p>
+</li>
+<li>Delay in seconds between concurrent evaluations</li>
+<li>Prevents rate limiting when evaluating multiple calls</li>
+</ul>
+<h2 id="summarytoolmemoryop">SummaryToolMemoryOp</h2>
+<h3 id="purpose_1">Purpose</h3>
+<p>Analyzes accumulated tool call history and generates comprehensive usage patterns, best practices, and recommendations.</p>
+<h3 id="functionality_1">Functionality</h3>
+<ul>
+<li>Retrieves existing tool memories from the vector store</li>
+<li><strong>Intelligently skips tools</strong> where all recent calls have already been summarized (using <code>is_summarized</code> flag)</li>
+<li>Analyzes the most recent N tool calls (configurable)</li>
+<li>Calculates statistical metrics (success rate, average scores, costs)</li>
+<li>Uses LLM to synthesize actionable usage guidelines</li>
+<li>Updates tool memory content with generated insights</li>
+<li><strong>Marks processed calls</strong> as summarized to avoid redundant processing in future runs</li>
+</ul>
+<h3 id="smart-skip-logic">Smart Skip Logic</h3>
+<p>To optimize costs and performance, <code>SummaryToolMemoryOp</code> tracks which tool call results have been included in a summary:</p>
+<ul>
+<li><strong>Skip Condition</strong>: If all recent N calls are already summarized (<code>is_summarized=True</code>), the tool is skipped entirely</li>
+<li><strong>Trigger Condition</strong>: If at least 1 recent call is new (<code>is_summarized=False</code>), re-summarization is triggered</li>
+<li><strong>Automatic Marking</strong>: After successful summarization, all processed calls are marked with <code>is_summarized=True</code></li>
+</ul>
+<p><strong>Example Behavior</strong>:</p>
+<div class="codehilite"><pre><span></span><code>Run 1: 30 new calls → Summarize all 30, mark as summarized
+Run 2: Same 30 calls → Skip (all already summarized) ✓ Cost savings
+Run 3: 30 old + 1 new → Re-summarize all 31, mark new call as summarized
 </code></pre></div>
 
-<h4 id="change-directory-to-the-berkeley-function-call-leaderboard">Change directory to the <code>berkeley-function-call-leaderboard</code></h4>
-<div class="codehilite"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>gorilla/berkeley-function-call-leaderboard
-</code></pre></div>
-
-<h4 id="install-the-package-in-editable-mode">Install the package in editable mode</h4>
-<div class="codehilite"><pre><span></span><code>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>bfcl-env<span class="w"> </span><span class="nv">python</span><span class="o">==</span><span class="m">3</span>.12
-conda<span class="w"> </span>activate<span class="w"> </span>bfcl-env
-pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
-pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements.txt
-</code></pre></div>
-
-<h4 id="move-the-dataset-to-the-data-folder-under-bfcl">Move the dataset to the data folder under bfcl</h4>
-<div class="codehilite"><pre><span></span><code>cp<span class="w"> </span>-r<span class="w"> </span>bfcl_eval/data<span class="w"> </span><span class="o">{</span>/path/to/bfcl/data<span class="o">}</span>
-</code></pre></div>
-
-<p><strong>Note</strong>: The original BFCL data is designed as a benchmark dataset and does not have a train/validation split, you can use <code>split_into_trainval.py</code> to split JSONL file into train and validation sets.</p>
-<h3 id="2-collect-agent-trajectories-on-training-data-set">2. Collect agent trajectories on training data set</h3>
-<p>Run the main experiment script to collect agent trajectories on training data set without task memory(<code>use_memory=False</code>):</p>
-<div class="codehilite"><pre><span></span><code>python<span class="w"> </span>run_bfcl.py
-</code></pre></div>
-
-<p><strong>Note</strong>: 
-- <code>max_workers</code>: Number of parallel workers (default: <code>4</code>)
-- <code>num_runs</code>: Number of times each task is repeated (default: <code>1</code>)
-- <code>model_name</code>: LLM model name (default: <code>qwen3-8b</code>)
-- <code>enable_thinking</code>: Control the model's thinking mode (default: <code>False</code>)
-- <code>data_path</code>: Path to the training dataset (default: <code>./data/multiturn_data_base_train.jsonl</code>)
-- <code>answer_path</code>: Path to the possible answer, which are used to evaluate the model's output function (default: <code>./data/possible_answer</code>)
-- Results are automatically saved to <code>./exp_result/{model_name}/{no_think/with_think}</code> directory</p>
-<h3 id="3-start-reme-service-and-init-the-task-memory-pool">3. Start ReMe Service and Init the task memory pool</h3>
-<p>After collecting trajectories, Launch the ReMe service (make sure you have installed ReMe environment, if not please follow the steps in the <a href="https://github.com/modelscope/ReMe/blob/main/doc/README.md">ReMe Installation Guide</a> to install):</p>
-<div class="codehilite"><pre><span></span><code>reme<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span><span class="nv">backend</span><span class="o">=</span>http<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>http.port<span class="o">=</span><span class="m">8002</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>llm.default.model_name<span class="o">=</span>qwen-max-2025-01-25<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>embedding_model.default.model_name<span class="o">=</span>text-embedding-v4<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>vector_store.default.backend<span class="o">=</span><span class="nb">local</span>
-</code></pre></div>
-
-<p>and then init the task memory pool:</p>
-<div class="codehilite"><pre><span></span><code>python<span class="w"> </span>init_exp_pool.py
-</code></pre></div>
-
-<p><strong>Configuration options in <code>init_exp_pool.py</code>:</strong>
-- <code>jsonl_file</code>: Path to the collloaded trajectories
-- <code>service_url</code>: ReMe service URL (default: <code>http://localhost:8002</code>)
-- <code>workspace_id</code>: Workspace ID for the task memory pool (default: <code>bfcl_test</code>)
-- <code>n_threads</code>: Number of threads for processing (default: <code>4</code>)
-- <code>output_file</code>: Output file to save results (optional)</p>
-<p>Now you have inited the task memory pool using <code>local</code> backend (start on <code>http://localhost:8002</code>). Then, use <code>local_file_to_library.py</code> script to convert the local file to the memory library or run the following <code>curl</code> command:</p>
-<div class="codehilite"><pre><span></span><code>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;http://0.0.0.0:8002/vector_store&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
-<span class="s1">    &quot;workspace_id&quot;: &quot;bfcl_test&quot;,</span>
-<span class="s1">    &quot;action&quot;: &quot;dump&quot;,</span>
-<span class="s1">    &quot;path&quot;: &quot;./library&quot;</span>
-<span class="s1">  }&#39;</span>
-</code></pre></div>
-
-<p>to dump the memory library (default in <code>./library/bfcl_test.jsonl</code>).</p>
-<p>Next time, you can import this previously exported task memory data to populate the new started workspace with existing knowledge:</p>
-<div class="codehilite"><pre><span></span><code>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;http://0.0.0.0:8002/vector_store&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
-<span class="s1">    &quot;workspace_id&quot;: &quot;bfcl_test&quot;,</span>
-<span class="s1">    &quot;action&quot;: &quot;load&quot;,</span>
-<span class="s1">    &quot;path&quot;: &quot;./library&quot;</span>
-<span class="s1">  }&#39;</span>
-</code></pre></div>
-
-<h3 id="4-run-experiments-on-validation-set">4. Run Experiments on Validation Set</h3>
-<p>Run you can compare agent performance on the validation set with task memory (<code>use_memory=True</code>) and without task memory:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># remember to change the configuration options, e.g., `data_path=./data/multiturn_data_base_val.jsonl`</span>
-python<span class="w"> </span>run_bfcl.py
-</code></pre></div>
-
-<p>After running experiments, analyze the statistical results:</p>
-<div class="codehilite"><pre><span></span><code>python<span class="w"> </span>run_exp_statistic.py
-</code></pre></div>
-
-<p><strong>What this script does:</strong>
-- Processes all result files in <code>./exp_result/</code>
-- Calculates best@k metrics for different k values
-- Generates a summary table showing performance comparisons
-- Saves results to <code>experiment_summary.csv</code></p>
+<p>This ensures summaries stay fresh while avoiding unnecessary LLM calls.</p>
+<h3 id="parameters_1">Parameters</h3>
+<ul>
+<li><code>op.summary_tool_memory_op.params.recent_call_count</code> (integer, default: <code>30</code>):</li>
+<li>Number of most recent tool calls to analyze</li>
+<li>Also determines the window for checking summarization status</li>
+<li>
+<p>Focuses on recent usage patterns</p>
+</li>
+<li>
+<p><code>op.summary_tool_memory_op.params.summary_sleep_interval</code> (float, default: <code>1.0</code>):</p>
+</li>
+<li>Delay in seconds between concurrent summarizations</li>
+<li>Prevents rate limiting when summarizing multiple tools</li>
+</ul>
+<h3 id="return-value">Return Value</h3>
+<p>The operation returns a response message indicating:
+- Number of tools summarized (had new unsummarized calls)
+- Number of tools skipped (all recent calls already summarized)</p>
+<p>Example: <code>"Successfully processed 5 tool memories: 2 summarized, 3 skipped (already up-to-date)"</code></p>
+<h3 id="see-also">See Also</h3>
+<p>For detailed implementation and examples, see <a href="is_summarized_feature.md">is_summarized Feature Documentation</a>.</p>
 
     </div>
 </article>
@@ -1073,7 +1053,7 @@ python<span class="w"> </span>run_bfcl.py
     
     <a data-slot="button"
         class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 h-8 rounded-md gap-1.5 px-3 has-[&gt;svg]:px-2.5 shadow-none"
-        href="/ReMe/cookbook/appworld/quickstart/">
+        href="/ReMe/tool_memory/tool_retrieve_ops/">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
             class="tabler-icon tabler-icon-arrow-left ">
@@ -1081,14 +1061,14 @@ python<span class="w"> </span>run_bfcl.py
             <path d="M5 12l6 6"></path>
             <path d="M5 12l6 -6"></path>
         </svg>
-        AppWorld
+        Retrieve Ops
     </a>
     
     
     <a data-slot="button"
         class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 h-8 rounded-md gap-1.5 px-3 has-[&gt;svg]:px-2.5 ml-auto shadow-none"
-        href="/ReMe/cookbook/frozenlake/quickstart/">
-        FrozenLake
+        href="/ReMe/tool_memory/tool_bench/">
+        Benchmark
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
             class="tabler-icon tabler-icon-arrow-right ">
@@ -1115,19 +1095,19 @@ python<span class="w"> </span>run_bfcl.py
                 <div class="text-muted-foreground text-sm font-medium">Menu</div>
                 <div class="flex flex-col gap-3">
                     
-                    <a class="text-2xl font-medium" href="../../..">
+                    <a class="text-2xl font-medium" href="../..">
                         
                         Welcome
                         
                     </a>
                     
-                    <a class="text-2xl font-medium" href="../../../todo/">
+                    <a class="text-2xl font-medium" href="../../todo/">
                         
                         TODO
                         
                     </a>
                     
-                    <a class="text-2xl font-medium" href="../../../contribution/">
+                    <a class="text-2xl font-medium" href="../../contribution/">
                         
                         Contributions
                         
@@ -1145,7 +1125,7 @@ python<span class="w"> </span>run_bfcl.py
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="../../../library/library/">
+                        <a class="text-2xl font-medium" href="../../library/library/">
                             
                             Library Home
                             
@@ -1160,19 +1140,19 @@ python<span class="w"> </span>run_bfcl.py
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="../../../personal_memory/personal_memory/">
+                        <a class="text-2xl font-medium" href="../../personal_memory/personal_memory/">
                             
                             Overview
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="../../../personal_memory/personal_retrieve_ops/">
+                        <a class="text-2xl font-medium" href="../../personal_memory/personal_retrieve_ops/">
                             
                             Retrieve Ops
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="../../../personal_memory/personal_summary_ops/">
+                        <a class="text-2xl font-medium" href="../../personal_memory/personal_summary_ops/">
                             
                             Summary Ops
                             
@@ -1187,19 +1167,19 @@ python<span class="w"> </span>run_bfcl.py
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="../../../task_memory/task_memory/">
+                        <a class="text-2xl font-medium" href="../../task_memory/task_memory/">
                             
                             Overview
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="../../../task_memory/task_retrieve_ops/">
+                        <a class="text-2xl font-medium" href="../../task_memory/task_retrieve_ops/">
                             
                             Retrieve Ops
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="../../../task_memory/task_summary_ops/">
+                        <a class="text-2xl font-medium" href="../../task_memory/task_summary_ops/">
                             
                             Summary Ops
                             
@@ -1214,25 +1194,25 @@ python<span class="w"> </span>run_bfcl.py
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="../../../tool_memory/tool_memory/">
+                        <a class="text-2xl font-medium" href="../tool_memory/">
                             
                             Overview
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="../../../tool_memory/tool_retrieve_ops/">
+                        <a class="text-2xl font-medium" href="../tool_retrieve_ops/">
                             
                             Retrieve Ops
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="../../../tool_memory/tool_summary_ops/">
+                        <a class="text-2xl font-medium" href="./">
                             
                             Summary Ops
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="../../../tool_memory/tool_bench/">
+                        <a class="text-2xl font-medium" href="../tool_bench/">
                             
                             Benchmark
                             
@@ -1247,7 +1227,7 @@ python<span class="w"> </span>run_bfcl.py
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="../../../sop_memory/making_sop_memories/">
+                        <a class="text-2xl font-medium" href="../../sop_memory/making_sop_memories/">
                             
                             Making SOP Memories
                             
@@ -1262,13 +1242,13 @@ python<span class="w"> </span>run_bfcl.py
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="../../../mcp_quick_start/">
+                        <a class="text-2xl font-medium" href="../../mcp_quick_start/">
                             
                             MCP
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="../../../vector_store_api_guide/">
+                        <a class="text-2xl font-medium" href="../../vector_store_api_guide/">
                             
                             Vector Store
                             
@@ -1283,19 +1263,19 @@ python<span class="w"> </span>run_bfcl.py
                     
                     <div class="flex flex-col gap-3">
                         
-                        <a class="text-2xl font-medium" href="../../appworld/quickstart/">
+                        <a class="text-2xl font-medium" href="../../cookbook/appworld/quickstart/">
                             
                             AppWorld
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="./">
+                        <a class="text-2xl font-medium" href="../../cookbook/bfcl/quickstart/">
                             
                             BFCL
                             
                         </a>
                         
-                        <a class="text-2xl font-medium" href="../../frozenlake/quickstart/">
+                        <a class="text-2xl font-medium" href="../../cookbook/frozenlake/quickstart/">
                             
                             FrozenLake
                             
@@ -1323,61 +1303,77 @@ python<span class="w"> </span>run_bfcl.py
         
         
         
-        <a href="#1-bfcl-installation"
+        <a href="#parsetoolcallresultop"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="2">
-            1. BFCL installation
+            ParseToolCallResultOp
         </a>
         
         
-        <a href="#clone-the-repository"
+        <a href="#purpose"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="3">
-            clone the repository
+            Purpose
         </a>
         
-        <a href="#change-directory-to-the-berkeley-function-call-leaderboard"
+        <a href="#functionality"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="3">
-            Change directory to the berkeley-function-call-leaderboard
+            Functionality
         </a>
         
-        <a href="#install-the-package-in-editable-mode"
+        <a href="#parameters"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="3">
-            Install the package in editable mode
-        </a>
-        
-        <a href="#move-the-dataset-to-the-data-folder-under-bfcl"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            Move the dataset to the data folder under bfcl
+            Parameters
         </a>
         
         
 
         
-        <a href="#2-collect-agent-trajectories-on-training-data-set"
+        <a href="#summarytoolmemoryop"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="2">
-            2. Collect agent trajectories on training data set
+            SummaryToolMemoryOp
         </a>
         
-
         
-        <a href="#3-start-reme-service-and-init-the-task-memory-pool"
+        <a href="#purpose_1"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            3. Start ReMe Service and Init the task memory pool
+            data-active="false" data-depth="3">
+            Purpose
         </a>
         
-
-        
-        <a href="#4-run-experiments-on-validation-set"
+        <a href="#functionality_1"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            4. Run Experiments on Validation Set
+            data-active="false" data-depth="3">
+            Functionality
         </a>
+        
+        <a href="#smart-skip-logic"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Smart Skip Logic
+        </a>
+        
+        <a href="#parameters_1"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Parameters
+        </a>
+        
+        <a href="#return-value"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Return Value
+        </a>
+        
+        <a href="#see-also"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            See Also
+        </a>
+        
         
 
         
@@ -1409,19 +1405,19 @@ python<span class="w"> </span>run_bfcl.py
     </div>
      
 
-<script src="../../../search/main.js"></script>
+<script src="../../search/main.js"></script>
 
 
     
 
-    <script src="../../../js/copy-button.js"></script>
+    <script src="../../js/copy-button.js"></script>
     <script>updatePygmentsStylesheet();</script>
     
     <script>fetchStargazers("https://github.com/modelscope/ReMe");</script>
     
     
     
-    <script src="../../../js/socket.io.min.js"></script>
+    <script src="../../js/socket.io.min.js"></script>
 <script>
     function randomString(length = 10) {
         const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
