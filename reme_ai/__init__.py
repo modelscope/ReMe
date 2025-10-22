@@ -1,11 +1,4 @@
-import warnings
-
-from pydantic.warnings import PydanticDeprecatedSince20
-
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="websockets")
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="uvicorn")
-warnings.filterwarnings("ignore", category=PydanticDeprecatedSince20)
-
+from .app import ReMeApp
 from . import agent
 from . import retrieve
 from . import summary

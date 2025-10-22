@@ -41,3 +41,5 @@ reme_ai = [
 
 [project.scripts]
 reme = "reme_ai.app:main"
+
+# python -m build && twine upload dist/*

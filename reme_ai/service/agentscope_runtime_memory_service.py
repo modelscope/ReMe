@@ -1,16 +1,15 @@
 from abc import abstractmethod, ABC
 from typing import Optional, Dict, Any
 
-from flowllm import FlowLLMApp
 from pydantic import Field
 
-from reme_ai.config.config_parser import ConfigParser
+from reme_ai.app import ReMeApp
 
 
 class AgentscopeRuntimeMemoryService(ABC):
 
     def __init__(self):
-        self.app = FlowLLMApp(parser=ConfigParser, load_default_config=True)
+        self.app = ReMeApp()
         self.session_id_dict: dict = {}
 
     def add_session_memory_id(self, session_id: str, memory_id):

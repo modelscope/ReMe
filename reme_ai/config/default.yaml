@@ -185,12 +185,6 @@ llm:
     params:
       temperature: 0.6
 
-  wk1:
-    backend: openai_compatible
-    model_name: qwen3-30b-a3b-instruct-2507
-    params:
-      temperature: 0.6
-
   qwen3_30b_instruct:
     backend: openai_compatible
     model_name: qwen3-30b-a3b-instruct-2507
@@ -198,6 +192,30 @@ llm:
   qwen3_30b_thinking:
     backend: openai_compatible
     model_name: qwen3-30b-a3b-thinking-2507
+
+  qwen3_235b_instruct:
+    backend: openai_compatible
+    model_name: qwen3-235b-a22b-instruct-2507
+
+  qwen3_235b_thinking:
+    backend: openai_compatible
+    model_name: qwen3-235b-a22b-thinking-2507
+
+  qwen3_80b_instruct:
+    backend: openai_compatible
+    model_name: qwen3-next-80b-a3b-instruct
+
+  qwen3_80b_thinking:
+    backend: openai_compatible
+    model_name: qwen3-next-80b-a3b-thinking
+
+  qwen3_max_instruct:
+    backend: openai_compatible
+    model_name: qwen3-max
+
+  qwen25_max_instruct:
+    backend: openai_compatible
+    model_name: qwen-max-2025-01-25
 
 embedding_model:
   default:

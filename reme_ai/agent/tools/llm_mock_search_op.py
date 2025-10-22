@@ -3,13 +3,12 @@ import json
 import random
 from typing import Dict, Any
 
-from loguru import logger
-
 from flowllm.context import FlowContext, C
 from flowllm.enumeration.role import Role
 from flowllm.op.base_async_tool_op import BaseAsyncToolOp
 from flowllm.schema.message import Message
 from flowllm.schema.tool_call import ToolCall
+from loguru import logger
 
 
 @C.register_op()
@@ -254,9 +253,9 @@ class LLMMockSearchOp(BaseAsyncToolOp):
 
 
 async def async_main():
-    from flowllm.app import FlowLLMApp
+    from reme_ai.app import ReMeApp
 
-    async with FlowLLMApp(load_default_config=True):
+    async with ReMeApp():
         # Test with different query types
         test_queries = [
             "What is the capital of France?",  # Simple
