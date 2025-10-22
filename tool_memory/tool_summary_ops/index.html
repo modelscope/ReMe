@@ -1511,7 +1511,6 @@ Run 3: 30 old + 1 new → Re-summarize all 31, mark new call as summarized
 
         return new Promise((resolve, reject) => {
             let timeout;
-            let result = ""
             let ok = true;
 
             socket.on("connect_error", (err) => {
@@ -1526,10 +1525,6 @@ Run 3: 30 old + 1 new → Re-summarize all 31, mark new call as summarized
             });
 
             socket.on("disconnect", () => {
-                clearTimeout(timeout);
-                // remove bottom marker and trim
-                result = result.replace("=== Code Execution Successful ===", "").trim(); // trim trailing newlines
-                resolve({ output: result, ok });
                 console.log(`[${id}] Disconnected`);
             });
 
@@ -1540,8 +1535,9 @@ Run 3: 30 old + 1 new → Re-summarize all 31, mark new call as summarized
                     // we try to retrieve the error message in the next message
                     return
                 }
-                // append output
-                result += output;
+                clearTimeout(timeout);
+                resolve({ output, ok });
+                socket.disconnect();
             });
 
             // safety timeout

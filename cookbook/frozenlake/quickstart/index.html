@@ -1587,7 +1587,6 @@ python<span class="w"> </span>run_frozenlake.py
 
         return new Promise((resolve, reject) => {
             let timeout;
-            let result = ""
             let ok = true;
 
             socket.on("connect_error", (err) => {
@@ -1602,10 +1601,6 @@ python<span class="w"> </span>run_frozenlake.py
             });
 
             socket.on("disconnect", () => {
-                clearTimeout(timeout);
-                // remove bottom marker and trim
-                result = result.replace("=== Code Execution Successful ===", "").trim(); // trim trailing newlines
-                resolve({ output: result, ok });
                 console.log(`[${id}] Disconnected`);
             });
 
@@ -1616,8 +1611,9 @@ python<span class="w"> </span>run_frozenlake.py
                     // we try to retrieve the error message in the next message
                     return
                 }
-                // append output
-                result += output;
+                clearTimeout(timeout);
+                resolve({ output, ok });
+                socket.disconnect();
             });
 
             // safety timeout

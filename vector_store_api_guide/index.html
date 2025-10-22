@@ -2027,7 +2027,6 @@ docker<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </sp
 
         return new Promise((resolve, reject) => {
             let timeout;
-            let result = ""
             let ok = true;
 
             socket.on("connect_error", (err) => {
@@ -2042,10 +2041,6 @@ docker<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </sp
             });
 
             socket.on("disconnect", () => {
-                clearTimeout(timeout);
-                // remove bottom marker and trim
-                result = result.replace("=== Code Execution Successful ===", "").trim(); // trim trailing newlines
-                resolve({ output: result, ok });
                 console.log(`[${id}] Disconnected`);
             });
 
@@ -2056,8 +2051,9 @@ docker<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </sp
                     // we try to retrieve the error message in the next message
                     return
                 }
-                // append output
-                result += output;
+                clearTimeout(timeout);
+                resolve({ output, ok });
+                socket.disconnect();
             });
 
             // safety timeout

@@ -1014,7 +1014,7 @@
 <script>
     const updatedAt = document.getElementById("updated_at");
     if (updatedAt) {
-        const date = new Date('2025-10-22T12:13:11+08:00');
+        const date = new Date('2025-10-22T13:17:19+08:00');
         updatedAt.textContent = date.toLocaleDateString();
     }
 </script>
@@ -1069,8 +1069,17 @@ users, tasks, and agents.</p>
 <p class="admonition-title">Personal Memory</p>
 <hr />
 <p>Contextualized memory for specific users</p>
+<ul>
+<li><strong>Individual Preferences</strong>: User habits, preferences, and interaction styles</li>
+<li><strong>Contextual Adaptation</strong>: Intelligent memory management based on time and context</li>
+<li><strong>Progressive Learning</strong>: Gradually build deep understanding through long-term interaction</li>
+<li><strong>Time Awareness</strong>: Time sensitivity in both retrieval and integration</li>
+</ul>
+<p>Learn more about how to use personal memory from <a href="personal_memory/personal_memory/">personal memory</a></p>
 </div>
-<h4 id="tool-memory">🔧 <strong>Tool Memory</strong></h4>
+<div class="admonition note">
+<p class="admonition-title">Tool Memory</p>
+<hr />
 <p>Data-driven tool selection and usage optimization</p>
 <ul>
 <li><strong>Historical Performance Tracking</strong>: Success rates, execution times, and token costs from real usage</li>
@@ -1079,10 +1088,7 @@ users, tasks, and agents.</p>
 <li><strong>Dynamic Guidelines</strong>: Transform static tool descriptions into living, learned manuals</li>
 </ul>
 <p>Learn more about how to use tool memory from <a href="tool_memory/tool_memory/">tool memory</a></p>
-<hr />
-<div class="codehilite"><pre><span></span><code><span class="n">Learn</span><span class="w"> </span><span class="n">more</span><span class="w"> </span><span class="n">about</span><span class="w"> </span><span class="n">how</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">use</span><span class="w"> </span><span class="n">personal</span><span class="w"> </span><span class="n">memory</span><span class="w"> </span><span class="n">from</span><span class="w"> </span><span class="p">[</span><span class="n">personal</span><span class="w"> </span><span class="n">memory</span><span class="p">](</span><span class="n">personal_memory</span><span class="o">/</span><span class="n">personal_memory</span><span class="p">.</span><span class="n">md</span><span class="p">)</span>
-</code></pre></div>
-
+</div>
 <h2 id="installation">Installation</h2>
 <h3 id="install-from-pypi-recommended">Install from PyPI (Recommended)</h3>
 <div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>reme-ai
@@ -1883,14 +1889,6 @@ The current experiment uses an internal AppWorld environment, which may have sli
             Architecture Design
         </a>
         
-        
-        <a href="#tool-memory"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            🔧 Tool Memory
-        </a>
-        
-        
 
         
         <a href="#installation"
@@ -2097,7 +2095,6 @@ The current experiment uses an internal AppWorld environment, which may have sli
 
         return new Promise((resolve, reject) => {
             let timeout;
-            let result = ""
             let ok = true;
 
             socket.on("connect_error", (err) => {
@@ -2112,10 +2109,6 @@ The current experiment uses an internal AppWorld environment, which may have sli
             });
 
             socket.on("disconnect", () => {
-                clearTimeout(timeout);
-                // remove bottom marker and trim
-                result = result.replace("=== Code Execution Successful ===", "").trim(); // trim trailing newlines
-                resolve({ output: result, ok });
                 console.log(`[${id}] Disconnected`);
             });
 
@@ -2126,8 +2119,9 @@ The current experiment uses an internal AppWorld environment, which may have sli
                     // we try to retrieve the error message in the next message
                     return
                 }
-                // append output
-                result += output;
+                clearTimeout(timeout);
+                resolve({ output, ok });
+                socket.disconnect();
             });
 
             // safety timeout
