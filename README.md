@@ -277,7 +277,7 @@ curl -X POST http://localhost:8002/retrieve_personal_memory \
   -H "Content-Type: application/json" \
   -d '{
     "workspace_id": "task_workspace",
-    "query": "What are the user's work habits?",
+    "query": "What are the users work habits?",
     "top_k": 5
   }'
 ```

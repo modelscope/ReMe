@@ -1,31 +1,18 @@
 # Future Work
 
-## Planned Features
+- [ ] P0 ReMe documentation style migration: Recommend using the same doc and jupyter structure as Agentscope Runtime @jiaji
+- [ ] P0 ReMe integration with agentscope Personal/Task/Tool @jinli
+- [ ] P0 ReMe sample library examples [show case](https://github.com/agentscope-ai/agentscope-samples/tree/main/functionality/long_term_memory_mem0)
+- [ ] P0 Decouple flowllm dependencies
+- [ ] P0 ReMe support for import, improve code documentation
+- [ ] P1 ReMe integration with asio tool_memory 
+- [ ] P2 ReMe integration with agentscope-Runtime tool_memory
 
-### 1. Automatic Tool Exploration Mode
-Add an automatic tool exploration mode that generates tool memory by:
-- Automatically discovering and testing available tools
+- [ ] P0 Task Memory Research Paper @zhoyin
 
-- Learning tool usage patterns and best practices
+- [ ] P1 Context interface definition
 
-- Building a comprehensive tool memory database from exploration results
-
-### 2. Desktop Pet Personal Assistant
-Build a desktop pet personal assistant with:
-- Interactive desktop companion interface
-
-- Personalized assistance capabilities
-
-- Integration with ReMe's memory system
-
-### 3. Task Memory Research Implementation
-We are currently working on implementing features based on task memory research papers. Coming soon.
-
-### 4. Mem-Agent Exploration
-We are exploring mem-agent to implement agentic memory pathways:
-- Investigating agent-driven memory management
-
-- Developing autonomous memory retrieval and storage mechanisms
-
-- Building more intelligent memory update strategies
-
+- [ ] P2 Database layer interface unification
+- [ ] P2 Automatic Tool Exploration Mode
+- [ ] P2 Mem-Agent Exploration
+- [ ] P2 Desktop Pet Personal Assistant
