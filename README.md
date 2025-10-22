@@ -1,5 +1,3 @@
-English | [**中文**](./README_ZH.md)
-
 <p align="center">
  <img src="docs/figure/reme_logo.png" alt="ReMe Logo" width="50%">
 </p>
@@ -551,6 +549,8 @@ You can find more details in [tool_bench.md](docs/tool_memory/tool_bench.md) and
 ## 📚 Resources
 
 - **[Quick Start](./cookbook/simple_demo)**: Get started quickly with practical examples
+  - [Tool Memory Demo](cookbook/simple_demo/use_tool_memory_demo.py): Complete lifecycle demonstration of tool memory
+  - [Tool Memory Benchmark](cookbook/tool_memory/run_reme_tool_bench.py): Evaluate tool memory effectiveness
 - **[Vector Storage Setup](docs/vector_store_api_guide.md)**: Configure local/vector databases and usage
 - **[MCP Guide](docs/mcp_quick_start.md)**: Create MCP services
 - **[Personal Memory](docs/personal_memory)**, **[Task Memory](docs/task_memory)** & **[Tool Memory](docs/tool_memory)**: Operators used in personal memory, task memory and tool memory. You can modify the config to customize the pipelines.

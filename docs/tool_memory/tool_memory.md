@@ -194,14 +194,14 @@ Tool Memory operates through three complementary operations that work together t
 
 ```mermaid
 graph LR
-    A[Agent] -->|1. retrieve_tool_memory| B[(Vector Store)]
+    A[Agent] -->|1 retrieve_tool_memory| B[(Vector Store)]
     B -->|Guidelines| A
-    A -->|Execute Tool| C[Tool]
+    A -->|2 Execute Tool| C[Tool]
     C -->|Result| A
-    A -->|add_tool_call_result| D[LLM Evaluate]
+    A -->|3 add_tool_call_result| D[LLM Evaluate]
     D -->|Store| B
     B -->|Periodic| E[summary_tool_memory]
-    E -->|Update Guidelines| B
+    E -->|4 Update Guidelines| B
 ```
 
 ### Operation Flow
