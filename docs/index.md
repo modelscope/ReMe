@@ -59,20 +59,26 @@ ReMe integrates three complementary memory capabilities:
 
     Contextualized memory for specific users
 
-#### 🔧 **Tool Memory**
 
-Data-driven tool selection and usage optimization
-
-- **Historical Performance Tracking**: Success rates, execution times, and token costs from real usage
-- **LLM-as-Judge Evaluation**: Qualitative insights on why tools succeed or fail
-- **Parameter Optimization**: Learn optimal parameter configurations from successful calls
-- **Dynamic Guidelines**: Transform static tool descriptions into living, learned manuals
-
-Learn more about how to use tool memory from [tool memory](tool_memory/tool_memory.md)
-
----
-
+    - **Individual Preferences**: User habits, preferences, and interaction styles
+    - **Contextual Adaptation**: Intelligent memory management based on time and context
+    - **Progressive Learning**: Gradually build deep understanding through long-term interaction
+    - **Time Awareness**: Time sensitivity in both retrieval and integration
+    
     Learn more about how to use personal memory from [personal memory](personal_memory/personal_memory.md)
+
+!!! note "Tool Memory"
+
+    ---
+
+    Data-driven tool selection and usage optimization
+
+    - **Historical Performance Tracking**: Success rates, execution times, and token costs from real usage
+    - **LLM-as-Judge Evaluation**: Qualitative insights on why tools succeed or fail
+    - **Parameter Optimization**: Learn optimal parameter configurations from successful calls
+    - **Dynamic Guidelines**: Transform static tool descriptions into living, learned manuals
+
+    Learn more about how to use tool memory from [tool memory](tool_memory/tool_memory.md)
 
 
 ## Installation
