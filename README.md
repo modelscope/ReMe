@@ -545,7 +545,6 @@ We evaluated Tool Memory effectiveness using a controlled benchmark with three m
 **Key Findings:**
 - Tool Memory enables data-driven tool selection based on historical performance
 - Success rates improved by ~15% with learned parameter configurations
-- Consistent improvement across all epochs (9.90% → 17.39% → 17.13%)
 
 You can find more details in [tool_bench.md](docs/tool_memory/tool_bench.md) and the implementation at [run_reme_tool_bench.py](cookbook/tool_memory/run_reme_tool_bench.py).
 
