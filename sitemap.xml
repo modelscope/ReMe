@@ -9,15 +9,19 @@
          <lastmod>2025-10-22</lastmod>
     </url>
     <url>
+         <loc>https://modelscope.github.io/ReMe/future_work/</loc>
+         <lastmod>2025-10-22</lastmod>
+    </url>
+    <url>
          <loc>https://modelscope.github.io/ReMe/mcp_quick_start/</loc>
          <lastmod>2025-10-22</lastmod>
     </url>
     <url>
-         <loc>https://modelscope.github.io/ReMe/todo/</loc>
+         <loc>https://modelscope.github.io/ReMe/vector_store_api_guide/</loc>
          <lastmod>2025-10-22</lastmod>
     </url>
     <url>
-         <loc>https://modelscope.github.io/ReMe/vector_store_api_guide/</loc>
+         <loc>https://modelscope.github.io/ReMe/cookbook/experiment_overview/</loc>
          <lastmod>2025-10-22</lastmod>
     </url>
     <url>
@@ -34,6 +38,10 @@
     </url>
     <url>
          <loc>https://modelscope.github.io/ReMe/library/library/</loc>
+         <lastmod>2025-10-22</lastmod>
+    </url>
+    <url>
+         <loc>https://modelscope.github.io/ReMe/library/use_library/</loc>
          <lastmod>2025-10-22</lastmod>
     </url>
     <url>
