@@ -17,7 +17,7 @@ kernelspec:
 
 <div class="flex justify-center space-x-3">
   <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python Version"></a>
-  <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/pypi-v0.1-blue?logo=pypi" alt="PyPI Version"></a>
+  <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/pypi-v0.1.10.3-blue?logo=pypi" alt="PyPI Version"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black" alt="License"></a>
   <a href="https://github.com/modelscope/ReMe"><img src="https://img.shields.io/github/stars/modelscope/ReMe?style=social" alt="GitHub Stars"></a>
 </div>
@@ -41,44 +41,45 @@ Personal memory helps "**understand user preferences**", task memory helps agent
 
 ReMe integrates three complementary memory capabilities:
 
-```{admonition} Task Memory/Experience
+:::{admonition} Task Memory/Experience
+:class: note
 
-    Procedural knowledge reused across agents
+Procedural knowledge reused across agents
 
-    - **Success Pattern Recognition**: Identify effective strategies and understand their underlying principles
-    - **Failure Analysis Learning**: Learn from mistakes and avoid repeating the same issues
-    - **Comparative Patterns**: Different sampling trajectories provide more valuable memories through comparison
-    - **Validation Patterns**: Confirm the effectiveness of extracted memories through validation modules
+- **Success Pattern Recognition**: Identify effective strategies and understand their underlying principles
+- **Failure Analysis Learning**: Learn from mistakes and avoid repeating the same issues
+- **Comparative Patterns**: Different sampling trajectories provide more valuable memories through comparison
+- **Validation Patterns**: Confirm the effectiveness of extracted memories through validation modules
 
-```
+:::
 
 Learn more about how to use task memory from [task memory](task_memory/task_memory.md)
 
-```{admonition} Personal Memory
+:::{admonition} Personal Memory
+:class: note
 
+Contextualized memory for specific users
 
-    Contextualized memory for specific users
+- **Individual Preferences**: User habits, preferences, and interaction styles
+- **Contextual Adaptation**: Intelligent memory management based on time and context
+- **Progressive Learning**: Gradually build deep understanding through long-term interaction
+- **Time Awareness**: Time sensitivity in both retrieval and integration
 
-
-    - **Individual Preferences**: User habits, preferences, and interaction styles
-    - **Contextual Adaptation**: Intelligent memory management based on time and context
-    - **Progressive Learning**: Gradually build deep understanding through long-term interaction
-    - **Time Awareness**: Time sensitivity in both retrieval and integration
-   
-```
+:::
 
 Learn more about how to use personal memory from [personal memory](personal_memory/personal_memory.md)
 
-```{admonition} Tool Memory
+:::{admonition} Tool Memory
+:class: note
 
-    Data-driven tool selection and usage optimization
+Data-driven tool selection and usage optimization
 
-    - **Historical Performance Tracking**: Success rates, execution times, and token costs from real usage
-    - **LLM-as-Judge Evaluation**: Qualitative insights on why tools succeed or fail
-    - **Parameter Optimization**: Learn optimal parameter configurations from successful calls
-    - **Dynamic Guidelines**: Transform static tool descriptions into living, learned manuals
+- **Historical Performance Tracking**: Success rates, execution times, and token costs from real usage
+- **LLM-as-Judge Evaluation**: Qualitative insights on why tools succeed or fail
+- **Parameter Optimization**: Learn optimal parameter configurations from successful calls
+- **Dynamic Guidelines**: Transform static tool descriptions into living, learned manuals
 
-```
+:::
 
 Learn more about how to use tool memory from [tool memory](tool_memory/tool_memory.md)
 

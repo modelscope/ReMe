@@ -31,11 +31,6 @@ parts:
       - file: tool_memory/tool_summary_ops
       - file: tool_memory/tool_bench
 
-  - caption: SOP Memory
-    maxdepth: 1
-    chapters:
-      - file: sop_memory/making_sop_memories
-
   - caption: Extensions
     maxdepth: 1
     chapters:

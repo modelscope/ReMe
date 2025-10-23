@@ -27,6 +27,11 @@ dependencies = [
     "flowllm[reme]>=0.1.11.3",
 ]
 
+[project.optional-dependencies]
+dev = ["jupyter-book", "ghp-import", "myst-nb", "sphinxcontrib-bibtex", "furo", "sphinxcontrib-mermaid"]
+
+all = ["reme_ai[dev]"]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["reme_ai*"]

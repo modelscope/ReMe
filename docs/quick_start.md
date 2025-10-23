@@ -42,6 +42,27 @@ reme \
 
 `````{tab-set}
 
+````{tab-item} python(http)
+```{code-block}
+import requests
+
+# Experience Summarizer: Learn from execution trajectories
+response = requests.post("http://localhost:8002/summary_task_memory", json={
+    "workspace_id": "task_workspace",
+    "trajectories": [
+        {"messages": [{"role": "user", "content": "Help me create a project plan"}], "score": 1.0}
+    ]
+})
+
+# Retriever: Get relevant memories
+response = requests.post("http://localhost:8002/retrieve_task_memory", json={
+    "workspace_id": "task_workspace",
+    "query": "How to efficiently manage project progress?",
+    "top_k": 1
+})
+```
+````
+
 ````{tab-item} python(import)
 ```{code-block}
 import asyncio
@@ -79,27 +100,6 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-```
-````
-
-````{tab-item} python(http)
-```{code-block}
-import requests
-
-# Experience Summarizer: Learn from execution trajectories
-response = requests.post("http://localhost:8002/summary_task_memory", json={
-    "workspace_id": "task_workspace",
-    "trajectories": [
-        {"messages": [{"role": "user", "content": "Help me create a project plan"}], "score": 1.0}
-    ]
-})
-
-# Retriever: Get relevant memories
-response = requests.post("http://localhost:8002/retrieve_task_memory", json={
-    "workspace_id": "task_workspace",
-    "query": "How to efficiently manage project progress?",
-    "top_k": 1
-})
 ```
 ````
 
@@ -164,11 +164,37 @@ fetch("http://localhost:8002/retrieve_task_memory", {
 
 #### Personal Memory Management
 
-<summary> import version</summary>
 `````{tab-set}
 
-````{tab-item} Python(import)
-```{code-cell}
+````{tab-item} python(http)
+```{code-block}
+import requests
+
+# Memory Integration: Learn from user interactions
+response = requests.post("http://localhost:8002/summary_personal_memory", json={
+    "workspace_id": "task_workspace",
+    "trajectories": [
+        {"messages":
+            [
+                {"role": "user", "content": "I like to drink coffee while working in the morning"},
+                {"role": "assistant",
+                 "content": "I understand, you prefer to start your workday with coffee to stay energized"}
+            ]
+        }
+    ]
+})
+
+# Memory Retrieval: Get personal memory fragments
+response = requests.post("http://localhost:8002/retrieve_personal_memory", json={
+    "workspace_id": "task_workspace",
+    "query": "What are the user's work habits?",
+    "top_k": 5
+})
+```
+````
+
+````{tab-item} python(import)
+```{code-block}
 import asyncio
 from reme_ai import ReMeApp
 
@@ -208,32 +234,7 @@ if __name__ == "__main__":
 ```
 ````
 
-
-```{code-cell}
-# Memory Integration: Learn from user interactions
-response = requests.post("http://localhost:8002/summary_personal_memory", json={
-    "workspace_id": "task_workspace",
-    "trajectories": [
-        {"messages":
-            [
-                {"role": "user", "content": "I like to drink coffee while working in the morning"},
-                {"role": "assistant",
-                 "content": "I understand, you prefer to start your workday with coffee to stay energized"}
-            ]
-        }
-    ]
-})
-
-# Memory Retrieval: Get personal memory fragments
-response = requests.post("http://localhost:8002/retrieve_personal_memory", json={
-    "workspace_id": "task_workspace",
-    "query": "What are the user's work habits?",
-    "top_k": 5
-})
-```
-
-````{dropdown} curl version
-
+````{tab-item} curl
 ```bash
 # Memory Integration: Learn from user interactions
 curl -X POST http://localhost:8002/summary_personal_memory \
@@ -259,8 +260,7 @@ curl -X POST http://localhost:8002/retrieve_personal_memory \
 ```
 ````
 
-````{dropdown} Node.js version
-
+````{tab-item} Node.js
 ```{code-block} javascript
 // Memory Integration: Learn from user interactions
 fetch("http://localhost:8002/summary_personal_memory", {
@@ -297,11 +297,15 @@ fetch("http://localhost:8002/retrieve_personal_memory", {
 .then(data => console.log(data));
 ```
 ````
+`````
 
 
 #### Tool Memory Management
 
-```{code-cell}
+`````{tab-set}
+
+````{tab-item} python(http)
+```{code-block}
 import requests
 
 # Record tool execution results
@@ -332,10 +336,59 @@ response = requests.post("http://localhost:8002/retrieve_tool_memory", json={
     "tool_names": "web_search"
 })
 ```
+````
 
+````{tab-item} python(import)
+```{code-block}
+import asyncio
+from reme_ai import ReMeApp
 
-````{dropdown} curl version
+async def main():
+    async with ReMeApp(
+        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
+        "embedding_model.default.model_name=text-embedding-v4",
+        "vector_store.default.backend=memory"
+    ) as app:
+        # Record tool execution results
+        result = await app.async_execute(
+            name="add_tool_call_result",
+            workspace_id="tool_workspace",
+            tool_call_results=[
+                {
+                    "create_time": "2025-10-21 10:30:00",
+                    "tool_name": "web_search",
+                    "input": {"query": "Python asyncio tutorial", "max_results": 10},
+                    "output": "Found 10 relevant results...",
+                    "token_cost": 150,
+                    "success": True,
+                    "time_cost": 2.3
+                }
+            ]
+        )
+        print(result)
+        
+        # Generate usage guidelines from history
+        result = await app.async_execute(
+            name="summary_tool_memory",
+            workspace_id="tool_workspace",
+            tool_names="web_search"
+        )
+        print(result)
+        
+        # Retrieve tool guidelines before use
+        result = await app.async_execute(
+            name="retrieve_tool_memory",
+            workspace_id="tool_workspace",
+            tool_names="web_search"
+        )
+        print(result)
 
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+````
+
+````{tab-item} curl
 ```bash
 # Record tool execution results
 curl -X POST http://localhost:8002/add_tool_call_result \
@@ -373,8 +426,7 @@ curl -X POST http://localhost:8002/retrieve_tool_memory \
 ```
 ````
 
-````{dropdown} Node.js version
-
+````{tab-item} Node.js
 ```{code-block} javascript
 // Record tool execution results
 fetch("http://localhost:8002/add_tool_call_result", {
@@ -429,3 +481,4 @@ fetch("http://localhost:8002/retrieve_tool_memory", {
 .then(data => console.log(data));
 ```
 ````
+`````
