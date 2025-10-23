@@ -21,3 +21,13 @@ h5, .bd-article h5 {
 h6, .bd-article h6 {
   font-size: 0.9rem !important;
 }
+
+div.bd-sidebar .navbar-brand {
+  text-align: center;
+  width: 100%;
+}
+
+div.bd-sidebar .navbar-brand span {
+  display: block;
+  text-align: center;
+}
