@@ -3,11 +3,11 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Installation" href="installation.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Contribute to ReMe" href="contribution.html"><link rel="prev" title="AppWorld" href="cookbook/appworld/quickstart.html">
         <link rel="prefetch" href="_static/reme_logo.png" as="image">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.09.25 -->
-        <title>AgentScope ReMe</title>
+        <title>Future Work - AgentScope ReMe</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d75fae25" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=580074bf" />
     <link rel="stylesheet" type="text/css" href="_static/togglebutton.css?v=13237357" />
@@ -176,7 +176,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="#"><div class="brand"><span style='font-weight: 700; color: #2196f3;'>AgentScope</span> <br><span style='font-weight: 900; color: #ff5722;'>ReMe</span></div></a>
+      <a href="index.html"><div class="brand"><span style='font-weight: 700; color: #2196f3;'>AgentScope</span> <br><span style='font-weight: 900; color: #ff5722;'>ReMe</span></div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -187,7 +187,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
         <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
@@ -195,7 +195,7 @@
   <aside class="sidebar-drawer">
     <div class="sidebar-container">
       
-      <div class="sidebar-sticky"><div class="sidebar-scroll"><a class="sidebar-brand" href="#">
+      <div class="sidebar-sticky"><div class="sidebar-scroll"><a class="sidebar-brand" href="index.html">
   <div class="sidebar-logo-container">
     <img class="sidebar-logo" src="_static/reme_logo.png" alt="Logo"/>
   </div>
@@ -254,8 +254,8 @@
 <li class="toctree-l1"><a class="reference internal" href="cookbook/appworld/quickstart.html">AppWorld</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Others</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="future_work.html">Future Work</a></li>
+<ul class="current">
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Future Work</a></li>
 <li class="toctree-l1"><a class="reference internal" href="contribution.html">Contribute to ReMe</a></li>
 </ul>
 
@@ -276,7 +276,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="https://github.com/modelscope/ReMe/blob/main/docs/index.md?plain=true" title="View this page">
+  <a class="muted-link" href="https://github.com/modelscope/ReMe/blob/main/docs/future_work.md?plain=true" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -288,146 +288,28 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
             <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="reme-memory-management-framework-for-agents">
-<h1>ReMe  Memory Management Framework for Agents<a class="headerlink" href="#reme-memory-management-framework-for-agents" title="Link to this heading">¶</a></h1>
-<p><em>Remember Me, Refine Me.</em></p>
-<div class="flex justify-center space-x-3">
-  <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python Version"></a>
-  <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/pypi-v0.1-blue?logo=pypi" alt="PyPI Version"></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black" alt="License"></a>
-  <a href="https://github.com/modelscope/ReMe"><img src="https://img.shields.io/github/stars/modelscope/ReMe?style=social" alt="GitHub Stars"></a>
-</div>
-<hr class="docutils" />
-<p>ReMe provides AI agents with a unified memory system—enabling the ability to extract, reuse, and share memories across
-users, tasks, and agents.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Personal Memory + Task Memory + Tool Memory = Agent Memory
-</pre></div>
-</div>
-<p>Personal memory helps “<strong>understand user preferences</strong>”, task memory helps agents “<strong>perform better</strong>”, and tool memory enables “<strong>smarter tool usage</strong>”.</p>
-<section id="architecture-design">
-<h2>Architecture Design<a class="headerlink" href="#architecture-design" title="Link to this heading">¶</a></h2>
-<p align="center">
- <img src="_static/figure/reme_structure.jpg" alt="ReMe Logo" width="100%">
-</p>
-<p>ReMe integrates three complementary memory capabilities:</p>
-<div class="admonition-task-memory-experience admonition">
-<p class="admonition-title">Task Memory/Experience</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Procedural knowledge reused across agents
-
-- **Success Pattern Recognition**: Identify effective strategies and understand their underlying principles
-- **Failure Analysis Learning**: Learn from mistakes and avoid repeating the same issues
-- **Comparative Patterns**: Different sampling trajectories provide more valuable memories through comparison
-- **Validation Patterns**: Confirm the effectiveness of extracted memories through validation modules
-</pre></div>
-</div>
-</div>
-<p>Learn more about how to use task memory from <a class="reference internal" href="task_memory/task_memory.html"><span class="std std-doc">task memory</span></a></p>
-<div class="admonition-personal-memory admonition">
-<p class="admonition-title">Personal Memory</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Contextualized memory for specific users
-
-
-- **Individual Preferences**: User habits, preferences, and interaction styles
-- **Contextual Adaptation**: Intelligent memory management based on time and context
-- **Progressive Learning**: Gradually build deep understanding through long-term interaction
-- **Time Awareness**: Time sensitivity in both retrieval and integration
-</pre></div>
-</div>
-</div>
-<p>Learn more about how to use personal memory from <a class="reference internal" href="personal_memory/personal_memory.html"><span class="std std-doc">personal memory</span></a></p>
-<div class="admonition-tool-memory admonition">
-<p class="admonition-title">Tool Memory</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Data-driven tool selection and usage optimization
-
-- **Historical Performance Tracking**: Success rates, execution times, and token costs from real usage
-- **LLM-as-Judge Evaluation**: Qualitative insights on why tools succeed or fail
-- **Parameter Optimization**: Learn optimal parameter configurations from successful calls
-- **Dynamic Guidelines**: Transform static tool descriptions into living, learned manuals
-</pre></div>
-</div>
-</div>
-<p>Learn more about how to use tool memory from <a class="reference internal" href="tool_memory/tool_memory.html"><span class="std std-doc">tool memory</span></a></p>
-</section>
-<hr class="docutils" />
-<section id="ready-to-use-libraries">
-<h2>📦 Ready-to-Use Libraries<a class="headerlink" href="#ready-to-use-libraries" title="Link to this heading">¶</a></h2>
-<p>ReMe provides pre-built memory libraries that agents can immediately use with verified best practices:</p>
-<section id="available-libraries">
-<h3>Available Libraries<a class="headerlink" href="#available-libraries" title="Link to this heading">¶</a></h3>
+          <section id="future-work">
+<h1>Future Work<a class="headerlink" href="#future-work" title="Link to this heading">¶</a></h1>
 <ul class="simple">
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">appworld.jsonl</span></code></strong>: Memory library for Appworld agent interactions, covering complex task planning and execution
-patterns</p></li>
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">bfcl_v3.jsonl</span></code></strong>: Working memory library for BFCL tool calls</p></li>
+<li><p>[ ] P0 ReMe documentation style migration: Recommend using the same doc and jupyter structure as Agentscope Runtime &#64;jiaji</p></li>
+<li><p>[ ] P0 ReMe integration with agentscope Personal/Task/Tool &#64;jinli</p></li>
+<li><p>[ ] P0 ReMe sample library examples <a class="reference external" href="https://github.com/agentscope-ai/agentscope-samples/tree/main/functionality/long_term_memory_mem0">show case</a> &#64;jinli</p></li>
+<li><p>[ ] P0 Decouple flowllm dependencies &#64;jinli</p></li>
+<li><p>[ ] P0 ReMe support for import, improve code documentation &#64;jinli</p></li>
+<li><p>[ ] P1 ReMe integration with asio tool_memory &#64;jinli</p></li>
+<li><p>[ ] P2 ReMe integration with agentscope-Runtime tool_memory &#64;jinli</p></li>
+<li><p>[ ] P0 Task Memory Research Paper &#64;zhoyin</p></li>
+<li><p>[ ] P1 Context interface definition &#64;jinli</p></li>
+<li><p>[ ] P2 Database layer interface unification &#64;jinli</p></li>
+<li><p>[ ] P2 Automatic Tool Exploration Mode &#64;wangcan</p></li>
+<li><p>[ ] P2 Mem-Agent Exploration &#64;weikang</p></li>
+<li><p>[ ] P2 Desktop Pet Personal Assistant</p></li>
 </ul>
-</section>
-<section id="quick-usage">
-<h3>Quick Usage<a class="headerlink" href="#quick-usage" title="Link to this heading">¶</a></h3>
-<div class="cell docutils container">
-<div class="cell_input docutils container">
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Load pre-built memories</span>
-<span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;http://localhost:8002/vector_store&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="p">{</span>
-    <span class="s2">&quot;workspace_id&quot;</span><span class="p">:</span> <span class="s2">&quot;appworld&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;action&quot;</span><span class="p">:</span> <span class="s2">&quot;load&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;./docs/library/&quot;</span>
-<span class="p">})</span>
-
-<span class="c1"># Query relevant memories</span>
-<span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;http://localhost:8002/retrieve_task_memory&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="p">{</span>
-    <span class="s2">&quot;workspace_id&quot;</span><span class="p">:</span> <span class="s2">&quot;appworld&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="s2">&quot;How to navigate to settings and update user profile?&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;top_k&quot;</span><span class="p">:</span> <span class="mi">1</span>
-<span class="p">})</span>
-</pre></div>
-</div>
-</div>
-</div>
-</section>
-</section>
-<section id="resources">
-<h2>📚 Resources<a class="headerlink" href="#resources" title="Link to this heading">¶</a></h2>
-<ul class="simple">
-<li><p><strong><a class="reference internal" href="installation.html"><span class="std std-doc">Installation Guide</span></a></strong>, <strong><a class="reference internal" href="quick_start.html"><span class="std std-doc">Quick Start</span></a></strong>: Get started quickly with practical examples</p></li>
-<li><p><strong><a class="reference internal" href="vector_store_api_guide.html"><span class="std std-doc">Vector Storage Setup</span></a></strong>: Configure local/vector databases and usage</p></li>
-<li><p><strong><a class="reference internal" href="mcp_quick_start.html"><span class="std std-doc">MCP Guide</span></a></strong>: Create MCP services</p></li>
-<li><p><strong><a class="reference internal" href="personal_memory/personal_memory.html"><span class="std std-doc">Personal Memory</span></a></strong>, <strong><a class="reference internal" href="task_memory/task_memory.html"><span class="std std-doc">Task Memory</span></a></strong> &amp; <strong><a class="reference internal" href="tool_memory/tool_memory.html"><span class="std std-doc">Tool Memory</span></a></strong>: Operators used in personal memory, task memory and tool memory. You can modify the config to customize the pipelines.</p></li>
-<li><p><strong><a class="reference internal" href="cookbook/appworld/quickstart.html"><span class="std std-doc">Example Collection</span></a></strong>: Real use cases and best practices</p></li>
-</ul>
-</section>
-<hr class="docutils" />
-<section id="citation">
-<h2>Citation<a class="headerlink" href="#citation" title="Link to this heading">¶</a></h2>
-<div class="highlight-bibtex notranslate"><div class="highlight"><pre><span></span><span class="nc">@software</span><span class="p">{</span><span class="nl">ReMe2025</span><span class="p">,</span>
-<span class="w">  </span><span class="na">title</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{ReMe: Memory Management Framework for Agents}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">author</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{Li Yu, Jiaji Deng, Zouying Cao}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">url</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{https://github.com/modelscope/ReMe}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">year</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{2025}</span>
-<span class="p">}</span>
-</pre></div>
-</div>
-</section>
-<div class="toctree-wrapper compound">
-</div>
-<div class="toctree-wrapper compound">
-</div>
-<div class="toctree-wrapper compound">
-</div>
-<div class="toctree-wrapper compound">
-</div>
-<div class="toctree-wrapper compound">
-</div>
-<div class="toctree-wrapper compound">
-</div>
-<div class="toctree-wrapper compound">
-</div>
-<div class="toctree-wrapper compound">
-</div>
-<div class="toctree-wrapper compound">
-</div>
 </section>
 
     <script type="text/x-thebe-config">
@@ -454,16 +336,26 @@ patterns</p></li>
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="installation.html">
+          <a class="next-page" href="contribution.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Installation</div>
+                <div class="title">Contribute to ReMe</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          
+          <a class="prev-page" href="cookbook/appworld/quickstart.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">AppWorld</div>
+                
+              </div>
+            </a>
         </div>
         <div class="bottom-of-page">
           <div class="left-details">
@@ -482,34 +374,8 @@ patterns</p></li>
         
       </footer>
     </div>
-    <aside class="toc-drawer">
+    <aside class="toc-drawer no-toc">
       
-      
-      <div class="toc-sticky toc-scroll">
-        <div class="toc-title-container">
-          <span class="toc-title">
-            On this page
-          </span>
-        </div>
-        <div class="toc-tree-container">
-          <div class="toc-tree">
-            <ul>
-<li><a class="reference internal" href="#">ReMe  Memory Management Framework for Agents</a><ul>
-<li><a class="reference internal" href="#architecture-design">Architecture Design</a></li>
-<li><a class="reference internal" href="#ready-to-use-libraries">📦 Ready-to-Use Libraries</a><ul>
-<li><a class="reference internal" href="#available-libraries">Available Libraries</a></li>
-<li><a class="reference internal" href="#quick-usage">Quick Usage</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#resources">📚 Resources</a></li>
-<li><a class="reference internal" href="#citation">Citation</a></li>
-</ul>
-</li>
-</ul>
-
-          </div>
-        </div>
-      </div>
       
       
     </aside>
