@@ -25,20 +25,6 @@ class ReMeApp(FlowLLMApp):
     ReMeApp extends FlowLLMApp to provide enhanced memory capabilities for AI agents.
     It manages multiple types of memories and provides both synchronous and asynchronous
     execution interfaces for memory-enhanced workflows.
-    
-    Example:
-        Basic usage:
-        >>> app = ReMeApp()
-        >>> result = app.execute("task_memory_flow", query="What tasks did I complete yesterday?")
-        
-        With custom configuration:
-        >>> app = ReMeApp(
-        ...     llm_api_key="your-api-key",
-        ...     config_path="config/custom.yaml",
-        ...     "llm.default.model_name=gpt-4"
-        ... )
-        >>> async with app:
-        ...     result = await app.async_execute("tool_memory_flow", tool_name="search")
     """
 
     def __init__(self,
@@ -47,7 +33,6 @@ class ReMeApp(FlowLLMApp):
                  embedding_api_key: str = None,
                  embedding_api_base: str = None,
                  config_path: str = None,
-                 load_default_config: bool = False,
                  *args,
                  **kwargs):
         """
@@ -66,8 +51,6 @@ class ReMeApp(FlowLLMApp):
         
         Python API equivalent:
             >>> app = ReMeApp(
-            ...     "backend=http",
-            ...     "http.port=8002",
             ...     "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
             ...     "embedding_model.default.model_name=text-embedding-v4",
             ...     "vector_store.default.backend=memory"
@@ -93,19 +76,11 @@ class ReMeApp(FlowLLMApp):
             config_path: Path to custom configuration YAML file. If provided, loads configuration from this file.
                 Example: "path/to/my_config.yaml"
                 This overrides the default configuration with your custom settings.
-            load_default_config: Whether to load default configuration (default.yaml).
-                If True and config_path is not provided, loads the default ReMe configuration.
-                Default: False
             *args: Additional command-line style arguments passed to parser. 
                 These parameters are identical to the command-line startup parameters in README.
                 
-                Common configuration examples (see README for more):
-                
-                Backend Configuration:
-                - "backend=http" - Start as HTTP service
-                - "backend=mcp" - Start as MCP server
-                - "http.port=8002" - Set HTTP port
-                - "mcp.transport=stdio" - Set MCP transport
+                Common configuration examples:
+                For complete configuration reference, see: reme_ai/config/default.yaml
                 
                 LLM Configuration:
                 - "llm.default.model_name=qwen3-30b-a3b-thinking-2507" - Set LLM model
@@ -143,7 +118,16 @@ class ReMeApp(FlowLLMApp):
             - README.md "Environment Configuration" for environment variable setup
             - example.env for all available environment variables
         """
-        super().__init__(args=args, parser=ConfigParser)
+        super().__init__(llm_api_key=llm_api_key,
+                         llm_api_base=llm_api_base,
+                         embedding_api_key=embedding_api_key,
+                         embedding_api_base=embedding_api_base,
+                         service_config=None,
+                         parser=ConfigParser,
+                         config_path=config_path,
+                         load_default_config=True,
+                         args=args,
+                         **kwargs)
 
     async def async_execute(self, name: str, **kwargs) -> dict:
         """
