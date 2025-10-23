@@ -1,5 +1,5 @@
 <p align="center">
- <img src="docs/figure/reme_logo.png" alt="ReMe Logo" width="50%">
+ <img src="docs/_static/figure/reme_logo.png" alt="ReMe Logo" width="50%">
 </p>
 
 <p align="center">
@@ -50,7 +50,7 @@ Personal memory helps "**understand user preferences**", task memory helps agent
 ## ✨ Architecture Design
 
 <p align="center">
- <img src="docs/figure/reme_structure.jpg" alt="ReMe Logo" width="100%">
+ <img src="docs/_static/figure/reme_structure.jpg" alt="ReMe Logo" width="100%">
 </p>
 
 ReMe integrates three complementary memory capabilities:
@@ -672,7 +672,7 @@ You can find more details on reproducing the experiment in [quickstart.md](docs/
 
 |                                         without ReMe                                         |                                          with ReMe                                           |
 |:--------------------------------------------------------------------------------------------:|:--------------------------------------------------------------------------------------------:|
-| <p align="center"><img src="docs/figure/frozenlake_failure.gif" alt="GIF 1" width="30%"></p> | <p align="center"><img src="docs/figure/frozenlake_success.gif" alt="GIF 2" width="30%"></p> |
+| <p align="center"><img src="docs/_static/figure/frozenlake_failure.gif" alt="GIF 1" width="30%"></p> | <p align="center"><img src="docs/_static/figure/frozenlake_success.gif" alt="GIF 2" width="30%"></p> |
 
 We tested on 100 random frozenlake maps using qwen3-8b:
 
