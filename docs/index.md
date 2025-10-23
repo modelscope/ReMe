@@ -12,7 +12,7 @@ kernelspec:
   name: python3
 ---
 
-# ReMe  Memory Management Framework for Agents
+# ReMe: Memory Management Framework for Agents
   <em>Remember Me, Refine Me.</em>
 
 <div class="flex justify-center space-x-3">
