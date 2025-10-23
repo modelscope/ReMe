@@ -45,6 +45,7 @@ sphinx:
     - sphinx.ext.intersphinx
     - sphinx.ext.autosummary
     - sphinxcontrib.mermaid
+    - sphinx_design
   config:
     # API Documentation Configuration
     autosummary_generate: True
@@ -122,3 +123,6 @@ sphinx:
       dark_css_variables:
         color-brand-primary: "#64b5f6"
         color-brand-content: "#64b5f6"
+
+# jupyter-book build --all .
+# ghp-import -n -p -f _build/html

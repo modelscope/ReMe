@@ -40,7 +40,50 @@ reme \
 
 #### Task Memory Management
 
-```{code-cell}
+`````{tab-set}
+
+````{tab-item} python(import)
+```{code-block}
+import asyncio
+from reme_ai import ReMeApp
+
+async def main():
+    async with ReMeApp(
+        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
+        "embedding_model.default.model_name=text-embedding-v4",
+        "vector_store.default.backend=memory"
+    ) as app:
+        # Experience Summarizer: Learn from execution trajectories
+        result = await app.async_execute(
+            name="summary_task_memory",
+            workspace_id="task_workspace",
+            trajectories=[
+                {
+                    "messages": [
+                        {"role": "user", "content": "Help me create a project plan"}
+                    ],
+                    "score": 1.0
+                }
+            ]
+        )
+        print(result)
+        
+        # Retriever: Get relevant memories
+        result = await app.async_execute(
+            name="retrieve_task_memory",
+            workspace_id="task_workspace",
+            query="How to efficiently manage project progress?",
+            top_k=1
+        )
+        print(result)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+````
+
+````{tab-item} python(http)
+```{code-block}
 import requests
 
 # Experience Summarizer: Learn from execution trajectories
@@ -58,9 +101,9 @@ response = requests.post("http://localhost:8002/retrieve_task_memory", json={
     "top_k": 1
 })
 ```
+````
 
-
-````{dropdown} curl version
+````{tab-item} curl
 ```bash
 # Experience Summarizer: Learn from execution trajectories
 curl -X POST http://localhost:8002/summary_task_memory \
@@ -83,7 +126,7 @@ curl -X POST http://localhost:8002/retrieve_task_memory \
 ```
 ````
 
-````{dropdown} Node.js version
+````{tab-item} Node.js
 ```{code-block} javascript
 // Experience Summarizer: Learn from execution trajectories
 fetch("http://localhost:8002/summary_task_memory", {
@@ -117,8 +160,54 @@ fetch("http://localhost:8002/retrieve_task_memory", {
 .then(data => console.log(data));
 ```
 ````
+`````
 
 #### Personal Memory Management
+
+<summary> import version</summary>
+`````{tab-set}
+
+````{tab-item} Python(import)
+```{code-cell}
+import asyncio
+from reme_ai import ReMeApp
+
+async def main():
+    async with ReMeApp(
+        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
+        "embedding_model.default.model_name=text-embedding-v4",
+        "vector_store.default.backend=memory"
+    ) as app:
+        # Memory Integration: Learn from user interactions
+        result = await app.async_execute(
+            name="summary_personal_memory",
+            workspace_id="task_workspace",
+            trajectories=[
+                {
+                    "messages": [
+                        {"role": "user", "content": "I like to drink coffee while working in the morning"},
+                        {"role": "assistant",
+                         "content": "I understand, you prefer to start your workday with coffee to stay energized"}
+                    ]
+                }
+            ]
+        )
+        print(result)
+        
+        # Memory Retrieval: Get personal memory fragments
+        result = await app.async_execute(
+            name="retrieve_personal_memory",
+            workspace_id="task_workspace",
+            query="What are the user's work habits?",
+            top_k=5
+        )
+        print(result)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+````
+
 
 ```{code-cell}
 # Memory Integration: Learn from user interactions
