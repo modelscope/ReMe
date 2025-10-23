@@ -47,5 +47,4 @@ parts:
   - caption: Others
     maxdepth: 1
     chapters:
-      - file: future_work
       - file: contribution
