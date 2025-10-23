@@ -59,9 +59,8 @@ response = requests.post("http://localhost:8002/retrieve_task_memory", json={
 })
 ```
 
-<details>
-<summary>curl version</summary>
 
+````{dropdown} curl version
 ```bash
 # Experience Summarizer: Learn from execution trajectories
 curl -X POST http://localhost:8002/summary_task_memory \
@@ -82,12 +81,9 @@ curl -X POST http://localhost:8002/retrieve_task_memory \
     "top_k": 1
   }'
 ```
+````
 
-</details>
-
-<details>
-<summary>Node.js version</summary>
-
+````{dropdown} Node.js version
 ```{code-block} javascript
 // Experience Summarizer: Learn from execution trajectories
 fetch("http://localhost:8002/summary_task_memory", {
@@ -120,8 +116,7 @@ fetch("http://localhost:8002/retrieve_task_memory", {
 .then(response => response.json())
 .then(data => console.log(data));
 ```
-
-</details>
+````
 
 #### Personal Memory Management
 
@@ -148,8 +143,7 @@ response = requests.post("http://localhost:8002/retrieve_personal_memory", json=
 })
 ```
 
-<details>
-<summary>curl version</summary>
+````{dropdown} curl version
 
 ```bash
 # Memory Integration: Learn from user interactions
@@ -174,11 +168,9 @@ curl -X POST http://localhost:8002/retrieve_personal_memory \
     "top_k": 5
   }'
 ```
+````
 
-</details>
-
-<details>
-<summary>Node.js version</summary>
+````{dropdown} Node.js version
 
 ```{code-block} javascript
 // Memory Integration: Learn from user interactions
@@ -215,8 +207,8 @@ fetch("http://localhost:8002/retrieve_personal_memory", {
 .then(response => response.json())
 .then(data => console.log(data));
 ```
+````
 
-</details>
 
 #### Tool Memory Management
 
@@ -252,8 +244,8 @@ response = requests.post("http://localhost:8002/retrieve_tool_memory", json={
 })
 ```
 
-<details>
-<summary>curl version</summary>
+
+````{dropdown} curl version
 
 ```bash
 # Record tool execution results
@@ -290,11 +282,9 @@ curl -X POST http://localhost:8002/retrieve_tool_memory \
     "tool_names": "web_search"
   }'
 ```
+````
 
-</details>
-
-<details>
-<summary>Node.js version</summary>
+````{dropdown} Node.js version
 
 ```{code-block} javascript
 // Record tool execution results
@@ -349,5 +339,4 @@ fetch("http://localhost:8002/retrieve_tool_memory", {
 .then(response => response.json())
 .then(data => console.log(data));
 ```
-
-</details>
+````

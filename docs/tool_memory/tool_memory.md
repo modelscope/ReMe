@@ -191,7 +191,7 @@ class ToolCallResult(BaseModel):
 
 ### Tool Memory Lifecycle
 
-```mermaid
+```{mermaid}
 graph LR
     A[Tool Call] --> B[Evaluate]
     B --> C[Store Memory]
@@ -206,7 +206,7 @@ graph LR
 
 Tool Memory operates through three complementary operations that work together to create a learning loop:
 
-```mermaid
+```{mermaid}
 graph LR
     A[Agent] -->|1 retrieve_tool_memory| B[(Vector Store)]
     B -->|Guidelines| A
