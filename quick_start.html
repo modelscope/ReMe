@@ -6,13 +6,13 @@
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Memory Library" href="library/library.html"><link rel="prev" title="Installation" href="installation.html">
         <link rel="prefetch" href="_static/logo.svg" as="image">
 
-    <!-- Generated with Sphinx 8.2.3 and Furo 2025.09.25 -->
+    <!-- Generated with Sphinx 7.4.7 and Furo 2025.09.25 -->
         <title>Quick Start - AgentScope ReMe</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d75fae25" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=580074bf" />
     <link rel="stylesheet" type="text/css" href="_static/togglebutton.css?v=13237357" />
     <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
-    <link rel="stylesheet" type="text/css" href="_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+    <link rel="stylesheet" type="text/css" href="_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css?v=6644e6bb" />
     <link rel="stylesheet" type="text/css" href="_static/sphinx-thebe.css?v=4fa983c6" />
     <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -237,10 +237,6 @@
 <li class="toctree-l1"><a class="reference internal" href="tool_memory/tool_summary_ops.html">Tool Memory Summary Operations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tool_memory/tool_bench.html">Tool Memory Benchmark</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">SOP Memory</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="sop_memory/making_sop_memories.html">SOP Memory: Combining Atomic Operations into Complex Workflows</a></li>
-</ul>
 <p class="caption" role="heading"><span class="caption-text">Extensions</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="mcp_quick_start.html">MCP Quick Start Guide</a></li>
@@ -255,7 +251,6 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Others</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="future_work.html">Future Work</a></li>
 <li class="toctree-l1"><a class="reference internal" href="contribution.html">Contribute to ReMe</a></li>
 </ul>
 
@@ -293,7 +288,7 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="quick-start">
+          <section class="tex2jax_ignore mathjax_ignore" id="quick-start">
 <h1>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading">¶</a></h1>
 <section id="http-service-startup">
 <h2>HTTP Service Startup<a class="headerlink" href="#http-service-startup" title="Link to this heading">¶</a></h2>
@@ -321,9 +316,11 @@
 <h2>Core API Usage<a class="headerlink" href="#core-api-usage" title="Link to this heading">¶</a></h2>
 <section id="task-memory-management">
 <h3>Task Memory Management<a class="headerlink" href="#task-memory-management" title="Link to this heading">¶</a></h3>
-<div class="cell docutils container">
-<div class="cell_input docutils container">
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-0" name="sd-tab-set-0" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-0">
+python(http)</label><div class="sd-tab-content docutils">
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
 
 <span class="c1"># Experience Summarizer: Learn from execution trajectories</span>
 <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;http://localhost:8002/summary_task_memory&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="p">{</span>
@@ -342,10 +339,50 @@
 </pre></div>
 </div>
 </div>
+<input id="sd-tab-item-1" name="sd-tab-set-0" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-1">
+python(import)</label><div class="sd-tab-content docutils">
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">reme_ai</span><span class="w"> </span><span class="kn">import</span> <span class="n">ReMeApp</span>
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">ReMeApp</span><span class="p">(</span>
+        <span class="s2">&quot;llm.default.model_name=qwen3-30b-a3b-thinking-2507&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;embedding_model.default.model_name=text-embedding-v4&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;vector_store.default.backend=memory&quot;</span>
+    <span class="p">)</span> <span class="k">as</span> <span class="n">app</span><span class="p">:</span>
+        <span class="c1"># Experience Summarizer: Learn from execution trajectories</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">app</span><span class="o">.</span><span class="n">async_execute</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;summary_task_memory&quot;</span><span class="p">,</span>
+            <span class="n">workspace_id</span><span class="o">=</span><span class="s2">&quot;task_workspace&quot;</span><span class="p">,</span>
+            <span class="n">trajectories</span><span class="o">=</span><span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;messages&quot;</span><span class="p">:</span> <span class="p">[</span>
+                        <span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Help me create a project plan&quot;</span><span class="p">}</span>
+                    <span class="p">],</span>
+                    <span class="s2">&quot;score&quot;</span><span class="p">:</span> <span class="mf">1.0</span>
+                <span class="p">}</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+        
+        <span class="c1"># Retriever: Get relevant memories</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">app</span><span class="o">.</span><span class="n">async_execute</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;retrieve_task_memory&quot;</span><span class="p">,</span>
+            <span class="n">workspace_id</span><span class="o">=</span><span class="s2">&quot;task_workspace&quot;</span><span class="p">,</span>
+            <span class="n">query</span><span class="o">=</span><span class="s2">&quot;How to efficiently manage project progress?&quot;</span><span class="p">,</span>
+            <span class="n">top_k</span><span class="o">=</span><span class="mi">1</span>
+        <span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</pre></div>
 </div>
-<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
-<summary class="sd-summary-title sd-card-header">
-<span class="sd-summary-text">curl version</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
+</div>
+<input id="sd-tab-item-2" name="sd-tab-set-0" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-2">
+curl</label><div class="sd-tab-content docutils">
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Experience Summarizer: Learn from execution trajectories</span>
 curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8002/summary_task_memory<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
@@ -367,9 +404,9 @@ curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </spa
 </pre></div>
 </div>
 </div>
-</details><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
-<summary class="sd-summary-title sd-card-header">
-<span class="sd-summary-text">Node.js version</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
+<input id="sd-tab-item-3" name="sd-tab-set-0" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-3">
+Node.js</label><div class="sd-tab-content docutils">
 <div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// Experience Summarizer: Learn from execution trajectories</span>
 <span class="nx">fetch</span><span class="p">(</span><span class="s2">&quot;http://localhost:8002/summary_task_memory&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;POST&quot;</span><span class="p">,</span>
@@ -403,12 +440,17 @@ curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </spa
 </pre></div>
 </div>
 </div>
-</details></section>
+</div>
+</section>
 <section id="personal-memory-management">
 <h3>Personal Memory Management<a class="headerlink" href="#personal-memory-management" title="Link to this heading">¶</a></h3>
-<div class="cell docutils container">
-<div class="cell_input docutils container">
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Memory Integration: Learn from user interactions</span>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-4" name="sd-tab-set-1" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-4">
+python(http)</label><div class="sd-tab-content docutils">
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
+
+<span class="c1"># Memory Integration: Learn from user interactions</span>
 <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;http://localhost:8002/summary_personal_memory&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="p">{</span>
     <span class="s2">&quot;workspace_id&quot;</span><span class="p">:</span> <span class="s2">&quot;task_workspace&quot;</span><span class="p">,</span>
     <span class="s2">&quot;trajectories&quot;</span><span class="p">:</span> <span class="p">[</span>
@@ -431,10 +473,51 @@ curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </spa
 </pre></div>
 </div>
 </div>
+<input id="sd-tab-item-5" name="sd-tab-set-1" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-5">
+python(import)</label><div class="sd-tab-content docutils">
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">reme_ai</span><span class="w"> </span><span class="kn">import</span> <span class="n">ReMeApp</span>
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">ReMeApp</span><span class="p">(</span>
+        <span class="s2">&quot;llm.default.model_name=qwen3-30b-a3b-thinking-2507&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;embedding_model.default.model_name=text-embedding-v4&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;vector_store.default.backend=memory&quot;</span>
+    <span class="p">)</span> <span class="k">as</span> <span class="n">app</span><span class="p">:</span>
+        <span class="c1"># Memory Integration: Learn from user interactions</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">app</span><span class="o">.</span><span class="n">async_execute</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;summary_personal_memory&quot;</span><span class="p">,</span>
+            <span class="n">workspace_id</span><span class="o">=</span><span class="s2">&quot;task_workspace&quot;</span><span class="p">,</span>
+            <span class="n">trajectories</span><span class="o">=</span><span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;messages&quot;</span><span class="p">:</span> <span class="p">[</span>
+                        <span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;I like to drink coffee while working in the morning&quot;</span><span class="p">},</span>
+                        <span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;assistant&quot;</span><span class="p">,</span>
+                         <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;I understand, you prefer to start your workday with coffee to stay energized&quot;</span><span class="p">}</span>
+                    <span class="p">]</span>
+                <span class="p">}</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+        
+        <span class="c1"># Memory Retrieval: Get personal memory fragments</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">app</span><span class="o">.</span><span class="n">async_execute</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;retrieve_personal_memory&quot;</span><span class="p">,</span>
+            <span class="n">workspace_id</span><span class="o">=</span><span class="s2">&quot;task_workspace&quot;</span><span class="p">,</span>
+            <span class="n">query</span><span class="o">=</span><span class="s2">&quot;What are the user&#39;s work habits?&quot;</span><span class="p">,</span>
+            <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span>
+        <span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</pre></div>
 </div>
-<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
-<summary class="sd-summary-title sd-card-header">
-<span class="sd-summary-text">curl version</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
+</div>
+<input id="sd-tab-item-6" name="sd-tab-set-1" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-6">
+curl</label><div class="sd-tab-content docutils">
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Memory Integration: Learn from user interactions</span>
 curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8002/summary_personal_memory<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
@@ -459,9 +542,9 @@ curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </spa
 </pre></div>
 </div>
 </div>
-</details><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
-<summary class="sd-summary-title sd-card-header">
-<span class="sd-summary-text">Node.js version</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
+<input id="sd-tab-item-7" name="sd-tab-set-1" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-7">
+Node.js</label><div class="sd-tab-content docutils">
 <div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// Memory Integration: Learn from user interactions</span>
 <span class="nx">fetch</span><span class="p">(</span><span class="s2">&quot;http://localhost:8002/summary_personal_memory&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;POST&quot;</span><span class="p">,</span>
@@ -498,12 +581,15 @@ curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </spa
 </pre></div>
 </div>
 </div>
-</details></section>
+</div>
+</section>
 <section id="tool-memory-management">
 <h3>Tool Memory Management<a class="headerlink" href="#tool-memory-management" title="Link to this heading">¶</a></h3>
-<div class="cell docutils container">
-<div class="cell_input docutils container">
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-8" name="sd-tab-set-2" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-8">
+python(http)</label><div class="sd-tab-content docutils">
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
 
 <span class="c1"># Record tool execution results</span>
 <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;http://localhost:8002/add_tool_call_result&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="p">{</span>
@@ -535,10 +621,60 @@ curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </spa
 </pre></div>
 </div>
 </div>
+<input id="sd-tab-item-9" name="sd-tab-set-2" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-9">
+python(import)</label><div class="sd-tab-content docutils">
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">reme_ai</span><span class="w"> </span><span class="kn">import</span> <span class="n">ReMeApp</span>
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">ReMeApp</span><span class="p">(</span>
+        <span class="s2">&quot;llm.default.model_name=qwen3-30b-a3b-thinking-2507&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;embedding_model.default.model_name=text-embedding-v4&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;vector_store.default.backend=memory&quot;</span>
+    <span class="p">)</span> <span class="k">as</span> <span class="n">app</span><span class="p">:</span>
+        <span class="c1"># Record tool execution results</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">app</span><span class="o">.</span><span class="n">async_execute</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;add_tool_call_result&quot;</span><span class="p">,</span>
+            <span class="n">workspace_id</span><span class="o">=</span><span class="s2">&quot;tool_workspace&quot;</span><span class="p">,</span>
+            <span class="n">tool_call_results</span><span class="o">=</span><span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;create_time&quot;</span><span class="p">:</span> <span class="s2">&quot;2025-10-21 10:30:00&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;tool_name&quot;</span><span class="p">:</span> <span class="s2">&quot;web_search&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;input&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="s2">&quot;Python asyncio tutorial&quot;</span><span class="p">,</span> <span class="s2">&quot;max_results&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">},</span>
+                    <span class="s2">&quot;output&quot;</span><span class="p">:</span> <span class="s2">&quot;Found 10 relevant results...&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;token_cost&quot;</span><span class="p">:</span> <span class="mi">150</span><span class="p">,</span>
+                    <span class="s2">&quot;success&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                    <span class="s2">&quot;time_cost&quot;</span><span class="p">:</span> <span class="mf">2.3</span>
+                <span class="p">}</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+        
+        <span class="c1"># Generate usage guidelines from history</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">app</span><span class="o">.</span><span class="n">async_execute</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;summary_tool_memory&quot;</span><span class="p">,</span>
+            <span class="n">workspace_id</span><span class="o">=</span><span class="s2">&quot;tool_workspace&quot;</span><span class="p">,</span>
+            <span class="n">tool_names</span><span class="o">=</span><span class="s2">&quot;web_search&quot;</span>
+        <span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+        
+        <span class="c1"># Retrieve tool guidelines before use</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">app</span><span class="o">.</span><span class="n">async_execute</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;retrieve_tool_memory&quot;</span><span class="p">,</span>
+            <span class="n">workspace_id</span><span class="o">=</span><span class="s2">&quot;tool_workspace&quot;</span><span class="p">,</span>
+            <span class="n">tool_names</span><span class="o">=</span><span class="s2">&quot;web_search&quot;</span>
+        <span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</pre></div>
 </div>
-<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
-<summary class="sd-summary-title sd-card-header">
-<span class="sd-summary-text">curl version</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
+</div>
+<input id="sd-tab-item-10" name="sd-tab-set-2" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-10">
+curl</label><div class="sd-tab-content docutils">
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Record tool execution results</span>
 curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8002/add_tool_call_result<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
@@ -575,9 +711,9 @@ curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </spa
 </pre></div>
 </div>
 </div>
-</details><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
-<summary class="sd-summary-title sd-card-header">
-<span class="sd-summary-text">Node.js version</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
+<input id="sd-tab-item-11" name="sd-tab-set-2" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-11">
+Node.js</label><div class="sd-tab-content docutils">
 <div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// Record tool execution results</span>
 <span class="nx">fetch</span><span class="p">(</span><span class="s2">&quot;http://localhost:8002/add_tool_call_result&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;POST&quot;</span><span class="p">,</span>
@@ -632,7 +768,8 @@ curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </spa
 </pre></div>
 </div>
 </div>
-</details></section>
+</div>
+</section>
 </section>
 </section>
 
@@ -737,7 +874,7 @@ curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </spa
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=a8e58a58"></script>
-    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=46bd48cc"></script>
     <script src="_static/clipboard.min.js?v=a7894cd8"></script>
@@ -751,6 +888,8 @@ curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </spa
     <script src="_static/design-tabs.js?v=f930bc37"></script>
     <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
     <script async="async" src="_static/sphinx-thebe.js?v=c100c467"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
     <script src="_static/language.js"></script>
     <script src="_static/memory-lib/memory-lib.js?v=d34abfda"></script>
     </body>

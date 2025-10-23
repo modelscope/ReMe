@@ -6,13 +6,13 @@
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Installation" href="installation.html">
         <link rel="prefetch" href="_static/logo.svg" as="image">
 
-    <!-- Generated with Sphinx 8.2.3 and Furo 2025.09.25 -->
+    <!-- Generated with Sphinx 7.4.7 and Furo 2025.09.25 -->
         <title>AgentScope ReMe</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d75fae25" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=580074bf" />
     <link rel="stylesheet" type="text/css" href="_static/togglebutton.css?v=13237357" />
     <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
-    <link rel="stylesheet" type="text/css" href="_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+    <link rel="stylesheet" type="text/css" href="_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css?v=6644e6bb" />
     <link rel="stylesheet" type="text/css" href="_static/sphinx-thebe.css?v=4fa983c6" />
     <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -237,10 +237,6 @@
 <li class="toctree-l1"><a class="reference internal" href="tool_memory/tool_summary_ops.html">Tool Memory Summary Operations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tool_memory/tool_bench.html">Tool Memory Benchmark</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">SOP Memory</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="sop_memory/making_sop_memories.html">SOP Memory: Combining Atomic Operations into Complex Workflows</a></li>
-</ul>
 <p class="caption" role="heading"><span class="caption-text">Extensions</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="mcp_quick_start.html">MCP Quick Start Guide</a></li>
@@ -255,7 +251,6 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Others</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="future_work.html">Future Work</a></li>
 <li class="toctree-l1"><a class="reference internal" href="contribution.html">Contribute to ReMe</a></li>
 </ul>
 
@@ -293,19 +288,19 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="reme-memory-management-framework-for-agents">
+          <section class="tex2jax_ignore mathjax_ignore" id="reme-memory-management-framework-for-agents">
 <h1>ReMe: Memory Management Framework for Agents<a class="headerlink" href="#reme-memory-management-framework-for-agents" title="Link to this heading">¶</a></h1>
 <p><em>Remember Me, Refine Me.</em></p>
 <div class="flex justify-center space-x-3">
   <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python Version"></a>
-  <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/pypi-v0.1-blue?logo=pypi" alt="PyPI Version"></a>
+  <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/pypi-v0.1.10.3-blue?logo=pypi" alt="PyPI Version"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black" alt="License"></a>
   <a href="https://github.com/modelscope/ReMe"><img src="https://img.shields.io/github/stars/modelscope/ReMe?style=social" alt="GitHub Stars"></a>
 </div>
 <hr class="docutils" />
 <p>ReMe provides AI agents with a unified memory system—enabling the ability to extract, reuse, and share memories across
 users, tasks, and agents.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Personal Memory + Task Memory + Tool Memory = Agent Memory
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Personal</span> <span class="n">Memory</span> <span class="o">+</span> <span class="n">Task</span> <span class="n">Memory</span> <span class="o">+</span> <span class="n">Tool</span> <span class="n">Memory</span> <span class="o">=</span> <span class="n">Agent</span> <span class="n">Memory</span>
 </pre></div>
 </div>
 <p>Personal memory helps “<strong>understand user preferences</strong>”, task memory helps agents “<strong>perform better</strong>”, and tool memory enables “<strong>smarter tool usage</strong>”.</p>
@@ -315,41 +310,37 @@ users, tasks, and agents.</p>
  <img src="_static/figure/reme_structure.jpg" alt="ReMe Logo" width="100%">
 </p>
 <p>ReMe integrates three complementary memory capabilities:</p>
-<div class="admonition-task-memory-experience admonition">
+<div class="note admonition">
 <p class="admonition-title">Task Memory/Experience</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Procedural knowledge reused across agents
-
-- **Success Pattern Recognition**: Identify effective strategies and understand their underlying principles
-- **Failure Analysis Learning**: Learn from mistakes and avoid repeating the same issues
-- **Comparative Patterns**: Different sampling trajectories provide more valuable memories through comparison
-- **Validation Patterns**: Confirm the effectiveness of extracted memories through validation modules
-</pre></div>
-</div>
+<p>Procedural knowledge reused across agents</p>
+<ul class="simple">
+<li><p><strong>Success Pattern Recognition</strong>: Identify effective strategies and understand their underlying principles</p></li>
+<li><p><strong>Failure Analysis Learning</strong>: Learn from mistakes and avoid repeating the same issues</p></li>
+<li><p><strong>Comparative Patterns</strong>: Different sampling trajectories provide more valuable memories through comparison</p></li>
+<li><p><strong>Validation Patterns</strong>: Confirm the effectiveness of extracted memories through validation modules</p></li>
+</ul>
 </div>
 <p>Learn more about how to use task memory from <a class="reference internal" href="task_memory/task_memory.html"><span class="std std-doc">task memory</span></a></p>
-<div class="admonition-personal-memory admonition">
+<div class="note admonition">
 <p class="admonition-title">Personal Memory</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Contextualized memory for specific users
-
-
-- **Individual Preferences**: User habits, preferences, and interaction styles
-- **Contextual Adaptation**: Intelligent memory management based on time and context
-- **Progressive Learning**: Gradually build deep understanding through long-term interaction
-- **Time Awareness**: Time sensitivity in both retrieval and integration
-</pre></div>
-</div>
+<p>Contextualized memory for specific users</p>
+<ul class="simple">
+<li><p><strong>Individual Preferences</strong>: User habits, preferences, and interaction styles</p></li>
+<li><p><strong>Contextual Adaptation</strong>: Intelligent memory management based on time and context</p></li>
+<li><p><strong>Progressive Learning</strong>: Gradually build deep understanding through long-term interaction</p></li>
+<li><p><strong>Time Awareness</strong>: Time sensitivity in both retrieval and integration</p></li>
+</ul>
 </div>
 <p>Learn more about how to use personal memory from <a class="reference internal" href="personal_memory/personal_memory.html"><span class="std std-doc">personal memory</span></a></p>
-<div class="admonition-tool-memory admonition">
+<div class="note admonition">
 <p class="admonition-title">Tool Memory</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Data-driven tool selection and usage optimization
-
-- **Historical Performance Tracking**: Success rates, execution times, and token costs from real usage
-- **LLM-as-Judge Evaluation**: Qualitative insights on why tools succeed or fail
-- **Parameter Optimization**: Learn optimal parameter configurations from successful calls
-- **Dynamic Guidelines**: Transform static tool descriptions into living, learned manuals
-</pre></div>
-</div>
+<p>Data-driven tool selection and usage optimization</p>
+<ul class="simple">
+<li><p><strong>Historical Performance Tracking</strong>: Success rates, execution times, and token costs from real usage</p></li>
+<li><p><strong>LLM-as-Judge Evaluation</strong>: Qualitative insights on why tools succeed or fail</p></li>
+<li><p><strong>Parameter Optimization</strong>: Learn optimal parameter configurations from successful calls</p></li>
+<li><p><strong>Dynamic Guidelines</strong>: Transform static tool descriptions into living, learned manuals</p></li>
+</ul>
 </div>
 <p>Learn more about how to use tool memory from <a class="reference internal" href="tool_memory/tool_memory.html"><span class="std std-doc">tool memory</span></a></p>
 </section>
@@ -410,8 +401,6 @@ patterns</p></li>
 </pre></div>
 </div>
 </section>
-<div class="toctree-wrapper compound">
-</div>
 <div class="toctree-wrapper compound">
 </div>
 <div class="toctree-wrapper compound">
@@ -521,7 +510,7 @@ patterns</p></li>
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=a8e58a58"></script>
-    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=46bd48cc"></script>
     <script src="_static/clipboard.min.js?v=a7894cd8"></script>
@@ -535,6 +524,8 @@ patterns</p></li>
     <script src="_static/design-tabs.js?v=f930bc37"></script>
     <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
     <script async="async" src="_static/sphinx-thebe.js?v=c100c467"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
     <script src="_static/language.js"></script>
     <script src="_static/memory-lib/memory-lib.js?v=d34abfda"></script>
     </body>
