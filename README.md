@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python Version"></a>
-  <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/pypi-v0.1-blue?logo=pypi" alt="PyPI Version"></a>
+  <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/pypi-v0.1.10.2-blue?logo=pypi" alt="PyPI Version"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black" alt="License"></a>
   <a href="https://github.com/modelscope/ReMe"><img src="https://img.shields.io/github/stars/modelscope/ReMe?style=social" alt="GitHub Stars"></a>
 </p>
@@ -28,6 +28,7 @@ Personal memory helps "**understand user preferences**", task memory helps agent
 
 ## 📰 Latest Updates
 
+- **[2025-10]** 🚀 ReMe v0.1.10.2 released! Core enhancement: direct Python import support. You can now use ReMe without starting an HTTP or MCP service - simply `from reme_ai import ReMeApp` and call methods directly in your Python code.
 - **[2025-10]** 🔧 Tool Memory support is now available! Enables data-driven tool selection and parameter optimization through historical performance tracking. Check out the [Tool Memory Guide](docs/tool_memory/tool_memory.md) and [benchmark results](docs/tool_memory/tool_bench.md).
 - **[2025-09]** 🎉 ReMe v0.1.9 has been officially released, adding support for asynchronous operations. It has also been
   integrated into the memory service of agentscope-runtime.
@@ -167,6 +168,45 @@ response = requests.post("http://localhost:8002/retrieve_task_memory", json={
 ```
 
 <details>
+<summary>Python import version</summary>
+
+```python
+import asyncio
+from reme_ai import ReMeApp
+
+async def main():
+    async with ReMeApp() as app:
+        # Experience Summarizer: Learn from execution trajectories
+        result = await app.async_execute(
+            name="summary_task_memory",
+            workspace_id="task_workspace",
+            trajectories=[
+                {
+                    "messages": [
+                        {"role": "user", "content": "Help me create a project plan"}
+                    ],
+                    "score": 1.0
+                }
+            ]
+        )
+        print(result)
+        
+        # Retriever: Get relevant memories
+        result = await app.async_execute(
+            name="retrieve_task_memory",
+            workspace_id="task_workspace",
+            query="How to efficiently manage project progress?",
+            top_k=1
+        )
+        print(result)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+</details>
+
+<details>
 <summary>curl version</summary>
 
 ```bash
@@ -254,6 +294,46 @@ response = requests.post("http://localhost:8002/retrieve_personal_memory", json=
     "top_k": 5
 })
 ```
+
+<details>
+<summary>Python import version</summary>
+
+```python
+import asyncio
+from reme_ai import ReMeApp
+
+async def main():
+    async with ReMeApp() as app:
+        # Memory Integration: Learn from user interactions
+        result = await app.async_execute(
+            name="summary_personal_memory",
+            workspace_id="task_workspace",
+            trajectories=[
+                {
+                    "messages": [
+                        {"role": "user", "content": "I like to drink coffee while working in the morning"},
+                        {"role": "assistant",
+                         "content": "I understand, you prefer to start your workday with coffee to stay energized"}
+                    ]
+                }
+            ]
+        )
+        print(result)
+        
+        # Memory Retrieval: Get personal memory fragments
+        result = await app.async_execute(
+            name="retrieve_personal_memory",
+            workspace_id="task_workspace",
+            query="What are the user's work habits?",
+            top_k=5
+        )
+        print(result)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+</details>
 
 <details>
 <summary>curl version</summary>
@@ -358,6 +438,55 @@ response = requests.post("http://localhost:8002/retrieve_tool_memory", json={
     "tool_names": "web_search"
 })
 ```
+
+<details>
+<summary>Python import version</summary>
+
+```python
+import asyncio
+from reme_ai import ReMeApp
+
+async def main():
+    async with ReMeApp() as app:
+        # Record tool execution results
+        result = await app.async_execute(
+            name="add_tool_call_result",
+            workspace_id="tool_workspace",
+            tool_call_results=[
+                {
+                    "create_time": "2025-10-21 10:30:00",
+                    "tool_name": "web_search",
+                    "input": {"query": "Python asyncio tutorial", "max_results": 10},
+                    "output": "Found 10 relevant results...",
+                    "token_cost": 150,
+                    "success": True,
+                    "time_cost": 2.3
+                }
+            ]
+        )
+        print(result)
+        
+        # Generate usage guidelines from history
+        result = await app.async_execute(
+            name="summary_tool_memory",
+            workspace_id="tool_workspace",
+            tool_names="web_search"
+        )
+        print(result)
+        
+        # Retrieve tool guidelines before use
+        result = await app.async_execute(
+            name="retrieve_tool_memory",
+            workspace_id="tool_workspace",
+            tool_names="web_search"
+        )
+        print(result)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+</details>
 
 <details>
 <summary>curl version</summary>
@@ -488,6 +617,39 @@ response = requests.post("http://localhost:8002/retrieve_task_memory", json={
     "top_k": 1
 })
 ```
+
+<details>
+<summary>Python import version</summary>
+
+```python
+import asyncio
+from reme_ai import ReMeApp
+
+async def main():
+    async with ReMeApp() as app:
+        # Load pre-built memories
+        result = await app.async_execute(
+            name="vector_store",
+            workspace_id="appworld",
+            action="load",
+            path="./docs/library/"
+        )
+        print(result)
+        
+        # Query relevant memories
+        result = await app.async_execute(
+            name="retrieve_task_memory",
+            workspace_id="appworld",
+            query="How to navigate to settings and update user profile?",
+            top_k=1
+        )
+        print(result)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+</details>
 
 ## 🧪 Experiments
 

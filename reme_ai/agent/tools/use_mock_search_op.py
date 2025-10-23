@@ -8,7 +8,6 @@ from flowllm.op.base_async_tool_op import BaseAsyncToolOp
 from flowllm.schema.message import Message
 from flowllm.schema.tool_call import ToolCall
 from flowllm.utils.timer import Timer
-from flowllm.utils.token_utils import TokenCounter
 from loguru import logger
 
 from reme_ai.agent.tools.mock_search_tools import SearchToolA, SearchToolB, SearchToolC
@@ -99,7 +98,7 @@ class UseMockSearchOp(BaseAsyncToolOp):
             selected_op_output = json.loads(selected_op.output)
             content = selected_op_output["content"]
             success = selected_op_output["success"]
-            token_cost = TokenCounter().count(content)
+            token_cost = len(content) // 4  # Estimate using a method where every 4 characters constitute one token.
 
         time_cost = timer.time_cost
 
@@ -118,9 +117,9 @@ class UseMockSearchOp(BaseAsyncToolOp):
 
 
 async def async_main():
-    from flowllm.app import FlowLLMApp
+    from reme_ai.app import ReMeApp
 
-    async with FlowLLMApp(load_default_config=True):
+    async with ReMeApp():
         test_queries = [
             "What is the capital of France?",
             "How does quantum computing work?",

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reme_ai"
-version = "0.1.10.1"
+version = "0.1.10.2"
 description = "Remember me"
 authors = [
     { name = "jinli.yl", email = "jinli.yl@alibaba-inc.com" },
@@ -41,3 +41,5 @@ reme_ai = [
 
 [project.scripts]
 reme = "reme_ai.app:main"
+
+# python -m build && twine upload dist/*

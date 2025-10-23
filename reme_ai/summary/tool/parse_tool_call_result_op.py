@@ -134,10 +134,11 @@ class ParseToolCallResultOp(BaseAsyncOp):
 
 async def main():
     """Simple test for ParseToolCallResultOp"""
-    from flowllm.app import FlowLLMApp
     from datetime import datetime
-    
-    async with FlowLLMApp(load_default_config=True):
+
+    from reme_ai.app import ReMeApp
+
+    async with ReMeApp():
         op = ParseToolCallResultOp()
 
         # Create simple test data

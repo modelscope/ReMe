@@ -195,13 +195,14 @@ class SummaryToolMemoryOp(BaseAsyncOp):
 
 
 async def main():
-    from flowllm.app import FlowLLMApp
     from reme_ai.summary.tool.parse_tool_call_result_op import ParseToolCallResultOp
     from reme_ai.vector_store.update_vector_store_op import UpdateVectorStoreOp
     from datetime import datetime, timedelta
     import random
 
-    async with FlowLLMApp(load_default_config=True):
+    from reme_ai.app import ReMeApp
+
+    async with ReMeApp():
         workspace_id = "test_workspace_complex"
         tool_name = "web_search_tool"
 
