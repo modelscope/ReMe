@@ -20,7 +20,11 @@ async def summary_task_memory():
         ]
       }'
     """
-    async with ReMeApp() as app:
+    async with ReMeApp(
+        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
+        "embedding_model.default.model_name=text-embedding-v4",
+        "vector_store.default.backend=memory"
+    ) as app:
         result = await app.async_execute(
             name="summary_task_memory",
             workspace_id="task_workspace",
@@ -49,7 +53,11 @@ async def retrieve_task_memory():
         "top_k": 1
       }'
     """
-    async with ReMeApp() as app:
+    async with ReMeApp(
+        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
+        "embedding_model.default.model_name=text-embedding-v4",
+        "vector_store.default.backend=memory"
+    ) as app:
         result = await app.async_execute(
             name="retrieve_task_memory",
             workspace_id="task_workspace",
@@ -80,7 +88,11 @@ async def summary_personal_memory():
         ]
       }'
     """
-    async with ReMeApp() as app:
+    async with ReMeApp(
+        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
+        "embedding_model.default.model_name=text-embedding-v4",
+        "vector_store.default.backend=memory"
+    ) as app:
         result = await app.async_execute(
             name="summary_personal_memory",
             workspace_id="task_workspace",
@@ -110,7 +122,11 @@ async def retrieve_personal_memory():
         "top_k": 5
       }'
     """
-    async with ReMeApp() as app:
+    async with ReMeApp(
+        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
+        "embedding_model.default.model_name=text-embedding-v4",
+        "vector_store.default.backend=memory"
+    ) as app:
         result = await app.async_execute(
             name="retrieve_personal_memory",
             workspace_id="task_workspace",
@@ -146,7 +162,11 @@ async def add_tool_call_result():
         ]
       }'
     """
-    async with ReMeApp() as app:
+    async with ReMeApp(
+        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
+        "embedding_model.default.model_name=text-embedding-v4",
+        "vector_store.default.backend=memory"
+    ) as app:
         result = await app.async_execute(
             name="add_tool_call_result",
             workspace_id="tool_workspace",
@@ -177,7 +197,11 @@ async def summary_tool_memory():
         "tool_names": "web_search"
       }'
     """
-    async with ReMeApp() as app:
+    async with ReMeApp(
+        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
+        "embedding_model.default.model_name=text-embedding-v4",
+        "vector_store.default.backend=memory"
+    ) as app:
         result = await app.async_execute(
             name="summary_tool_memory",
             workspace_id="tool_workspace",
@@ -198,7 +222,11 @@ async def retrieve_tool_memory():
         "tool_names": "web_search"
       }'
     """
-    async with ReMeApp() as app:
+    async with ReMeApp(
+        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
+        "embedding_model.default.model_name=text-embedding-v4",
+        "vector_store.default.backend=memory"
+    ) as app:
         result = await app.async_execute(
             name="retrieve_tool_memory",
             workspace_id="tool_workspace",
@@ -224,7 +252,11 @@ async def load_vector_store():
         "path": "./docs/library/"
       }'
     """
-    async with ReMeApp() as app:
+    async with ReMeApp(
+        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
+        "embedding_model.default.model_name=text-embedding-v4",
+        "vector_store.default.backend=memory"
+    ) as app:
         result = await app.async_execute(
             name="vector_store",
             workspace_id="appworld",

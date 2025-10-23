@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python Version"></a>
-  <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/pypi-v0.1.10.2-blue?logo=pypi" alt="PyPI Version"></a>
+  <a href="https://pypi.org/project/reme-ai/"><img src="https://img.shields.io/badge/pypi-v0.1.10.3-blue?logo=pypi" alt="PyPI Version"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black" alt="License"></a>
   <a href="https://github.com/modelscope/ReMe"><img src="https://img.shields.io/github/stars/modelscope/ReMe?style=social" alt="GitHub Stars"></a>
 </p>
@@ -28,7 +28,7 @@ Personal memory helps "**understand user preferences**", task memory helps agent
 
 ## 📰 Latest Updates
 
-- **[2025-10]** 🚀 ReMe v0.1.10.2 released! Core enhancement: direct Python import support. You can now use ReMe without starting an HTTP or MCP service - simply `from reme_ai import ReMeApp` and call methods directly in your Python code.
+- **[2025-10]** 🚀 ReMe v0.1.10.3 released! Core enhancement: direct Python import support. You can now use ReMe without starting an HTTP or MCP service - simply `from reme_ai import ReMeApp` and call methods directly in your Python code.
 - **[2025-10]** 🔧 Tool Memory support is now available! Enables data-driven tool selection and parameter optimization through historical performance tracking. Check out the [Tool Memory Guide](docs/tool_memory/tool_memory.md) and [benchmark results](docs/tool_memory/tool_bench.md).
 - **[2025-09]** 🎉 ReMe v0.1.9 has been officially released, adding support for asynchronous operations. It has also been
   integrated into the memory service of agentscope-runtime.
@@ -111,7 +111,6 @@ pip install .
 Copy `example.env` to .env and modify the corresponding parameters:
 
 ```bash
-FLOW_APP_NAME=ReMe
 FLOW_LLM_API_KEY=sk-xxxx
 FLOW_LLM_BASE_URL=https://xxxx/v1
 FLOW_EMBEDDING_API_KEY=sk-xxxx
@@ -175,7 +174,11 @@ import asyncio
 from reme_ai import ReMeApp
 
 async def main():
-    async with ReMeApp() as app:
+    async with ReMeApp(
+        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
+        "embedding_model.default.model_name=text-embedding-v4",
+        "vector_store.default.backend=memory"
+    ) as app:
         # Experience Summarizer: Learn from execution trajectories
         result = await app.async_execute(
             name="summary_task_memory",
@@ -303,7 +306,11 @@ import asyncio
 from reme_ai import ReMeApp
 
 async def main():
-    async with ReMeApp() as app:
+    async with ReMeApp(
+        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
+        "embedding_model.default.model_name=text-embedding-v4",
+        "vector_store.default.backend=memory"
+    ) as app:
         # Memory Integration: Learn from user interactions
         result = await app.async_execute(
             name="summary_personal_memory",
@@ -447,7 +454,11 @@ import asyncio
 from reme_ai import ReMeApp
 
 async def main():
-    async with ReMeApp() as app:
+    async with ReMeApp(
+        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
+        "embedding_model.default.model_name=text-embedding-v4",
+        "vector_store.default.backend=memory"
+    ) as app:
         # Record tool execution results
         result = await app.async_execute(
             name="add_tool_call_result",
@@ -626,7 +637,11 @@ import asyncio
 from reme_ai import ReMeApp
 
 async def main():
-    async with ReMeApp() as app:
+    async with ReMeApp(
+        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
+        "embedding_model.default.model_name=text-embedding-v4",
+        "vector_store.default.backend=memory"
+    ) as app:
         # Load pre-built memories
         result = await app.async_execute(
             name="vector_store",
