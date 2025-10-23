@@ -1,4 +1,18 @@
-# Task Memory in ReMe
+---
+jupytext:
+  formats: md:myst
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.11.5
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
+
+# Task Memory
 
 Task Memory is a key component of ReMe that allows AI agents to learn from memories and improve their performance on similar tasks in the future. This document explains how task memory works and how to use it in your applications.
 
@@ -60,7 +74,7 @@ Here's how to use Task Memory in your application:
 
 ### Step 1: Set Up Your Environment
 
-```python
+```{code-cell}
 import requests
 
 # API configuration
@@ -70,7 +84,7 @@ WORKSPACE_ID = "your_workspace_id"
 
 ### Step 2: Run an Agent and Generate Memories
 
-```python
+```{code-cell}
 # Run the agent with a query
 response = requests.post(
     url=f"{BASE_URL}react",
@@ -92,7 +106,7 @@ response = requests.post(
 
 ### Step 3: Retrieve Relevant Memories for a New Task
 
-```python
+```{code-cell}
 # Retrieve memories relevant to a new query
 response = requests.post(
     url=f"{BASE_URL}retrieve_task_memory",
@@ -106,7 +120,7 @@ retrieved_memory = response.json().get("answer", "")
 
 ### Step 4: Use Retrieved Memories to Enhance Agent Performance
 
-```python
+```{code-cell}
 # Augment a new query with retrieved memories
 augmented_query = f"{retrieved_memory}\n\nUser Question:\n{your_query}"
 
@@ -121,7 +135,7 @@ response = requests.post(
 
 Here's a complete example workflow that demonstrates how to use task memory:
 
-```python
+```{code-cell}
 def run_agent_with_memory(query_first, query_second):
     # Run agent with second query to build initial memories
     messages = run_agent(query=query_second)
@@ -156,7 +170,7 @@ def run_agent_with_memory(query_first, query_second):
 
 ### Delete a Workspace
 
-```python
+```{code-cell}
 response = requests.post(
     url=f"{BASE_URL}vector_store",
     json={
@@ -168,7 +182,7 @@ response = requests.post(
 
 ### Dump Memories to Disk
 
-```python
+```{code-cell}
 response = requests.post(
     url=f"{BASE_URL}vector_store",
     json={
@@ -181,7 +195,7 @@ response = requests.post(
 
 ### Load Memories from Disk
 
-```python
+```{code-cell}
 response = requests.post(
     url=f"{BASE_URL}vector_store",
     json={

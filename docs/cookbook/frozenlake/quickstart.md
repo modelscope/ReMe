@@ -1,4 +1,19 @@
-# FrozenLake Experiment Quick Start Guide
+---
+jupytext:
+  formats: md:myst
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.11.5
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
+
+# FrozenLake 
+Experiment Quick Start Guide
 
 This guide helps you quickly set up and run FrozenLake experiments with ReMe integration. The FrozenLake experiment demonstrates how task memory can improve an agent's performance in a navigation task.
 
@@ -81,7 +96,7 @@ To create new memories through training and then test performance:
 
 You can modify the experiment parameters directly in the `run_frozenlake.py` file. The main parameters are in the `main()` function:
 
-```python
+```{code-cell}
 def main():
     experiment_name = "frozenlake_no_slippery"  # Name of the experiment
     max_workers = 4                           # Number of parallel workers

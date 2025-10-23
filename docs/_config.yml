@@ -1,0 +1,112 @@
+# Book settings
+# Learn more at https://jupyterbook.org/customize/config.html
+
+project: "ReMe"
+title: "<span style='font-weight: 700; color: #2196f3;'>AgentScope</span> <br><span style='font-weight: 900; color: #ff5722;'>ReMe</span>"
+author: Alibaba Tongyi Lab
+logo: _static/figure/reme_logo.png
+copyright: "2025, Tongyi Lab, Alibaba Inc."
+only_build_toc_files: true
+
+# Force re-execution of notebooks on each build.
+# See https://jupyterbook.org/content/execute.html
+execute:
+  execute_notebooks: off
+
+parse:
+  myst_enable_extensions:
+    - colon_fence
+
+# Define the name of the latex output file for PDF builds
+latex:
+  latex_documents:
+    targetname: book.tex
+
+# Add a bibtex file so that we can create citations
+bibtex_bibfiles:
+  - references.bib
+
+html:
+  extra_js:
+    - _static/memory-lib/memory-lib.js
+  extra_css:
+    - _static/memory-lib/memory-lib.css
+
+# Sphinx settings
+sphinx:
+  extra_extensions:
+    - sphinx.ext.autodoc
+    - sphinx.ext.viewcode
+    - sphinx.ext.napoleon
+    - sphinx.ext.intersphinx
+    - sphinx.ext.autosummary
+  config:
+    # API Documentation Configuration
+    autosummary_generate: True
+    autosummary_imported_members: True
+
+    # Autodoc Configuration
+    autodoc_typehints: 'description'
+    autodoc_member_order: 'bysource'
+    autodoc_default_options:
+      members: True
+      member-order: 'bysource'
+      special-members: '__init__'
+      undoc-members: True
+      exclude-members: '__weakref__'
+
+    # Napoleon Configuration
+    napoleon_google_docstring: True
+    napoleon_numpy_docstring: True
+    napoleon_include_init_with_doc: False
+    napoleon_include_private_with_doc: False
+    napoleon_include_special_with_doc: True
+    napoleon_use_admonition_for_examples: False
+    napoleon_use_admonition_for_notes: False
+    napoleon_use_admonition_for_references: False
+    napoleon_use_ivar: False
+    napoleon_use_param: True
+    napoleon_use_rtype: True
+
+    # Intersphinx Configuration
+    intersphinx_mapping:
+      python: ['https://docs.python.org/3', null]
+      numpy: ['https://numpy.org/doc/stable/', null]
+
+    # Theme Configuration
+    html_theme: furo
+    pygments_style: "friendly"
+    html_show_sphinx: false
+    html_last_updated_fmt: "%Y-%m-%d"
+    html_copy_source: false
+    html_show_sourcelink: false
+    templates_path: ["./_templates"]
+    html_static_path:
+      - "_static"
+    use_multitoc_numbering: false
+    html_js_files:
+      - language.js
+
+    html_css_files:
+      - custom.css
+    html_sidebars:
+      "**":
+        - "sidebar/scroll-start.html"
+        - "sidebar/brand.html"
+        - "sidebar/search.html"
+        - "sidebar/navigation.html"
+        - "sidebar/ethical-ads.html"
+        - "sidebar/scroll-end.html"
+    html_theme_options:
+      top_of_page_buttons: ["view"]
+      sidebar_hide_name: false
+      source_repository: "https://github.com/modelscope/ReMe"
+      source_branch: "main"
+      source_directory: "docs/"
+      light_css_variables:
+        color-brand-primary: "#2196f3"
+        color-brand-content: "#2196f3"
+        color-admonition-background: "#f8f9fa"
+      dark_css_variables:
+        color-brand-primary: "#64b5f6"
+        color-brand-content: "#64b5f6"

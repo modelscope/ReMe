@@ -1,3 +1,17 @@
+---
+jupytext:
+  formats: md:myst
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.11.5
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
+
 # MCP Quick Start Guide
 
 This guide will help you get started with ReMe using the Model Context Protocol (MCP) interface for seamless
@@ -37,8 +51,10 @@ pip install .
 
 Create a `.env` file in your project directory:
 
-```bash
+```{code-cell}
 FLOW_EMBEDDING_API_KEY=sk-xxxx
+
+
 FLOW_EMBEDDING_BASE_URL=https://xxxx/v1
 
 FLOW_LLM_API_KEY=sk-xxxx
@@ -137,7 +153,7 @@ pip install fastmcp dotenv
 
 Then, create a basic client connection:
 
-```python
+```{code-cell}
 import asyncio
 from fastmcp import Client
 from dotenv import load_dotenv
@@ -164,7 +180,7 @@ if __name__ == "__main__":
 
 The `summary_task_memory` tool transforms conversation trajectories into valuable task memories:
 
-```python
+```{code-cell}
 async def run_summary(client, messages):
     """
     Generate a summary of conversation messages and create task memories
@@ -207,7 +223,7 @@ async def run_summary(client, messages):
 
 The `retrieve_task_memory` tool allows you to retrieve relevant memories based on a query:
 
-```python
+```{code-cell}
 async def run_retrieve(client, query):
     """
     Retrieve relevant task memories based on a query
@@ -246,7 +262,7 @@ async def run_retrieve(client, query):
 
 Here's a complete example showing how to build a memory-augmented agent using the MCP client:
 
-```python
+```{code-cell}
 import json
 import asyncio
 from fastmcp import Client
@@ -351,7 +367,7 @@ if __name__ == "__main__":
 
 You can also manage your vector store through MCP:
 
-```python
+```{code-cell}
 async def manage_vector_store(client):
     # Delete a workspace
     await client.call_tool(

@@ -1,4 +1,19 @@
-# Personal Memory in ReMe
+---
+jupytext:
+  formats: md:myst
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.11.5
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
+
+
+# Personal Memory
 
 ## Configuration Logic
 
@@ -38,9 +53,9 @@ This flow performs the following operations:
 
 The following example demonstrates how to use personal memory in MemoryScope:
 
-### 1. Setup
+**1. Setup**
 
-```python
+```{code-cell}
 import asyncio
 import json
 import aiohttp
@@ -50,9 +65,9 @@ base_url = "http://0.0.0.0:8002"
 workspace_id = "personal_memory_demo"
 ```
 
-### 2. Clear Existing Memories
+**2. Clear Existing Memories**
 
-```python
+```{code-cell}
 async with aiohttp.ClientSession() as session:
     # Delete existing workspace memories
     async with session.post(
@@ -66,9 +81,9 @@ async with aiohttp.ClientSession() as session:
         result = await response.json()
 ```
 
-### 3. Create Conversation with Personal Information
+**3. Create Conversation with Personal Information**
 
-```python
+```{code-cell}
 # Example conversation with personal details
 messages = [
     {"role": "user", "content": "My name is John Smith, I'm 28 years old"},
@@ -79,9 +94,9 @@ messages = [
 ]
 ```
 
-### 4. Summarize Personal Memories
+**4. Summarize Personal Memories**
 
-```python
+```{code-cell}
 async with session.post(
     f"{base_url}/summary_personal_memory",
     json={
@@ -95,9 +110,9 @@ async with session.post(
     result = await response.json()
 ```
 
-### 5. Retrieve Personal Memories
+**5. Retrieve Personal Memories**
 
-```python
+```{code-cell}
 # Example queries to retrieve personal information
 queries = [
     "What's my name and age?",
@@ -118,7 +133,5 @@ for query in queries:
         print(f"Query: {query}")
         print(f"Answer: {result.get('answer', '')}")
 ```
-
-## Complete Example
 
 For a complete working example, refer to `/cookbook/simple_demo/use_personal_memory_demo.py` in the ReMe repository.

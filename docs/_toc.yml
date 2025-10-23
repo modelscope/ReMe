@@ -1,0 +1,56 @@
+format: jb-book
+root: index
+
+parts:
+  - caption: Setup Guide
+    chapters:
+      - file: installation
+      - file: quick_start
+
+  - caption: Library
+    chapters:
+      - file: library/library
+      - file: library/use_library
+
+  - caption: Personal Memory
+    chapters:
+      - file: personal_memory/personal_memory
+      - file: personal_memory/personal_retrieve_ops
+      - file: personal_memory/personal_summary_ops
+
+  - caption: Task Memory
+    chapters:
+      - file: task_memory/task_memory
+      - file: task_memory/task_retrieve_ops
+      - file: task_memory/task_summary_ops
+
+  - caption: Tool Memory
+    chapters:
+      - file: tool_memory/tool_memory
+      - file: tool_memory/tool_retrieve_ops
+      - file: tool_memory/tool_summary_ops
+      - file: tool_memory/tool_bench
+
+  - caption: SOP Memory
+    maxdepth: 1
+    chapters:
+      - file: sop_memory/making_sop_memories
+
+  - caption: Extensions
+    maxdepth: 1
+    chapters:
+      - file: mcp_quick_start
+      - file: vector_store_api_guide
+
+  - caption: Experiments
+    chapters:
+      - file: cookbook/experiment_overview
+      - file: cookbook/frozenlake/quickstart
+      - file: cookbook/bfcl/quickstart
+      - file: cookbook/appworld/quickstart
+
+  - caption: Others
+    maxdepth: 1
+    chapters:
+      - file: future_work
+      - file: contribution

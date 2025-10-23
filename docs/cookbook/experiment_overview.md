@@ -1,6 +1,4 @@
----
-order: 1
----
+# Experiement Overview
 
 ### 🌍 [Appworld Experiment](appworld/quickstart.md)
 
@@ -19,9 +17,9 @@ You can find more details on reproducing the experiment in [quickstart.md](appwo
 
 ### 🧊 [Frozenlake Experiment](frozenlake/quickstart.md)
 
-|                                         without ReMe                                          |                                           with ReMe                                           |
-|:---------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------------------:|
-| <p align="center"><img src="../../figure/frozenlake_failure.gif" alt="GIF 1" width="30%"></p> | <p align="center"><img src="../../figure/frozenlake_success.gif" alt="GIF 2" width="30%"></p> |
+|                                            without ReMe                                            |                                             with ReMe                                              |
+|:--------------------------------------------------------------------------------------------------:|:--------------------------------------------------------------------------------------------------:|
+| <p align="center"><img src="../_static/figure/frozenlake_failure.gif" alt="GIF 1" width="30%"></p> | <p align="center"><img src="../_static/figure/frozenlake_success.gif" alt="GIF 2" width="30%"></p> |
 
 We tested on 100 random frozenlake maps using qwen3-8b:
 
@@ -40,3 +38,19 @@ We tested ReMe on BFCL-V3 multi-turn-base (randomly split 50train/150val) using 
 |--------------|---------------------|---------------------|---------------------|
 | without ReMe | 0.2472              | 0.2733              | 0.2922              |
 | with ReMe    | 0.3061 **(+5.89%)** | 0.3500 **(+7.67%)** | 0.3888 **(+9.66%)** |
+
+### 🛠️ [Tool Memory Benchmark](../tool_memory/tool_bench.md)
+
+We evaluated Tool Memory effectiveness using a controlled benchmark with three mock search tools using Qwen3-30B-Instruct:
+
+| Scenario              | Avg Score | Improvement        |
+|-----------------------|-----------|--------------------|
+| Train (No Memory)     | 0.650     | -                  |
+| Test (No Memory)      | 0.672     | Baseline           |
+| **Test (With Memory)** | **0.772** | **+14.88%** |
+
+**Key Findings:**
+- Tool Memory enables data-driven tool selection based on historical performance
+- Success rates improved by ~15% with learned parameter configurations
+
+You can find more details in [tool_bench.md](../tool_memory/tool_bench.md) and the implementation at [run_reme_tool_bench.py](https://github.com/modelscope/ReMe/tree/main/cookbook/tool_memory/run_reme_tool_bench.py).

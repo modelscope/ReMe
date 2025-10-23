@@ -1,3 +1,17 @@
+---
+jupytext:
+  formats: md:myst
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.11.5
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
+
 # 🚀 Vector Store API Guide
 
 This guide covers the vector store implementations available in flowllm, their APIs, and how to use them effectively.
@@ -35,7 +49,7 @@ All vector store implementations share these core methods:
 
 All vector stores provide both synchronous and asynchronous versions of every method:
 
-```python
+```{code-cell}
 # Synchronous methods
 store.search(query="example", workspace_id="workspace", top_k=5)
 store.insert(nodes, workspace_id="workspace")
@@ -47,7 +61,7 @@ await store.async_insert(nodes, workspace_id="workspace")
 
 ### Workspace Management
 
-```python
+```{code-cell}
 # Check if workspace exists
 store.exist_workspace(workspace_id: str) -> bool
 
@@ -63,7 +77,7 @@ store.copy_workspace(src_workspace_id: str, dest_workspace_id: str, **kwargs)
 
 ### Data Operations
 
-```python
+```{code-cell}
 # Insert nodes (single or list)
 store.insert(nodes: VectorNode | List[VectorNode], workspace_id: str, **kwargs)
 
@@ -80,7 +94,7 @@ for node in store.iter_workspace_nodes(workspace_id: str, **kwargs):
 
 ### Import/Export
 
-```python
+```{code-cell}
 # Export workspace to file
 store.dump_workspace(workspace_id: str, path: str | Path = "", callback_fn=None, **kwargs)
 
@@ -102,7 +116,7 @@ A simple file-based vector store that saves data to local JSONL files.
 
 #### ⚙️ Configuration
 
-```python
+```{code-cell}
 from flowllm.storage.vector_store import LocalVectorStore
 from flowllm.embedding_model import OpenAICompatibleEmbeddingModel
 from flowllm.utils.common_utils import load_env
@@ -123,7 +137,7 @@ vector_store = LocalVectorStore(
 
 #### 💻 Example Usage
 
-```python
+```{code-cell}
 from flowllm.schema.vector_node import VectorNode
 
 # Create workspace
@@ -168,7 +182,7 @@ An embedded vector database that provides persistent storage with advanced featu
 
 #### ⚙️ Configuration
 
-```python
+```{code-cell}
 from flowllm.storage.vector_store import ChromaVectorStore
 from flowllm.embedding_model import OpenAICompatibleEmbeddingModel
 from flowllm.utils.common_utils import load_env
@@ -189,7 +203,7 @@ vector_store = ChromaVectorStore(
 
 #### 💻 Example Usage
 
-```python
+```{code-cell}
 from flowllm.schema.vector_node import VectorNode
 
 workspace_id = "chroma_workspace"
@@ -266,7 +280,7 @@ export FLOW_ES_HOSTS=http://localhost:9200
 
 #### ⚙️ Configuration
 
-```python
+```{code-cell}
 from flowllm.storage.vector_store import EsVectorStore
 from flowllm.embedding_model import OpenAICompatibleEmbeddingModel
 from flowllm.utils.common_utils import load_env
@@ -291,7 +305,7 @@ vector_store = EsVectorStore(
 
 EsVectorStore supports advanced filtering capabilities through the `filter_dict` parameter:
 
-```python
+```{code-cell}
 # Term filters (exact match)
 term_filter = {
     "category": "technology",
@@ -317,7 +331,7 @@ results = vector_store.search("machine learning", workspace_id, top_k=10, filter
 
 #### ⚡ Performance Optimization
 
-```python
+```{code-cell}
 # Refresh index for immediate availability (useful after bulk inserts)
 vector_store.insert(nodes, workspace_id, refresh=True)  # Auto-refresh
 vector_store.refresh(workspace_id)  # Manual refresh
@@ -329,7 +343,7 @@ vector_store.refresh(workspace_id)  # Refresh once after all inserts
 
 #### 💻 Example Usage
 
-```python
+```{code-cell}
 from flowllm.schema.vector_node import VectorNode
 
 # Define workspace
@@ -385,7 +399,7 @@ An ultra-fast in-memory vector store that keeps all data in RAM for maximum perf
 
 #### ⚙️ Configuration
 
-```python
+```{code-cell}
 from flowllm.storage.vector_store import MemoryVectorStore
 from flowllm.embedding_model import OpenAICompatibleEmbeddingModel
 from flowllm.utils.common_utils import load_env
@@ -406,7 +420,7 @@ vector_store = MemoryVectorStore(
 
 #### 💻 Example Usage
 
-```python
+```{code-cell}
 from flowllm.schema.vector_node import VectorNode
 
 workspace_id = "memory_workspace"
@@ -472,7 +486,7 @@ vector_store.load_workspace(workspace_id, path="./backup")
 
 The `VectorNode` class is the fundamental data unit for all vector stores:
 
-```python
+```{code-cell}
 from flowllm.schema.vector_node import VectorNode
 
 # Create a node
@@ -493,7 +507,7 @@ node = VectorNode(
 
 Export and import workspaces for backup or transfer:
 
-```python
+```{code-cell}
 # Export workspace to file
 vector_store.dump_workspace(
     workspace_id="my_workspace",
@@ -517,7 +531,7 @@ vector_store.copy_workspace(
 
 All vector stores require an embedding model to function:
 
-```python
+```{code-cell}
 from flowllm.embedding_model import OpenAICompatibleEmbeddingModel
 
 # Initialize embedding model

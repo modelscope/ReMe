@@ -1,3 +1,17 @@
+---
+jupytext:
+  formats: md:myst
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.11.5
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
+
 # SOP Memory: Combining Atomic Operations into Complex Workflows
 
 ## 1. Background
@@ -20,7 +34,7 @@ framework.
 
 Each operation (Op) needs to define the following core attributes:
 
-```python
+```{code-cell}
 class BaseAsyncToolOp:
     description: str  # Description of the operation
     input_schema: Dict[str, ParamAttr]  # Input parameter schema definition
@@ -29,7 +43,7 @@ class BaseAsyncToolOp:
 
 Where `ParamAttr` defines parameter type, whether it's required, and other attributes:
 
-```python
+```{code-cell}
 class ParamAttr:
     type: Type  # Parameter type, such as str, int, Dict, etc.
     required: bool = True  # Whether it must be provided
@@ -43,7 +57,7 @@ class ParamAttr:
 
 First, instantiate the required atomic operations:
 
-```python
+```{code-cell}
 from flowllm.op.gallery.mock_op import MockOp
 from flowllm.op.search.tavily_search_op import TavilySearchOp
 from flowllm.op.agent.react_v2_op import ReactV2Op
@@ -62,7 +76,7 @@ summary_op = MockOp(
 
 Set up input-output relationships between operations, defining how data flows between them:
 
-```python
+```{code-cell}
 # Set input parameter sources
 react_op.set_input("context",
                    "search_summary")  # react_op's context parameter is retrieved from search_summary in memory
@@ -76,7 +90,7 @@ summary_op.set_output("summary", "search_summary")  # summary_op's summary outpu
 
 Use operators to build the operation flow graph, defining execution order and parallel relationships:
 
-```python
+```{code-cell}
 # Build operation flow graph
 flow = search_op >> summary_op >> react_op
 
@@ -94,7 +108,7 @@ Operator explanation:
 
 Encapsulate the built operation flow into a new composite operation class:
 
-```python
+```{code-cell}
 
 class SearchAndReactOp(BaseToolOp):
     description = "Search for information and generate a response based on search results"

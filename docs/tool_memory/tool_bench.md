@@ -1,3 +1,17 @@
+---
+jupytext:
+  formats: md:myst
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.11.5
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
+
 # Tool Memory Benchmark
 
 ## Overview
@@ -38,7 +52,7 @@ Each tool uses LLM to classify query complexity and generate appropriate respons
 Each epoch consists of 5 steps:
 
 #### Step 1: Train without Memory
-```python
+```{code-cell}
 # Execute all train queries on TRAIN_WORKSPACE
 # Agent selects tools without historical guidance
 run_use_mock_search(TRAIN_WORKSPACE, train_queries, prompt_template)
@@ -48,7 +62,7 @@ train_scored_results = add_tool_call_results(TRAIN_WORKSPACE, train_results)
 ```
 
 #### Step 2: Test without Memory
-```python
+```{code-cell}
 # Execute all test queries on TEST_WORKSPACE (fresh workspace)
 # Baseline performance without tool memory
 run_use_mock_search(TEST_WORKSPACE, test_queries, prompt_template)
@@ -58,7 +72,7 @@ test_scored_results = add_tool_call_results(TEST_WORKSPACE, test_results)
 ```
 
 #### Step 3: Summarize Tool Memory
-```python
+```{code-cell}
 # Summarize tool performance from TRAIN_WORKSPACE
 summarize_tool_memory(TRAIN_WORKSPACE, "SearchToolA,SearchToolB,SearchToolC")
 
@@ -72,7 +86,7 @@ The summarization produces memory content including:
 - Usage recommendations
 
 #### Step 4: Test with Memory
-```python
+```{code-cell}
 # Clear TEST_WORKSPACE to start fresh
 delete_workspace(TEST_WORKSPACE)
 
@@ -87,7 +101,7 @@ test_scored_results_with_memory = add_tool_call_results(TEST_WORKSPACE, test_res
 ```
 
 #### Step 5: Compare Results
-```python
+```{code-cell}
 # Generate comparison table
 print_comparison_table([train_no_memory_stats, test_no_memory_stats, test_with_memory_stats])
 
@@ -113,7 +127,7 @@ main(test_mode=False, run_epoch=3)
 
 ### 1. Tool Selection: UseMockSearchOp
 
-```python
+```{code-cell}
 # Agent uses LLM to select appropriate tool
 tool_call = await self.select_tool(query, [SearchToolA(), SearchToolB(), SearchToolC()])
 
@@ -139,7 +153,7 @@ Results are automatically evaluated and scored:
 
 ### 3. Tool Memory Schema
 
-```python
+```{code-cell}
 ToolMemory(
     workspace_id="workspace_id",
     memory_type="tool",
@@ -159,7 +173,7 @@ ToolMemory(
 - **Success Rate**: Percentage of successful executions
 
 ### Improvement Calculation
-```python
+```{code-cell}
 improvement_percentage = ((with_memory_score - without_memory_score) / without_memory_score) * 100
 ```
 

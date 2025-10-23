@@ -1,4 +1,18 @@
-# Tool Memory in ReMe
+---
+jupytext:
+  formats: md:myst
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.11.5
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
+
+# Tool Memory
 
 ## 1. Background: Why Tool Memory?
 
@@ -128,7 +142,7 @@ Tool Memory is a structured knowledge base that captures insights from tool usag
 
 `ToolMemory` is the core data structure that stores comprehensive information about a tool's usage patterns:
 
-```python
+```{code-cell}
 class ToolMemory(BaseMemory):
     memory_type: str = "tool"                    # Type identifier
     workspace_id: str                            # Workspace identifier
@@ -153,7 +167,7 @@ class ToolMemory(BaseMemory):
 
 Each tool invocation is captured as a `ToolCallResult`:
 
-```python
+```{code-cell}
 class ToolCallResult(BaseModel):
     create_time: str        # Invocation timestamp
     tool_name: str          # Name of the tool
@@ -231,7 +245,7 @@ graph LR
 
 Based on `use_tool_memory_demo.py`, here's a typical workflow:
 
-```python
+```{code-cell}
 # Step 1: Add tool call results (accumulate history)
 add_tool_call_results([
     {"tool_name": "web_search", "input": {...}, "output": "...", "success": True},
@@ -358,7 +372,7 @@ curl -X POST http://0.0.0.0:8002/add_tool_call_result \
 
 #### Usage with Python
 
-```python
+```{code-cell}
 import requests
 from datetime import datetime
 
@@ -468,7 +482,7 @@ curl -X POST http://0.0.0.0:8002/retrieve_tool_memory \
 
 #### Usage with Python
 
-```python
+```{code-cell}
 import requests
 
 def retrieve_tool_memory(tool_names: str) -> dict:
@@ -570,7 +584,7 @@ curl -X POST http://0.0.0.0:8002/summary_tool_memory \
 
 #### Usage with Python
 
-```python
+```{code-cell}
 import requests
 
 def summarize_tool_memory(tool_names: str) -> dict:
@@ -644,7 +658,7 @@ op:
 ### Quality Maintenance
 
 1. **Monitor Metrics**:
-```python
+```{code-cell}
    memory = retrieve_tool_memory("web_search")['metadata']['memory_list'][0]
    stats = ToolMemory(**memory).statistic(recent_frequency=30)
    
@@ -675,7 +689,7 @@ curl -X POST http://0.0.0.0:8002/vector_store \
   }'
 ```
 
-```python
+```{code-cell}
 def delete_workspace(workspace_id: str):
     response = requests.post(
         url=f"{BASE_URL}vector_store",
@@ -695,7 +709,7 @@ curl -X POST http://0.0.0.0:8002/vector_store \
   }'
 ```
 
-```python
+```{code-cell}
 def dump_memory(workspace_id: str, path: str = "./"):
     response = requests.post(
         url=f"{BASE_URL}vector_store",
@@ -715,7 +729,7 @@ curl -X POST http://0.0.0.0:8002/vector_store \
   }'
 ```
 
-```python
+```{code-cell}
 def load_memory(workspace_id: str, path: str = "./"):
     response = requests.post(
         url=f"{BASE_URL}vector_store",
