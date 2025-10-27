@@ -31,6 +31,24 @@ flow:
         description: "A list of conversation trajectory information, including message content and score. This field does not need to be filled in, the system will complete it automatically."
         required: false
 
+  retrieve_task_memory_simple:
+    flow_content: build_query_op >> recall_vector_store_op >> merge_memory_op
+    description: "Retrieves the most relevant top-k memory experiences from historical data based on the current query to enhance task-solving capabilities"
+    input_schema:
+      query:
+        type: string
+        description: "user query"
+        required: true
+
+  summary_task_memory_simple:
+    flow_content: simple_summary_op >> update_vector_store_op
+    description: "Summarizes conversation trajectories or messages into structured memory representations for long-term storage"
+    input_schema:
+      trajectories:
+        type: array
+        description: "A list of conversation trajectory information, including message content and score. This field does not need to be filled in, the system will complete it automatically."
+        required: false
+
   retrieve_personal_memory:
     flow_content: set_query_op >> (extract_time_op | (retrieve_memory_op >> semantic_rank_op)) >> fuse_rerank_op
     description: "Retrieves the most relevant personal memories from historical data based on the query to enhance response quality"
@@ -83,16 +101,7 @@ flow:
       query:
         type: string
         description: "User search query to process"
-        required: true 
-
-  summary_task_memory_simple:
-    flow_content: simple_summary_op >> update_vector_store_op
-    description: "Summarizes conversation trajectories or messages into memories using a simplified approach"
-    input_schema:
-      trajectories:
-        type: array
-        description: "A list of conversation trajectory information, including message content and score. This field does not need to be filled in, the system will complete it automatically."
-        required: false
+        required: true
 
   vector_store:
     flow_content: vector_store_action_op
