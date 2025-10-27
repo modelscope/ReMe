@@ -2,7 +2,7 @@ import os
 
 os.environ["FLOW_APP_NAME"] = "ReMe"
 
-__version__ = "0.1.10.4"
+__version__ = "0.1.10.5"
 
 from reme_ai.app import ReMeApp
 from . import agent

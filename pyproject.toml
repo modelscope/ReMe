@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reme_ai"
-version = "0.1.10.4"
+version = "0.1.10.5"
 description = "Remember me"
 authors = [
     { name = "jinli.yl", email = "jinli.yl@alibaba-inc.com" },
@@ -24,7 +24,7 @@ classifiers = [
 keywords = ["llm", "memory", "experience", "memoryscope", "ai", "mcp", "http"]
 
 dependencies = [
-    "flowllm[reme]>=0.1.11.4",
+    "flowllm[reme]>=0.1.11.5",
 ]
 
 [project.optional-dependencies]
