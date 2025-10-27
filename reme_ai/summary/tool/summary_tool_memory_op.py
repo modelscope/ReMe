@@ -1,5 +1,5 @@
 import asyncio
-from typing import List
+from typing import List, Union
 
 from flowllm import C, BaseAsyncOp
 from flowllm.enumeration.role import Role
@@ -124,7 +124,7 @@ class SummaryToolMemoryOp(BaseAsyncOp):
         return result
 
     async def async_execute(self):
-        tool_names: str = self.context.get("tool_names", "")
+        tool_names: Union[str, List[str]] = self.context.get("tool_names", "")
         workspace_id: str = self.context.workspace_id
 
         if not tool_names:
@@ -133,8 +133,14 @@ class SummaryToolMemoryOp(BaseAsyncOp):
             self.context.response.success = False
             return
 
-        # Split tool names by comma
-        tool_name_list = [name.strip() for name in tool_names.split(",") if name.strip()]
+        # Normalize tool_names to list
+        if isinstance(tool_names, str):
+            # Split tool names by comma
+            tool_name_list = [name.strip() for name in tool_names.split(",") if name.strip()]
+        else:
+            # Already a list
+            tool_name_list = [name.strip() for name in tool_names if name.strip()]
+
         logger.info(f"workspace_id={workspace_id} processing {len(tool_name_list)} tools: {tool_name_list}")
 
         # Search for each tool in the vector store
