@@ -12,7 +12,7 @@ kernelspec:
   name: python3
 ---
 
-# 🚀 Vector Store API Guide
+# Vector Store API Guide
 
 This guide covers the vector store implementations available in ReMe, their APIs, and how to use them effectively.
 

@@ -28,12 +28,12 @@ class ReMeApp(FlowLLMApp):
     """
 
     def __init__(self,
+                 *args,
                  llm_api_key: str = None,
                  llm_api_base: str = None,
                  embedding_api_key: str = None,
                  embedding_api_base: str = None,
                  config_path: str = None,
-                 *args,
                  **kwargs):
         """
         Initialize ReMeApp with configuration for LLM, embeddings, and vector stores.
@@ -59,6 +59,29 @@ class ReMeApp(FlowLLMApp):
         Both approaches accept the same configuration parameters and produce identical results.
 
         Args:
+            *args: Additional command-line style arguments passed to parser.
+                These parameters are identical to the command-line startup parameters in README.
+
+                Common configuration examples:
+                For complete configuration reference, see: reme_ai/config/default.yaml
+
+                LLM Configuration:
+                - "llm.default.model_name=qwen3-30b-a3b-thinking-2507" - Set LLM model
+                - "llm.default.backend=openai_compatible" - Set LLM backend type
+                - "llm.default.params={'temperature': '0.6'}" - Set model parameters
+
+                Embedding Configuration:
+                - "embedding_model.default.model_name=text-embedding-v4" - Set embedding model
+                - "embedding_model.default.backend=openai_compatible" - Set embedding backend
+                - "embedding_model.default.params={'dimensions': 1024}" - Embedding parameters
+
+                Vector Store Configuration:
+                - "vector_store.default.backend=local" - Use local vector store
+                - "vector_store.default.backend=memory" - Use memory vector store
+                - "vector_store.default.backend=qdrant" - Use Qdrant vector store
+                - "vector_store.default.backend=elasticsearch" - Use Elasticsearch
+                - "vector_store.default.embedding_model=default" - Link vector store to embedding model
+                - "vector_store.default.params={'collection_name': 'my_memories'}" - Vector store parameters
             llm_api_key: API key for LLM service (e.g., OpenAI, Claude).
                 If provided, this will override the FLOW_LLM_API_KEY environment variable.
                 Environment variable: FLOW_LLM_API_KEY
@@ -76,30 +99,6 @@ class ReMeApp(FlowLLMApp):
             config_path: Path to custom configuration YAML file. If provided, loads configuration from this file.
                 Example: "path/to/my_config.yaml"
                 This overrides the default configuration with your custom settings.
-            *args: Additional command-line style arguments passed to parser. 
-                These parameters are identical to the command-line startup parameters in README.
-                
-                Common configuration examples:
-                For complete configuration reference, see: reme_ai/config/default.yaml
-                
-                LLM Configuration:
-                - "llm.default.model_name=qwen3-30b-a3b-thinking-2507" - Set LLM model
-                - "llm.default.backend=openai_compatible" - Set LLM backend type
-                - "llm.default.params={'temperature': '0.6'}" - Set model parameters
-                
-                Embedding Configuration:
-                - "embedding_model.default.model_name=text-embedding-v4" - Set embedding model
-                - "embedding_model.default.backend=openai_compatible" - Set embedding backend
-                - "embedding_model.default.params={'dimensions': 1024}" - Embedding parameters
-                
-                Vector Store Configuration:
-                - "vector_store.default.backend=local" - Use local vector store
-                - "vector_store.default.backend=memory" - Use memory vector store
-                - "vector_store.default.backend=qdrant" - Use Qdrant vector store
-                - "vector_store.default.backend=elasticsearch" - Use Elasticsearch
-                - "vector_store.default.embedding_model=default" - Link vector store to embedding model
-                - "vector_store.default.params={'collection_name': 'my_memories'}" - Vector store parameters
-                
             **kwargs: Additional keyword arguments passed to parser. Same format as args but as key-value pairs.
                 Example: model_name="gpt-4", temperature=0.7
         
@@ -118,7 +117,8 @@ class ReMeApp(FlowLLMApp):
             - README.md "Environment Configuration" for environment variable setup
             - example.env for all available environment variables
         """
-        super().__init__(llm_api_key=llm_api_key,
+        super().__init__(*args,
+                         llm_api_key=llm_api_key,
                          llm_api_base=llm_api_base,
                          embedding_api_key=embedding_api_key,
                          embedding_api_base=embedding_api_base,
@@ -126,7 +126,6 @@ class ReMeApp(FlowLLMApp):
                          parser=ConfigParser,
                          config_path=config_path,
                          load_default_config=True,
-                         args=args,
                          **kwargs)
 
     async def async_execute(self, name: str, **kwargs) -> dict:
