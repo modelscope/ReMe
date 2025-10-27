@@ -3,11 +3,11 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Use Library" href="use_library.html"><link rel="prev" title="Quick Start" href="../quick_start.html">
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Personal Memory" href="../personal_memory/personal_memory.html"><link rel="prev" title="Quick Start" href="../quick_start.html">
         <link rel="prefetch" href="../_static/logo.svg" as="image">
 
-    <!-- Generated with Sphinx 7.4.7 and Furo 2025.09.25 -->
-        <title>Memory Library - AgentScope ReMe</title>
+    <!-- Generated with Sphinx 8.2.3 and Furo 2025.09.25 -->
+        <title>Ready-to-Use Memories - AgentScope ReMe</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d75fae25" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=580074bf" />
     <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=13237357" />
@@ -209,14 +209,10 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">Setup Guide</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">Library</span></p>
-<ul class="current">
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Memory Library</a></li>
-<li class="toctree-l1"><a class="reference internal" href="use_library.html">Use Library</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Ready-to-Use Memories</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Personal Memory</span></p>
 <ul>
@@ -227,20 +223,20 @@
 <p class="caption" role="heading"><span class="caption-text">Task Memory</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../task_memory/task_memory.html">Task Memory</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../task_memory/task_retrieve_ops.html">Task Memory Retrieval Operations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../task_memory/task_summary_ops.html">Task Summary Operations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../task_memory/task_retrieve_ops.html">Task Memory Retrieval Ops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../task_memory/task_summary_ops.html">Task Memory Summary Ops</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tool Memory</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../tool_memory/tool_memory.html">Tool Memory</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../tool_memory/tool_retrieve_ops.html">Tool Memory Retrieval Operations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../tool_memory/tool_summary_ops.html">Tool Memory Summary Operations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tool_memory/tool_retrieve_ops.html">Tool Memory Retrieval Ops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tool_memory/tool_summary_ops.html">Tool Memory Summary Ops</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tool_memory/tool_bench.html">Tool Memory Benchmark</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Extensions</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../mcp_quick_start.html">MCP Quick Start Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../vector_store_api_guide.html">🚀 Vector Store API Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vector_store_api_guide.html">Vector Store API Guide</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Experiments</span></p>
 <ul>
@@ -288,8 +284,8 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section class="tex2jax_ignore mathjax_ignore" id="memory-library">
-<h1>Memory Library<a class="headerlink" href="#memory-library" title="Link to this heading">¶</a></h1>
+          <section class="tex2jax_ignore mathjax_ignore" id="ready-to-use-memories">
+<h1>Ready-to-Use Memories<a class="headerlink" href="#ready-to-use-memories" title="Link to this heading">¶</a></h1>
 <div id="memory-lib-root" class="ml-prose-container">
   <!-- 工具条 -->
   <div class="ml-card">
@@ -298,7 +294,7 @@
         <svg class="ml-icon" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
         </svg>
-        <input id="ml-search" placeholder="Search libraries or memories..." />
+        <input id="ml-search" placeholder="Search memories..." />
       </div>
       <button id="ml-clear" class="ml-btn secondary">Clear</button>
     </div>
@@ -309,17 +305,17 @@
   <!-- 加载/错误 -->
   <div id="ml-loading" class="ml-loading">
     <div class="ml-spinner" aria-label="Loading"></div>
-    <div class="ml-muted">Loading memory library…</div>
+    <div class="ml-muted">Loading memories…</div>
   </div>
   <div id="ml-error" class="ml-error" hidden>
     <div class="ml-error-icon">⚠️</div>
-    <div class="ml-muted">Failed to load memory library.</div>
+    <div class="ml-muted">Failed to load memories.</div>
     <button id="ml-retry" class="ml-btn">Try again</button>
   </div>
   <!-- 面包屑 -->
   <div id="ml-crumb" class="ml-crumb" hidden>
-    <button id="ml-back" class="ml-link">← Back to Libraries</button>
-    <div class="ml-crumb-title" id="ml-crumb-title">Libraries</div>
+    <button id="ml-back" class="ml-link">← Back to memory home</button>
+    <div class="ml-crumb-title" id="ml-crumb-title">memories</div>
   </div>
   <!-- 列表容器 -->
   <div id="ml-libraries" class="ml-stacked" hidden></div>
@@ -404,12 +400,12 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="use_library.html">
+          <a class="next-page" href="../personal_memory/personal_memory.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Use Library</div>
+                <div class="title">Personal Memory</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -433,7 +429,7 @@
             Made with 
             <a href="https://github.com/pradyunsg/furo">Furo</a>
             <div class="last-updated">
-              Last updated on 2025-10-23</div>
+              Last updated on 2025-10-27</div>
           </div>
           <div class="right-details">
             <div class="icons">
@@ -455,7 +451,7 @@
     </aside>
   </div>
 </div><script src="../_static/documentation_options.js?v=a8e58a58"></script>
-    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -469,8 +465,6 @@
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
     <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
     <script async="async" src="../_static/sphinx-thebe.js?v=c100c467"></script>
-    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
-    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
     <script src="../_static/language.js"></script>
     <script src="../_static/memory-lib/memory-lib.js?v=d34abfda"></script>
     </body>
