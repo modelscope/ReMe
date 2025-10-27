@@ -23,6 +23,25 @@ class SummaryToolMemoryOp(BaseAsyncOp):
         self.recent_call_count: int = recent_call_count
         self.summary_sleep_interval: float = summary_sleep_interval
 
+    def _format_summary_result(self, summarized_memories: List[ToolMemory], skipped_memories: List[ToolMemory]) -> str:
+        """Format tool memory summary result"""
+        lines = []
+        
+        # 统计信息
+        total_tools = len(summarized_memories) + len(skipped_memories)
+        lines.append(f"Processed {total_tools} tool(s): {len(summarized_memories)} summarized, {len(skipped_memories)} skipped\n")
+        
+        # 显示已总结的工具详细信息
+        if summarized_memories:
+            for idx, memory in enumerate(summarized_memories, 1):
+                lines.append(f"Tool: {memory.when_to_use}")
+                lines.append(memory.content)
+                
+                if idx < len(summarized_memories):
+                    lines.append("\n---\n")
+        
+        return "\n".join(lines)
+
     @staticmethod
     def _format_call_summaries_markdown(recent_calls: List) -> str:
         """Format tool call summaries as markdown."""
@@ -180,10 +199,11 @@ class SummaryToolMemoryOp(BaseAsyncOp):
         # Combine summarized and skipped memories
         all_memories = valid_summarized_memories + tools_skipped
 
+        # Format summary result
+        formatted_answer = self._format_summary_result(valid_summarized_memories, tools_skipped)
+
         # Set response
-        self.context.response.answer = (f"Successfully processed {len(all_memories)} tool memories: "
-                                       f"{len(valid_summarized_memories)} summarized, "
-                                       f"{len(tools_skipped)} skipped (already up-to-date)")
+        self.context.response.answer = formatted_answer
         self.context.response.success = True
         self.context.response.metadata["memory_list"] = all_memories
         self.context.response.metadata["deleted_memory_ids"] = [m.memory_id for m in all_memories]

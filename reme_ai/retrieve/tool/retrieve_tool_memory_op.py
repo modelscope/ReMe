@@ -14,6 +14,20 @@ class RetrieveToolMemoryOp(BaseAsyncOp):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+    def _format_tool_memories(self, memories: List[ToolMemory]) -> str:
+        """Format tool memories into a structured document format"""
+        lines = []
+        lines.append(f"Retrieved {len(memories)} tool memory(ies):\n")
+
+        for idx, memory in enumerate(memories, 1):
+            lines.append(f"Tool: {memory.when_to_use}")
+            lines.append(memory.content)
+            
+            if idx < len(memories):
+                lines.append("\n---\n")
+
+        return "\n".join(lines)
+
     async def async_execute(self):
         tool_names: str = self.context.get("tool_names", "")
         workspace_id: str = self.context.workspace_id
@@ -59,8 +73,11 @@ class RetrieveToolMemoryOp(BaseAsyncOp):
             self.context.response.success = False
             return
 
+        # Format tool memories as document
+        formatted_answer = self._format_tool_memories(matched_tool_memories)
+
         # Set response
-        self.context.response.answer = f"Successfully retrieved {len(matched_tool_memories)} tool memories"
+        self.context.response.answer = formatted_answer
         self.context.response.success = True
         self.context.response.metadata["memory_list"] = matched_tool_memories
 

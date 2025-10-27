@@ -7,7 +7,7 @@ from reme_ai import ReMeApp
 # Task Memory Management Examples
 # ============================================
 
-async def summary_task_memory():
+async def summary_task_memory(app: ReMeApp):
     """
     Experience Summarizer: Learn from execution trajectories
     
@@ -20,28 +20,23 @@ async def summary_task_memory():
         ]
       }'
     """
-    async with ReMeApp(
-        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
-        "embedding_model.default.model_name=text-embedding-v4",
-        "vector_store.default.backend=memory"
-    ) as app:
-        result = await app.async_execute(
-            name="summary_task_memory",
-            workspace_id="task_workspace",
-            trajectories=[
-                {
-                    "messages": [
-                        {"role": "user", "content": "Help me create a project plan"}
-                    ],
-                    "score": 1.0
-                }
-            ]
-        )
-        print("Summary Task Memory Result:")
-        print(result)
+    result = await app.async_execute(
+        name="summary_task_memory",
+        workspace_id="task_workspace",
+        trajectories=[
+            {
+                "messages": [
+                    {"role": "user", "content": "Help me create a project plan"}
+                ],
+                "score": 1.0
+            }
+        ]
+    )
+    print("Summary Task Memory Result:")
+    print(result["answer"])
 
 
-async def retrieve_task_memory():
+async def retrieve_task_memory(app: ReMeApp):
     """
     Retriever: Get relevant memories
     
@@ -53,26 +48,21 @@ async def retrieve_task_memory():
         "top_k": 1
       }'
     """
-    async with ReMeApp(
-        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
-        "embedding_model.default.model_name=text-embedding-v4",
-        "vector_store.default.backend=memory"
-    ) as app:
-        result = await app.async_execute(
-            name="retrieve_task_memory",
-            workspace_id="task_workspace",
-            query="How to efficiently manage project progress?",
-            top_k=1
-        )
-        print("Retrieve Task Memory Result:")
-        print(result)
+    result = await app.async_execute(
+        name="retrieve_task_memory",
+        workspace_id="task_workspace",
+        query="How to efficiently manage project progress?",
+        top_k=1
+    )
+    print("Retrieve Task Memory Result:")
+    print(result["answer"])
 
 
 # ============================================
 # Personal Memory Management Examples
 # ============================================
 
-async def summary_personal_memory():
+async def summary_personal_memory(app: ReMeApp):
     """
     Memory Integration: Learn from user interactions
     
@@ -88,29 +78,24 @@ async def summary_personal_memory():
         ]
       }'
     """
-    async with ReMeApp(
-        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
-        "embedding_model.default.model_name=text-embedding-v4",
-        "vector_store.default.backend=memory"
-    ) as app:
-        result = await app.async_execute(
-            name="summary_personal_memory",
-            workspace_id="task_workspace",
-            trajectories=[
-                {
-                    "messages": [
-                        {"role": "user", "content": "I like to drink coffee while working in the morning"},
-                        {"role": "assistant",
-                         "content": "I understand, you prefer to start your workday with coffee to stay energized"}
-                    ]
-                }
-            ]
-        )
-        print("Summary Personal Memory Result:")
-        print(result)
+    result = await app.async_execute(
+        name="summary_personal_memory",
+        workspace_id="task_workspace",
+        trajectories=[
+            {
+                "messages": [
+                    {"role": "user", "content": "I like to drink coffee while working in the morning"},
+                    {"role": "assistant",
+                     "content": "I understand, you prefer to start your workday with coffee to stay energized"}
+                ]
+            }
+        ]
+    )
+    print("Summary Personal Memory Result:")
+    print(result["answer"])
 
 
-async def retrieve_personal_memory():
+async def retrieve_personal_memory(app: ReMeApp):
     """
     Memory Retrieval: Get personal memory fragments
     
@@ -122,26 +107,21 @@ async def retrieve_personal_memory():
         "top_k": 5
       }'
     """
-    async with ReMeApp(
-        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
-        "embedding_model.default.model_name=text-embedding-v4",
-        "vector_store.default.backend=memory"
-    ) as app:
-        result = await app.async_execute(
-            name="retrieve_personal_memory",
-            workspace_id="task_workspace",
-            query="What are the user's work habits?",
-            top_k=5
-        )
-        print("Retrieve Personal Memory Result:")
-        print(result)
+    result = await app.async_execute(
+        name="retrieve_personal_memory",
+        workspace_id="task_workspace",
+        query="What are the user's work habits?",
+        top_k=5
+    )
+    print("Retrieve Personal Memory Result:")
+    print(result["answer"])
 
 
 # ============================================
 # Tool Memory Management Examples
 # ============================================
 
-async def add_tool_call_result():
+async def add_tool_call_result(app: ReMeApp):
     """
     Record tool execution results
     
@@ -162,31 +142,26 @@ async def add_tool_call_result():
         ]
       }'
     """
-    async with ReMeApp(
-        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
-        "embedding_model.default.model_name=text-embedding-v4",
-        "vector_store.default.backend=memory"
-    ) as app:
-        result = await app.async_execute(
-            name="add_tool_call_result",
-            workspace_id="tool_workspace",
-            tool_call_results=[
-                {
-                    "create_time": "2025-10-21 10:30:00",
-                    "tool_name": "web_search",
-                    "input": {"query": "Python asyncio tutorial", "max_results": 10},
-                    "output": "Found 10 relevant results...",
-                    "token_cost": 150,
-                    "success": True,
-                    "time_cost": 2.3
-                }
-            ]
-        )
-        print("Add Tool Call Result:")
-        print(result)
+    result = await app.async_execute(
+        name="add_tool_call_result",
+        workspace_id="tool_workspace",
+        tool_call_results=[
+            {
+                "create_time": "2025-10-21 10:30:00",
+                "tool_name": "web_search",
+                "input": {"query": "Python asyncio tutorial", "max_results": 10},
+                "output": "Found 10 relevant results...",
+                "token_cost": 150,
+                "success": True,
+                "time_cost": 2.3
+            }
+        ]
+    )
+    print("Add Tool Call Result:")
+    print(result["answer"])
 
 
-async def summary_tool_memory():
+async def summary_tool_memory(app: ReMeApp):
     """
     Generate usage guidelines from history
     
@@ -197,21 +172,16 @@ async def summary_tool_memory():
         "tool_names": "web_search"
       }'
     """
-    async with ReMeApp(
-        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
-        "embedding_model.default.model_name=text-embedding-v4",
-        "vector_store.default.backend=memory"
-    ) as app:
-        result = await app.async_execute(
-            name="summary_tool_memory",
-            workspace_id="tool_workspace",
-            tool_names="web_search"
-        )
-        print("Summary Tool Memory Result:")
-        print(result)
+    result = await app.async_execute(
+        name="summary_tool_memory",
+        workspace_id="tool_workspace",
+        tool_names="web_search"
+    )
+    print("Summary Tool Memory Result:")
+    print(result["answer"])
 
 
-async def retrieve_tool_memory():
+async def retrieve_tool_memory(app: ReMeApp):
     """
     Retrieve tool guidelines before use
     
@@ -222,25 +192,20 @@ async def retrieve_tool_memory():
         "tool_names": "web_search"
       }'
     """
-    async with ReMeApp(
-        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
-        "embedding_model.default.model_name=text-embedding-v4",
-        "vector_store.default.backend=memory"
-    ) as app:
-        result = await app.async_execute(
-            name="retrieve_tool_memory",
-            workspace_id="tool_workspace",
-            tool_names="web_search"
-        )
-        print("Retrieve Tool Memory Result:")
-        print(result)
+    result = await app.async_execute(
+        name="retrieve_tool_memory",
+        workspace_id="tool_workspace",
+        tool_names="web_search"
+    )
+    print("Retrieve Tool Memory Result:")
+    print(result["answer"])
 
 
 # ============================================
 # Vector Store Management Example
 # ============================================
 
-async def load_vector_store():
+async def load_vector_store(app: ReMeApp):
     """
     Load pre-built memories
     
@@ -252,19 +217,14 @@ async def load_vector_store():
         "path": "./docs/library/"
       }'
     """
-    async with ReMeApp(
-        "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
-        "embedding_model.default.model_name=text-embedding-v4",
-        "vector_store.default.backend=memory"
-    ) as app:
-        result = await app.async_execute(
-            name="vector_store",
-            workspace_id="appworld",
-            action="load",
-            path="./docs/library/"
-        )
-        print("Load Vector Store Result:")
-        print(result)
+    result = await app.async_execute(
+        name="vector_store",
+        workspace_id="appworld",
+        action="load",
+        path="./docs/library/"
+    )
+    print("Load Vector Store Result:")
+    print(result["answer"])
 
 
 # ============================================
@@ -273,33 +233,33 @@ async def load_vector_store():
 
 async def main():
     """Run all examples"""
-    print("=" * 60)
-    print("Task Memory Examples")
-    print("=" * 60)
-    await summary_task_memory()
-    print("\n")
-    await retrieve_task_memory()
-    
-    print("\n" + "=" * 60)
-    print("Personal Memory Examples")
-    print("=" * 60)
-    await summary_personal_memory()
-    print("\n")
-    await retrieve_personal_memory()
-    
-    print("\n" + "=" * 60)
-    print("Tool Memory Examples")
-    print("=" * 60)
-    await add_tool_call_result()
-    print("\n")
-    await summary_tool_memory()
-    print("\n")
-    await retrieve_tool_memory()
-    
-    print("\n" + "=" * 60)
-    print("Vector Store Examples")
-    print("=" * 60)
-    await load_vector_store()
+    async with ReMeApp(
+            "llm.default.model_name=qwen3-30b-a3b-thinking-2507",
+            "embedding_model.default.model_name=text-embedding-v4",
+            "vector_store.default.backend=memory"
+    ) as app:
+        print("=" * 60)
+        print("Task Memory Examples")
+        print("=" * 60)
+        await summary_task_memory(app)
+        print("\n")
+        await retrieve_task_memory(app)
+
+        print("\n" + "=" * 60)
+        print("Personal Memory Examples")
+        print("=" * 60)
+        await summary_personal_memory(app)
+        print("\n")
+        await retrieve_personal_memory(app)
+
+        print("\n" + "=" * 60)
+        print("Tool Memory Examples")
+        print("=" * 60)
+        await add_tool_call_result(app)
+        print("\n")
+        await summary_tool_memory(app)
+        print("\n")
+        await retrieve_tool_memory(app)
 
 
 if __name__ == "__main__":

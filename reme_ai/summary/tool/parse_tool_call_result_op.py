@@ -24,6 +24,37 @@ class ParseToolCallResultOp(BaseAsyncOp):
         self.max_history_tool_call_cnt: int = max_history_tool_call_cnt
         self.evaluation_sleep_interval: float = evaluation_sleep_interval
 
+    def _format_tool_memories_summary(self, memory_list: List[ToolMemory], deleted_memory_ids: List[str]) -> str:
+        """Format tool memories update summary"""
+        lines = []
+        
+        # 统计信息
+        total_tools = len(memory_list)
+        updated_tools = len(deleted_memory_ids)
+        new_tools = total_tools - updated_tools
+        
+        lines.append(f"Processed {total_tools} tool(s): {updated_tools} updated, {new_tools} newly created\n")
+        
+        # 详细信息
+        for idx, memory in enumerate(memory_list, 1):
+            is_updated = memory.memory_id in deleted_memory_ids
+            status = "Updated" if is_updated else "New"
+            
+            lines.append(f"[{status}] {memory.when_to_use}")
+            lines.append(f"  Total calls: {len(memory.tool_call_results)}")
+            
+            # 显示最近添加的调用结果统计
+            if memory.tool_call_results:
+                recent_results = memory.tool_call_results[-3:]
+                success_count = sum(1 for r in recent_results if r.success)
+                avg_score = sum(r.score for r in recent_results) / len(recent_results)
+                lines.append(f"  Recent calls: {success_count}/{len(recent_results)} successful, avg score: {avg_score:.2f}")
+            
+            if idx < len(memory_list):
+                lines.append("")
+        
+        return "\n".join(lines)
+
     async def _evaluate_single_tool_call(self, tool_call_result: ToolCallResult, index: int) -> ToolCallResult:
         await asyncio.sleep(self.evaluation_sleep_interval * index)
 
@@ -127,7 +158,12 @@ class ParseToolCallResultOp(BaseAsyncOp):
 
             all_memory_list.append(tool_memory)
 
+        # 格式化结果信息
+        formatted_answer = self._format_tool_memories_summary(all_memory_list, all_deleted_memory_ids)
+        
         # 设置返回结果
+        self.context.response.answer = formatted_answer
+        self.context.response.success = True
         self.context.response.metadata["deleted_memory_ids"] = all_deleted_memory_ids
         self.context.response.metadata["memory_list"] = all_memory_list
 
