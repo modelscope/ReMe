@@ -12,7 +12,7 @@ kernelspec:
   name: python3
 ---
 
-# Tool Memory Summary Operations
+# Tool Memory Summary Ops
 
 ## ParseToolCallResultOp
 

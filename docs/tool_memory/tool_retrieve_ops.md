@@ -1,4 +1,4 @@
-# Tool Memory Retrieval Operations
+# Tool Memory Retrieval Ops
 
 ## RetrieveToolMemoryOp
 

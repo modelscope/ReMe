@@ -1,4 +1,4 @@
-# Task Memory Retrieval Operations
+# Task Memory Retrieval Ops
 
 ## BuildQueryOp
 

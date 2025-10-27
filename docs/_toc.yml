@@ -6,11 +6,7 @@ parts:
     chapters:
       - file: installation
       - file: quick_start
-
-  - caption: Library
-    chapters:
       - file: library/library
-      - file: library/use_library
 
   - caption: Personal Memory
     chapters:

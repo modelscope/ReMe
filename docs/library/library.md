@@ -1,4 +1,4 @@
-# Memory Library
+# Ready-to-Use Memories
 
 <div id="memory-lib-root" class="ml-prose-container">
   <!-- 工具条 -->
@@ -8,7 +8,7 @@
         <svg class="ml-icon" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
         </svg>
-        <input id="ml-search" placeholder="Search libraries or memories..." />
+        <input id="ml-search" placeholder="Search memories..." />
       </div>
       <button id="ml-clear" class="ml-btn secondary">Clear</button>
     </div>
@@ -20,18 +20,18 @@
   <!-- 加载/错误 -->
   <div id="ml-loading" class="ml-loading">
     <div class="ml-spinner" aria-label="Loading"></div>
-    <div class="ml-muted">Loading memory library…</div>
+    <div class="ml-muted">Loading memories…</div>
   </div>
   <div id="ml-error" class="ml-error" hidden>
     <div class="ml-error-icon">⚠️</div>
-    <div class="ml-muted">Failed to load memory library.</div>
+    <div class="ml-muted">Failed to load memories.</div>
     <button id="ml-retry" class="ml-btn">Try again</button>
   </div>
 
   <!-- 面包屑 -->
   <div id="ml-crumb" class="ml-crumb" hidden>
-    <button id="ml-back" class="ml-link">← Back to Libraries</button>
-    <div class="ml-crumb-title" id="ml-crumb-title">Libraries</div>
+    <button id="ml-back" class="ml-link">← Back to memory home</button>
+    <div class="ml-crumb-title" id="ml-crumb-title">memories</div>
   </div>
 
   <!-- 列表容器 -->

@@ -601,15 +601,15 @@ fetch("http://localhost:8002/retrieve_tool_memory", {
 
 ---
 
-## 📦 Ready-to-Use Libraries
+## 📦 Ready-to-Use Memories
 
-ReMe provides pre-built memory libraries that agents can immediately use with verified best practices:
+ReMe provides pre-built memories that agents can immediately use with verified best practices:
 
-### Available Libraries
+### Available Memories
 
-- **`appworld.jsonl`**: Memory library for Appworld agent interactions, covering complex task planning and execution
+- **`appworld.jsonl`**: Memory for Appworld agent interactions, covering complex task planning and execution
   patterns
-- **`bfcl_v3.jsonl`**: Working memory library for BFCL tool calls
+- **`bfcl_v3.jsonl`**: Working memory for BFCL tool calls
 
 ### Quick Usage
 
