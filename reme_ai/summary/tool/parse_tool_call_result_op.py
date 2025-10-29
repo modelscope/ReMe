@@ -25,6 +25,67 @@ class ParseToolCallResultOp(BaseAsyncOp):
         self.evaluation_sleep_interval: float = evaluation_sleep_interval
 
     @staticmethod
+    def _is_valid_tool_call_result(tool_call_result: ToolCallResult) -> bool:
+        """
+        Validate if a tool call result is valid and should be processed.
+        
+        Args:
+            tool_call_result: The tool call result to validate
+            
+        Returns:
+            True if valid, False otherwise
+        """
+        # Check if tool_name is provided
+        if not tool_call_result.tool_name or not tool_call_result.tool_name.strip():
+            logger.warning("Skipping tool_call_result: tool_name is empty")
+            return False
+
+        # Check if output is provided (empty output means no useful result)
+        if not tool_call_result.output or not str(tool_call_result.output).strip():
+            logger.warning(f"Skipping tool_call_result for {tool_call_result.tool_name}: output is empty")
+            return False
+
+        # Check if input is provided
+        if tool_call_result.input is None or (
+                isinstance(tool_call_result.input, str) and not tool_call_result.input.strip()
+        ) or (
+                isinstance(tool_call_result.input, dict) and not tool_call_result.input
+        ):
+            logger.warning(f"Skipping tool_call_result for {tool_call_result.tool_name}: input is empty")
+            return False
+
+        return True
+
+    @staticmethod
+    def _estimate_token_cost(tool_call_result: ToolCallResult) -> int:
+        """
+        Estimate token cost based on input and output length.
+        Uses the approximation: token_count ≈ char_count / 4
+        
+        Args:
+            tool_call_result: The tool call result to estimate tokens for
+            
+        Returns:
+            Estimated token count as an integer
+        """
+        # Convert input to string
+        if isinstance(tool_call_result.input, dict):
+            input_str = str(tool_call_result.input)
+        else:
+            input_str = str(tool_call_result.input)
+
+        # Get output string
+        output_str = str(tool_call_result.output)
+
+        # Calculate total character count
+        total_chars = len(input_str) + len(output_str)
+
+        # Estimate tokens (1 token ≈ 4 characters for English text)
+        estimated_tokens = total_chars // 4
+
+        return estimated_tokens
+
+    @staticmethod
     def _format_tool_memories_summary(memory_list: List[ToolMemory], deleted_memory_ids: List[str]) -> str:
         """Format tool memories update summary"""
         lines = []
@@ -107,12 +168,41 @@ class ParseToolCallResultOp(BaseAsyncOp):
             self.context.response.success = False
             return
 
-        # 确保所有 tool_call_results 都有 hash 值
+        # 过滤和验证 tool_call_results
+        original_count = len(tool_call_results)
+        valid_tool_call_results = []
+        
         for tool_call_result in tool_call_results:
+            # 验证数据是否有效
+            if not self._is_valid_tool_call_result(tool_call_result):
+                continue
+
+            # 确保有 hash 值
             tool_call_result.ensure_hash()
 
+            # 如果 token_cost 未设置（默认值 -1），则自动计算
+            if tool_call_result.token_cost < 0:
+                token_cost = self._estimate_token_cost(tool_call_result)
+                tool_call_result.token_cost = token_cost
+                logger.info(f"Auto-calculated token_cost={token_cost} for tool={tool_call_result.tool_name}")
+
+            valid_tool_call_results.append(tool_call_result)
+
+        # 记录过滤统计
+        filtered_count = original_count - len(valid_tool_call_results)
+        if filtered_count > 0:
+            logger.warning(f"Filtered out {filtered_count} invalid tool_call_results out of {original_count}")
+
+        # 如果所有记录都被过滤了
+        if not valid_tool_call_results:
+            self.context.response.answer = f"All {original_count} tool_call_results were invalid and filtered out"
+            self.context.response.success = False
+            return
+
+        logger.info(f"Processing {len(valid_tool_call_results)} valid tool_call_results")
+
         # 使用基类的 submit_async_task 提交所有评估任务
-        for index, tool_call_result in enumerate(tool_call_results):
+        for index, tool_call_result in enumerate(valid_tool_call_results):
             self.submit_async_task(self._evaluate_single_tool_call, tool_call_result, index)
 
         # 使用基类的 join_async_task 等待所有任务完成
@@ -182,6 +272,14 @@ class ParseToolCallResultOp(BaseAsyncOp):
 
         # 格式化结果信息
         formatted_answer = self._format_tool_memories_summary(all_memory_list, all_deleted_memory_ids)
+
+        # 添加过滤统计信息
+        if filtered_count > 0:
+            filter_info = (f"\n\nValidation Summary:\n"
+                           f"  Total input: {original_count}\n"
+                           f"  Valid: {len(valid_tool_call_results)}\n"
+                           f"  Filtered (invalid): {filtered_count}")
+            formatted_answer += filter_info
         
         # 添加去重统计信息
         dedup_info = (f"\n\nDeduplication Summary:\n"
@@ -195,6 +293,11 @@ class ParseToolCallResultOp(BaseAsyncOp):
         self.context.response.success = True
         self.context.response.metadata["deleted_memory_ids"] = all_deleted_memory_ids
         self.context.response.metadata["memory_list"] = all_memory_list
+        self.context.response.metadata["validation_stats"] = {
+            "total_input": original_count,
+            "valid": len(valid_tool_call_results),
+            "filtered": filtered_count
+        }
         self.context.response.metadata["deduplication_stats"] = deduplication_stats
 
 
@@ -207,11 +310,12 @@ async def main():
     async with ReMeApp():
         op = ParseToolCallResultOp()
 
-        # Create simple test data
+        # Create test data with different scenarios
         tool_call_results = [
+            # Test 1: Valid with explicit token_cost
             {
                 "create_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "tool_name": "test_tool",
+                "tool_name": "test_tool_with_token",
                 "input": {
                     "query": "search for python asyncio documentation",
                     "max_results": 10,
@@ -222,8 +326,53 @@ async def main():
                 "token_cost": 150,
                 "success": True,
                 "time_cost": 2.3
+            },
+            # Test 2: Valid without token_cost (should auto-calculate)
+            {
+                "create_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "tool_name": "test_tool_auto_token",
+                "input": {
+                    "query": "get weather information for San Francisco",
+                    "units": "celsius"
+                },
+                "output": "Current weather in San Francisco: Temperature: 18°C, Humidity: 65%, Conditions: Partly cloudy",
+                # token_cost not provided, will be auto-calculated
+                "success": True,
+                "time_cost": 1.5
+            },
+            # Test 3: Invalid - empty output (should be filtered)
+            {
+                "create_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "tool_name": "invalid_tool_empty_output",
+                "input": {"query": "test"},
+                "output": "",  # Empty output
+                "success": False,
+                "time_cost": 0.1
+            },
+            # Test 4: Invalid - empty input (should be filtered)
+            {
+                "create_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "tool_name": "invalid_tool_empty_input",
+                "input": {},  # Empty dict input
+                "output": "Some output",
+                "success": True,
+                "time_cost": 0.2
+            },
+            # Test 5: Invalid - missing tool_name (should be filtered)
+            {
+                "create_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "tool_name": "",  # Empty tool name
+                "input": {"test": "data"},
+                "output": "Result",
+                "success": True,
+                "time_cost": 0.3
             }
         ]
+
+        logger.info(f"\n{'=' * 60}")
+        logger.info(f"Testing with {len(tool_call_results)} tool_call_results")
+        logger.info(f"Expected: 2 valid, 3 filtered")
+        logger.info(f"{'=' * 60}\n")
         workspace_id = "test_workspace1"
 
         await op.async_call(tool_call_results=tool_call_results, workspace_id=workspace_id)
