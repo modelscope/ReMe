@@ -12,7 +12,7 @@ kernelspec:
   name: python3
 ---
 
-# ReMe: Memory Management Framework for Agents
+# ReMe: Memory Management Kit for Agents
   <em>Remember Me, Refine Me.</em>
 
 <div class="flex justify-center space-x-3">
@@ -128,7 +128,7 @@ response = requests.post("http://localhost:8002/retrieve_task_memory", json={
 
 ```bibtex
 @software{ReMe2025,
-  title = {ReMe: Memory Management Framework for Agents},
+  title = {ReMe: Memory Management Kit for Agents},
   author = {Li Yu, Jiaji Deng, Zouying Cao},
   url = {https://github.com/modelscope/ReMe},
   year = {2025}

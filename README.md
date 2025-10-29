@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <strong>ReMe (formerly MemoryScope): Memory Management Framework for Agents</strong><br>
+  <strong>ReMe (formerly MemoryScope): Memory Management Kit for Agents</strong><br>
   <em>Remember Me, Refine Me.</em>
 </p>
 
@@ -757,7 +757,7 @@ We believe the best memory systems come from collective wisdom. Contributions we
 
 ```bibtex
 @software{ReMe2025,
-  title = {ReMe: Memory Management Framework for Agents},
+  title = {ReMe: Memory Management Kit for Agents},
   author = {Li Yu, Jiaji Deng, Zouying Cao},
   url = {https://github.com/modelscope/ReMe},
   year = {2025}

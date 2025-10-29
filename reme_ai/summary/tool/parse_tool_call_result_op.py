@@ -24,7 +24,8 @@ class ParseToolCallResultOp(BaseAsyncOp):
         self.max_history_tool_call_cnt: int = max_history_tool_call_cnt
         self.evaluation_sleep_interval: float = evaluation_sleep_interval
 
-    def _format_tool_memories_summary(self, memory_list: List[ToolMemory], deleted_memory_ids: List[str]) -> str:
+    @staticmethod
+    def _format_tool_memories_summary(memory_list: List[ToolMemory], deleted_memory_ids: List[str]) -> str:
         """Format tool memories update summary"""
         lines = []
         
