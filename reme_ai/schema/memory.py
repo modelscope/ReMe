@@ -1,4 +1,6 @@
 import datetime
+import hashlib
+import json
 from abc import ABC
 from typing import List
 from uuid import uuid4
@@ -119,8 +121,27 @@ class ToolCallResult(BaseModel):
     evaluation: str = Field(default="", description="Detailed evaluation for the tool invocation")
     score: float = Field(default=0, description="Score of the Evaluation (0.0 for failure, 1.0 for complete success)")
     is_summarized: bool = Field(default=False, description="Whether this tool call has been included in a summary")
+    call_hash: str = Field(default="", description="Hash value of input and output combined for deduplication")
 
     metadata: dict = Field(default_factory=dict)
+
+    def generate_hash(self) -> str:
+        """Generate hash value from tool input and output for deduplication"""
+        # Convert input to string if it's a dict
+        input_str = json.dumps(self.input, sort_keys=True) if isinstance(self.input, dict) else str(self.input)
+        
+        # Combine input and output
+        combined = f"{input_str}|{self.output}"
+        
+        # Generate MD5 hash
+        hash_value = hashlib.md5(combined.encode('utf-8')).hexdigest()
+        
+        return hash_value
+    
+    def ensure_hash(self):
+        """Ensure call_hash is set, generate if empty"""
+        if not self.call_hash:
+            self.call_hash = self.generate_hash()
 
     def from_mcp_tool_result(self, tool_result: CallToolResult, max_char_len: int = None):
         text_list = []
