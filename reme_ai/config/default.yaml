@@ -172,6 +172,38 @@ op:
     params:
       enable_llm_rewrite: true
 
+  #summarizer ops
+  trajectory_preprocess_op:
+    backend: trajectory_preprocess_op
+    params:
+      success_threshold: 1.0
+
+  success_extraction_op:
+    backend: success_extraction_op
+    llm: default
+
+  failure_extraction_op:
+    backend: failure_extraction_op
+    llm: default
+
+  comparative_extraction_op:
+    backend: comparative_extraction_op
+    llm: default
+    params:
+      enable_soft_comparison: true
+
+  memory_validation_op:
+    backend: memory_validation_op
+    llm: default
+    params:
+      validation_threshold: 0.5
+
+  memory_deduplication_op:
+    backend: memory_deduplication_op
+    vector_store: default
+    params:
+      similarity_threshold: 0.5
+      
   # tool memory ops
   parse_tool_call_result_op:
     backend: parse_tool_call_result_op
