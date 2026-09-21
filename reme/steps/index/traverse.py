@@ -144,10 +144,11 @@ def _render_answer(graph: TraverseGraph) -> str:
     ``traverse`` is consumed directly by LLM agents (MCP/chat read-only tools),
     so ``response.answer`` carries the readable form: a summary header, one line
     per reached node with its hop depth, and one line per directed edge with its
-    anchor and depth. Unresolved wikilink targets are marked ``unindexed`` so a
-    caller does not attempt to read a path that has no indexed node. The
-    structured :class:`TraverseGraph` stays available in ``metadata["graph"]``
-    for programmatic consumers.
+    anchor and depth. A node marked ``(unindexed)`` has no entry in the file
+    graph, so no frontmatter or hop metadata is known for it; it may still exist
+    on disk, because ``read`` resolves against the filesystem rather than the
+    index. The structured :class:`TraverseGraph` stays available in
+    ``metadata["graph"]`` for programmatic consumers.
     """
     lines = [
         f"=== traverse seeds={','.join(graph.seeds)} depth={graph.depth} "

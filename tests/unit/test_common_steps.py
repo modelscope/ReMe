@@ -6,6 +6,7 @@ import asyncio
 import os
 import tempfile
 import warnings
+from pathlib import Path
 
 from reme.components.agent_wrapper import BaseAgentWrapper
 from reme.components.application_context import ApplicationContext
@@ -15,6 +16,7 @@ from reme.steps.common.add import AddStep
 from reme.steps.common.health_check import _file_graph_status
 from reme.steps.common.llm_demo import LLMDemoStep
 from reme.steps.common.python_execute import PythonExecuteStep
+from reme.steps.file_io.read import ReadStep
 from reme.steps.index import traverse as traverse_mod
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="jieba")
@@ -502,7 +504,7 @@ def test_traverse_answer_is_llm_readable_and_actionable():
 
 
 def test_traverse_answer_marks_unindexed_and_empty_results():
-    """Dangling targets are flagged and edge-free traversals say so explicitly."""
+    """Graph-less nodes are flagged and edge-free traversals say so explicitly."""
 
     async def run():
         with tempfile.TemporaryDirectory() as tmp, _temp_chdir(tmp):
@@ -527,6 +529,36 @@ def test_traverse_answer_marks_unindexed_and_empty_results():
     _run(run())
 
 
+def test_traverse_unindexed_node_is_still_readable():
+    """``(unindexed)`` means "absent from the graph", not "absent from disk".
+
+    ``read`` resolves against the filesystem, so a workspace file that has not
+    been indexed yet is flagged by ``traverse`` and still readable.
+    """
+
+    async def run():
+        with tempfile.TemporaryDirectory() as tmp, _temp_chdir(tmp):
+            workspace = Path(tmp)
+            (workspace / "a.md").write_text("# A\n[[target.md]]\n", encoding="utf-8")
+            (workspace / "target.md").write_text("# Target\n", encoding="utf-8")
+            store = await _make_store([_node("a.md", [("target.md", None)])])
+
+            traverse_response = await traverse_mod.TraverseStep(file_store=store)(
+                path="a.md",
+                direction="forward",
+                depth=1,
+            )
+            assert "[1] target.md (unindexed)" in traverse_response.answer
+
+            read_response = await ReadStep(file_store=store)(path="target.md")
+            assert read_response.success is True
+            assert "# Target" in read_response.answer
+            await store.close()
+        print("✓ test_traverse_unindexed_node_is_still_readable passed")
+
+    _run(run())
+
+
 if __name__ == "__main__":
     print("\n=== traverse step tests ===")
     test_traverse_forward_depth_1()
@@ -540,4 +572,5 @@ if __name__ == "__main__":
     test_traverse_depth_zero_returns_only_seed_nodes()
     test_traverse_answer_is_llm_readable_and_actionable()
     test_traverse_answer_marks_unindexed_and_empty_results()
+    test_traverse_unindexed_node_is_still_readable()
     print("\n所有测试通过!")
