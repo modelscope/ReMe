@@ -138,6 +138,34 @@ def _build_graph(
     )
 
 
+def _render_answer(graph: TraverseGraph) -> str:
+    """Render the traversal as a self-contained, LLM-actionable summary.
+
+    ``traverse`` is consumed directly by LLM agents (MCP/chat read-only tools),
+    so ``response.answer`` carries the readable form: a summary header, one line
+    per reached node with its hop depth, and one line per directed edge with its
+    anchor and depth. Unresolved wikilink targets are marked ``unindexed`` so a
+    caller does not attempt to read a path that has no indexed node. The
+    structured :class:`TraverseGraph` stays available in ``metadata["graph"]``
+    for programmatic consumers.
+    """
+    lines = [
+        f"=== traverse seeds={','.join(graph.seeds)} depth={graph.depth} "
+        f"direction={graph.direction} nodes={len(graph.nodes)} edges={len(graph.edges)} ===",
+    ]
+    for node in graph.nodes:
+        marker = "" if node.indexed else " (unindexed)"
+        lines.append(f"[{node.depth}] {node.path}{marker}")
+    lines.append("--- edges ---")
+    if graph.edges:
+        for edge in graph.edges:
+            target = f"{edge.target}#{edge.target_anchor}" if edge.target_anchor else edge.target
+            lines.append(f"{edge.source} -> {target} (depth={edge.depth})")
+    else:
+        lines.append("(no wikilink edges found)")
+    return "\n".join(lines)
+
+
 @R.register("traverse_step")
 class TraverseStep(BaseStep):
     """Return a bounded wikilink graph rooted at one or more workspace paths."""
@@ -173,7 +201,8 @@ class TraverseStep(BaseStep):
         )
 
         self.context.response.success = True
-        self.context.response.answer = graph.model_dump()
+        self.context.response.answer = _render_answer(graph)
+        self.context.response.metadata["graph"] = graph.model_dump()
         self.logger.info(
             f"[{self.name}] seeds={seeds!r} depth={max_depth} direction={direction} "
             f"nodes={len(graph.nodes)} edges={len(graph.edges)}",

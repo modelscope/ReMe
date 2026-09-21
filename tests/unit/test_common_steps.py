@@ -70,7 +70,11 @@ async def _make_store(nodes: list[FileNode]) -> LocalFileStore:
 
 
 def _edges(step) -> list[dict]:
-    return step.context.response.answer["edges"]
+    return step.context.response.metadata["graph"]["edges"]
+
+
+def _graph(response) -> TraverseGraph:
+    return TraverseGraph.model_validate(response.metadata["graph"])
 
 
 def test_add_step_coerces_numeric_inputs():
@@ -398,13 +402,12 @@ def test_traverse_both_preserves_reciprocal_edge_directions():
             )
             step = traverse_mod.TraverseStep(file_store=store)
             response = await step(path="a.md", direction="both", depth=1)
-            graph = TraverseGraph.model_validate(response.answer)
+            graph = _graph(response)
 
             assert {(edge.source, edge.target) for edge in graph.edges} == {
                 ("a.md", "b.md"),
                 ("b.md", "a.md"),
             }
-            assert response.metadata == {}
             await store.close()
 
     asyncio.run(run())
@@ -427,7 +430,7 @@ def test_traverse_returns_frontmatter_and_unresolved_nodes():
             )
             step = traverse_mod.TraverseStep(file_store=store)
             response = await step(path="a.md", direction="forward", depth=1)
-            graph = TraverseGraph.model_validate(response.answer)
+            graph = _graph(response)
             nodes = {node.path: node for node in graph.nodes}
 
             assert graph.version == 1
@@ -456,13 +459,72 @@ def test_traverse_depth_zero_returns_only_seed_nodes():
             store = await _make_store([_node("a.md", [("b.md", None)]), _node("b.md")])
             step = traverse_mod.TraverseStep(file_store=store)
             response = await step(path="a.md", direction="forward", depth=0)
-            graph = TraverseGraph.model_validate(response.answer)
+            graph = _graph(response)
 
             assert [node.path for node in graph.nodes] == ["a.md"]
             assert graph.edges == []
             await store.close()
 
     asyncio.run(run())
+
+
+def test_traverse_answer_is_llm_readable_and_actionable():
+    """The answer is a readable summary; the structured graph stays in metadata."""
+
+    async def run():
+        with tempfile.TemporaryDirectory() as tmp, _temp_chdir(tmp):
+            store = await _make_store(
+                [
+                    _node("a.md", [("b.md", None), ("c.md", "intro")]),
+                    _node("b.md"),
+                    _node("c.md"),
+                ],
+            )
+            step = traverse_mod.TraverseStep(file_store=store)
+            response = await step(path="a.md", direction="forward", depth=1)
+
+            assert response.success is True
+            answer = response.answer
+            assert isinstance(answer, str)
+            assert "=== traverse seeds=a.md depth=1 direction=forward nodes=3 edges=2 ===" in answer
+            assert "[0] a.md" in answer
+            assert "[1] b.md" in answer
+            assert "[1] c.md" in answer
+            assert "--- edges ---" in answer
+            assert "a.md -> b.md (depth=1)" in answer
+            assert "a.md -> c.md#intro (depth=1)" in answer
+            # Programmatic consumers still get the full graph object.
+            assert [edge.model_dump() for edge in _graph(response).edges] == _edges(step)
+            await store.close()
+        print("✓ test_traverse_answer_is_llm_readable_and_actionable passed")
+
+    _run(run())
+
+
+def test_traverse_answer_marks_unindexed_and_empty_results():
+    """Dangling targets are flagged and edge-free traversals say so explicitly."""
+
+    async def run():
+        with tempfile.TemporaryDirectory() as tmp, _temp_chdir(tmp):
+            store = await _make_store([_node("a.md", [("missing.md", "details")])])
+            step = traverse_mod.TraverseStep(file_store=store)
+            response = await step(path="a.md", direction="forward", depth=1)
+
+            assert "[1] missing.md (unindexed)" in response.answer
+            assert "a.md -> missing.md#details (depth=1)" in response.answer
+            await store.close()
+
+        with tempfile.TemporaryDirectory() as tmp, _temp_chdir(tmp):
+            store = await _make_store([_node("a.md")])
+            step = traverse_mod.TraverseStep(file_store=store)
+            response = await step(path="a.md", direction="forward", depth=1)
+
+            assert response.answer.endswith("(no wikilink edges found)")
+            assert "nodes=1 edges=0" in response.answer
+            await store.close()
+        print("✓ test_traverse_answer_marks_unindexed_and_empty_results passed")
+
+    _run(run())
 
 
 if __name__ == "__main__":
@@ -476,4 +538,6 @@ if __name__ == "__main__":
     test_traverse_both_preserves_reciprocal_edge_directions()
     test_traverse_returns_frontmatter_and_unresolved_nodes()
     test_traverse_depth_zero_returns_only_seed_nodes()
+    test_traverse_answer_is_llm_readable_and_actionable()
+    test_traverse_answer_marks_unindexed_and_empty_results()
     print("\n所有测试通过!")
