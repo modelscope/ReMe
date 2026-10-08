@@ -213,6 +213,13 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
                     )
                     await asyncio.sleep(self.quota_retry_delay)
                     continue
+                if self._is_insufficient_quota(error):
+                    # Quota is a service-level failure: no single item is to blame, so splitting the
+                    # batch cannot isolate anything and would only multiply the rejected requests.
+                    # This also covers the case where the quota retries above are exhausted.
+                    self.logger.exception("Embedding request failed: quota exhausted")
+                    self.is_healthy = False
+                    return None
                 self.logger.exception("Embedding request failed")
                 self.is_healthy = False
                 if len(texts) > 1:
@@ -227,19 +234,18 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
         Provider-side request errors, such as a per-item context-length limit, reject the
         whole batch and would otherwise cost every vector in it. Isolating each item bounds
         the damage to the item that actually failed and keeps the remaining vectors usable.
+        Each single-item request goes back through ``_call_with_retry`` so a transient
+        failure (429, connection error, timeout) still gets the existing backoff and retry
+        policy instead of losing the vector; a one-item request never splits again.
         """
         results: list[list[float] | None] = []
         for text in texts:
-            try:
-                result = await self.as_embedding([text], **kwargs)
-            except Exception as error:
-                self.logger.error(
-                    f"Embedding request failed for a single item (chars={len(text)}): "
-                    f"{type(error).__name__}: {error}",
-                )
-                results.append(None)
+            single = await self._call_with_retry([text], **kwargs)
+            if single and len(single) == 1:
+                results.append(single[0])
                 continue
-            results.append(result[0] if result and len(result) == 1 else None)
+            self.logger.error(f"Embedding request failed for a single item (chars={len(text)})")
+            results.append(None)
         return results
 
     @staticmethod

@@ -158,6 +158,48 @@ class PerItemLimitAsEmbedding:
         return [[1.0, 0.0] for _ in texts]
 
 
+class AlwaysInsufficientQuotaAsEmbedding:
+    """Always fail with quota exhaustion, recording every requested batch size."""
+
+    dimensions = 2
+
+    def __init__(self):
+        self.batch_sizes: list[int] = []
+
+    async def __call__(self, texts: list[str], **_kwargs):
+        self.batch_sizes.append(len(texts))
+        raise InsufficientQuotaError("quota exhausted")
+
+
+class PerItemLimitThenTransientErrorAsEmbedding:
+    """Reject an over-limit batch, then fail the first single-item request once.
+
+    Mirrors the review case: the batch is rejected because one item exceeds the per-item
+    window, and a sibling item then hits a transient provider failure while retried alone.
+    """
+
+    dimensions = 2
+    vector_space_id = "fakespace000"
+    max_chars = 32
+
+    def __init__(self, transient: Exception):
+        self.transient = transient
+        self.batch_sizes: list[int] = []
+        self.transient_failures = 0
+
+    def initialize_model(self):
+        """Mirror the real component's idempotent initialization hook."""
+
+    async def __call__(self, texts: list[str], **_kwargs):
+        self.batch_sizes.append(len(texts))
+        if any(len(text) > self.max_chars for text in texts):
+            raise ContextLengthError("the input length exceeds the context length")
+        if len(texts) == 1 and self.transient_failures == 0:
+            self.transient_failures += 1
+            raise self.transient
+        return [[1.0, 0.0] for _ in texts]
+
+
 class BadNodeEmbeddingStore(BaseEmbeddingStore):
     """Embedding store that returns wrong-dimensional vectors."""
 
@@ -826,5 +868,86 @@ def test_rate_limited_batch_is_not_split_into_per_item_requests(monkeypatch):
         assert await store._call_with_retry(["a", "b"]) is None
         assert embedding.calls == 2
         assert sleeps == [1.0]
+
+    run(go())
+
+
+def test_insufficient_quota_batch_is_not_split_into_per_item_requests(monkeypatch):
+    """Quota exhaustion is a service-level failure; splitting it would multiply the load."""
+
+    async def go():
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+
+        store = LocalEmbeddingStore(name="t_local_embedding_quota_batch", max_retries=2)
+        embedding = AlwaysInsufficientQuotaAsEmbedding()
+        store.as_embedding = embedding
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+        assert await store._call_with_retry(["a", "b", "c"]) is None
+        assert embedding.batch_sizes == [3]
+        assert store.is_healthy is False
+        assert not sleeps
+
+    run(go())
+
+
+def test_exhausted_quota_retries_still_do_not_split_the_batch(monkeypatch):
+    """Once the opt-in quota retries run out, the store gives up instead of splitting."""
+
+    async def go():
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+
+        store = LocalEmbeddingStore(
+            name="t_local_embedding_quota_batch_exhausted",
+            max_retries=3,
+            quota_retry_delay=5.0,
+        )
+        embedding = AlwaysInsufficientQuotaAsEmbedding()
+        store.as_embedding = embedding
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+        assert await store._call_with_retry(["a", "b"]) is None
+        assert embedding.batch_sizes == [2, 2, 2]
+        assert sleeps == [5.0, 5.0]
+
+    run(go())
+
+
+def test_per_item_fallback_keeps_a_transiently_failed_vector(monkeypatch):
+    """A 429 / connection error / timeout on one isolated item must not lose its vector."""
+
+    async def go():
+        transients = (
+            RateLimitError("Requests are too frequent"),
+            ConnectionError("connection reset"),
+            TimeoutError("request timed out"),
+        )
+        for transient in transients:
+            sleeps = []
+
+            async def fake_sleep(delay):
+                sleeps.append(delay)
+
+            provider = PerItemLimitThenTransientErrorAsEmbedding(transient)
+            store = LocalEmbeddingStore(
+                name="t_local_embedding_fallback_transient",
+                max_retries=3,
+                enable_cache=False,
+            )
+            store.as_embedding = provider
+            monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+            results = await store._call_with_retry(["ok", "x" * 64, "also ok"])
+
+            assert results == [[1.0, 0.0], None, [1.0, 0.0]]
+            assert provider.batch_sizes == [3, 1, 1, 1, 1]
+            assert provider.transient_failures == 1
+            assert sleeps == [1.0]
 
     run(go())
