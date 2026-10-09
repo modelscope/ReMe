@@ -14,6 +14,25 @@ from ..as_embedding import BaseAsEmbedding
 Miss = tuple[int, str, str]  # (result_index, text, cache_key)
 _MAX_VECTOR_SPACE_ATTEMPTS = 3
 
+# Transport failures raised by the OpenAI SDK and httpx. They do not inherit from the built-in
+# TimeoutError / ConnectionError / OSError, so the built-in check alone lets them slip into the
+# generic handler and fan out into per-item requests. Matching on class names (across the MRO,
+# so subclasses such as APITimeoutError are covered) keeps this module free of SDK imports.
+_TRANSPORT_FAILURE_TYPES = frozenset(
+    {
+        "APIConnectionError",
+        "APITimeoutError",
+        "ConnectError",
+        "ConnectTimeout",
+        "PoolTimeout",
+        "ReadError",
+        "ReadTimeout",
+        "RemoteProtocolError",
+        "WriteError",
+        "WriteTimeout",
+    },
+)
+
 
 @R.register("local")
 class LocalEmbeddingStore(BaseEmbeddingStore):
@@ -190,10 +209,14 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
                 result = await self.as_embedding(texts, **kwargs)
                 if result and len(result) == len(texts):
                     return result
-            except (TimeoutError, ConnectionError, OSError):
-                if attempt < self.max_retries - 1:
-                    await asyncio.sleep(2**attempt)
             except Exception as error:
+                if self._is_transient_transport_failure(error):
+                    # A connection failure or a timeout describes the endpoint, not any single
+                    # item: retry the very same request with the usual backoff instead of
+                    # fanning out into per-item requests that would fail the same way.
+                    if attempt < self.max_retries - 1:
+                        await asyncio.sleep(2**attempt)
+                    continue
                 if self._is_rate_limited(error):
                     if attempt < self.max_retries - 1:
                         delay = 2**attempt
@@ -258,6 +281,18 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
             self.logger.error(f"Embedding request failed for a single item (chars={len(text)})")
             results.append(None)
         return results
+
+    @staticmethod
+    def _is_transient_transport_failure(error: Exception) -> bool:
+        """Return whether an error is a transient transport failure worth retrying.
+
+        Covers the built-in socket errors as well as the provider/httpx exceptions that describe
+        a connection failure or a timeout. Transport failures are provider-wide: no individual
+        input can be blamed, so the same request is retried and never split per item.
+        """
+        if isinstance(error, (TimeoutError, ConnectionError, OSError)):
+            return True
+        return any(cls.__name__ in _TRANSPORT_FAILURE_TYPES for cls in type(error).__mro__)
 
     @staticmethod
     def _is_provider_wide_failure(error: Exception) -> bool:

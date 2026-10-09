@@ -218,6 +218,18 @@ class InternalServerError(Exception):
     status_code = 500
 
 
+class APIError(Exception):
+    """Base of the OpenAI SDK error hierarchy, reproduced without importing the SDK."""
+
+
+class APIConnectionError(APIError):
+    """OpenAI SDK connection failure: it does not inherit from the built-in ConnectionError."""
+
+
+class APITimeoutError(APIConnectionError):
+    """OpenAI SDK timeout, a subclass of APIConnectionError."""
+
+
 class AlwaysProviderWideFailureAsEmbedding:
     """Always fail with the same provider-wide error, recording every requested batch size."""
 
@@ -230,6 +242,27 @@ class AlwaysProviderWideFailureAsEmbedding:
     async def __call__(self, texts: list[str], **_kwargs):
         self.batch_sizes.append(len(texts))
         raise self.error
+
+
+class TransientThenSuccessAsEmbedding:
+    """Fail the first `failures` calls with one error, then return valid embeddings."""
+
+    dimensions = 2
+    vector_space_id = "fakespace000"
+
+    def __init__(self, error: Exception, failures: int = 1):
+        self.error = error
+        self.failures = failures
+        self.batch_sizes: list[int] = []
+
+    def initialize_model(self):
+        """Mirror the real component's idempotent initialization hook."""
+
+    async def __call__(self, texts: list[str], **_kwargs):
+        self.batch_sizes.append(len(texts))
+        if len(self.batch_sizes) <= self.failures:
+            raise self.error
+        return [[1.0, 0.0] for _ in texts]
 
 
 class BadNodeEmbeddingStore(BaseEmbeddingStore):
@@ -1024,5 +1057,80 @@ def test_provider_wide_server_errors_are_retried_without_splitting(monkeypatch):
         assert provider.batch_sizes == [10, 10, 10]
         assert sleeps == [1.0, 2.0]
         assert store.is_healthy is False
+
+    run(go())
+
+
+def test_sdk_transport_errors_are_retried_without_splitting(monkeypatch):
+    """SDK connection/timeout errors are provider-wide: retry the batch, never split it."""
+
+    async def go():
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+        for error in (APIConnectionError("connection reset"), APITimeoutError("timed out")):
+            sleeps.clear()
+            provider = AlwaysProviderWideFailureAsEmbedding(error)
+            store = LocalEmbeddingStore(name="t_local_embedding_sdk_transport", max_retries=3)
+            store.as_embedding = provider
+
+            assert await store._call_with_retry([f"item{i}" for i in range(10)]) is None
+            assert provider.batch_sizes == [10, 10, 10]
+            assert sleeps == [1.0, 2.0]
+
+    run(go())
+
+
+def test_sdk_transport_error_recovers_without_losing_the_batch(monkeypatch):
+    """One SDK transport failure retries the original batch and keeps every vector."""
+
+    async def go():
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+
+        provider = TransientThenSuccessAsEmbedding(APITimeoutError("timed out"))
+        store = LocalEmbeddingStore(name="t_local_embedding_sdk_recover", max_retries=3)
+        store.as_embedding = provider
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+        results = await store._call_with_retry([f"item{i}" for i in range(10)])
+
+        assert results == [[1.0, 0.0]] * 10
+        assert provider.batch_sizes == [10, 10]
+        assert sleeps == [1.0]
+
+    run(go())
+
+
+def test_isolated_item_retries_an_sdk_transport_error(monkeypatch):
+    """After a context-length rejection, one isolated item still retries an SDK transport error."""
+
+    async def go():
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+
+        provider = PerItemLimitThenTransientErrorAsEmbedding(APIConnectionError("connection reset"))
+        store = LocalEmbeddingStore(
+            name="t_local_embedding_sdk_isolated",
+            max_retries=3,
+            enable_cache=False,
+        )
+        store.as_embedding = provider
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+        results = await store._call_with_retry(["ok", "x" * 64, "also ok"])
+
+        assert results == [[1.0, 0.0], None, [1.0, 0.0]]
+        assert provider.batch_sizes == [3, 1, 1, 1, 1]
+        assert provider.transient_failures == 1
+        assert sleeps == [1.0]
 
     run(go())
