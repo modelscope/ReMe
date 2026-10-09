@@ -218,6 +218,12 @@ class InternalServerError(Exception):
     status_code = 500
 
 
+class NotFoundError(Exception):
+    """OpenAI-compatible 404 error, e.g. a missing model or endpoint."""
+
+    status_code = 404
+
+
 class APIError(Exception):
     """Base of the OpenAI SDK error hierarchy, reproduced without importing the SDK."""
 
@@ -1132,5 +1138,44 @@ def test_isolated_item_retries_an_sdk_transport_error(monkeypatch):
         assert provider.batch_sizes == [3, 1, 1, 1, 1]
         assert provider.transient_failures == 1
         assert sleeps == [1.0]
+
+    run(go())
+
+
+def test_provider_wide_statuses_exclude_input_dependent_bad_request():
+    """404 is provider-wide, but an over-limit 400 must stay input-dependent."""
+
+    async def go():
+        store = LocalEmbeddingStore(name="t_local_embedding_classifier")
+        for error in (
+            AuthenticationError("bad key"),
+            PermissionDeniedError("no access"),
+            NotFoundError("model_not_found"),
+            InternalServerError("boom"),
+        ):
+            assert store._is_provider_wide_failure(error) is True
+        over_limit = ContextLengthError("the input length exceeds the context length")
+        assert store._is_provider_wide_failure(over_limit) is False
+
+    run(go())
+
+
+def test_provider_wide_not_found_errors_are_not_split(monkeypatch):
+    """A missing model or endpoint is provider-wide: one request, then failure, never a split."""
+
+    async def go():
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+
+        provider = AlwaysProviderWideFailureAsEmbedding(NotFoundError("model_not_found"))
+        store = LocalEmbeddingStore(name="t_local_embedding_not_found", max_retries=3)
+        store.as_embedding = provider
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+        assert await store._call_with_retry([f"item{i}" for i in range(10)]) is None
+        assert provider.batch_sizes == [10]
+        assert not sleeps
 
     run(go())

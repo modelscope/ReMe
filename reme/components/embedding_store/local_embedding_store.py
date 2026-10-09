@@ -14,6 +14,8 @@ from ..as_embedding import BaseAsEmbedding
 Miss = tuple[int, str, str]  # (result_index, text, cache_key)
 _MAX_VECTOR_SPACE_ATTEMPTS = 3
 
+_PROVIDER_WIDE_STATUS_CODES = frozenset({401, 403, 404})
+
 # Transport failures raised by the OpenAI SDK and httpx. They do not inherit from the built-in
 # TimeoutError / ConnectionError / OSError, so the built-in check alone lets them slip into the
 # generic handler and fan out into per-item requests. Matching on class names (across the MRO,
@@ -298,15 +300,22 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
     def _is_provider_wide_failure(error: Exception) -> bool:
         """Return whether an error describes the provider rather than a single input.
 
-        Authentication, permission and server errors belong to the endpoint or to the
-        credentials: no individual input can be blamed, so splitting the batch cannot isolate
-        anything and would only multiply the rejected requests. Rate limits and quota
-        exhaustion have their own branches above and never reach this classifier.
+        Authentication, permission, missing model or route and server errors belong to the
+        endpoint, the credentials or the deployment: no individual input can be blamed, so
+        splitting the batch cannot isolate anything and would only multiply the rejected
+        requests. Rate limits and quota exhaustion have their own branches above and never
+        reach this classifier. A context-length ``400`` stays input-dependent on purpose,
+        because that is the one status an over-limit item can explain by itself.
         """
         status = getattr(error, "status_code", None)
-        if isinstance(status, int) and (status in (401, 403) or 500 <= status < 600):
+        if isinstance(status, int) and (status in _PROVIDER_WIDE_STATUS_CODES or 500 <= status < 600):
             return True
-        return type(error).__name__ in ("AuthenticationError", "PermissionDeniedError", "InternalServerError")
+        return type(error).__name__ in (
+            "AuthenticationError",
+            "PermissionDeniedError",
+            "NotFoundError",
+            "InternalServerError",
+        )
 
     @staticmethod
     def _is_transient_provider_failure(error: Exception) -> bool:
