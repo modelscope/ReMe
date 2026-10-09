@@ -200,6 +200,38 @@ class PerItemLimitThenTransientErrorAsEmbedding:
         return [[1.0, 0.0] for _ in texts]
 
 
+class AuthenticationError(Exception):
+    """OpenAI-compatible 401 error used without importing the provider SDK."""
+
+    status_code = 401
+
+
+class PermissionDeniedError(Exception):
+    """OpenAI-compatible 403 error used without importing the provider SDK."""
+
+    status_code = 403
+
+
+class InternalServerError(Exception):
+    """OpenAI-compatible 500 error used without importing the provider SDK."""
+
+    status_code = 500
+
+
+class AlwaysProviderWideFailureAsEmbedding:
+    """Always fail with the same provider-wide error, recording every requested batch size."""
+
+    dimensions = 2
+
+    def __init__(self, error: Exception):
+        self.error = error
+        self.batch_sizes: list[int] = []
+
+    async def __call__(self, texts: list[str], **_kwargs):
+        self.batch_sizes.append(len(texts))
+        raise self.error
+
+
 class BadNodeEmbeddingStore(BaseEmbeddingStore):
     """Embedding store that returns wrong-dimensional vectors."""
 
@@ -951,5 +983,46 @@ def test_per_item_fallback_keeps_a_transiently_failed_vector(monkeypatch):
             assert provider.batch_sizes == [3, 1, 1, 1, 1]
             assert provider.transient_failures == 1
             assert sleeps == [1.0]
+
+    run(go())
+
+
+def test_provider_wide_credentials_errors_are_not_split_into_per_item_requests():
+    """401/403 belong to the credentials: splitting ten items only multiplies the failures."""
+
+    async def go():
+        for error in (
+            AuthenticationError("invalid api key"),
+            PermissionDeniedError("no access to model"),
+        ):
+            provider = AlwaysProviderWideFailureAsEmbedding(error)
+            store = LocalEmbeddingStore(name="t_local_embedding_provider_wide", max_retries=3)
+            store.as_embedding = provider
+
+            assert await store._call_with_retry([f"item{i}" for i in range(10)]) is None
+            assert provider.batch_sizes == [10]
+            assert store.is_healthy is False
+
+    run(go())
+
+
+def test_provider_wide_server_errors_are_retried_without_splitting(monkeypatch):
+    """A 500 is transient, so it is retried with the usual backoff and never split per item."""
+
+    async def go():
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+
+        provider = AlwaysProviderWideFailureAsEmbedding(InternalServerError("upstream unavailable"))
+        store = LocalEmbeddingStore(name="t_local_embedding_provider_server", max_retries=3)
+        store.as_embedding = provider
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+        assert await store._call_with_retry([f"item{i}" for i in range(10)]) is None
+        assert provider.batch_sizes == [10, 10, 10]
+        assert sleeps == [1.0, 2.0]
+        assert store.is_healthy is False
 
     run(go())

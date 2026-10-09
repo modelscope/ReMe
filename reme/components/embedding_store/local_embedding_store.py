@@ -220,6 +220,17 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
                     self.logger.exception("Embedding request failed: quota exhausted")
                     self.is_healthy = False
                     return None
+                if self._is_provider_wide_failure(error):
+                    # Credentials, permissions and server outages describe the endpoint, not any
+                    # single item: isolation cannot fix them, so retry the transient ones with the
+                    # usual backoff and give up on the rest instead of multiplying the requests.
+                    if self._is_transient_provider_failure(error) and attempt < self.max_retries - 1:
+                        delay = 2**attempt
+                        self.logger.warning(f"Embedding provider error; retrying in {delay:.1f}s")
+                        await asyncio.sleep(delay)
+                        continue
+                    self.logger.exception("Embedding request failed: provider-wide error, not splitting")
+                    break
                 self.logger.exception("Embedding request failed")
                 self.is_healthy = False
                 if len(texts) > 1:
@@ -247,6 +258,28 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
             self.logger.error(f"Embedding request failed for a single item (chars={len(text)})")
             results.append(None)
         return results
+
+    @staticmethod
+    def _is_provider_wide_failure(error: Exception) -> bool:
+        """Return whether an error describes the provider rather than a single input.
+
+        Authentication, permission and server errors belong to the endpoint or to the
+        credentials: no individual input can be blamed, so splitting the batch cannot isolate
+        anything and would only multiply the rejected requests. Rate limits and quota
+        exhaustion have their own branches above and never reach this classifier.
+        """
+        status = getattr(error, "status_code", None)
+        if isinstance(status, int) and (status in (401, 403) or 500 <= status < 600):
+            return True
+        return type(error).__name__ in ("AuthenticationError", "PermissionDeniedError", "InternalServerError")
+
+    @staticmethod
+    def _is_transient_provider_failure(error: Exception) -> bool:
+        """Return whether a provider-wide failure is worth retrying with the usual backoff."""
+        status = getattr(error, "status_code", None)
+        if isinstance(status, int):
+            return 500 <= status < 600
+        return type(error).__name__ == "InternalServerError"
 
     @staticmethod
     def _is_rate_limited(error: Exception) -> bool:
