@@ -928,11 +928,13 @@ def test_per_item_fallback_keeps_a_transiently_failed_vector(monkeypatch):
             ConnectionError("connection reset"),
             TimeoutError("request timed out"),
         )
-        for transient in transients:
-            sleeps = []
+        sleeps = []
 
-            async def fake_sleep(delay):
-                sleeps.append(delay)
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+
+        for transient in transients:
+            sleeps.clear()
 
             provider = PerItemLimitThenTransientErrorAsEmbedding(transient)
             store = LocalEmbeddingStore(
