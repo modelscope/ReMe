@@ -13,7 +13,7 @@ from agentscope.permission import PermissionBehavior
 from agentscope.tool import ExecResult
 from reme_home.auto_bash import AutoBash, AutoBashStep
 
-from reme.utils.path_bubble_backend import PathBubbleBackend
+from reme.utils.file_sandbox.path_bubble_backend import PathBubbleBackend
 from reme.components.application_context import ApplicationContext
 from reme.config.config_parser import _load_config
 from reme.enumeration import ComponentEnum

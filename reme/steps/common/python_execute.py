@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ...utils.file_sandbox import create_file_sandbox_backend
-from ...utils.file_sandbox_backend import FileSandboxBackend
+from ...utils.file_sandbox.file_sandbox_backend import FileSandboxBackend
 from ..base_step import BaseStep
 from ...components import R
 

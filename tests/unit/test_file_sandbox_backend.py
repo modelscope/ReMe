@@ -8,8 +8,8 @@ from agentscope.tool import ExecResult
 from reme.components.application_context import ApplicationContext
 from reme.steps.common.python_execute import PythonExecuteStep
 from reme.utils.file_sandbox import create_file_sandbox_backend
-from reme.utils.path_bubble_backend import PathBubbleBackend
-from reme.utils.path_seatbelt_backend import PathSeatbeltBackend
+from reme.utils.file_sandbox.path_bubble_backend import PathBubbleBackend
+from reme.utils.file_sandbox.path_seatbelt_backend import PathSeatbeltBackend
 
 
 def test_platform_selection_and_memory_defaults(tmp_path, monkeypatch):
@@ -82,14 +82,14 @@ def test_seatbelt_excludes_read_only_child_from_writable_parent(tmp_path):
 async def test_seatbelt_launch_failure_cleans_up_without_host_fallback(tmp_path, monkeypatch):
     """A failed sandbox launcher never starts the requested command directly."""
     monkeypatch.setattr(sys, "platform", "darwin")
-    monkeypatch.setattr("reme.utils.path_seatbelt_backend.shutil.which", lambda _: "/usr/bin/sandbox-exec")
+    monkeypatch.setattr("reme.utils.file_sandbox.path_seatbelt_backend.shutil.which", lambda _: "/usr/bin/sandbox-exec")
     calls = []
 
     async def fail(*argv, **_kwargs):
         calls.append(argv)
         raise OSError("sandbox unavailable")
 
-    monkeypatch.setattr("reme.utils.path_seatbelt_backend.asyncio.create_subprocess_exec", fail)
+    monkeypatch.setattr("reme.utils.file_sandbox.path_seatbelt_backend.asyncio.create_subprocess_exec", fail)
     backend = PathSeatbeltBackend(cwd=tmp_path, read_only_paths=[], writable_paths=[])
     with pytest.raises(OSError, match="sandbox unavailable"):
         await backend.exec_shell(["/bin/echo", "unsafe"])

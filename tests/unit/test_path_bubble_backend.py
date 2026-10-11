@@ -9,7 +9,7 @@ import yaml
 
 from agentscope.tool import ExecResult
 
-from reme.utils.path_bubble_backend import PathBubbleBackend
+from reme.utils.file_sandbox.path_bubble_backend import PathBubbleBackend
 from reme.components.application_context import ApplicationContext
 from reme.steps.common.python_execute import PythonExecuteStep
 
@@ -81,9 +81,9 @@ async def test_each_execution_gets_separate_memory_cgroup(tmp_path, monkeypatch)
         return SimpleNamespace(pid=100 + len(subprocess_options))
 
     monkeypatch.setattr(sys, "platform", "linux")
-    monkeypatch.setattr("reme.utils.path_bubble_backend.shutil.which", lambda _: "/usr/bin/bwrap")
+    monkeypatch.setattr("reme.utils.file_sandbox.path_bubble_backend.shutil.which", lambda _: "/usr/bin/bwrap")
     monkeypatch.setattr(backend, "_create_cgroup", create_group)
-    monkeypatch.setattr("reme.utils.path_bubble_backend.asyncio.create_subprocess_exec", create_process)
+    monkeypatch.setattr("reme.utils.file_sandbox.path_bubble_backend.asyncio.create_subprocess_exec", create_process)
     first = await backend._start_process(["true"], str(tmp_path))  # pylint: disable=protected-access
     second = await backend._start_process(["true"], str(tmp_path))  # pylint: disable=protected-access
 
@@ -108,8 +108,8 @@ async def test_zero_memory_limit_skips_cgroup(tmp_path, monkeypatch):
         return SimpleNamespace(pid=123)
 
     monkeypatch.setattr(sys, "platform", "linux")
-    monkeypatch.setattr("reme.utils.path_bubble_backend.shutil.which", lambda _: "/usr/bin/bwrap")
-    monkeypatch.setattr("reme.utils.path_bubble_backend.asyncio.create_subprocess_exec", create_process)
+    monkeypatch.setattr("reme.utils.file_sandbox.path_bubble_backend.shutil.which", lambda _: "/usr/bin/bwrap")
+    monkeypatch.setattr("reme.utils.file_sandbox.path_bubble_backend.asyncio.create_subprocess_exec", create_process)
     await backend._start_process(["true"], str(tmp_path))  # pylint: disable=protected-access
     assert "preexec_fn" not in options
 

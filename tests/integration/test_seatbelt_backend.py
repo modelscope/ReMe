@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from reme.utils.path_seatbelt_backend import PathSeatbeltBackend
+from reme.utils.file_sandbox.path_seatbelt_backend import PathSeatbeltBackend
 
 pytestmark = pytest.mark.skipif(sys.platform != "darwin", reason="Seatbelt requires macOS")
 
