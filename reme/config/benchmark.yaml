@@ -142,6 +142,10 @@ jobs:
         python_timeout:
           type: number
           description: "Execution timeout in seconds; defaults to 60."
+        memory_limit_bytes:
+          type: integer
+          minimum: 0
+          description: "Linux memory limit in bytes (default 4 GiB); macOS ignores nonzero values"
       required:
         - code
     steps:
