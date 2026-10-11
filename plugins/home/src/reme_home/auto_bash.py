@@ -15,17 +15,28 @@ _READ_COMMANDS = {
     "diff": {"denied": ["--output"]},
     "echo": {},
     "false": {},
-    "file": {},
+    "file": {
+        "denied": ["-C", "--compile", "-p", "--preserve-date", "-z", "-Z", "--uncompress", "--uncompress-noreport"],
+    },
     "find": {"denied": ["-delete", "-exec", "-execdir", "-fls", "-fprint", "-fprint0", "-fprintf", "-ok", "-okdir"]},
     "git": {
         "allow": ["status", "diff", "log", "show", "rev-parse", "ls-files"],
-        "denied": ["--output", "--ext-diff", "--textconv", "--paginate"],
+        "denied": [
+            "--output",
+            "--ext-diff",
+            "--textconv",
+            "--paginate",
+            "--submodule",
+            "--ignore-submodules",
+            "--show-signature",
+            "--remerge-diff",
+            "--diff-merges",
+        ],
     },
     "grep": {},
     "head": {},
     "ls": {},
     "pwd": {},
-    "rg": {"denied": ["--pre", "--pre-glob", "--replace"]},
     "sort": {"denied": ["-o", "--output", "--compress-program", "--temporary-directory"]},
     "stat": {},
     "tail": {},
@@ -35,9 +46,88 @@ _READ_COMMANDS = {
 }
 _SAFE_DESTINATIONS = {"/dev/null"}
 
+# Trusted shell setup, applied only after validating the user's command.
+# Git's configuration can launch helpers even for otherwise read-only commands.
+_READ_ONLY_SETUP = r"""
+unset GIT_EXTERNAL_DIFF GIT_TRACE GIT_TRACE_SETUP GIT_TRACE_PERFORMANCE
+unset GIT_TRACE_PACK_ACCESS GIT_TRACE_PACKET GIT_TRACE_CURL GIT_TRACE2 GIT_TRACE2_EVENT GIT_TRACE2_PERF
+export GIT_OPTIONAL_LOCKS=0 GIT_PAGER=/bin/cat GIT_NO_LAZY_FETCH=1 GIT_TERMINAL_PROMPT=0
+git() {
+    if command git -c trace2.normalTarget=0 -c trace2.eventTarget=0 -c trace2.perfTarget=0 \
+        config --get-regexp '^filter\..*\.(clean|smudge|process)$' > /dev/null; then
+        echo 'Permission denied: Git repositories with external filters require unrestricted mode.' >&2
+        return 1
+    fi
+    case "$1" in
+        diff|log|show)
+            reme_git_subcommand="$1"
+            shift
+            set -- "$reme_git_subcommand" --no-ext-diff --no-textconv --ignore-submodules=all "$@"
+            ;;
+        status) shift; set -- status --ignore-submodules=all "$@" ;;
+    esac
+    command git --no-pager -c core.fsmonitor=false -c diff.submodule=short \
+        -c log.showSignature=false -c log.diffMerges=off \
+        -c trace2.normalTarget=0 -c trace2.eventTarget=0 -c trace2.perfTarget=0 "$@"
+}
+"""
+
+
+def _literal_shell(node: dict, command: str, quoted: bool = False) -> bool:
+    """Reject expansions and syntax whose effects safecmd does not fully check."""
+    from safecmd.bashxtract import word_text  # pylint: disable=import-outside-toplevel
+
+    kind = node.get("Type")
+    if kind in {"FuncDecl", "ForClause", "DeclClause", "ArithmExp", "ArithmCmd", "ProcSubst", "CmdSubst"}:
+        return False
+    if kind == "SglQuoted":
+        return True
+    quoted = quoted or kind == "DblQuoted"
+    if kind == "Lit":
+        value = node.get("Value", "")
+        if "\\" in value or (not quoted and any(char in value for char in "*?[]{}~")):
+            return False
+    for redirect in node.get("Redirs", []):
+        op = redirect.get("Op")
+        destination = word_text(redirect.get("Word", {}), command)
+        if op in {"<", "<<", "<<-"}:
+            continue
+        if op in {">&", "<&"} and (destination == "-" or destination.rstrip("-").isdigit()):
+            continue
+        if op not in {">", ">>", ">|", "<>", "&>", "&>>", ">&"} or destination != "/dev/null":
+            return False
+    for value in node.values():
+        children = value if isinstance(value, list) else [value]
+        if any(isinstance(child, dict) and not _literal_shell(child, command, quoted) for child in children):
+            return False
+    return True
+
+
+def _allowed_arguments(tokens: list[str]) -> bool:
+    """Supplement CmdSpec with subcommands, abbreviated flags and Git formats."""
+    options = _READ_COMMANDS[tokens[0]]
+    if "allow" in options and (len(tokens) < 2 or tokens[1] not in options["allow"]):
+        return False
+    # Signature placeholders invoke Git's configured GPG program.
+    if tokens[0] == "git" and any("%G" in token for token in tokens[1:]):
+        return False
+    # getopt and Git also accept unambiguous long-option abbreviations.
+    for token in tokens[1:]:
+        flag = token.split("=", 1)[0]
+        if flag.startswith("--") and len(flag) > 2:
+            if any(denied.startswith(flag) for denied in options.get("denied", []) if denied.startswith("--")):
+                return False
+    return True
+
 
 class AutoBash(Bash):
-    """AgentScope Bash with an optional read-only execution guard."""
+    """AgentScope Bash with an optional conservative read-only command guard.
+
+    Shell expansions, function definitions and for loops are rejected because
+    their runtime arguments or environment can differ from the parsed tokens.
+    Git external filters require unrestricted mode; other Git helpers are
+    disabled. Use path injection for OS file isolation.
+    """
 
     name = "AutoBash"
     description = "Execute shell commands; read-only mode denies commands that may write or run other commands."
@@ -67,26 +157,24 @@ class AutoBash(Bash):
         # remaining shell syntax and nested commands.
         if "$" in command or "`" in command:
             return False
-        from safecmd import CmdSpec, validate  # pylint: disable=import-outside-toplevel
-        from safecmd.bashxtract import extract_commands  # pylint: disable=import-outside-toplevel
-        from safecmd.core import normalize_dest  # pylint: disable=import-outside-toplevel
-
-        specs = {CmdSpec(name, denied=options.get("denied")) for name, options in _READ_COMMANDS.items()}
         try:
+            from safecmd import CmdSpec, validate  # pylint: disable=import-outside-toplevel
+            from safecmd.bashxtract import extract_commands, parse_bash  # pylint: disable=import-outside-toplevel
+            from safecmd.core import normalize_dest  # pylint: disable=import-outside-toplevel
+
+            if not _literal_shell(parse_bash(command), command):
+                return False
+            specs = {CmdSpec(name, denied=options.get("denied")) for name, options in _READ_COMMANDS.items()}
             validate(command, cmds=specs, dests=_SAFE_DESTINATIONS)
             commands, operators, redirects = extract_commands(command)
-            for tokens in commands:
-                options = _READ_COMMANDS[tokens[0]]
-                # An allow list constrains the first argument (for git, its subcommand).
-                # CmdSpec independently rejects every denied argument.
-                if "allow" in options and (len(tokens) < 2 or tokens[1] not in options["allow"]):
-                    return False
-            if "=" in operators or any(normalize_dest(destination) != "/dev/null" for _, destination in redirects):
+            if any(not _allowed_arguments(tokens) for tokens in commands):
                 return False
+            return "=" not in operators and all(
+                normalize_dest(destination) == "/dev/null" for _, destination in redirects
+            )
         except Exception:  # pylint: disable=broad-exception-caught
             # Parser failures and missing shfmt must never allow execution.
             return False
-        return True
 
     async def check_read_only(self, tool_input: dict) -> bool:
         """Report the same policy used by the execution guard."""
@@ -113,10 +201,8 @@ class AutoBash(Bash):
                 is_last=True,
             )
             return
-        # Git status may otherwise refresh the index, and Git's pager may run
-        # a configured program. These exports apply only in read-only mode.
         if self.is_read_only:
-            command = "export GIT_OPTIONAL_LOCKS=0 GIT_PAGER=/bin/cat; " + command
+            command = _READ_ONLY_SETUP + command
         async for chunk in super().call(command=command, description=description, timeout=timeout):
             yield chunk
 

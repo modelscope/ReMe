@@ -1,6 +1,7 @@
 """Shell job and its optional read-only execution guard."""
 
 import inspect
+import subprocess
 from importlib.metadata import EntryPoint
 from pathlib import Path
 
@@ -64,6 +65,27 @@ async def test_auto_bash_runs_in_workspace(tmp_path):
         "GIT_PAGER=sh git log",
         "nop",
         "rg --pre='touch denied.txt' pattern .",
+        "rg hello note.txt",
+        "file -C -m magic",
+        "file -bC -m magic",
+        "file --comp -m magic",
+        r"file -\C -m magic",
+        "file -z note.txt",
+        "file -p note.txt",
+        "echo hello >| denied.txt",
+        ": <> denied.txt",
+        "sort --out=denied.txt note.txt",
+        "git diff --out=denied.txt",
+        "git diff --ext-di",
+        "git show --textcon HEAD",
+        "git log --show-signature",
+        'git log --format="%G?"',
+        "git show --remerge-diff",
+        "rg --hostname-bin=./hook --hyperlink-format=default hello .",
+        "rg -z hello .",
+        "for PATH in .; do git status; done",
+        "git() { echo overridden; }; git status",
+        "file -* magic",
     ],
 )
 async def test_auto_bash_denies_mutation_before_execution(tmp_path, command):
@@ -248,7 +270,6 @@ def test_home_plugin_registers_job_and_step(monkeypatch):
         "true",
         "false",
         "grep hello note.txt",
-        "rg hello note.txt",
         "find . -name note.txt",
         "sort note.txt",
         "diff note.txt note.txt",
@@ -277,6 +298,46 @@ async def test_safe_redirection_is_allowed(tmp_path):
 
     assert await tool.check_read_only({"command": "echo hello > /dev/null"})
     assert await tool.check_read_only({"command": "cat < note.txt"})
+    assert await tool.check_read_only({"command": "echo hello >| /dev/null"})
+    assert await tool.check_read_only({"command": "echo hello 2>&1"})
+    assert await tool.check_read_only({"command": "find . -name '*.txt'"})
+    assert await tool.check_read_only({"command": "(cat note.txt) | head -n 1"})
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("helper", ["fsmonitor", "diff", "textconv", "clean"])
+async def test_git_configured_helpers_cannot_write(tmp_path, helper):
+    """Repository configuration cannot turn an allowed read into helper execution."""
+
+    def git(*args):
+        return subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    git("init", "-q")
+    (tmp_path / "note.txt").write_text("before\n", encoding="utf-8")
+    (tmp_path / ".gitattributes").write_text("note.txt diff=test filter=test\n", encoding="utf-8")
+    git("add", "note.txt", ".gitattributes")
+    hook = tmp_path / "helper"
+    hook.write_text('#!/bin/sh\ntouch "' + str(tmp_path / "denied.txt") + '"\ncat\n', encoding="utf-8")
+    hook.chmod(0o700)
+    key = {
+        "fsmonitor": "core.fsmonitor",
+        "diff": "diff.external",
+        "textconv": "diff.test.textconv",
+        "clean": "filter.test.clean",
+    }[helper]
+    git("config", key, str(hook))
+    (tmp_path / "note.txt").write_text("after\n", encoding="utf-8")
+    command = "git status --short" if helper == "fsmonitor" else "git diff"
+    tool = AutoBash(cwd=tmp_path)
+
+    chunks = [chunk async for chunk in tool.call(command)]
+
+    assert not (tmp_path / "denied.txt").exists()
+    if helper == "clean":
+        assert chunks[-1].state == ToolResultState.ERROR
+        assert "external filters" in chunks[-1].content[0].text
+    else:
+        assert all(chunk.state != ToolResultState.ERROR for chunk in chunks)
 
 
 @pytest.mark.asyncio

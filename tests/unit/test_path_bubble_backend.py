@@ -67,6 +67,7 @@ async def test_each_execution_gets_separate_memory_cgroup(tmp_path, monkeypatch)
     backend = PathBubbleBackend(cwd=tmp_path, read_only_paths=[], writable_paths=[], memory_limit_bytes=1024)
     groups = []
     subprocess_options = []
+    subprocess_commands = []
 
     def create_group():
         group = tmp_path / f"group-{len(groups)}"
@@ -74,7 +75,8 @@ async def test_each_execution_gets_separate_memory_cgroup(tmp_path, monkeypatch)
         groups.append(group)
         return group
 
-    async def create_process(*_argv, **kwargs):
+    async def create_process(*argv, **kwargs):
+        subprocess_commands.append(argv)
         subprocess_options.append(kwargs)
         return SimpleNamespace(pid=100 + len(subprocess_options))
 
@@ -86,7 +88,10 @@ async def test_each_execution_gets_separate_memory_cgroup(tmp_path, monkeypatch)
     second = await backend._start_process(["true"], str(tmp_path))  # pylint: disable=protected-access
 
     assert len(groups) == 2 and groups[0] != groups[1]
-    assert all(options["preexec_fn"] is not None for options in subprocess_options)
+    assert all("preexec_fn" not in options for options in subprocess_options)
+    for argv, group in zip(subprocess_commands, groups):
+        assert argv[:4] == (sys.executable, "-I", "-S", "-c")
+        assert argv[5:7] == (str(group / "cgroup.procs"), "bwrap")
     backend._release_cgroup(first)  # pylint: disable=protected-access
     backend._release_cgroup(second)  # pylint: disable=protected-access
     assert not any(group.exists() for group in groups)
@@ -106,7 +111,7 @@ async def test_zero_memory_limit_skips_cgroup(tmp_path, monkeypatch):
     monkeypatch.setattr("reme.utils.path_bubble_backend.shutil.which", lambda _: "/usr/bin/bwrap")
     monkeypatch.setattr("reme.utils.path_bubble_backend.asyncio.create_subprocess_exec", create_process)
     await backend._start_process(["true"], str(tmp_path))  # pylint: disable=protected-access
-    assert options["preexec_fn"] is None
+    assert "preexec_fn" not in options
 
 
 @pytest.mark.parametrize("path", ["relative", "/", "/does-not-exist"])

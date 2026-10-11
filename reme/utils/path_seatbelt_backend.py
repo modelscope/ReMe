@@ -8,7 +8,7 @@ import sys
 import tempfile
 import warnings
 
-from .file_sandbox_backend import FileSandboxBackend
+from .file_sandbox_backend import FileSandboxBackend, contains
 
 
 class PathSeatbeltBackend(FileSandboxBackend):
@@ -43,9 +43,35 @@ class PathSeatbeltBackend(FileSandboxBackend):
         system_roots = ("/System", "/usr", "/bin", "/sbin", "/private/etc", "/dev")
         read_paths = [path for path in system_roots if os.path.exists(path)]
         read_paths += self._read_only_paths + self._writable_paths + [tempdir]
-        lines = ["(version 1)", "(deny default)", "(allow process*)", "(allow sysctl-read)", "(allow mach-lookup)"]
+        lines = [
+            "(version 1)",
+            "(deny default)",
+            "(allow process*)",
+            "(allow sysctl-read)",
+            "(allow mach-lookup)",
+            # dyld opens the root directory; /bin/sh reads the system shell selector.
+            '(allow file-read* (literal "/") (literal "/private/var/select/sh"))',
+        ]
+        ancestors = set()
+        for path in read_paths:
+            parent = os.path.dirname(path)
+            while parent != "/":
+                ancestors.add(parent)
+                parent = os.path.dirname(parent)
+        lines.extend(f"(allow file-read-metadata (literal {json.dumps(path)}))" for path in sorted(ancestors))
         lines.extend(f"(allow file-read* {self._path_rule(path)})" for path in read_paths)
-        lines.extend(f"(allow file-write* {self._path_rule(path)})" for path in self._writable_paths + [tempdir])
+        for path in self._writable_paths + [tempdir]:
+            # Seatbelt combines allow rules with OR, unlike ordered bwrap mounts.
+            # Exclude read-only descendants from each writable parent's grant.
+            exclusions = [
+                f"(require-not {self._path_rule(read_only)})"
+                for read_only in self._read_only_paths
+                if contains(path, read_only)
+            ]
+            rule = self._path_rule(path)
+            if exclusions:
+                rule = f"(require-all {rule} {' '.join(exclusions)})"
+            lines.append(f"(allow file-write* {rule})")
         return "\n".join(lines)
 
     async def _start_process(self, command: list[str], cwd: str, *, stdin=asyncio.subprocess.DEVNULL):

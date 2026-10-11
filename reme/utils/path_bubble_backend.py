@@ -10,6 +10,16 @@ import sys
 
 from .file_sandbox_backend import FileSandboxBackend
 
+# Run after exec of a fresh interpreter: Python preexec_fn can deadlock when
+# the parent has threads. The requested command starts only after enrollment.
+_CGROUP_EXEC = """
+import os
+import sys
+with open(sys.argv[1], 'w', encoding='ascii') as group:
+    group.write(str(os.getpid()))
+os.execvp(sys.argv[2], sys.argv[2:])
+"""
+
 
 class PathBubbleBackend(FileSandboxBackend):
     """Run commands with selected host paths at the same sandbox paths."""
@@ -65,23 +75,14 @@ class PathBubbleBackend(FileSandboxBackend):
         argv = self._bwrap_argv(command, cwd)
         group = self._create_cgroup() if self._memory_limit_bytes else None
         try:
-
-            def join_cgroup() -> None:
-                """Move the forked child before it executes bubblewrap."""
-                assert group is not None
-                descriptor = os.open(group / "cgroup.procs", os.O_WRONLY)
-                try:
-                    os.write(descriptor, str(os.getpid()).encode("ascii"))
-                finally:
-                    os.close(descriptor)
-
+            if group is not None:
+                argv = [sys.executable, "-I", "-S", "-c", _CGROUP_EXEC, str(group / "cgroup.procs"), *argv]
             process = await asyncio.create_subprocess_exec(
                 *argv,
                 stdin=stdin,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 start_new_session=True,
-                preexec_fn=join_cgroup if group is not None else None,
             )
         except BaseException:
             if group is not None:

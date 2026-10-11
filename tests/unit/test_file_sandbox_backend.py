@@ -60,6 +60,24 @@ def test_seatbelt_profile_limits_file_access(tmp_path):
     assert "network*" not in profile
 
 
+def test_seatbelt_excludes_read_only_child_from_writable_parent(tmp_path):
+    """A parent write grant must not override a nested read-only restriction."""
+    protected = tmp_path / "protected"
+    protected.mkdir()
+    output = protected / "output"
+    output.mkdir()
+    backend = PathSeatbeltBackend(
+        cwd=tmp_path,
+        read_only_paths=[str(protected)],
+        writable_paths=[str(tmp_path), str(output)],
+    )
+    profile = backend._profile(str(tmp_path / "temporary"))  # pylint: disable=protected-access
+    assert (
+        f'(allow file-write* (require-all (subpath "{tmp_path}") ' f'(require-not (subpath "{protected}"))))'
+    ) in profile
+    assert f'(allow file-write* (subpath "{output}"))' in profile
+
+
 @pytest.mark.asyncio
 async def test_seatbelt_launch_failure_cleans_up_without_host_fallback(tmp_path, monkeypatch):
     """A failed sandbox launcher never starts the requested command directly."""
