@@ -77,6 +77,38 @@ def test_preparation_is_query_local_and_preserves_subclass_hooks():
     assert CustomStore._prepare_search_filter({})(FileChunk(path="special"))
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("hook", ["_matches_search_filter", "_value_matches"])
+@pytest.mark.parametrize("config", [None, {}, {"group": "selected"}])
+async def test_static_subclass_hooks_preserve_search_results(hook, config):
+    class CustomStore(LocalFileStore):
+        """Third-party stores can implement either matching hook as a static method."""
+
+    if hook == "_matches_search_filter":
+        CustomStore._matches_search_filter = staticmethod(lambda chunk, _config: chunk.id == "29")
+    else:
+        CustomStore._value_matches = staticmethod(lambda actual, expected: actual == expected.upper())
+
+    store = make_store(CustomStore)
+    store.file_chunks["29"].metadata["group"] = "SELECTED"
+    index = BM25Index()
+    index.tokenizer = RegexTokenizer(filter_stopwords=False)
+    await index.add_docs({key: chunk.text for key, chunk in store.file_chunks.items()})
+    store.keyword_index = index
+    expected_ids = {chunk.id for chunk in store.file_chunks.values() if store._matches_search_filter(chunk, config)}
+    assert expected_ids == ({"29"} if hook == "_matches_search_filter" or config else set(store.file_chunks))
+    for search in (store.keyword_search, store.vector_search):
+        result = await search("alpha", 30, config)
+        with patch.object(
+            store,
+            "_prepare_search_filter",
+            side_effect=lambda filt: lambda chunk: store._matches_search_filter(chunk, filt),
+        ):
+            legacy = await search("alpha", 30, config)
+        assert {chunk.id for chunk in result} == expected_ids
+        assert [(chunk.id, chunk.scores) for chunk in result] == [(chunk.id, chunk.scores) for chunk in legacy]
+
+
 @pytest.mark.parametrize(
     "config",
     [

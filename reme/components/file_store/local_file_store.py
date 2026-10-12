@@ -29,6 +29,20 @@ _EMBEDDING_F16_DTYPE = np.dtype("<f2")
 _VECTOR_SEARCH_BATCH_SIZE = 1024
 _PROGRESS_LOG_PERCENT_STEP = 10
 _KEYWORD_REBUILD_BATCH_SIZE = 200
+_SEARCH_FILTER_RESERVED_KEYS = frozenset(
+    {
+        "path",
+        "paths",
+        "path_prefix",
+        "path_prefixes",
+        "prefix",
+        "prefixes",
+        "metadata",
+        "start_date",
+        "end_date",
+        "strict_date_filter",
+    },
+)
 
 
 @R.register("local")
@@ -1025,9 +1039,12 @@ class LocalFileStore(BaseFileStore):
             return cls._matches_search_filter(chunk, search_filter)
 
         # Subclasses may customize matching without implementing this new helper.
-        if (
-            cls._matches_search_filter.__func__ is not LocalFileStore._matches_search_filter.__func__
-            or cls._value_matches.__func__ is not LocalFileStore._value_matches.__func__
+        if any(
+            getattr(method, "__func__", method) is not getattr(base_method, "__func__", base_method)
+            for method, base_method in (
+                (cls._matches_search_filter, LocalFileStore._matches_search_filter),
+                (cls._value_matches, LocalFileStore._value_matches),
+            )
         ):
             return legacy
         if not search_filter:
@@ -1049,19 +1066,9 @@ class LocalFileStore(BaseFileStore):
             end_date = search_filter.get("end_date")
             strict_date = bool(search_filter.get("strict_date_filter", False))
             metadata = dict(search_filter.get("metadata") or {})
-            reserved = {
-                "path",
-                "paths",
-                "path_prefix",
-                "path_prefixes",
-                "prefix",
-                "prefixes",
-                "metadata",
-                "start_date",
-                "end_date",
-                "strict_date_filter",
-            }
-            metadata.update((key, value) for key, value in search_filter.items() if key not in reserved)
+            metadata.update(
+                (key, value) for key, value in search_filter.items() if key not in _SEARCH_FILTER_RESERVED_KEYS
+            )
             conditions = []
             for key, value in metadata.items():
                 collection = isinstance(value, (list, tuple, set, frozenset))
@@ -1162,20 +1169,8 @@ class LocalFileStore(BaseFileStore):
                 return False
 
         metadata_filter = dict(search_filter.get("metadata") or {})
-        reserved = {
-            "path",
-            "paths",
-            "path_prefix",
-            "path_prefixes",
-            "prefix",
-            "prefixes",
-            "metadata",
-            "start_date",
-            "end_date",
-            "strict_date_filter",
-        }
         for key, value in search_filter.items():
-            if key not in reserved:
+            if key not in _SEARCH_FILTER_RESERVED_KEYS:
                 metadata_filter[key] = value
 
         return all(cls._value_matches(chunk.metadata.get(key), value) for key, value in metadata_filter.items())
