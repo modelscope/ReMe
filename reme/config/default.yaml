@@ -127,6 +127,7 @@ jobs:
         max_reminder_cards: 8
       - backend: proactive_agenda_step
         min_discovery_slots: 2
+        redelivery_cooldown_days: 3
       - backend: proactive_finish_step
         file_catalog: proactive
 
@@ -169,6 +170,7 @@ jobs:
         max_reminder_cards: 8
       - backend: proactive_agenda_step
         min_discovery_slots: 2
+        redelivery_cooldown_days: 3
       - backend: proactive_finish_step
         file_catalog: proactive
 
@@ -307,9 +309,40 @@ jobs:
           type: number
           description: "minimum topic confidence to return (default 0.4 sits safely below the 0.5 fallback; v1 topics fall back to 0.5)"
           default: 0.4
+        include_delivered:
+          type: boolean
+          description: "also return agenda items the host already reported as delivered (default withholds them)"
+          default: false
+        delivery_cooldown_days:
+          type: integer
+          description: "days an already-delivered agenda item stays withheld; 0 withholds only same-day deliveries"
+          default: 3
     steps:
       - backend: proactive_step
         min_confidence: 0.4
+        delivery_cooldown_days: 3
+
+  proactive_feedback:
+    backend: base
+    description: "Record which proactive agenda items a host agent already delivered or executed, so they are not repeated."
+    parameters:
+      type: object
+      properties:
+        date:
+          type: string
+          description: "YYYY-MM-DD the report belongs to; defaults to today in the application's timezone"
+          default: ""
+        items:
+          type: array
+          description: "delivery reports: [{topic_id, status, channel, consumer, outcome, external_ref, agenda_date}]"
+          items:
+            type: object
+      required:
+        - items
+    steps:
+      - backend: proactive_feedback_step
+        retention_days: 180
+        max_deliveries: 500
 
   version:
     backend: base

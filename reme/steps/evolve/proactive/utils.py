@@ -17,9 +17,12 @@ from pathlib import Path
 import yaml
 
 from ....enumeration import ComponentEnum
-from ....schema import ProactiveSchedule, ProactiveStateFile, ProactiveTopic
+from ....schema import ProactiveDelivery, ProactiveSchedule, ProactiveStateFile, ProactiveTopic
 from ....schema.proactive import (
+    DEFAULT_DELIVERY_CHANNEL,
+    DEFAULT_DELIVERY_STATUS,
     DEFAULT_KIND,
+    TERMINAL_DELIVERY_STATUSES,
     TOPIC_KINDS,
     clamp_confidence,
     kind_priority,
@@ -114,8 +117,6 @@ def _clean_legacy_topic(raw: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Frozen identity contract (A7 / INV-4)
-# ---------------------------------------------------------------------------
 
 
 def normalize_topic(title: str) -> str:
@@ -133,8 +134,6 @@ def topic_id(title: str) -> str:
     return hashlib.sha1(normalize_topic(title).encode("utf-8")).hexdigest()[:12]
 
 
-# ---------------------------------------------------------------------------
-# Paths and material set M (F2.0)
 # ---------------------------------------------------------------------------
 
 
@@ -241,8 +240,6 @@ def scan_material_resource(
 
 
 # ---------------------------------------------------------------------------
-# Truth-source state file daily/_proactive.yaml (F1.3)
-# ---------------------------------------------------------------------------
 
 
 def load_state(ws: Path, daily: str = "daily") -> tuple[ProactiveStateFile, bool]:
@@ -277,7 +274,7 @@ def load_state(ws: Path, daily: str = "daily") -> tuple[ProactiveStateFile, bool
         logger.warning(
             f"proactive state file invalid, salvaged entry by entry: {path} "
             f"(dropped {dropped} unreadable entr(ies); kept open_topics={len(state.open_topics)} "
-            f"schedules={len(state.schedules)}; {e})",
+            f"schedules={len(state.schedules)} deliveries={len(state.deliveries)}; {e})",
         )
         return state, False
     return state, needs_bootstrap
@@ -286,7 +283,7 @@ def load_state(ws: Path, daily: str = "daily") -> tuple[ProactiveStateFile, bool
 # Truth-source sections whose entries are validated one by one when the whole
 # file fails to parse. ``resolved`` is a plain dict list, so it only needs the
 # non-mapping items filtered out.
-_STATE_SECTIONS = (("open_topics", ProactiveTopic), ("schedules", ProactiveSchedule))
+_STATE_SECTIONS = (("open_topics", ProactiveTopic), ("schedules", ProactiveSchedule), ("deliveries", ProactiveDelivery))
 
 
 def _salvage_state(data: dict) -> tuple[ProactiveStateFile, int]:
@@ -431,8 +428,157 @@ def trim_state_file(state_file: ProactiveStateFile, day: str, days: int) -> None
 
 
 # ---------------------------------------------------------------------------
-# interests.yaml read/render (F1.2 / A2 / A4)
+
+
 # ---------------------------------------------------------------------------
+# Delivery feedback (host -> ReMe). Optional by design: a framework that never
+# reports leaves ``deliveries`` empty and every helper below degrades to a
+# no-op, so the chain behaves exactly as it did before feedback existed.
+# ---------------------------------------------------------------------------
+
+
+def _delivery_date(text: str) -> str:
+    """``YYYY-MM-DD`` prefix of an ISO timestamp; '' when unparseable."""
+    raw = str(text or "").strip()
+    parsed = safe_date(raw[:10])
+    return parsed.isoformat() if parsed is not None else ""
+
+
+def normalize_delivery(raw, day: str, now_dt: dt.datetime) -> ProactiveDelivery | None:
+    """Coerce one host-reported item into a ``ProactiveDelivery``.
+
+    ``topic_id`` is the only mandatory field; a record without one can never
+    match an agenda item, so it is dropped instead of being stored. Missing
+    ``agenda_date`` defaults to the round's day and missing ``delivered_at``
+    to the business clock, which keeps a minimal host report
+    (``{"topic_id": ..., "status": ...}``) sufficient.
+    """
+    if not isinstance(raw, dict):
+        return None
+    topic = str(raw.get("topic_id") or "").strip()
+    if not topic:
+        return None
+    stamp = str(raw.get("delivered_at") or "").strip()
+    if not _delivery_date(stamp):
+        stamp = now_dt.isoformat(timespec="seconds")
+    return ProactiveDelivery(
+        topic_id=topic,
+        agenda_date=str(raw.get("agenda_date") or day or "")[:10],
+        delivered_at=stamp,
+        channel=str(raw.get("channel") or DEFAULT_DELIVERY_CHANNEL),
+        consumer=str(raw.get("consumer") or ""),
+        status=str(raw.get("status") or DEFAULT_DELIVERY_STATUS),
+        outcome=str(raw.get("outcome") or ""),
+        external_ref=str(raw.get("external_ref") or ""),
+    )
+
+
+def delivery_index(state_file: ProactiveStateFile) -> dict[str, list[ProactiveDelivery]]:
+    """Group delivery records by topic_id, newest first.
+
+    The list is kept (not collapsed to one record) because a topic can be
+    surfaced through several channels; suppression only needs the most recent
+    relevant record, which is the head after sorting.
+    """
+    grouped: dict[str, list[ProactiveDelivery]] = {}
+    for record in state_file.deliveries:
+        if not record.topic_id:
+            continue
+        grouped.setdefault(record.topic_id, []).append(record)
+    for records in grouped.values():
+        records.sort(key=lambda r: (str(r.delivered_at or ""), str(r.external_ref or "")), reverse=True)
+    return grouped
+
+
+def is_delivery_suppressed(record: ProactiveDelivery | None, day: str, cooldown_days: int) -> bool:
+    """Whether a delivery record still blocks re-proposing its topic.
+
+    ``failed`` never blocks: a run that did not complete should be retryable
+    on the next round. Every other status blocks while it is younger than
+    ``cooldown_days``, so a surfaced-but-ignored item can come back later
+    while an executed or dismissed one does not repeat tomorrow.
+    """
+    if record is None:
+        return False
+    if str(record.status or "") == "failed":
+        return False
+    base = safe_date(day)
+    delivered = safe_date(_delivery_date(record.delivered_at))
+    if base is None or delivered is None:
+        return False
+    window = max(int(cooldown_days), 0)
+    return (base - delivered).days <= window
+
+
+def suppressed_delivery_ids(
+    state_file: ProactiveStateFile,
+    day: str,
+    cooldown_days: int,
+) -> dict[str, ProactiveDelivery]:
+    """topic_id -> blocking record, for the reader and the agenda step."""
+    out: dict[str, ProactiveDelivery] = {}
+    for item_id, records in delivery_index(state_file).items():
+        for record in records:
+            if is_delivery_suppressed(record, day, cooldown_days):
+                out[item_id] = record
+                break
+    return out
+
+
+def upsert_deliveries(
+    state_file: ProactiveStateFile,
+    items: list,
+    day: str,
+    now_dt: dt.datetime,
+) -> dict[str, int]:
+    """Merge host-reported deliveries into the truth source (idempotent).
+
+    Identity is ``ProactiveDelivery.identity()``: an explicit ``external_ref``
+    wins, otherwise ``(topic_id, agenda_date, channel)``. Status never moves
+    backwards out of a terminal value, so a late ``shown`` report cannot undo
+    an ``executed`` one.
+    """
+    counts = {"added": 0, "updated": 0, "dropped": 0}
+    by_identity = {record.identity(): record for record in state_file.deliveries}
+    for raw in items:
+        record = normalize_delivery(raw, day, now_dt)
+        if record is None:
+            counts["dropped"] += 1
+            continue
+        key = record.identity()
+        existing = by_identity.get(key)
+        if existing is None:
+            state_file.deliveries.append(record)
+            by_identity[key] = record
+            counts["added"] += 1
+            continue
+        if existing.status in TERMINAL_DELIVERY_STATUSES and record.status not in TERMINAL_DELIVERY_STATUSES:
+            logger.info(f"delivery for {existing.topic_id} kept terminal status {existing.status!r}")
+            counts["dropped"] += 1
+            continue
+        existing.agenda_date = record.agenda_date or existing.agenda_date
+        existing.delivered_at = record.delivered_at
+        existing.channel = record.channel
+        existing.consumer = record.consumer or existing.consumer
+        existing.status = record.status
+        if record.outcome:
+            existing.outcome = record.outcome
+        counts["updated"] += 1
+    return counts
+
+
+def trim_deliveries(state_file: ProactiveStateFile, day: str, retention_days: int, max_deliveries: int) -> int:
+    """Prune the delivery log by age then by size; returns the dropped count."""
+    base = safe_date(day)
+    before = len(state_file.deliveries)
+    if base is not None:
+        cutoff = (base - dt.timedelta(days=max(int(retention_days), 0))).isoformat()
+        state_file.deliveries = [r for r in state_file.deliveries if _delivery_date(r.delivered_at) >= cutoff]
+    cap = max(int(max_deliveries), 0)
+    if len(state_file.deliveries) > cap:
+        state_file.deliveries.sort(key=lambda r: str(r.delivered_at or ""), reverse=True)
+        del state_file.deliveries[cap:]
+    return before - len(state_file.deliveries)
 
 
 def quarantine_interests(path: Path, error: Exception) -> None:
@@ -613,8 +759,6 @@ def write_interests_if_changed(ws: Path, path: Path, rendered: dict) -> bool:  #
     return True
 
 
-# ---------------------------------------------------------------------------
-# Candidate cleaning (extract side, A3)
 # ---------------------------------------------------------------------------
 
 

@@ -8,6 +8,7 @@ from .dream import (
     IntegrateOutcome,
 )
 from .proactive import (
+    ProactiveDelivery,
     ProactiveResult,
     ProactiveSchedule,
     ProactiveState,
@@ -42,6 +43,7 @@ __all__ = [
     "GraphSnapshotNode",
     "IntegrateOutcome",
     "JobConfig",
+    "ProactiveDelivery",
     "ProactiveResult",
     "ProactiveSchedule",
     "ProactiveState",

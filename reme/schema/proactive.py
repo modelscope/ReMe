@@ -26,6 +26,22 @@ SCHEDULE_STATUSES = ("open", "done", "cancelled")
 RECURRENCES = ("", "daily", "weekly", "monthly", "yearly")
 REMINDER_TRIGGERS = ("overdue", "due_today", "due_soon", "conflict")
 
+# Delivery feedback (``daily/_proactive.yaml: deliveries``) vocabularies.
+# A host agent reports back which agenda items it already surfaced or ran, so
+# the reader and the agenda step can stop repeating them. Reporting is
+# optional: a framework that never calls ``proactive_feedback`` leaves the
+# section empty and the whole chain behaves exactly as before.
+DELIVERY_STATUSES = ("shown", "executed", "dismissed", "failed")
+DELIVERY_CHANNELS = ("in_conversation", "inbox", "notification", "other")
+DEFAULT_DELIVERY_STATUS = "shown"
+DEFAULT_DELIVERY_CHANNEL = "other"
+# Statuses that retire an agenda item for the whole cooldown window. ``failed``
+# is deliberately absent: a failed run should be retryable on the next round.
+TERMINAL_DELIVERY_STATUSES = ("executed", "dismissed")
+# ``outcome`` is a host-written summary; cap it so a chatty consumer cannot
+# inflate the truth source without bound.
+MAX_DELIVERY_OUTCOME_CHARS = 500
+
 # Keys inside the untyped ``history`` audit trail that hold a date/datetime.
 HISTORY_WHEN_KEYS = ("at", "from", "to")
 
@@ -188,6 +204,57 @@ class ProactiveSchedule(BaseModel):
         return cleaned
 
 
+class ProactiveDelivery(BaseModel):
+    """One host-side report that an agenda item was surfaced or executed.
+
+    The identity of a record is ``(topic_id, external_ref)`` when the host
+    supplies a reference (an inbox event id, a session id), and
+    ``(topic_id, agenda_date, channel)`` otherwise, so repeated reports of the
+    same delivery update in place instead of piling up. ``status`` only moves
+    forward: ``shown`` may become ``executed``/``dismissed``/``failed``, but a
+    terminal record is never downgraded back to ``shown``.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    topic_id: str = ""
+    agenda_date: str = ""
+    delivered_at: str = ""
+    channel: str = DEFAULT_DELIVERY_CHANNEL
+    consumer: str = ""
+    status: str = DEFAULT_DELIVERY_STATUS
+    outcome: str = ""
+    external_ref: str = ""
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def _fallback_status(cls, value):
+        text = str(value or "").strip().lower()
+        return text if text in DELIVERY_STATUSES else DEFAULT_DELIVERY_STATUS
+
+    @field_validator("channel", mode="before")
+    @classmethod
+    def _fallback_channel(cls, value):
+        text = str(value or "").strip().lower()
+        return text if text in DELIVERY_CHANNELS else DEFAULT_DELIVERY_CHANNEL
+
+    @field_validator("agenda_date", "delivered_at", mode="before")
+    @classmethod
+    def _iso_when(cls, value):
+        return iso_text(value)
+
+    @field_validator("outcome", mode="before")
+    @classmethod
+    def _truncate_outcome(cls, value):
+        return str(value or "")[:MAX_DELIVERY_OUTCOME_CHARS]
+
+    def identity(self) -> tuple[str, str]:
+        """Idempotency key: explicit host reference wins over the natural key."""
+        if self.external_ref:
+            return (self.topic_id, f"ref:{self.external_ref}")
+        return (self.topic_id, f"day:{self.agenda_date}|{self.channel}")
+
+
 class ProactiveState(BaseModel):
     """Chain-shared proactive context state (``context['proactive']``).
 
@@ -256,6 +323,8 @@ class ProactiveState(BaseModel):
     scenario_cards: list[dict] = Field(default_factory=list)
     agenda: list[dict] = Field(default_factory=list)
     suppressed: list[dict] = Field(default_factory=list)
+    # Candidates withheld because the host already reported them delivered.
+    suppressed_delivered: int = 0
     plan_llm_calls: int = 0
     push: bool = False
     file_skip_reason: str = ""
@@ -263,6 +332,11 @@ class ProactiveState(BaseModel):
     interests_written: bool = False
     checkpoint_paths: list[str] = Field(default_factory=list)
     duration_ms: int = 0
+    # Delivery-feedback round counters (metadata/log only).
+    deliveries_in: int = 0
+    deliveries_added: int = 0
+    deliveries_updated: int = 0
+    deliveries_dropped: int = 0
 
 
 class ProactiveStateFile(BaseModel):
@@ -272,6 +346,8 @@ class ProactiveStateFile(BaseModel):
     keep its original age anchor (F2.4 reopen channel).
     ``schedules`` is the long-lived reminder registry; it is optional so
     files written before the reminder branch existed still load.
+    ``deliveries`` is the optional host-feedback log; it is likewise absent
+    from files written before delivery reporting existed.
     """
 
     model_config = ConfigDict(extra="ignore")
@@ -280,6 +356,7 @@ class ProactiveStateFile(BaseModel):
     open_topics: list[ProactiveTopic] = Field(default_factory=list)
     resolved: list[dict] = Field(default_factory=list)
     schedules: list[ProactiveSchedule] = Field(default_factory=list)
+    deliveries: list[ProactiveDelivery] = Field(default_factory=list)
 
 
 class ProactiveResult(BaseModel):
@@ -295,3 +372,6 @@ class ProactiveResult(BaseModel):
     push: bool | None = None
     generated_at: str = ""
     agenda: list[dict] = Field(default_factory=list)
+    # Agenda topic_ids withheld because the host already reported them as
+    # delivered; kept so a caller can see the suppression instead of guessing.
+    delivered_ids: list[str] = Field(default_factory=list)

@@ -2933,6 +2933,11 @@ def test_state_file_bare_yaml_dates_load(tmp_path):
         "      - at: 2026-07-01\n"
         "        action: add\n"
         "        to: 2026-08-05T09:00:00\n"
+        "deliveries:\n"
+        "  - topic_id: t1\n"
+        "    agenda_date: 2026-08-12\n"
+        "    delivered_at: 2026-08-12T09:00:00\n"
+        "    status: shown\n"
     )
     _touch(tmp_path / "daily" / "_proactive.yaml", raw)
 
@@ -2946,6 +2951,9 @@ def test_state_file_bare_yaml_dates_load(tmp_path):
     assert (schedule.first_seen, schedule.last_seen_at) == ("2026-07-01", "2026-07-01")
     assert schedule.history[0]["at"] == "2026-07-01"
     assert schedule.history[0]["to"] == "2026-08-05T09:00:00"
+    delivery = state_file.deliveries[0]
+    assert delivery.agenda_date == "2026-08-12"
+    assert delivery.delivered_at == "2026-08-12T09:00:00"
 
 
 def test_state_file_salvages_unreadable_entries(tmp_path):

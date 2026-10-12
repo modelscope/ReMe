@@ -6,6 +6,11 @@ fallback) and ``horizon_days``: horizon=1 keeps the legacy single-day file
 read (v1 compatible); horizon>1 reads the truth source directly, filtering by
 ``last_evidence_at`` recency (v5 R4 - the truth source already carries the
 cross-day merge, so the reader no longer re-scans exposure products).
+
+Agenda items the host already reported through ``proactive_feedback`` are
+withheld while they sit inside ``delivery_cooldown_days``, so a consumer that
+reads this job daily does not resurface the same proposal. Feedback is
+optional: with an empty ``deliveries`` section nothing is withheld.
 """
 
 import datetime as dt
@@ -23,6 +28,7 @@ from .utils import (
     parse_interests_topics,
     sort_topics,
     state_file_path,
+    suppressed_delivery_ids,
     topic_id,
 )
 
@@ -53,11 +59,21 @@ class ProactiveStep(BaseStep):
     - ``horizon_days>1`` reads the truth source and filters by evidence recency.
     """
 
-    def __init__(self, include_content: bool = True, horizon_days: int = 1, min_confidence: float = 0.4, **kwargs):
+    def __init__(
+        self,
+        include_content: bool = True,
+        horizon_days: int = 1,
+        min_confidence: float = 0.4,
+        include_delivered: bool = False,
+        delivery_cooldown_days: int = 3,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.include_content = include_content
         self.horizon_days = max(int(horizon_days), 1)
         self.min_confidence = float(min_confidence)
+        self.include_delivered = include_delivered
+        self.delivery_cooldown_days = max(int(delivery_cooldown_days), 0)
 
     async def execute(self):
         assert self.context is not None
@@ -70,27 +86,37 @@ class ProactiveStep(BaseStep):
             min_confidence = float(raw_min_confidence)
         except (TypeError, ValueError):
             min_confidence = self.min_confidence
+        include_delivered = bool(self.context.get("include_delivered", self.include_delivered))
+        raw_cooldown = self.context.get("delivery_cooldown_days", self.delivery_cooldown_days)
+        try:
+            cooldown = max(int(raw_cooldown), 0)
+        except (TypeError, ValueError):
+            cooldown = self.delivery_cooldown_days
         daily = self.config_value("daily_dir")
         ws = workspace_dir(self)
+        blocked = {} if include_delivered else self._suppressed_deliveries(ws, daily, day, cooldown)
         default_rel = f"{daily}/{day}/interests.yaml"
         result = ProactiveResult(date=day, path=default_rel)
         self.logger.info(
             f"[{self.name}] start date={day} path={default_rel} include_content={include_content} "
-            f"horizon_days={horizon} min_confidence={min_confidence}",
+            f"horizon_days={horizon} min_confidence={min_confidence} "
+            f"include_delivered={include_delivered} delivery_cooldown_days={cooldown} blocked={len(blocked)}",
         )
 
         if horizon == 1:
-            outcome = self._read_single(ws, daily, day, include_content, min_confidence, result)
+            outcome = self._read_single(ws, daily, day, include_content, min_confidence, result, blocked)
             if outcome is not None:
                 return outcome
 
+        # The horizon view reads open topics from the truth source and carries
+        # no agenda, so delivery withholding does not apply to it.
         return self._read_horizon(ws, daily, day, horizon, include_content, min_confidence, result)
 
     # ------------------------------------------------------------------
     # Single-day read (legacy-compatible path)
     # ------------------------------------------------------------------
 
-    def _read_single(self, ws, daily, day, include_content, min_confidence, result: ProactiveResult):
+    def _read_single(self, ws, daily, day, include_content, min_confidence, result: ProactiveResult, blocked=None):
         rel_path = f"{daily}/{day}/interests.yaml"
         abs_path = ws / daily / day / "interests.yaml"
         if not abs_path.is_file():
@@ -141,13 +167,14 @@ class ProactiveStep(BaseStep):
                 agenda_raw = data.get("agenda")
                 if isinstance(agenda_raw, list):
                     kept_ids = {str(t.get("id") or "") for t in kept}
-                    result.agenda = [
-                        item
-                        for item in agenda_raw
-                        if isinstance(item, dict) and str(item.get("topic_id") or "") in kept_ids
-                    ]
+                    result.agenda, result.delivered_ids = self._select_agenda(agenda_raw, kept_ids, blocked)
             result.summary = f"Read {len(result.topics)} proactive topic(s) from {rel_path}"
-            self.logger.info(f"[{self.name}] read done path={rel_path} topics={len(result.topics)}")
+            if result.delivered_ids:
+                result.summary += f"; withheld {len(result.delivered_ids)} already-delivered agenda item(s)"
+            self.logger.info(
+                f"[{self.name}] read done path={rel_path} topics={len(result.topics)} "
+                f"agenda={len(result.agenda)} withheld={len(result.delivered_ids)}",
+            )
             return self._finish(True, result, include_content=include_content)
         except Exception as e:  # noqa: BLE001
             result.error, result.summary = f"{type(e).__name__}: {e}", ""
@@ -210,6 +237,35 @@ class ProactiveStep(BaseStep):
         state_file, _needs_bootstrap = load_state(ws, daily)
         return {str(r.get("id") or "") for r in state_file.resolved if isinstance(r, dict) and r.get("id")}
 
+    def _suppressed_deliveries(self, ws, daily: str, day: str, cooldown: int) -> dict:
+        """topic_id -> blocking delivery record; empty when nothing was reported."""
+        state_file, _needs_bootstrap = load_state(ws, daily)
+        if not state_file.deliveries:
+            return {}
+        return suppressed_delivery_ids(state_file, day, cooldown)
+
+    @staticmethod
+    def _select_agenda(agenda_raw: list, kept_ids: set, blocked: dict | None) -> tuple[list, list]:
+        """Keep agenda items whose topic survived filtering and was not delivered.
+
+        The agenda order coming out of the refresh chain *is* the priority
+        order (reminders pinned first), so this only ever removes items and
+        never re-sorts them.
+        """
+        blocked = blocked or {}
+        agenda, withheld = [], []
+        for item in agenda_raw:
+            if not isinstance(item, dict):
+                continue
+            item_id = str(item.get("topic_id") or "")
+            if item_id not in kept_ids:
+                continue
+            if item_id in blocked:
+                withheld.append(item_id)
+                continue
+            agenda.append(item)
+        return agenda, withheld
+
     def _finish(self, success: bool, result: ProactiveResult, *, include_content: bool):
         assert self.context is not None
         self.context.response.success = success
@@ -222,6 +278,7 @@ class ProactiveStep(BaseStep):
                 "summary": result.summary,
                 "topics": result.topics,
                 **({"agenda": result.agenda} if result.agenda else {}),
+                **({"delivered_ids": result.delivered_ids} if result.delivered_ids else {}),
                 **({"content": result.content} if include_content else {}),
             }
         self.context.response.metadata.update(result.model_dump())
