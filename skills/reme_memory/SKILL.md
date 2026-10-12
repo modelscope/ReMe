@@ -182,7 +182,8 @@ Use ReMe commands instead of editing memory files directly unless the user expli
 ## Ingest Resources
 
 Place external documents under `resource/YYYY-MM-DD/` in the selected ReMe workspace. While `reme start` is running, the
-default background watcher processes new or changed `md`, `txt`, `json`, `jsonl`, `csv`, `yaml`, and `html` files.
+default background watcher processes new or changed `md`, `txt`, `json`, `jsonl`, `csv`, `yaml`, `html`, and image files
+(`png`, `jpg`, `jpeg`, `webp`, `gif`, `bmp`, `tiff`, `heic`); images produce caption cards linked to the original file.
 
 To request processing explicitly:
 
@@ -191,6 +192,7 @@ reme auto_resource changes='[{"path":"resource/<YYYY-MM-DD>/<file>","change":"ad
 ```
 
 `auto_resource` requires LLM credentials.
+Image captioning requires a vision-capable AgentScope model; HEIC also requires `reme-ai[image-heif]`.
 
 ## Consolidate and Use Proactive Topics
 
