@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import re
 from collections import OrderedDict
 from pathlib import Path
 
@@ -33,6 +34,41 @@ _TRANSPORT_FAILURE_TYPES = frozenset(
         "WriteError",
         "WriteTimeout",
     },
+)
+
+# The status a provider reports can live in more than one place. ``status_code`` is the
+# OpenAI-compatible attribute, Google GenAI exposes an integer ``code``, httpx-style wrappers
+# keep it on ``response``, and AgentScope's DashScope implementation raises a plain
+# ``RuntimeError`` whose message embeds the structured response, so the status has to be read
+# back out of the message. A string ``code`` names an error (``insufficient_quota``,
+# ``rate_limit_exceeded``, ``InvalidApiKey``) and is never a status.
+_STATUS_IN_MESSAGE = re.compile(r'"status_code"\s*:\s*(\d{3})')
+
+# A rejected batch can only be paid back one item at a time when the provider blames an input.
+# A context-length rejection is the one status an over-long item explains by itself, so it is
+# the only error allowed to fan out into per-item requests.
+_INPUT_DEPENDENT_STATUS_CODES = frozenset({400})
+
+_INPUT_DEPENDENT_ERROR_TYPES = frozenset(
+    {
+        "ContextLengthError",
+        "ContextWindowExceededError",
+        "InputLengthError",
+        "TokenLimitError",
+    },
+)
+
+_INPUT_DEPENDENT_MARKERS = (
+    "context length",
+    "context_length",
+    "context window",
+    "input length",
+    "input is too long",
+    "maximum context",
+    "reduce the length",
+    "token limit",
+    "too many tokens",
+    "too long",
 )
 
 
@@ -256,11 +292,19 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
                         continue
                     self.logger.exception("Embedding request failed: provider-wide error, not splitting")
                     break
-                self.logger.exception("Embedding request failed")
-                self.is_healthy = False
-                if len(texts) > 1:
-                    return await self._embed_individually(texts, **kwargs)
-                return None
+                if self._is_input_dependent_failure(error):
+                    # A rejection a single input explains by itself is the one case the per-item
+                    # split can resolve: isolating it keeps the remaining vectors usable.
+                    self.logger.exception("Embedding request failed: input-dependent error")
+                    self.is_healthy = False
+                    if len(texts) > 1:
+                        return await self._embed_individually(texts, **kwargs)
+                    return None
+                # Anything else counts as provider-wide. Splitting cannot recover a vector unless
+                # the failing input is identified, so an unrecognized error is never answered
+                # with one request per item.
+                self.logger.exception("Embedding request failed: unrecognized error, not splitting")
+                break
         self.is_healthy = False
         return None
 
@@ -277,7 +321,7 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
         results: list[list[float] | None] = []
         for text in texts:
             single = await self._call_with_retry([text], **kwargs)
-            if single and len(single) == 1:
+            if single:
                 results.append(single[0])
                 continue
             self.logger.error(f"Embedding request failed for a single item (chars={len(text)})")
@@ -297,6 +341,26 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
         return any(cls.__name__ in _TRANSPORT_FAILURE_TYPES for cls in type(error).__mro__)
 
     @staticmethod
+    def _http_status(error: Exception) -> int | None:
+        """Return the HTTP status an exception carries, across the provider SDK shapes.
+
+        ``status_code`` covers the OpenAI-compatible SDKs, an integer ``code`` covers Google
+        GenAI, ``response.status_code`` covers httpx-style wrappers, and the structured
+        ``status_code`` embedded in the message covers AgentScope's DashScope ``RuntimeError``.
+        Only integers are accepted: a string ``code`` is a provider error name such as
+        ``insufficient_quota``, and reading it as a status would misclassify those errors.
+        """
+        for attribute in ("status_code", "code"):
+            value = getattr(error, attribute, None)
+            if isinstance(value, int) and not isinstance(value, bool):
+                return value
+        value = getattr(getattr(error, "response", None), "status_code", None)
+        if isinstance(value, int) and not isinstance(value, bool):
+            return value
+        match = _STATUS_IN_MESSAGE.search(str(error))
+        return int(match.group(1)) if match else None
+
+    @staticmethod
     def _is_provider_wide_failure(error: Exception) -> bool:
         """Return whether an error describes the provider rather than a single input.
 
@@ -307,8 +371,8 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
         reach this classifier. A context-length ``400`` stays input-dependent on purpose,
         because that is the one status an over-limit item can explain by itself.
         """
-        status = getattr(error, "status_code", None)
-        if isinstance(status, int) and (status in _PROVIDER_WIDE_STATUS_CODES or 500 <= status < 600):
+        status = LocalEmbeddingStore._http_status(error)
+        if status is not None and (status in _PROVIDER_WIDE_STATUS_CODES or 500 <= status < 600):
             return True
         return type(error).__name__ in (
             "AuthenticationError",
@@ -318,10 +382,36 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
         )
 
     @staticmethod
+    def _is_input_dependent_failure(error: Exception) -> bool:
+        """Return whether a single input can be blamed for the rejected request.
+
+        Only a context-length rejection qualifies: it is the one error an over-long item
+        explains by itself, and therefore the only one a per-item retry can resolve. Anything
+        else stays on the provider-wide path, so a client never answers a service failure with
+        one request per item.
+        """
+        status = LocalEmbeddingStore._http_status(error)
+        if status is not None and status not in _INPUT_DEPENDENT_STATUS_CODES:
+            return False
+        if type(error).__name__ in _INPUT_DEPENDENT_ERROR_TYPES:
+            return True
+        text = LocalEmbeddingStore._error_text(error)
+        return any(marker in text for marker in _INPUT_DEPENDENT_MARKERS)
+
+    @staticmethod
+    def _error_text(error: Exception) -> str:
+        """Flatten an exception and its OpenAI-compatible body into one lowercase string."""
+        parts = [str(error)]
+        body = getattr(error, "body", None)
+        if isinstance(body, dict):
+            parts.append(str(body))
+        return " ".join(parts).lower()
+
+    @staticmethod
     def _is_transient_provider_failure(error: Exception) -> bool:
         """Return whether a provider-wide failure is worth retrying with the usual backoff."""
-        status = getattr(error, "status_code", None)
-        if isinstance(status, int):
+        status = LocalEmbeddingStore._http_status(error)
+        if status is not None:
             return 500 <= status < 600
         return type(error).__name__ == "InternalServerError"
 
@@ -330,7 +420,7 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
         """Recognize an OpenAI-compatible 429 response without importing a provider SDK."""
         if LocalEmbeddingStore._is_insufficient_quota(error):
             return False
-        if getattr(error, "status_code", None) == 429:
+        if LocalEmbeddingStore._http_status(error) == 429:
             return True
         body = getattr(error, "body", None)
         if not isinstance(body, dict):

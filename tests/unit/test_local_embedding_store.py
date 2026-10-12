@@ -3,6 +3,7 @@
 # pylint: disable=protected-access
 
 import asyncio
+import json
 from types import SimpleNamespace
 
 import numpy as np
@@ -1177,5 +1178,198 @@ def test_provider_wide_not_found_errors_are_not_split(monkeypatch):
         assert await store._call_with_retry([f"item{i}" for i in range(10)]) is None
         assert provider.batch_sizes == [10]
         assert not sleeps
+
+    run(go())
+
+
+class GenAiClientError(Exception):
+    """Google GenAI client error: the HTTP status is an integer ``code``, not ``status_code``."""
+
+    def __init__(self, code: int, message: str = "client error"):
+        super().__init__(message)
+        self.code = code
+
+
+class GenAiServerError(Exception):
+    """Google GenAI server error: the HTTP status is an integer ``code``, not ``status_code``."""
+
+    def __init__(self, code: int, message: str = "server error"):
+        super().__init__(message)
+        self.code = code
+
+
+class StringCodeError(Exception):
+    """OpenAI-compatible error whose ``code`` names the error instead of carrying a status."""
+
+    code = "invalid_api_key"
+
+
+class BadRequestError(Exception):
+    """OpenAI-compatible 400 that names no input, such as a malformed payload."""
+
+    status_code = 400
+
+
+class ResponseLike:
+    """httpx-style wrapper that keeps the status on a ``response`` attribute."""
+
+    def __init__(self, status_code: int):
+        self.status_code = status_code
+
+
+class WrappedTransportError(Exception):
+    """Error that only exposes its status through ``response.status_code``."""
+
+    def __init__(self, status_code: int):
+        super().__init__("wrapped")
+        self.response = ResponseLike(status_code)
+
+
+class DashScopeRuntimeError(RuntimeError):
+    """AgentScope turns every non-200 DashScope response into a plain ``RuntimeError``.
+
+    The structured response is embedded in the message instead of being kept as an attribute,
+    so a client that only reads exception attributes cannot classify it.
+    """
+
+    @staticmethod
+    def for_status(status_code: int, code: str = "InvalidApiKey") -> "DashScopeRuntimeError":
+        """Build the exception AgentScope raises for a non-200 DashScope response."""
+        response = {
+            "status_code": status_code,
+            "request_id": "req-0",
+            "code": code,
+            "message": "request rejected",
+            "output": None,
+            "usage": None,
+        }
+        return DashScopeRuntimeError(f"Failed to get embedding from DashScope API: {json.dumps(response)}")
+
+
+def test_http_status_reads_every_supported_exception_shape():
+    """Read the status from status_code, an integer code, response.status_code or the message."""
+
+    store = LocalEmbeddingStore(name="t_local_embedding_status_shapes")
+
+    assert store._http_status(AuthenticationError("bad key")) == 401
+    assert store._http_status(NotFoundError("model_not_found")) == 404
+    assert store._http_status(GenAiClientError(401)) == 401
+    assert store._http_status(GenAiServerError(503)) == 503
+    assert store._http_status(WrappedTransportError(404)) == 404
+    assert store._http_status(DashScopeRuntimeError.for_status(401)) == 401
+    assert store._http_status(ValueError("no status here")) is None
+
+
+def test_http_status_ignores_a_string_code():
+    """A string ``code`` names the error; reading it as a status would misclassify quota errors."""
+
+    store = LocalEmbeddingStore(name="t_local_embedding_status_string_code")
+
+    assert store._http_status(StringCodeError("invalid key")) is None
+    assert store._is_insufficient_quota(StringCodeError("invalid key")) is False
+    assert store._http_status(InsufficientQuotaError("quota exhausted")) == 429
+    assert store._is_insufficient_quota(InsufficientQuotaError("quota exhausted")) is True
+
+
+def test_google_genai_service_failures_are_not_split_into_per_item_requests(monkeypatch):
+    """A Gemini 401 / 429 / 503 describes the service, so the batch is never split per item."""
+
+    async def go():
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+        for error, expected_batches in (
+            (GenAiClientError(401), [10]),
+            (GenAiServerError(503), [10, 10, 10]),
+            (GenAiClientError(429), [10, 10, 10]),
+        ):
+            sleeps.clear()
+            provider = AlwaysProviderWideFailureAsEmbedding(error)
+            store = LocalEmbeddingStore(
+                name="t_local_embedding_genai",
+                max_retries=3,
+                enable_cache=False,
+            )
+            store.as_embedding = provider
+
+            assert await store._call_with_retry([f"item{i}" for i in range(10)]) is None
+            assert provider.batch_sizes == expected_batches
+
+    run(go())
+
+
+def test_dashscope_runtime_errors_are_not_split_into_per_item_requests(monkeypatch):
+    """A DashScope failure arrives as a plain RuntimeError; the status lives in its message."""
+
+    async def go():
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+        for status, expected_batches in ((401, [10]), (503, [10, 10, 10]), (429, [10, 10, 10])):
+            sleeps.clear()
+            provider = AlwaysProviderWideFailureAsEmbedding(DashScopeRuntimeError.for_status(status))
+            store = LocalEmbeddingStore(
+                name="t_local_embedding_dashscope",
+                max_retries=3,
+                enable_cache=False,
+            )
+            store.as_embedding = provider
+
+            assert await store._call_with_retry([f"item{i}" for i in range(10)]) is None
+            assert provider.batch_sizes == expected_batches
+
+    run(go())
+
+
+def test_unrecognized_errors_are_not_split_into_per_item_requests():
+    """Only an input-dependent error may split; anything unrecognized stays a batch failure."""
+
+    async def go():
+        provider = AlwaysProviderWideFailureAsEmbedding(RuntimeError("provider said no"))
+        store = LocalEmbeddingStore(name="t_local_embedding_unrecognized", max_retries=3)
+        store.as_embedding = provider
+
+        assert await store._call_with_retry(["a", "b", "c"]) is None
+        assert provider.batch_sizes == [3]
+
+    run(go())
+
+
+def test_input_dependent_classifier_pins_both_halves_of_the_boundary():
+    """The isolation must keep working for the one error a single item can explain."""
+
+    store = LocalEmbeddingStore(name="t_local_embedding_input_dependent")
+
+    assert (
+        store._is_input_dependent_failure(
+            ContextLengthError("the input length exceeds the context length"),
+        )
+        is True
+    )
+    assert store._is_input_dependent_failure(ContextLengthError("too long")) is True
+    assert store._is_input_dependent_failure(AuthenticationError("bad key")) is False
+    assert store._is_input_dependent_failure(InternalServerError("boom")) is False
+    assert store._is_input_dependent_failure(GenAiClientError(400)) is False
+    assert store._is_input_dependent_failure(RuntimeError("provider said no")) is False
+
+
+def test_bad_request_without_an_input_length_signal_is_not_split():
+    """A bare 400 does not name an input, so the batch is not divided over it."""
+
+    async def go():
+        provider = AlwaysProviderWideFailureAsEmbedding(BadRequestError("malformed payload"))
+        store = LocalEmbeddingStore(name="t_local_embedding_bare_400", max_retries=2)
+        store.as_embedding = provider
+
+        assert await store._call_with_retry(["a", "b", "c"]) is None
+        assert provider.batch_sizes == [3]
 
     run(go())
