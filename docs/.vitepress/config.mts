@@ -249,8 +249,7 @@ function sidebars(language: "zh" | "en"): DefaultTheme.SidebarMulti {
     [`/${language}/plugin_development`]: pluginsSidebar(language),
     [`/${language}/benchmarks/`]: benchmarksSidebar(language),
     [`/${language}/reme-blog`]: singlePageSidebar(language, "blog"),
-    [`/${language}/blog_20260920`]: singlePageSidebar(language, "blog"),
-    [`/${language}/blog_20261009`]: singlePageSidebar(language, "blog"),
+    [`/${language}/blog_`]: singlePageSidebar(language, "blog"),
     [`/${language}/faq`]: singlePageSidebar(language, "faq"),
     [`/${language}/`]: docsSidebar(language),
   };
