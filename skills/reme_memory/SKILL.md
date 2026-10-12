@@ -192,6 +192,7 @@ reme auto_resource changes='[{"path":"resource/<YYYY-MM-DD>/<file>","change":"ad
 ```
 
 `auto_resource` requires LLM credentials.
+Image captioning requires a vision-capable AgentScope model; HEIC also requires `reme-ai[image-heif]`.
 
 ## Consolidate and Use Proactive Topics
 
