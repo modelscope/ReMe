@@ -27,6 +27,22 @@ from .utils import (
 )
 
 
+def _above_floor(topic, min_confidence: float) -> bool:
+    """Confidence floor check; clock-anchored reminders are exempt.
+
+    A reminder carrying a due value is a clock fact about the user's own
+    schedule, not a discovery guess, and the refresh chain already applied the
+    (lower) ``min_reminder_confidence`` when it pinned it to the agenda.
+    Filtering it again here would silently drop today's agenda item. A dateless
+    reminder - an external notice or a key event - is a judgement call, so it
+    still has to clear the reader's floor.
+    """
+    get = topic.get if isinstance(topic, dict) else (lambda key: getattr(topic, key, ""))
+    if str(get("kind") or "") == "reminder" and str(get("due_at") or "").strip():
+        return True
+    return float(get("confidence") or 0.0) >= min_confidence - 1e-9
+
+
 @R.register("proactive_step")
 class ProactiveStep(BaseStep):
     """Read ``daily/<date>/interests.yaml`` (optionally merged over a horizon).
@@ -119,7 +135,7 @@ class ProactiveStep(BaseStep):
                 kept = [
                     dump_topic(t)
                     for t in sort_topics(topics)
-                    if t.id not in resolved_ids and t.confidence >= min_confidence - 1e-9
+                    if t.id not in resolved_ids and _above_floor(t, min_confidence)
                 ]
                 result.topics = kept
                 agenda_raw = data.get("agenda")
@@ -142,7 +158,16 @@ class ProactiveStep(BaseStep):
     # Multi-day merge (horizon_days > 1, or fallback target)
     # ------------------------------------------------------------------
 
-    def _read_horizon(self, ws, daily, day, horizon, include_content, min_confidence, result: ProactiveResult):
+    def _read_horizon(
+        self,
+        ws,
+        daily,
+        day,
+        horizon,
+        include_content,
+        min_confidence,
+        result: ProactiveResult,
+    ):
         """Truth-source view (v5 R4): open topics with evidence inside the horizon.
 
         The truth source already carries the cross-day merge (carry-forward),
@@ -171,7 +196,7 @@ class ProactiveStep(BaseStep):
             for t in state_file.open_topics
             if (
                 (not cutoff or cutoff <= str(t.last_evidence_at or "") <= upper_bound)
-                and t.confidence >= min_confidence - 1e-9
+                and _above_floor(t, min_confidence)
             )
         ]
         kept = sort_topics(kept)

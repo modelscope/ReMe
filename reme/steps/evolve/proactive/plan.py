@@ -1,19 +1,22 @@
 """Proactive plan step: expand push candidates into scenario cards (F2.5).
 
 Runs between the topics and agenda steps. Only topics that qualify for today's
-push (``first_seen == today`` and ``confidence >= min_push_confidence``,
-computed by the topics step into ``state.push_candidates``) are expanded, so
-the LLM cost stays proportional to what will actually be surfaced. One batched
-LLM call per round; on any LLM failure every selected candidate still gets a
-deterministic fallback card so the agenda step never sees an empty input.
+push (computed by the topics step into ``state.push_candidates``) are expanded,
+so the LLM cost stays proportional to what will actually be surfaced. One
+batched LLM call per round; on any LLM failure every selected candidate still
+gets a deterministic fallback card so the agenda step never sees an empty input.
 
 Card contract: ``scenario_type`` (resume_task | answer_pending |
-explore_interest | prepare_upcoming), ``opener`` (a casual, friend-like
-conversation opener that already names the minimal next action - never a
-"based on your records" notification tone), ``next_action``, ``preconditions``
-and ``delivery`` (in_conversation | notification | agenda_item).
-``linked_memory`` is derived from the topic's paths/evidence by code, never by
-the LLM.
+explore_interest | prepare_upcoming | propose_delegation), ``opener`` (a casual,
+friend-like conversation opener that already names the minimal next action -
+never a "based on your records" notification tone), ``next_action``,
+``preconditions`` and ``delivery`` (in_conversation | notification |
+agenda_item). ``linked_memory`` is derived from the topic's paths/evidence by
+code, never by the LLM.
+
+Reminders are expanded first and are never squeezed out by ``max_plan_topics``
+(they are bounded by ``max_reminder_cards`` instead), because the agenda step
+pins every reminder card it receives.
 """
 
 import asyncio
@@ -24,12 +27,18 @@ from ...base_step import BaseStep
 from .._evolve import agent_reply_result_text, passthrough_response
 from ....components import R
 from ....schema import ProactiveState
+from ....schema.proactive import DEFAULT_KIND
 from ..dream.utils import workspace_dir
 from .utils import load_personal_profile_block, parse_plan_reply, resolve_agent_wrapper
 
-SCENARIO_TYPES = ("resume_task", "answer_pending", "explore_interest", "prepare_upcoming")
+SCENARIO_TYPES = ("resume_task", "answer_pending", "explore_interest", "prepare_upcoming", "propose_delegation")
 DELIVERY_MODES = ("in_conversation", "notification", "agenda_item")
-DEFAULT_SCENARIO_BY_KIND = {"follow_up": "resume_task", "interest_extend": "explore_interest"}
+DEFAULT_SCENARIO_BY_KIND = {
+    "follow_up": "resume_task",
+    "interest_extend": "explore_interest",
+    "reminder": "prepare_upcoming",
+    "new_idea": "propose_delegation",
+}
 MAX_OPENER_CHARS = 300
 MAX_NEXT_ACTION_CHARS = 200
 MAX_PRECONDITIONS = 5
@@ -52,10 +61,18 @@ def linked_memory(candidate: dict) -> list[str]:
 
 def fallback_card(candidate: dict) -> dict:
     """Deterministic card used when the LLM is absent or its output is unusable."""
-    kind = str(candidate.get("kind") or "interest_extend")
+    kind = str(candidate.get("kind") or DEFAULT_KIND)
     title = str(candidate.get("title") or "")
-    scenario = DEFAULT_SCENARIO_BY_KIND.get(kind, "explore_interest")
-    if kind == "follow_up":
+    scenario = DEFAULT_SCENARIO_BY_KIND.get(kind, DEFAULT_SCENARIO_BY_KIND[DEFAULT_KIND])
+    if kind == "reminder":
+        due = str(candidate.get("due_at") or "").strip()
+        when = f"（{due}）" if due else ""
+        opener = f"对了，「{title}」{when}就快到了，要不要现在把准备事项先过一遍？"
+        next_action = "确认时间、所需材料与是否和其它安排冲突，需要改期就现在说"
+    elif kind == "new_idea":
+        opener = f"有件活儿我觉得可以替你办：「{title}」，要不要我先出个方案你看看？"
+        next_action = "确认值不值得委托；值得的话由 agent 先产出一版草案供你审阅"
+    elif kind == "follow_up":
         opener = f"上次聊到「{title}」，好像还没收尾——要不要趁现在花几分钟往前推一步？"
         next_action = "先回顾相关记录，确认卡点，然后给出下一步动作"
     else:
@@ -105,14 +122,19 @@ def _clean_card(raw: dict, candidate: dict) -> dict:
 class ProactivePlanStep(BaseStep):
     """Expand today's push candidates into scenario cards.
 
-    Zero LLM calls when there are no push candidates. At most
-    ``max_plan_topics`` candidates are expanded; the overflow stays card-less
-    and the agenda step suppresses it with an explicit reason.
+    Zero LLM calls when there are no push candidates. The two budgets are
+    independent: at most ``max_reminder_cards`` reminders plus
+    ``max_plan_topics`` discovery candidates are expanded. A reminder-heavy day
+    therefore cannot starve the discovery kinds of cards, because reminders are
+    pinned into the agenda later and would otherwise take every slot with them.
+    The overflow stays card-less and the agenda step suppresses it with an
+    explicit reason.
     """
 
     def __init__(
         self,
         max_plan_topics: int = 6,
+        max_reminder_cards: int = 8,
         llm_timeout_seconds: float = 120,
         profile_max_chars: int = 800,
         skip_key: str = "proactive_skip",
@@ -120,6 +142,7 @@ class ProactivePlanStep(BaseStep):
     ):
         super().__init__(**kwargs)
         self.max_plan_topics = max(int(max_plan_topics), 1)
+        self.max_reminder_cards = max(int(max_reminder_cards), 1)
         self.llm_timeout_seconds = float(llm_timeout_seconds)
         self.profile_max_chars = max(int(profile_max_chars), 0)
         self.skip_key = skip_key
@@ -149,10 +172,15 @@ class ProactivePlanStep(BaseStep):
             self.logger.info(f"[{self.name}] no push candidates; skipping")
             return self.context.response
 
-        selected = candidates[: self.max_plan_topics]
+        # Reminders first and outside the discovery budget: they pin today's
+        # agenda, so starving them here would silently break that guarantee.
+        reminders = [c for c in candidates if str(c.get("kind")) == "reminder"][: self.max_reminder_cards]
+        others = [c for c in candidates if str(c.get("kind")) != "reminder"]
+        selected = reminders + others[: self.max_plan_topics]
         self.logger.info(
             f"[{self.name}] start candidates={len(candidates)} selected={len(selected)} "
-            f"max_plan_topics={self.max_plan_topics}",
+            f"reminders={len(reminders)} max_plan_topics={self.max_plan_topics} "
+            f"max_reminder_cards={self.max_reminder_cards}",
         )
         cards_by_id = await self._llm_cards(state, selected)
 
@@ -167,7 +195,7 @@ class ProactivePlanStep(BaseStep):
             card = {
                 "topic_id": cid,
                 "title": str(candidate.get("title") or ""),
-                "kind": str(candidate.get("kind") or "interest_extend"),
+                "kind": str(candidate.get("kind") or DEFAULT_KIND),
                 **card,
                 "linked_memory": linked_memory(candidate),
             }
@@ -203,6 +231,8 @@ class ProactivePlanStep(BaseStep):
                         "confidence": c.get("confidence"),
                         "first_seen": c.get("first_seen"),
                         "evidence": c.get("evidence"),
+                        **({"due_at": c.get("due_at")} if c.get("due_at") else {}),
+                        **({"schedule_id": c.get("schedule_id")} if c.get("schedule_id") else {}),
                     }
                     for c in selected
                 ],

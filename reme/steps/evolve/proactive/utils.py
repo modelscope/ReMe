@@ -17,8 +17,13 @@ from pathlib import Path
 import yaml
 
 from ....enumeration import ComponentEnum
-from ....schema import ProactiveStateFile, ProactiveTopic
-from ....schema.proactive import clamp_confidence
+from ....schema import ProactiveSchedule, ProactiveStateFile, ProactiveTopic
+from ....schema.proactive import (
+    DEFAULT_KIND,
+    TOPIC_KINDS,
+    clamp_confidence,
+    kind_priority,
+)
 from ....utils import get_logger
 from ...file_io._file_io import get_path_lock
 from .._evolve import now
@@ -26,9 +31,17 @@ from ..dream.utils import clean_paths, recent_dates, scan_day_files
 
 logger = get_logger(log_to_file=False)
 
+
 PROACTIVE_STATE_NAME = "_proactive.yaml"
+
+
 INTERESTS_NAME = "interests.yaml"
-EXTRACT_SECTIONS = ("follow_ups", "extends", "updates")
+
+
+EXTRACT_SECTIONS = ("follow_ups", "extends", "reminders", "new_ideas", "updates", "schedule_updates")
+
+# Registry triggers that deserve a reminder; ``later``/``unscheduled``/``closed``
+# stay in the prompt view but never become candidates.
 
 
 def load_yaml_topics(path: Path, *, strict: bool = False) -> list[dict]:
@@ -158,6 +171,75 @@ def scan_material_daily(ws: Path, day: str, daily: str, scan_days: int) -> list[
     return sorted(out)
 
 
+# External source records the reminder branch may read directly. Binary sources
+# are deliberately absent: ``auto_resource`` interprets them into daily cards,
+# which already reach extraction through ``scan_material_daily``.
+RESOURCE_NOTICE_SUFFIXES = (
+    ".md",
+    ".markdown",
+    ".txt",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".csv",
+    ".tsv",
+    ".html",
+    ".eml",
+    ".ics",
+)
+
+
+def _mtime_day(path: Path) -> str:
+    """Local date a file last changed, or ``""`` when it cannot be stat'ed."""
+    try:
+        return dt.date.fromtimestamp(path.stat().st_mtime).isoformat()
+    except OSError:
+        return ""
+
+
+def scan_material_resource(
+    ws: Path,
+    day: str,
+    scan_days: int,
+    resource: str = "resource",
+) -> tuple[list[str], int]:
+    """M_resource: external source records that may carry notices for the user.
+
+    Mirrors the ``resource/`` entry-point semantics of Auto Resource: a dated
+    directory ``resource/<YYYY-MM-DD>/...`` belongs to that date, while a file
+    directly under ``resource/`` (or under a non-dated folder) belongs to the
+    day it landed, i.e. its mtime. Returns ``(paths, skipped_binary)``; only
+    text-readable suffixes are returned, because a binary source has to be
+    interpreted by ``auto_resource`` before anyone can quote it.
+
+    This is the reserved hook for future external source interfaces: whatever
+    writes into ``resource/`` becomes eligible for the reminder review without
+    any further change to the proactive chain.
+    """
+    window = set(recent_dates(day, scan_days))
+    root = ws / resource
+    if not window or not root.is_dir():
+        return [], 0
+    out: list[str] = []
+    skipped = 0
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        rel = norm_path(path.relative_to(ws).as_posix())
+        parts = rel.split("/")
+        if any(part.startswith("_") or part.startswith(".") for part in parts[1:]):
+            continue
+        owner = parts[1] if len(parts) > 2 and safe_date(parts[1]) else _mtime_day(path)
+        if owner not in window:
+            continue
+        if path.suffix.lower() not in RESOURCE_NOTICE_SUFFIXES:
+            skipped += 1
+            continue
+        if rel not in out:
+            out.append(rel)
+    return sorted(out), skipped
+
+
 # ---------------------------------------------------------------------------
 # Truth-source state file daily/_proactive.yaml (F1.3)
 # ---------------------------------------------------------------------------
@@ -187,9 +269,54 @@ def load_state(ws: Path, daily: str = "daily") -> tuple[ProactiveStateFile, bool
     try:
         state = ProactiveStateFile.model_validate(data)
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"proactive state file invalid, rebuilding empty: {path} ({e})")
-        return ProactiveStateFile(), False
+        # Salvage entry by entry instead of discarding the file: the schedule
+        # registry is designed to outlive topics by months, so one malformed
+        # hand-edited entry must not silently delete every long-lived reminder.
+        # Still no bootstrap - the file exists, so this is not a first run.
+        state, dropped = _salvage_state(data)
+        logger.warning(
+            f"proactive state file invalid, salvaged entry by entry: {path} "
+            f"(dropped {dropped} unreadable entr(ies); kept open_topics={len(state.open_topics)} "
+            f"schedules={len(state.schedules)}; {e})",
+        )
+        return state, False
     return state, needs_bootstrap
+
+
+# Truth-source sections whose entries are validated one by one when the whole
+# file fails to parse. ``resolved`` is a plain dict list, so it only needs the
+# non-mapping items filtered out.
+_STATE_SECTIONS = (("open_topics", ProactiveTopic), ("schedules", ProactiveSchedule))
+
+
+def _salvage_state(data: dict) -> tuple[ProactiveStateFile, int]:
+    """Rebuild a partly-unreadable truth source, dropping only the bad entries.
+
+    Returns the salvaged model and the number of entries that had to be
+    dropped. Never raises: a section that is not even a list is treated as
+    absent, exactly like a file written before that section existed.
+    """
+    sections: dict[str, list] = {}
+    dropped = 0
+    for key, model in _STATE_SECTIONS:
+        raw = data.get(key)
+        raw = raw if isinstance(raw, list) else []
+        kept = []
+        for item in raw:
+            try:
+                kept.append(model.model_validate(item))
+            except Exception:  # noqa: BLE001
+                dropped += 1
+        sections[key] = kept
+    raw_resolved = data.get("resolved")
+    resolved = [item for item in (raw_resolved if isinstance(raw_resolved, list) else []) if isinstance(item, dict)]
+    version = data.get("version")
+    state = ProactiveStateFile(
+        version=version if isinstance(version, int) else 1,
+        resolved=resolved,
+        **sections,
+    )
+    return state, dropped
 
 
 async def save_state(ws: Path, state_file: ProactiveStateFile, daily: str = "daily") -> None:
@@ -210,7 +337,8 @@ async def save_state(ws: Path, state_file: ProactiveStateFile, daily: str = "dai
             raise
 
 
-def _safe_date(text: str) -> dt.date | None:
+def safe_date(text: str) -> dt.date | None:
+    """Parse an ISO ``YYYY-MM-DD`` string, returning None when it is not one."""
     try:
         return dt.date.fromisoformat(str(text or "").strip())
     except ValueError:
@@ -237,13 +365,13 @@ async def load_carry_forward(
         state_file.open_topics = _bootstrap_from_history(ws, day, days, daily)
         await save_state(ws, state_file, daily)
     resolved_ids = {str(r.get("id") or "") for r in state_file.resolved if isinstance(r, dict)}
-    base = _safe_date(day)
+    base = safe_date(day)
     open_topics: list[ProactiveTopic] = []
     expired = 0
     for topic in state_file.open_topics:
         if topic.id and topic.id in resolved_ids:
             continue
-        first_seen = _safe_date(topic.first_seen)
+        first_seen = safe_date(topic.first_seen)
         # Boundary aligned with trim_state_file/_expiry_cutoff: age >= days is
         # over-age everywhere, so a topic never enters the prompt in the same
         # round it gets pruned from the truth source (audit item 9).
@@ -259,7 +387,7 @@ async def load_carry_forward(
 
 def _bootstrap_from_history(ws: Path, day: str, days: int, daily: str) -> list[ProactiveTopic]:
     """One-time bootstrap: newest record per id wins, first_seen takes the min (F1.4)."""
-    if _safe_date(day) is None:
+    if safe_date(day) is None:
         return []
     records: dict[str, ProactiveTopic] = {}
     first_seen: dict[str, str] = {}
@@ -283,7 +411,7 @@ def _bootstrap_from_history(ws: Path, day: str, days: int, daily: str) -> list[P
 
 def trim_state_file(state_file: ProactiveStateFile, day: str, days: int) -> None:
     """Prune budget/exposure/resolved windows and over-age/resolved open topics."""
-    base = _safe_date(day)
+    base = safe_date(day)
     if base is None:
         return
     cutoff = (base - dt.timedelta(days=max(int(days), 0))).isoformat()
@@ -295,7 +423,7 @@ def trim_state_file(state_file: ProactiveStateFile, day: str, days: int) -> None
     for topic in state_file.open_topics:
         if topic.id and topic.id in resolved_ids:
             continue
-        first_seen = _safe_date(topic.first_seen)
+        first_seen = safe_date(topic.first_seen)
         if first_seen is not None and first_seen.isoformat() <= cutoff:
             continue
         kept.append(topic)
@@ -363,23 +491,28 @@ def parse_interests_topics(data: dict, file_date: str) -> tuple[list[ProactiveTo
                 id=str(raw.get("id") or "").strip() or topic_id(title),
                 title=title,
                 reason=reason,
-                kind=raw.get("kind", "interest_extend"),
+                kind=raw.get("kind", DEFAULT_KIND),
                 confidence=raw.get("confidence", 0.5),
                 first_seen=str(raw.get("first_seen") or "").strip() or file_date,
                 last_evidence_at=str(raw.get("last_evidence_at") or "").strip() or file_date,
                 evidence=str(raw.get("evidence") or "").strip()[:120],
                 paths=raw.get("paths") or [],
+                schedule_id=str(raw.get("schedule_id") or "").strip(),
+                due_at=str(raw.get("due_at") or "").strip(),
             ),
         )
     return topics, is_v1, push
 
 
 def sort_topics(topics: list) -> list:
-    """Order: last_evidence_at desc -> follow_up first -> confidence desc -> id asc.
+    """Order: last_evidence_at desc -> kind priority -> confidence desc -> id asc.
 
     Freshness is the primary key (v5 aging fix): stale topics sink below newly
     evidenced ones of any kind, so long-lived follow_ups cannot permanently
     crowd out new discoveries.
+    Kind priority is ``KIND_PRIORITY`` (reminder > follow_up > new_idea >
+    interest_extend), so a reminder always outranks discovery kinds inside the
+    same freshness band and survives the ``max_topics`` render cap.
     """
 
     def get(topic, key):
@@ -387,7 +520,7 @@ def sort_topics(topics: list) -> list:
 
     out = sorted(topics, key=lambda t: str(get(t, "id") or ""))
     out.sort(key=lambda t: clamp_confidence(get(t, "confidence")), reverse=True)
-    out.sort(key=lambda t: 0 if get(t, "kind") == "follow_up" else 1)
+    out.sort(key=lambda t: kind_priority(get(t, "kind")))
     out.sort(key=lambda t: str(get(t, "last_evidence_at") or ""), reverse=True)
     return out
 
@@ -395,17 +528,24 @@ def sort_topics(topics: list) -> list:
 def dump_topic(topic) -> dict:
     """Render one topic as an A2-ordered dict for interests.yaml v2."""
     get = (lambda k: getattr(topic, k)) if not isinstance(topic, dict) else topic.get
-    return {
+    dumped = {
         "id": str(get("id") or ""),
         "title": str(get("title") or ""),
         "reason": str(get("reason") or ""),
-        "kind": str(get("kind") or "interest_extend"),
+        "kind": str(get("kind") or DEFAULT_KIND),
         "confidence": clamp_confidence(get("confidence")),
         "first_seen": str(get("first_seen") or ""),
         "last_evidence_at": str(get("last_evidence_at") or ""),
         "evidence": str(get("evidence") or "")[:120],
         "paths": [str(p) for p in (get("paths") or [])],
     }
+    # Reminder links are emitted only when present so the v2 topic shape of
+    # every other kind stays byte-identical.
+    if schedule_id := str(get("schedule_id") or ""):
+        dumped["schedule_id"] = schedule_id
+    if due_at := str(get("due_at") or ""):
+        dumped["due_at"] = due_at
+    return dumped
 
 
 def render_interests(
@@ -491,7 +631,7 @@ def clean_candidate(raw, allowed_paths: set[str], kind: str, day: str) -> dict:
         "id": topic_id(title),
         "title": title,
         "reason": reason,
-        "kind": kind,
+        "kind": kind if kind in TOPIC_KINDS else DEFAULT_KIND,
         "confidence": clamp_confidence(raw.get("confidence")),
         "first_seen": day,
         "last_evidence_at": day,
@@ -629,6 +769,57 @@ def load_personal_profile_block(
                 return "(no user profile)"
             return text.strip() or "(no user profile)"
     return "(no user profile)"
+
+
+CAPABILITY_SECTIONS = (
+    ("procedure", "procedure (reusable experience, skills, tool/API know-how the agent already has)"),
+    ("wiki", "wiki (existing knowledge nodes of the personal knowledge base)"),
+)
+
+
+def load_capability_block(ws: Path, digest_dir: str, max_chars: int) -> str:
+    """Inventory of what the agent can already do, used by the ``new_ideas`` branch.
+
+    Reads only rebuildable digest nodes: ``<digest_dir>/procedure/*.md``
+    (accumulated experience, skills, tool/API know-how) and
+    ``<digest_dir>/wiki/*.md`` (knowledge nodes an interest can extend).
+    Each node contributes its frontmatter ``description`` so proposals stay
+    grounded in resources that actually exist instead of invented capabilities.
+    """
+    max_chars = int(max_chars)
+    if max_chars <= 0:
+        return "(no capability inventory)"
+    per_section = max(max_chars // max(len(CAPABILITY_SECTIONS), 1), 200)
+    sections: list[str] = []
+    for subdirectory, heading in CAPABILITY_SECTIONS:
+        lines = _digest_inventory_lines(ws / digest_dir / subdirectory, per_section)
+        if lines:
+            sections.append(f"### {heading}\n" + "\n".join(lines))
+    if not sections:
+        return "(no capability inventory)"
+    return "\n\n".join(sections)[:max_chars]
+
+
+def _digest_inventory_lines(directory: Path, budget: int) -> list[str]:
+    """``- <title>: <description>`` lines for one digest subdirectory, budget-bounded."""
+    if not directory.is_dir():
+        return []
+    lines: list[str] = []
+    used = 0
+    for path in sorted(p for p in directory.glob("*.md") if p.is_file()):
+        try:
+            raw = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        meta, _body = strip_frontmatter(raw)
+        title = str(meta.get("name") or path.stem)
+        description = " ".join(str(meta.get("description") or "").split())
+        line = f"- {title}" + (f": {description[:160]}" if description else "")
+        if used + len(line) > budget:
+            break
+        lines.append(line)
+        used += len(line) + 1
+    return lines
 
 
 def parse_fenced_yaml(text: str) -> dict:

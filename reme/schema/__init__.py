@@ -9,6 +9,7 @@ from .dream import (
 )
 from .proactive import (
     ProactiveResult,
+    ProactiveSchedule,
     ProactiveState,
     ProactiveStateFile,
     ProactiveTopic,
@@ -42,6 +43,7 @@ __all__ = [
     "IntegrateOutcome",
     "JobConfig",
     "ProactiveResult",
+    "ProactiveSchedule",
     "ProactiveState",
     "ProactiveStateFile",
     "ProactiveTopic",
