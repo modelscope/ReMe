@@ -38,7 +38,7 @@ Arguments use `key=value`; leading `-` or `--` is accepted:
 reme start --service.port=8181 --service.web_enabled=false
 ```
 
-Values support null, booleans, numbers, JSON arrays and objects, quoted JSON strings, and plain strings. Numeric-looking values with leading zeroes, such as `007`, remain strings. Quote values such as `"true"` in JSON when they must remain strings.
+Values support null, booleans, numbers, JSON arrays and objects, quoted JSON strings, and plain strings. Numeric-looking values with leading zeroes, such as `007`, remain strings, as do `nan`, `inf`, and `Infinity`. Quote values such as `"true"` in JSON when they must remain strings.
 
 ## Environment variables
 

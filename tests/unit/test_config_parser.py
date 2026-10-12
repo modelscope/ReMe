@@ -165,6 +165,16 @@ def test_parse_args_separates_action_and_application_kwargs():
     assert kwargs == {"query": "hello", "limit": 3}
 
 
+@pytest.mark.parametrize("value", ["nan", "NaN", "inf", "-Infinity", "1e999"])
+def test_parse_kwargs_keeps_non_finite_numbers_as_strings(value):
+    """JSON has no NaN or Infinity, so these values stay text instead of becoming floats."""
+    assert parse_kwargs(f"query={value}", "limit=5", "min_score=0.5") == {
+        "query": value,
+        "limit": 5,
+        "min_score": 0.5,
+    }
+
+
 @pytest.mark.parametrize("item", ["=1", ".a=1", "a.=1", "a..b=1"])
 def test_parse_dot_notation_rejects_empty_key_segments(item):
     """Dot notation keys cannot contain empty path segments."""

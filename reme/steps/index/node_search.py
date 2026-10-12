@@ -61,7 +61,7 @@ class NodeSearchStep(BaseStep):
 
     async def execute(self):
         assert self.context is not None
-        query: str = (self.context.get("query", "") or "").strip()
+        query: str = str(self.context.get("query") or "").strip()
         limit: int = int(self.context.get("limit") or 20)
         vector_weight: float = float(self.kwargs.get("vector_weight", 0.7))
         candidate_multiplier: float = float(self.kwargs.get("candidate_multiplier", 5.0))

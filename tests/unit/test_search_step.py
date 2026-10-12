@@ -18,6 +18,7 @@ from reme.schema import FileChunk, FileLink, FileNode, Response
 from reme.steps.index import (
     AddDraftStep,
     Bm25SearchStep,
+    NodeSearchStep,
     ReadAllDraftStep,
     SearchStep,
     VectorSearchStep,
@@ -799,6 +800,29 @@ def test_search_steps_no_results_shows_no_results_message():
             resp = await step(RuntimeContext(query="alpha", limit=5))
             assert resp.metadata["results"] == []
             assert resp.answer == NO_RESULTS_MESSAGE
+
+    asyncio.run(run())
+
+
+def test_search_steps_search_for_the_text_of_a_numeric_query():
+    """``reme search query=404`` passes the query as an int; the steps search for "404"."""
+
+    async def run():
+        for make_step in (
+            lambda store: SearchStep(file_store=store, expand_links=False),
+            lambda store: VectorSearchStep(file_store=store),
+            lambda store: Bm25SearchStep(file_store=store),
+            lambda store: NodeSearchStep(file_store=store),
+        ):
+            store = FakeSearchStore(
+                vector_results=[_chunk("hit", "digest/a.md", "Error 404 from the gateway", "vector", 0.9)],
+                keyword_results=[_chunk("hit", "digest/a.md", "Error 404 from the gateway", "keyword", 4.0)],
+            )
+            resp = await make_step(store)(RuntimeContext(query=404, limit=5))
+
+            assert resp.success is True
+            assert store.calls and {call[1] for call in store.calls} == {"404"}
+            assert "digest/a.md" in resp.answer
 
     asyncio.run(run())
 
