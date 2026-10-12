@@ -200,8 +200,9 @@ These values are in milliseconds. Keep the defaults unless requests regularly ti
 
 </details>
 
-Before changing the service address, let pending turns finish saving. Any remaining turns stay associated
-with the previous address; switch back to retry them. Changes made during consolidation apply to the next run.
+Before changing the service address, let pending turns finish saving. Each queued turn keeps its original
+service address and is never copied to the new service when you switch. Switch back to retry remaining turns.
+Changes made during consolidation apply to the next run.
 
 ## Troubleshooting and updates
 

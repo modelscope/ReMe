@@ -8,6 +8,7 @@ import re
 import sys
 import time
 from datetime import datetime, timezone
+from itertools import chain
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -22,6 +23,7 @@ from reme_state import digest, log_status, queue_root  # noqa: E402
 
 HOME_ENV = reme_config.HOME_ENV
 HOST = "codex"
+CAPTURE_WAIT_SECONDS = 10
 
 
 def clean_text(value: str) -> str:
@@ -106,24 +108,53 @@ def completed_turn(payload: dict, session: str, *, root_only: bool = True) -> li
     ]
 
 
-def capture(config: dict, payload: dict) -> Path | None:
-    """Persist a completed turn before any network request."""
+def session_queue(config: dict, payload: dict) -> Path | None:
+    """Locate this agent's queue for the currently configured service without reading source text."""
     native_id = payload.get("agent_id") or payload.get("session_id")
     if not isinstance(native_id, str) or not native_id:
         return None
     session = f"{HOST}-{digest(str(data_dir().resolve()) + ':' + native_id)}"
-    messages = completed_turn(payload, session, root_only=config["rootAgentsOnly"])
+    return queue_root(config) / session
+
+
+def capture(config: dict, payload: dict) -> Path | None:
+    """Persist a completed turn before any network request."""
+    root = session_queue(config, payload)
+    if root is None:
+        return None
+    messages = completed_turn(payload, root.name, root_only=config["rootAgentsOnly"])
     if len(messages) != 2:
         log_status("capture_skipped", config=config)
         return None
-    root = queue_root(config) / session
     key = digest(messages[-1]["id"])
     if not (root / f"{key}.done").exists() and not (root / f"{key}.json").exists():
         instant = datetime.fromisoformat(messages[-1]["created_at"].replace("Z", "+00:00"))
         day = instant.astimezone(ZoneInfo(config["timezone"])).date().isoformat()
-        write_json(root / f"{key}.json", {"session_id": session, "messages": messages, "date": day})
+        write_json(
+            root / f"{key}.json",
+            {"session_id": root.name, "turn_id": payload["turn_id"], "messages": messages, "date": day},
+        )
         log_status("memory_queued", config=config, turns=1)
     return root
+
+
+def wait_for_captured_turn(config: dict, payload: dict) -> Path | None:
+    """Wait only for this Stop's persisted turn or receipt in the current endpoint's queue."""
+    root, turn_id = session_queue(config, payload), payload.get("turn_id")
+    if root is None or not isinstance(turn_id, str) or not turn_id.strip():
+        return None
+    deadline = time.monotonic() + CAPTURE_WAIT_SECONDS
+    while True:
+        for path in chain(root.glob("*.json"), root.glob("*.done")):
+            try:
+                if json.loads(path.read_text(encoding="utf-8")).get("turn_id") == turn_id:
+                    return root
+            except FileNotFoundError:
+                continue  # Another writer can acknowledge and remove a pending turn during this scan.
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return None
+        time.sleep(min(0.1, remaining))
 
 
 def flush(config: dict, root: Path, *, force: bool = False, deadline: float | None = None) -> None:
@@ -161,9 +192,9 @@ def flush(config: dict, root: Path, *, force: bool = False, deadline: float | No
                 },
                 timeout,
             )
-            for path, _ in batch:
+            for path, turn in batch:
                 # Receipt before deletion prevents repeated Stops from re-enqueuing acknowledged turns.
-                write_json(path.with_suffix(".done"), {})
+                write_json(path.with_suffix(".done"), {"turn_id": turn["turn_id"]} if "turn_id" in turn else {})
                 path.unlink(missing_ok=True)
             log_status("memory_saved", config=config, turns=len(batch))
 
@@ -200,7 +231,7 @@ def recall(config: dict, payload: dict) -> dict:
     return {"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": context}}
 
 
-def is_root_session(payload: dict) -> bool:
+def is_root_session(payload: dict, *, inspect_transcript: bool = True) -> bool:
     """Exclude subagent prompts as well as their completed turns."""
     if not isinstance(payload, dict) or payload.get("agent_id") or payload.get("agent_transcript_path"):
         return False
@@ -209,7 +240,7 @@ def is_root_session(payload: dict) -> bool:
         path = Path(transcript).expanduser()
         if "subagents" in path.parts:
             return False
-        if path.is_file():
+        if inspect_transcript and path.is_file():
             with path.open(encoding="utf-8") as handle:
                 first = json.loads(handle.readline())
             if isinstance(first, dict) and first.get("type") == "session_meta":
@@ -231,7 +262,10 @@ def handle_event(payload: dict, *, capture_only: bool = False) -> dict:
         return {}
     event = payload["hook_event_name"]
     config = load_config()
-    if config["rootAgentsOnly"] and (event == "SubagentStop" or not is_root_session(payload)):
+    if config["rootAgentsOnly"] and (
+        event == "SubagentStop"
+        or not is_root_session(payload, inspect_transcript=capture_only or event not in {"Stop", "SubagentStop"})
+    ):
         return {}
     if event == "SubagentStop" and payload.get("agent_transcript_path"):
         payload = {**payload, "transcript_path": payload["agent_transcript_path"]}
@@ -244,10 +278,13 @@ def handle_event(payload: dict, *, capture_only: bool = False) -> dict:
     if event in {"Stop", "SubagentStop"}:
         if payload.get("stop_hook_active"):
             return {}
-        root = capture(config, payload)
-        if root is not None and not capture_only:
+        if capture_only:
+            capture(config, payload)
+        else:
             try:
-                flush(config, root)
+                root = wait_for_captured_turn(config, payload)
+                if root is not None:
+                    flush(config, root)
             except (OSError, ValueError, RuntimeError) as exc:
                 log_status("memory_failed", exc, config=config)
                 raise

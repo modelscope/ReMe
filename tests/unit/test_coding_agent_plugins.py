@@ -27,8 +27,7 @@ def adapter(request, tmp_path, monkeypatch):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     monkeypatch.setenv(module.HOME_ENV, str(tmp_path / "host"))
-    if module.HOST == "claude-code":
-        monkeypatch.setattr(module, "CAPTURE_WAIT_SECONDS", 0)
+    monkeypatch.setattr(module, "CAPTURE_WAIT_SECONDS", 0)
     return module
 
 
@@ -402,8 +401,8 @@ def test_codex_completed_items_capture_only_final_text_and_deduplicate(adapter, 
     call = Mock(return_value={"success": True, "answer": "daily/fact.md"})
     monkeypatch.setattr(adapter, "call", call)
     write_config(adapter, {"memory_interval": 1})
-    adapter.handle_event(payload)
-    adapter.handle_event(payload)
+    stop(adapter, payload)
+    stop(adapter, payload)
     call.assert_called_once()
     assert [message["content"][0]["text"] for message in call.call_args.args[2]["messages"]] == [
         "Remember Thursday.",
@@ -614,6 +613,118 @@ def test_endpoint_changes_never_send_old_queue_to_new_service(adapter, tmp_path,
     adapter.handle_event({"hook_event_name": "SessionStart"})
     call.assert_not_called()
     assert len(list(root.glob("*.json"))) == 1
+
+
+@pytest.mark.parametrize("adapter", ["codex"], indirect=True)
+def test_codex_endpoint_switch_between_capture_and_delivery_never_recaptures(adapter, tmp_path, monkeypatch):
+    first_url, second_url = "http://first.test/mcp", "http://second.test/mcp"
+    write_config(adapter, {"mcpUrl": first_url, "autoMemoryInterval": 1})
+    first_config = adapter.load_config()
+    payload = transcript(adapter, tmp_path / "rollout.jsonl", [("Private fact for A.", "Saved.")])
+    call = Mock(return_value={"answer": "saved"})
+    monkeypatch.setattr(adapter, "call", call)
+    monkeypatch.setattr(adapter, "CAPTURE_WAIT_SECONDS", 0, raising=False)
+    adapter.handle_event(payload, capture_only=True)
+    pending = next(adapter.queue_root(first_config).rglob("*.json"))
+    original = pending.read_bytes()
+
+    write_config(adapter, {"mcpUrl": second_url, "autoMemoryInterval": 1})
+    adapter.handle_event(payload)
+    call.assert_not_called()
+    assert pending.read_bytes() == original
+    assert not list(adapter.queue_root(adapter.load_config()).rglob("*.json"))
+
+    write_config(adapter, {"mcpUrl": first_url, "autoMemoryInterval": 1})
+    adapter.handle_event({"hook_event_name": "SessionStart"})
+    call.assert_called_once()
+    assert call.call_args.args[0]["mcpUrl"] == first_url
+    assert call.call_args.args[2]["messages"] == json.loads(original)["messages"]
+    assert not pending.exists()
+
+
+@pytest.mark.parametrize("adapter", ["codex"], indirect=True)
+@pytest.mark.parametrize("event", ["Stop", "SubagentStop"])
+@pytest.mark.parametrize("transcript_state", ["deleted", "changed"])
+def test_codex_delivery_uses_captured_data_without_reading_transcript(
+    adapter,
+    tmp_path,
+    monkeypatch,
+    event,
+    transcript_state,
+):
+    write_config(adapter, {"autoMemoryInterval": 1, "rootAgentsOnly": event == "Stop"})
+    path = tmp_path / "rollout.jsonl"
+    payload = transcript(adapter, path, [("Original captured fact.", "Saved.")])
+    payload["hook_event_name"] = event
+    if event == "SubagentStop":
+        payload.update(agent_id="child", agent_transcript_path=str(path))
+    call = Mock(return_value={"answer": "saved"})
+    monkeypatch.setattr(adapter, "call", call)
+    adapter.handle_event(payload, capture_only=True)
+    if transcript_state == "deleted":
+        path.unlink()
+    else:
+        path.write_text("{invalid", encoding="utf-8")
+    adapter.handle_event(payload)
+    adapter.handle_event(payload)
+    call.assert_called_once()
+    assert [message["content"][0]["text"] for message in call.call_args.args[2]["messages"]] == [
+        "Original captured fact.",
+        "Saved.",
+    ]
+
+
+@pytest.mark.parametrize("adapter", ["codex"], indirect=True)
+def test_codex_delivery_waits_only_until_its_captured_turn_is_available(adapter, tmp_path, monkeypatch):
+    write_config(adapter, {"autoMemoryInterval": 1})
+    payload = transcript(adapter, tmp_path / "rollout.jsonl", [("Original fact.", "Saved.")])
+    entered, delivered = threading.Event(), threading.Event()
+    original_wait = adapter.wait_for_captured_turn
+    errors = []
+
+    def wait(*args, **kwargs):
+        entered.set()
+        return original_wait(*args, **kwargs)
+
+    def deliver():
+        try:
+            adapter.handle_event(payload)
+        except Exception as exc:
+            errors.append(exc)
+
+    def call(*_args):
+        delivered.set()
+        return {"answer": "saved"}
+
+    monkeypatch.setattr(adapter, "wait_for_captured_turn", wait)
+    monkeypatch.setattr(adapter, "CAPTURE_WAIT_SECONDS", 5)
+    monkeypatch.setattr(adapter, "call", call)
+    worker = threading.Thread(target=deliver)
+    worker.start()
+    try:
+        assert entered.wait(2)
+        assert not delivered.is_set()
+        adapter.handle_event(payload, capture_only=True)
+        assert delivered.wait(2)
+    finally:
+        worker.join(2)
+    assert not worker.is_alive() and not errors  # Exit immediately instead of waiting the full five seconds.
+
+
+@pytest.mark.parametrize("adapter", ["codex"], indirect=True)
+def test_codex_old_queue_without_turn_metadata_retries_on_session_start(adapter, tmp_path, monkeypatch):
+    payload = transcript(adapter, tmp_path / "rollout.jsonl", [("Previously queued fact.", "Saved.")])
+    root = adapter.capture(adapter.load_config(), payload)
+    pending = next(root.glob("*.json"))
+    original = json.loads(pending.read_text())
+    original.pop("turn_id", None)
+    adapter.write_json(pending, original)
+    call = Mock(return_value={"answer": "saved"})
+    monkeypatch.setattr(adapter, "call", call)
+    adapter.handle_event({"hook_event_name": "SessionStart"})
+    call.assert_called_once()
+    assert call.call_args.args[2]["messages"] == original["messages"]
+    assert not pending.exists()
 
 
 @pytest.mark.parametrize("adapter", ["codex"], indirect=True)
