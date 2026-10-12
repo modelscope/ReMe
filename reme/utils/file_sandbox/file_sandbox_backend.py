@@ -6,7 +6,10 @@ import signal
 import sys
 from abc import abstractmethod
 
+import psutil
 from agentscope.tool import BackendBase, ExecResult
+
+_CLEANUP_TIMEOUT = 2.0
 
 
 def contains(root: str, path: str) -> bool:
@@ -25,10 +28,14 @@ class FileSandboxBackend(BackendBase):
         self._writable_paths = self._validate_paths(writable_paths, "writable_paths")
         if not any(contains(path, self._cwd) for path in self._read_only_paths + self._writable_paths):
             self._read_only_paths.append(self._cwd)
-        runtime_prefix = os.path.realpath(sys.prefix)
-        if runtime_prefix not in ("/", "/usr", "/usr/local") and not runtime_prefix.startswith("/usr/"):
-            if not any(contains(path, runtime_prefix) for path in self._read_only_paths + self._writable_paths):
-                self._read_only_paths.append(self._validate_path(runtime_prefix))
+        # A virtual environment can point outside sys.prefix to its base
+        # interpreter and standard library (notably with Homebrew Python).
+        for runtime in (sys.prefix, sys.base_prefix, sys.executable):
+            path = os.path.realpath(runtime)
+            if path in ("/", "/usr", "/usr/local") or path.startswith("/usr/"):
+                continue
+            if not any(contains(root, path) for root in self._read_only_paths + self._writable_paths):
+                self._read_only_paths.append(self._validate_path(path))
         paths = self._read_only_paths + self._writable_paths
         if len(set(paths)) != len(paths):
             raise ValueError("sandbox paths must not contain duplicates")
@@ -81,15 +88,14 @@ class FileSandboxBackend(BackendBase):
     ) -> ExecResult:
         """Execute an argv list with a timeout inside the platform sandbox."""
         process = await self._start_process(command, cwd or self._cwd)
+        communication = asyncio.create_task(process.communicate())
         try:
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
+            stdout, stderr = await asyncio.wait_for(asyncio.shield(communication), timeout=timeout)
         except TimeoutError:
-            self._kill_process(process)
-            await process.communicate()
+            await self._stop_process(process, communication)
             return ExecResult(exit_code=-1, stdout=b"", stderr=b"timed out")
         except BaseException:
-            self._kill_process(process)
-            await asyncio.shield(process.communicate())
+            await self._stop_process(process, communication)
             raise
         finally:
             self._release_process(process)
@@ -97,11 +103,37 @@ class FileSandboxBackend(BackendBase):
 
     @staticmethod
     def _kill_process(process: asyncio.subprocess.Process) -> None:
-        """Terminate the sandbox launcher and its process group."""
+        """Stop the launcher and known descendants, including detached children."""
+        if sys.platform == "darwin":
+            try:
+                os.killpg(process.pid, signal.SIGSTOP)
+            except ProcessLookupError:
+                pass
+            try:
+                descendants = psutil.Process(process.pid).children(recursive=True)
+            except psutil.Error:
+                descendants = []
+            for child in reversed(descendants):
+                try:
+                    child.kill()
+                except psutil.Error:
+                    pass
         try:
             os.killpg(process.pid, signal.SIGKILL)
         except ProcessLookupError:
             pass
+
+    async def _stop_process(self, process: asyncio.subprocess.Process, communication: asyncio.Task) -> None:
+        """Bound pipe draining even if an untracked child kept a pipe open."""
+        self._kill_process(process)
+        try:
+            await asyncio.wait_for(asyncio.shield(communication), timeout=_CLEANUP_TIMEOUT)
+        except TimeoutError:
+            communication.cancel()
+            try:
+                await asyncio.wait_for(process.wait(), timeout=_CLEANUP_TIMEOUT)
+            except TimeoutError:
+                pass
 
     async def read_file(self, path: str) -> bytes:
         """Read through a sandboxed command so file rules still apply."""
@@ -120,11 +152,11 @@ class FileSandboxBackend(BackendBase):
             self._cwd,
             stdin=asyncio.subprocess.PIPE,
         )
+        communication = asyncio.create_task(process.communicate(data))
         try:
-            _stdout, stderr = await process.communicate(data)
+            _stdout, stderr = await asyncio.shield(communication)
         except BaseException:
-            self._kill_process(process)
-            await asyncio.shield(process.communicate())
+            await self._stop_process(process, communication)
             raise
         finally:
             self._release_process(process)

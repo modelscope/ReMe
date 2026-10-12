@@ -1,5 +1,6 @@
 """Shared file sandbox selection and macOS policy construction."""
 
+import asyncio
 import sys
 
 import pytest
@@ -57,7 +58,34 @@ def test_seatbelt_profile_limits_file_access(tmp_path):
     assert f'(allow file-read* (subpath "{tmp_path}"))' in profile
     assert f'(allow file-write* (subpath "{output}"))' in profile
     assert f'(allow file-write* (subpath "{tmp_path}"))' not in profile
+    assert '(allow file-write* (literal "/dev/null"))' in profile
+    assert '(allow file-write* (subpath "/dev"))' not in profile
     assert "network*" not in profile
+
+
+def test_sandbox_reads_virtual_environment_base_runtime(tmp_path, monkeypatch):
+    """A virtual environment grants its real base interpreter without widening writes."""
+    workspace = tmp_path / "workspace"
+    venv = tmp_path / "venv"
+    runtime = tmp_path / "runtime"
+    interpreter = tmp_path / "interpreter" / "python"
+    workspace.mkdir()
+    (venv / "bin").mkdir(parents=True)
+    runtime.mkdir()
+    interpreter.parent.mkdir(parents=True)
+    interpreter.touch()
+    (venv / "bin" / "python").symlink_to(interpreter)
+    monkeypatch.setattr(sys, "prefix", str(venv))
+    monkeypatch.setattr(sys, "base_prefix", str(runtime))
+    monkeypatch.setattr(sys, "executable", str(venv / "bin" / "python"))
+
+    backend = PathSeatbeltBackend(cwd=workspace, read_only_paths=[], writable_paths=[str(workspace)])
+    profile = backend._profile(str(workspace / "temporary"))  # pylint: disable=protected-access
+
+    assert f'(allow file-read* (subpath "{runtime}"))' in profile
+    assert f'(allow file-read* (literal "{interpreter}"))' in profile
+    assert f'(allow file-write* (subpath "{runtime}"))' not in profile
+    assert f'(allow file-write* (literal "{interpreter}"))' not in profile
 
 
 def test_seatbelt_excludes_read_only_child_from_writable_parent(tmp_path):
@@ -76,6 +104,35 @@ def test_seatbelt_excludes_read_only_child_from_writable_parent(tmp_path):
         f'(allow file-write* (require-all (subpath "{tmp_path}") ' f'(require-not (subpath "{protected}"))))'
     ) in profile
     assert f'(allow file-write* (subpath "{output}"))' in profile
+
+
+@pytest.mark.asyncio
+async def test_sandbox_timeout_does_not_wait_forever_for_inherited_pipe(tmp_path, monkeypatch):
+    """A surviving child with an output pipe must not hold the timeout response open."""
+    backend = PathSeatbeltBackend(cwd=tmp_path, read_only_paths=[], writable_paths=[])
+
+    class StuckProcess:
+        """Model a child that keeps its output pipe open after termination."""
+
+        pid = 12345
+
+        async def communicate(self):
+            """Wait forever until the caller cancels pipe draining."""
+            await asyncio.Event().wait()
+
+        async def wait(self):
+            """Model an already reaped launcher."""
+            return 0
+
+    async def start(*_args, **_kwargs):
+        return StuckProcess()
+
+    monkeypatch.setattr(backend, "_start_process", start)
+    monkeypatch.setattr(backend, "_kill_process", lambda _process: None)
+    monkeypatch.setattr("reme.utils.file_sandbox.file_sandbox_backend._CLEANUP_TIMEOUT", 0.01)
+
+    result = await asyncio.wait_for(backend.exec_shell(["true"], timeout=0.01), timeout=1)
+    assert result.exit_code == -1 and result.stderr == b"timed out"
 
 
 @pytest.mark.asyncio

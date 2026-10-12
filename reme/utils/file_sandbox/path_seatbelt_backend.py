@@ -60,6 +60,9 @@ class PathSeatbeltBackend(FileSandboxBackend):
                 parent = os.path.dirname(parent)
         lines.extend(f"(allow file-read-metadata (literal {json.dumps(path)}))" for path in sorted(ancestors))
         lines.extend(f"(allow file-read* {self._path_rule(path)})" for path in read_paths)
+        # Shell redirection to the null device is safe and is accepted by
+        # AutoBash's read-only policy; do not grant writes to the rest of /dev.
+        lines.append('(allow file-write* (literal "/dev/null"))')
         for path in self._writable_paths + [tempdir]:
             # Seatbelt combines allow rules with OR, unlike ordered bwrap mounts.
             # Exclude read-only descendants from each writable parent's grant.
@@ -72,6 +75,20 @@ class PathSeatbeltBackend(FileSandboxBackend):
             if exclusions:
                 rule = f"(require-all {rule} {' '.join(exclusions)})"
             lines.append(f"(allow file-write* {rule})")
+        # A writable ancestor can otherwise be renamed, moving a protected
+        # subtree out of the path-based exclusion above. Pin the protected
+        # path and every ancestor that falls within a writable root.
+        pinned = set()
+        for read_only in self._read_only_paths:
+            current = read_only
+            while current != "/":
+                if any(contains(writable, current) for writable in self._writable_paths):
+                    pinned.add(current)
+                current = os.path.dirname(current)
+        for path in sorted(pinned):
+            rule = f"(literal {json.dumps(path)})"
+            lines.append(f"(deny file-write-unlink {rule})")
+            lines.append(f"(deny file-write-create {rule})")
         return "\n".join(lines)
 
     async def _start_process(self, command: list[str], cwd: str, *, stdin=asyncio.subprocess.DEVNULL):
