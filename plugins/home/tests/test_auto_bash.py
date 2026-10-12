@@ -1,7 +1,9 @@
 """Shell job and its optional read-only execution guard."""
 
+import asyncio
 import inspect
 import subprocess
+import threading
 from importlib.metadata import EntryPoint
 from pathlib import Path
 
@@ -140,6 +142,16 @@ async def test_unsupported_platform_runs_without_paths_but_rejects_path_policy(t
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("limit", [0, 1, -1])
+async def test_step_rejects_memory_limit_without_path_policy(tmp_path, limit):
+    """An explicitly supplied limit cannot be ignored by host execution."""
+    step = AutoBashStep(app_context=ApplicationContext(workspace_dir=str(tmp_path)))
+    response = await step(command="echo should-not-run", is_read_only=False, memory_limit_mib=limit)
+    assert response.success is False
+    assert response.answer == "memory_limit_mib requires read_only_paths or writable_paths to enable the sandbox"
+
+
+@pytest.mark.asyncio
 async def test_step_configuration_can_disable_read_only(tmp_path):
     """Step configuration applies when the job does not supply the flag."""
     step = AutoBashStep(app_context=ApplicationContext(workspace_dir=str(tmp_path)), is_read_only=False)
@@ -172,6 +184,28 @@ async def test_permission_decisions_never_ask(tmp_path):
 
     assert allowed.behavior == PermissionBehavior.ALLOW
     assert denied.behavior == PermissionBehavior.DENY
+
+
+@pytest.mark.asyncio
+async def test_read_only_parsing_does_not_block_event_loop(tmp_path, monkeypatch):
+    """A slow synchronous parser runs in a worker thread during permission checks."""
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_parse(_command):
+        started.set()
+        release.wait(timeout=2)
+        return True
+
+    tool = AutoBash(cwd=tmp_path)
+    monkeypatch.setattr(tool, "_is_read_only", slow_parse)
+    task = asyncio.create_task(tool.check_read_only({"command": "echo hello"}))
+    try:
+        assert await asyncio.wait_for(asyncio.to_thread(started.wait), timeout=1)
+        assert not task.done()
+    finally:
+        release.set()
+    assert await asyncio.wait_for(task, timeout=1)
 
 
 @pytest.mark.asyncio
@@ -244,6 +278,7 @@ def test_home_manifest_declares_step_and_job():
     assert job["steps"] == [{"backend": "auto_bash_step"}]
     assert job["parameters"]["properties"]["read_only_paths"]["type"] == "array"
     assert job["parameters"]["properties"]["writable_paths"]["type"] == "array"
+    assert job["parameters"]["properties"]["memory_limit_mib"]["minimum"] == 0
 
 
 def test_home_plugin_registers_job_and_step(monkeypatch):
@@ -338,6 +373,36 @@ async def test_git_configured_helpers_cannot_write(tmp_path, helper):
         assert "external filters" in chunks[-1].content[0].text
     else:
         assert all(chunk.state != ToolResultState.ERROR for chunk in chunks)
+
+
+@pytest.mark.asyncio
+async def test_global_git_lfs_config_allows_metadata_queries(tmp_path, monkeypatch):
+    """A global filter alone must not block Git queries that never use it."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", str(repo)], check=True, capture_output=True)
+    (repo / "note.txt").write_text("hello\n", encoding="utf-8")
+    subprocess.run(["git", "add", "note.txt"], cwd=repo, check=True, capture_output=True)
+
+    global_config = tmp_path / "global.gitconfig"
+    subprocess.run(
+        ["git", "config", "--file", str(global_config), "filter.lfs.process", "/bin/false"],
+        check=True,
+        capture_output=True,
+    )
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    tool = AutoBash(cwd=repo)
+
+    for command, expected in (("git rev-parse --git-dir", ".git"), ("git ls-files", "note.txt")):
+        chunks = [chunk async for chunk in tool.call(command)]
+        assert chunks
+        assert all(chunk.state != ToolResultState.ERROR for chunk in chunks)
+        assert expected in "".join(block.text for chunk in chunks for block in chunk.content)
+
+    chunks = [chunk async for chunk in tool.call("git diff")]
+    assert chunks[-1].state == ToolResultState.ERROR
+    assert "external filters" in chunks[-1].content[0].text
 
 
 @pytest.mark.asyncio

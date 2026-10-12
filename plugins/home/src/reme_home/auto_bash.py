@@ -1,11 +1,13 @@
 """Run allowlisted shell commands without an approval prompt."""
 
+import asyncio
+
 from agentscope.message import TextBlock, ToolResultState
 from agentscope.permission import PermissionBehavior, PermissionContext, PermissionDecision
 from agentscope.tool import Bash, ToolChunk
 
-from reme.utils.file_sandbox import create_file_sandbox_backend
 from reme.steps.base_step import BaseStep
+from reme.steps.common.file_sandbox import file_sandbox_for_step
 
 _READ_COMMANDS = {
     ":": {},
@@ -53,7 +55,9 @@ unset GIT_EXTERNAL_DIFF GIT_TRACE GIT_TRACE_SETUP GIT_TRACE_PERFORMANCE
 unset GIT_TRACE_PACK_ACCESS GIT_TRACE_PACKET GIT_TRACE_CURL GIT_TRACE2 GIT_TRACE2_EVENT GIT_TRACE2_PERF
 export GIT_OPTIONAL_LOCKS=0 GIT_PAGER=/bin/cat GIT_NO_LAZY_FETCH=1 GIT_TERMINAL_PROMPT=0
 git() {
-    if command git -c trace2.normalTarget=0 -c trace2.eventTarget=0 -c trace2.perfTarget=0 \
+    # These metadata queries do not read file contents through Git filters.
+    if [ "$1" != rev-parse ] && [ "$1" != ls-files ] && \
+        command git -c trace2.normalTarget=0 -c trace2.eventTarget=0 -c trace2.perfTarget=0 \
         config --get-regexp '^filter\..*\.(clean|smudge|process)$' > /dev/null; then
         echo 'Permission denied: Git repositories with external filters require unrestricted mode.' >&2
         return 1
@@ -158,19 +162,26 @@ class AutoBash(Bash):
         if "$" in command or "`" in command:
             return False
         try:
-            from safecmd import CmdSpec, validate  # pylint: disable=import-outside-toplevel
-            from safecmd.bashxtract import extract_commands, parse_bash  # pylint: disable=import-outside-toplevel
-            from safecmd.core import normalize_dest  # pylint: disable=import-outside-toplevel
+            from safecmd import CmdSpec  # pylint: disable=import-outside-toplevel
+            from safecmd.bashxtract import (  # pylint: disable=import-outside-toplevel
+                check_types,
+                collect_ops,
+                collect_redirects,
+                parse_bash,
+                visit_stmts,
+            )
+            from safecmd.core import normalize_dest, validate_cmd  # pylint: disable=import-outside-toplevel
 
-            if not _literal_shell(parse_bash(command), command):
+            ast = parse_bash(command)
+            check_types(ast)
+            if not _literal_shell(ast, command):
                 return False
             specs = {CmdSpec(name, denied=options.get("denied")) for name, options in _READ_COMMANDS.items()}
-            validate(command, cmds=specs, dests=_SAFE_DESTINATIONS)
-            commands, operators, redirects = extract_commands(command)
-            if any(not _allowed_arguments(tokens) for tokens in commands):
+            commands = visit_stmts(ast.get("Stmts", []), command)
+            if any(not validate_cmd(tokens, specs) or not _allowed_arguments(tokens) for tokens in commands):
                 return False
-            return "=" not in operators and all(
-                normalize_dest(destination) == "/dev/null" for _, destination in redirects
+            return "=" not in collect_ops(ast) and all(
+                normalize_dest(destination) in _SAFE_DESTINATIONS for _, destination in collect_redirects(ast, command)
             )
         except Exception:  # pylint: disable=broad-exception-caught
             # Parser failures and missing shfmt must never allow execution.
@@ -178,7 +189,7 @@ class AutoBash(Bash):
 
     async def check_read_only(self, tool_input: dict) -> bool:
         """Report the same policy used by the execution guard."""
-        return self.is_read_only and self._is_read_only(tool_input.get("command", ""))
+        return self.is_read_only and await asyncio.to_thread(self._is_read_only, tool_input.get("command", ""))
 
     async def check_permissions(self, tool_input: dict, _context: PermissionContext) -> PermissionDecision:
         """Resolve permission automatically, without an ASK decision."""
@@ -194,7 +205,9 @@ class AutoBash(Bash):
 
     async def call(self, command: str, description: str = "", timeout: int = 60000):
         """Apply the read-only guard when configured, then run the command."""
-        if self.is_read_only and (not isinstance(command, str) or not self._is_read_only(command)):
+        if self.is_read_only and (
+            not isinstance(command, str) or not await asyncio.to_thread(self._is_read_only, command)
+        ):
             yield ToolChunk(
                 content=[TextBlock(text="Permission denied: only read-only shell commands are allowed.")],
                 state=ToolResultState.ERROR,
@@ -215,9 +228,6 @@ class AutoBashStep(BaseStep):
         command = self.context.get("command", "")
         timeout = self.context.get("timeout", self.kwargs.get("timeout", 60000))
         is_read_only = self.context.get("is_read_only", self.kwargs.get("is_read_only", True))
-        read_only_paths = self.context.get("read_only_paths", self.kwargs.get("read_only_paths"))
-        writable_paths = self.context.get("writable_paths", self.kwargs.get("writable_paths"))
-        memory_limit_bytes = self.context.get("memory_limit_bytes", self.kwargs.get("memory_limit_bytes"))
         if not isinstance(command, str) or not command.strip():
             self.context.response.success = False
             self.context.response.answer = "command is required"
@@ -232,16 +242,7 @@ class AutoBashStep(BaseStep):
             return self.context.response
 
         try:
-            backend = (
-                create_file_sandbox_backend(
-                    cwd=self.workspace_path,
-                    read_only_paths=[] if read_only_paths is None else read_only_paths,
-                    writable_paths=[] if writable_paths is None else writable_paths,
-                    memory_limit_bytes=memory_limit_bytes,
-                )
-                if read_only_paths is not None or writable_paths is not None
-                else None
-            )
+            backend = file_sandbox_for_step(self)
         except (TypeError, ValueError, RuntimeError) as exc:
             self.context.response.success = False
             self.context.response.answer = str(exc)

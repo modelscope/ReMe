@@ -5,10 +5,10 @@ import sys
 from dataclasses import dataclass
 from typing import Any
 
-from ...utils.file_sandbox import create_file_sandbox_backend
 from ...utils.file_sandbox.file_sandbox_backend import FileSandboxBackend
 from ..base_step import BaseStep
 from ...components import R
+from .file_sandbox import file_sandbox_for_step
 
 DEFAULT_TIMEOUT = 60.0
 
@@ -41,20 +41,8 @@ class PythonExecuteStep(BaseStep):
             self.context.response.answer = timeout_error
             return self.context.response
 
-        read_only_paths = self.context.get("read_only_paths", self.kwargs.get("read_only_paths"))
-        writable_paths = self.context.get("writable_paths", self.kwargs.get("writable_paths"))
-        memory_limit_bytes = self.context.get("memory_limit_bytes", self.kwargs.get("memory_limit_bytes"))
         try:
-            backend = (
-                create_file_sandbox_backend(
-                    cwd=self.workspace_path,
-                    read_only_paths=[] if read_only_paths is None else read_only_paths,
-                    writable_paths=[] if writable_paths is None else writable_paths,
-                    memory_limit_bytes=memory_limit_bytes,
-                )
-                if read_only_paths is not None or writable_paths is not None
-                else None
-            )
+            backend = file_sandbox_for_step(self)
         except (TypeError, ValueError, RuntimeError) as exc:
             self.context.response.success = False
             self.context.response.answer = str(exc)

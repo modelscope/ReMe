@@ -88,7 +88,17 @@ class FileSandboxBackend(BackendBase):
     ) -> ExecResult:
         """Execute an argv list with a timeout inside the platform sandbox."""
         process = await self._start_process(command, cwd or self._cwd)
-        communication = asyncio.create_task(process.communicate())
+        return await self._communicate(process, timeout=timeout)
+
+    async def _communicate(
+        self,
+        process: asyncio.subprocess.Process,
+        *,
+        data: bytes | None = None,
+        timeout: float | None = None,
+    ) -> ExecResult:
+        """Drain output and release process resources on success, timeout, or cancellation."""
+        communication = asyncio.create_task(process.communicate() if data is None else process.communicate(data))
         try:
             stdout, stderr = await asyncio.wait_for(asyncio.shield(communication), timeout=timeout)
         except TimeoutError:
@@ -152,13 +162,6 @@ class FileSandboxBackend(BackendBase):
             self._cwd,
             stdin=asyncio.subprocess.PIPE,
         )
-        communication = asyncio.create_task(process.communicate(data))
-        try:
-            _stdout, stderr = await asyncio.shield(communication)
-        except BaseException:
-            await self._stop_process(process, communication)
-            raise
-        finally:
-            self._release_process(process)
-        if process.returncode != 0:
-            raise OSError(stderr.decode(errors="replace"))
+        result = await self._communicate(process, data=data)
+        if not result.ok():
+            raise OSError(result.stderr.decode(errors="replace"))

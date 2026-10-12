@@ -15,6 +15,7 @@ contributes the `auto_bash` job, which can be run with
 The job defaults to read-only command validation and a 60-second timeout. Set
 `is_read_only=false` to disable command validation. Supplying `read_only_paths`
 or `writable_paths` enables a file sandbox (Bubblewrap on Linux, Seatbelt on
-macOS), with sandbox paths identical to their host paths. Linux defaults to a
-4 GiB cgroup memory limit; macOS has no memory limit and warns when a nonzero
-`memory_limit_bytes` value is supplied.
+macOS), with sandbox paths identical to their host paths. On Linux, the
+`memory_limit_mib` cgroup limit defaults to 4096 MiB; 0 disables it. Supplying
+the limit requires a path policy. macOS has no memory limit and warns when a
+nonzero value is supplied.

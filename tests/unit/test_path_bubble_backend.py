@@ -56,15 +56,36 @@ def test_path_bubble_backend_adds_workspace_read_only(tmp_path):
 
 @pytest.mark.parametrize("limit", [-1, True, 1.5, "4096"])
 def test_path_bubble_backend_rejects_invalid_memory_limit(tmp_path, limit):
-    """Memory limits must be non-negative whole bytes."""
-    with pytest.raises(ValueError, match="memory_limit_bytes"):
-        PathBubbleBackend(cwd=tmp_path, read_only_paths=[], writable_paths=[], memory_limit_bytes=limit)
+    """Memory limits must be non-negative whole MiB."""
+    with pytest.raises(ValueError, match="memory_limit_mib"):
+        PathBubbleBackend(cwd=tmp_path, read_only_paths=[], writable_paths=[], memory_limit_mib=limit)
+
+
+def test_one_mib_is_written_as_bytes_to_cgroup(tmp_path, monkeypatch):
+    """The public MiB limit is converted only at the Linux cgroup boundary."""
+    proc_file = tmp_path / "proc-self-cgroup"
+    proc_file.write_text("0::/\n", encoding="ascii")
+    cgroup_root = tmp_path / "cgroup"
+    cgroup_root.mkdir()
+    original_path = Path
+
+    def sandbox_path(value):
+        if value == "/proc/self/cgroup":
+            return proc_file
+        if value == "/sys/fs/cgroup":
+            return cgroup_root
+        return original_path(value)
+
+    monkeypatch.setattr("reme.utils.file_sandbox.path_bubble_backend.Path", sandbox_path)
+    backend = PathBubbleBackend(cwd=tmp_path, read_only_paths=[], writable_paths=[], memory_limit_mib=1)
+    group = backend._create_cgroup()  # pylint: disable=protected-access
+    assert (group / "memory.max").read_text(encoding="ascii") == str(1024**2)
 
 
 @pytest.mark.asyncio
 async def test_each_execution_gets_separate_memory_cgroup(tmp_path, monkeypatch):
     """Each process receives its own cgroup before bubblewrap is executed."""
-    backend = PathBubbleBackend(cwd=tmp_path, read_only_paths=[], writable_paths=[], memory_limit_bytes=1024)
+    backend = PathBubbleBackend(cwd=tmp_path, read_only_paths=[], writable_paths=[], memory_limit_mib=1024)
     groups = []
     subprocess_options = []
     subprocess_commands = []
@@ -92,15 +113,15 @@ async def test_each_execution_gets_separate_memory_cgroup(tmp_path, monkeypatch)
     for argv, group in zip(subprocess_commands, groups):
         assert argv[:4] == (sys.executable, "-I", "-S", "-c")
         assert argv[5:7] == (str(group / "cgroup.procs"), "bwrap")
-    backend._release_cgroup(first)  # pylint: disable=protected-access
-    backend._release_cgroup(second)  # pylint: disable=protected-access
+    backend._release_process(first)  # pylint: disable=protected-access
+    backend._release_process(second)  # pylint: disable=protected-access
     assert not any(group.exists() for group in groups)
 
 
 @pytest.mark.asyncio
 async def test_zero_memory_limit_skips_cgroup(tmp_path, monkeypatch):
     """A zero limit bypasses cgroup creation and child enrollment."""
-    backend = PathBubbleBackend(cwd=tmp_path, read_only_paths=[], writable_paths=[], memory_limit_bytes=0)
+    backend = PathBubbleBackend(cwd=tmp_path, read_only_paths=[], writable_paths=[], memory_limit_mib=0)
     options = {}
 
     async def create_process(*_argv, **kwargs):
@@ -164,7 +185,7 @@ async def test_python_execute_uses_path_backend_when_paths_supplied(tmp_path, mo
     assert seen["command"] == [sys.executable, "-c", "print('ok')"]
     assert seen["cwd"] == str(tmp_path)
     assert seen["timeout"] == 60
-    assert seen["backend"]._memory_limit_bytes == 4 * 1024**3  # pylint: disable=protected-access
+    assert seen["backend"]._memory_limit_mib == 4096  # pylint: disable=protected-access
 
 
 @pytest.mark.asyncio
@@ -173,14 +194,24 @@ async def test_python_execute_passes_custom_memory_limit(tmp_path, monkeypatch):
     seen = {}
 
     async def fake_exec(self, _command, *, cwd=None, timeout=None):  # pylint: disable=unused-argument
-        seen["limit"] = self._memory_limit_bytes  # pylint: disable=protected-access
+        seen["limit"] = self._memory_limit_mib  # pylint: disable=protected-access
         return ExecResult(exit_code=0, stdout=b"", stderr=b"")
 
     monkeypatch.setattr(PathBubbleBackend, "exec_shell", fake_exec)
     step = PythonExecuteStep(app_context=ApplicationContext(workspace_dir=str(tmp_path)))
-    response = await step(code="pass", read_only_paths=[], memory_limit_bytes=0)
+    response = await step(code="pass", read_only_paths=[], memory_limit_mib=0)
     assert response.success is True
     assert seen["limit"] == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("limit", [0, 1, -1])
+async def test_python_execute_rejects_memory_limit_without_path_policy(tmp_path, limit):
+    """A requested memory policy must never be silently ignored."""
+    step = PythonExecuteStep(app_context=ApplicationContext(workspace_dir=str(tmp_path)))
+    response = await step(code="print('should not run')", memory_limit_mib=limit)
+    assert response.success is False
+    assert response.answer == "memory_limit_mib requires read_only_paths or writable_paths to enable the sandbox"
 
 
 @pytest.mark.asyncio
@@ -214,4 +245,4 @@ def test_job_hides_injected_path_policy():
     parameters = yaml.safe_load(config_path.read_text(encoding="utf-8"))["jobs"]["python_execute"]["parameters"]
     assert "read_only_paths" not in parameters["properties"]
     assert "writable_paths" not in parameters["properties"]
-    assert "default" not in parameters["properties"]["memory_limit_bytes"]
+    assert "default" not in parameters["properties"]["memory_limit_mib"]

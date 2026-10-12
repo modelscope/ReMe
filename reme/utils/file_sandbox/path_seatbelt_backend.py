@@ -20,13 +20,13 @@ class PathSeatbeltBackend(FileSandboxBackend):
         cwd: str | os.PathLike[str],
         read_only_paths: list[str],
         writable_paths: list[str],
-        memory_limit_bytes: int = 0,
+        memory_limit_mib: int = 0,
     ) -> None:
-        if isinstance(memory_limit_bytes, bool) or not isinstance(memory_limit_bytes, int) or memory_limit_bytes < 0:
-            raise ValueError("memory_limit_bytes must be a non-negative integer")
-        if memory_limit_bytes:
+        if isinstance(memory_limit_mib, bool) or not isinstance(memory_limit_mib, int) or memory_limit_mib < 0:
+            raise ValueError("memory_limit_mib must be a non-negative integer")
+        if memory_limit_mib:
             warnings.warn(
-                "PathSeatbeltBackend does not support memory_limit_bytes; the limit is ignored on macOS",
+                "PathSeatbeltBackend does not support memory_limit_mib; the limit is ignored on macOS",
                 RuntimeWarning,
                 stacklevel=2,
             )

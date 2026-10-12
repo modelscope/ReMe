@@ -30,10 +30,10 @@ application_defaults:
             type: array
             items: { type: string }
             description: "Writable host paths; sandbox paths match host paths"
-          memory_limit_bytes:
+          memory_limit_mib:
             type: integer
             minimum: 0
-            description: "Linux cgroup memory limit in bytes (default 4 GiB); macOS warns and ignores nonzero values"
+            description: "Linux cgroup memory limit in MiB (default 4096; 0 disables it); requires a path policy; macOS warns and ignores nonzero values"
         required:
           - command
       steps:

@@ -30,11 +30,11 @@ class PathBubbleBackend(FileSandboxBackend):
         cwd: str | os.PathLike[str],
         read_only_paths: list[str],
         writable_paths: list[str],
-        memory_limit_bytes: int = 4 * 1024**3,
+        memory_limit_mib: int = 4096,
     ) -> None:
-        if isinstance(memory_limit_bytes, bool) or not isinstance(memory_limit_bytes, int) or memory_limit_bytes < 0:
-            raise ValueError("memory_limit_bytes must be a non-negative integer")
-        self._memory_limit_bytes = memory_limit_bytes
+        if isinstance(memory_limit_mib, bool) or not isinstance(memory_limit_mib, int) or memory_limit_mib < 0:
+            raise ValueError("memory_limit_mib must be a non-negative integer")
+        self._memory_limit_mib = memory_limit_mib
         self._process_cgroups: dict[int, Path] = {}
         super().__init__(cwd=cwd, read_only_paths=read_only_paths, writable_paths=writable_paths)
 
@@ -73,7 +73,7 @@ class PathBubbleBackend(FileSandboxBackend):
         if shutil.which("bwrap") is None:
             raise RuntimeError("PathBubbleBackend requires bwrap on PATH")
         argv = self._bwrap_argv(command, cwd)
-        group = self._create_cgroup() if self._memory_limit_bytes else None
+        group = self._create_cgroup() if self._memory_limit_mib else None
         try:
             if group is not None:
                 argv = [sys.executable, "-I", "-S", "-c", _CGROUP_EXEC, str(group / "cgroup.procs"), *argv]
@@ -104,7 +104,7 @@ class PathBubbleBackend(FileSandboxBackend):
             group = parent / f"reme-{uuid.uuid4().hex}"
             group.mkdir()
             try:
-                (group / "memory.max").write_text(str(self._memory_limit_bytes), encoding="ascii")
+                (group / "memory.max").write_text(str(self._memory_limit_mib * 1024**2), encoding="ascii")
             except BaseException:
                 group.rmdir()
                 raise
@@ -125,6 +125,3 @@ class PathBubbleBackend(FileSandboxBackend):
                 group.rmdir()
             except OSError as cleanup_error:
                 raise RuntimeError(f"could not remove sandbox cgroup {group}: {cleanup_error}") from exc
-
-    # Keep the existing helper name for callers that manage a process directly.
-    _release_cgroup = _release_process

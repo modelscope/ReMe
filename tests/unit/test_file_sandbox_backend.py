@@ -18,7 +18,7 @@ def test_platform_selection_and_memory_defaults(tmp_path, monkeypatch):
     monkeypatch.setattr("reme.utils.file_sandbox.sys.platform", "linux")
     linux = create_file_sandbox_backend(cwd=tmp_path, read_only_paths=[], writable_paths=[])
     assert isinstance(linux, PathBubbleBackend)
-    assert linux._memory_limit_bytes == 4 * 1024**3  # pylint: disable=protected-access
+    assert linux._memory_limit_mib == 4096  # pylint: disable=protected-access
 
     monkeypatch.setattr("reme.utils.file_sandbox.sys.platform", "darwin")
     mac = create_file_sandbox_backend(cwd=tmp_path, read_only_paths=[], writable_paths=[])
@@ -28,7 +28,7 @@ def test_platform_selection_and_memory_defaults(tmp_path, monkeypatch):
             cwd=tmp_path,
             read_only_paths=[],
             writable_paths=[],
-            memory_limit_bytes=1024,
+            memory_limit_mib=1024,
         )
     assert isinstance(limited, PathSeatbeltBackend)
 
