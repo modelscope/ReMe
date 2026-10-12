@@ -58,6 +58,8 @@ const requiredFiles = [
   "en/reme-blog.html",
   "zh/blog_20260920.html",
   "en/blog_20260920.html",
+  "zh/blog_20261009.html",
+  "en/blog_20261009.html",
   "zh/services.html",
   "en/services.html",
   "studio/index.html",
