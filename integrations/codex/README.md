@@ -145,6 +145,9 @@ memory now** in MCP settings. This updates your memory files and also works when
 schedule is off. Check **Consolidation** for the result. Turning off the schedule does not stop an
 already-started run; after a timeout, check its status before trying again.
 
+To request consolidation in a conversation, ask Codex to call `reme_run_dream`.
+If consolidation is already running in this Codex profile, another request reports that it is busy.
+
 ## 6. Check status and customize ReMe
 
 Open **ReMe status** from MCP settings and choose the tab for what you want to check:

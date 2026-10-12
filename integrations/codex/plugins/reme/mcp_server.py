@@ -18,7 +18,8 @@ from reme_tools import LOCAL_TOOLS, RUN_DREAM, STATUS, register_tools
 
 SETTINGS_READ = "reme_settings_read"
 SETTINGS_UPDATE = "reme_settings_update"
-RESERVED_TOOLS = LOCAL_TOOLS | {SETTINGS_READ, SETTINGS_UPDATE}
+# All consolidation must pass through reme_run_dream's profile/endpoint lock.
+RESERVED_TOOLS = LOCAL_TOOLS | {SETTINGS_READ, SETTINGS_UPDATE, "auto_dream"}
 
 # OpenAI MCP Extensions node-v0.1.0, docs/spec.md#structured-settings.
 # Use its legacy capability advertisement with ReMe's existing FastMCP runtime.

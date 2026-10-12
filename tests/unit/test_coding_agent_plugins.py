@@ -27,6 +27,8 @@ def adapter(request, tmp_path, monkeypatch):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     monkeypatch.setenv(module.HOME_ENV, str(tmp_path / "host"))
+    if module.HOST == "claude-code":
+        monkeypatch.setattr(module, "CAPTURE_WAIT_SECONDS", 0)
     return module
 
 
@@ -101,6 +103,77 @@ def transcript(adapter, path, pairs, *, extra=None):
     }
 
 
+@pytest.mark.parametrize("adapter", ["claude-code"], indirect=True)
+def test_claude_synchronous_capture_preserves_identical_replies_before_delayed_delivery(adapter, tmp_path, monkeypatch):
+    write_config(adapter, {"memory_interval": 1})
+    path = tmp_path / "transcript.jsonl"
+    first = transcript(adapter, path, [("Remember Postgres.", "好的")])
+    call = Mock(return_value={"success": True})
+    monkeypatch.setattr(adapter, "call", call)
+    monkeypatch.setattr(adapter, "CAPTURE_WAIT_SECONDS", 0, raising=False)
+    adapter.handle_event(first, capture_only=True)
+    second = transcript(adapter, path, [("Remember Postgres.", "好的"), ("Remember Redis.", "好的")])
+    adapter.handle_event(second, capture_only=True)
+    call.assert_not_called()
+    assert len(list(adapter.queue_root(adapter.load_config()).rglob("*.json"))) == 2
+    path.unlink()  # Delivery must use captured data even when the transcript is no longer available.
+    adapter.handle_event(first)
+    adapter.handle_event(second)
+    bodies = [args.args[2] for args in call.call_args_list]
+    assert [[message["content"][0]["text"] for message in body["messages"]] for body in bodies] == [
+        ["Remember Postgres.", "好的"],
+        ["Remember Redis.", "好的"],
+    ]
+    assert len({message["id"] for body in bodies for message in body["messages"]}) == 4
+    assert len(list(adapter.queue_root(adapter.load_config()).rglob("*.done"))) == 2
+
+
+@pytest.mark.parametrize("adapter", ["claude-code"], indirect=True)
+def test_claude_delivery_waits_for_parallel_synchronous_capture(adapter, tmp_path, monkeypatch):
+    write_config(adapter, {"memory_interval": 1})
+    payload = transcript(adapter, tmp_path / "transcript.jsonl", [("Remember Postgres.", "好的")])
+    entered, delivered = threading.Event(), threading.Event()
+    original_flush = adapter.flush
+    errors, bodies = [], []
+
+    def flush(*args, **kwargs):
+        entered.set()
+        return original_flush(*args, **kwargs)
+
+    def call(_config, _action, body, _timeout):
+        bodies.append(body)
+        delivered.set()
+        return {"success": True}
+
+    def deliver():
+        try:
+            adapter.handle_event(payload)
+        except Exception as exc:
+            errors.append(exc)
+
+    monkeypatch.setattr(adapter, "flush", flush)
+    monkeypatch.setattr(adapter, "call", call)
+    monkeypatch.setattr(adapter, "CAPTURE_WAIT_SECONDS", 1, raising=False)
+    worker = threading.Thread(target=deliver)
+    worker.start()
+    try:
+        assert entered.wait(2)
+        assert not delivered.is_set()  # The background hook cannot read the transcript to capture the turn.
+        adapter.handle_event(payload, capture_only=True)
+        assert delivered.wait(2)
+    finally:
+        worker.join(2)
+    assert not worker.is_alive() and not errors
+    assert len(bodies) == 1
+    assert bodies[0]["messages"][0]["content"][0]["text"] == "Remember Postgres."
+
+
+def stop(adapter, payload):
+    """Run the host's synchronous capture and background delivery handlers."""
+    adapter.handle_event(payload, capture_only=True)
+    return adapter.handle_event(payload)
+
+
 def test_native_manifests_resolve_within_their_own_plugin():
     for host, root in PLUGINS.items():
         kind = "claude" if host == "claude-code" else "codex"
@@ -125,11 +198,10 @@ def test_native_manifests_resolve_within_their_own_plugin():
         for event, groups in hooks.items():
             hook = groups[0]["hooks"][0]
             assert '"${' in hook["command"]  # Paths with spaces survive native substitution.
-            if host == "claude-code":
-                assert hook.get("async", False) is (event in {"Stop", "SessionStart"})
-            elif event in {"Stop", "SubagentStop"}:
+            if event in {"Stop", "SubagentStop"}:
                 assert hook["command"].endswith(" --capture-only") and not hook.get("async", False)
                 assert groups[0]["hooks"][1]["async"]
+                assert "--capture-only" not in groups[0]["hooks"][1]["command"]
             else:
                 assert hook.get("async", False) is (event == "SessionStart")
             assert (root / "hooks/auto_memory.py").is_file()
@@ -364,18 +436,18 @@ def test_recording_batches_and_deduplicates_repeated_stop(adapter, tmp_path, mon
     monkeypatch.setattr(adapter, "call", call)
     path = tmp_path / "transcript.jsonl"
     first = transcript(adapter, path, [("one", "answer one")])
-    adapter.handle_event(first)
-    adapter.handle_event(first)
+    stop(adapter, first)
+    stop(adapter, first)
     assert call.call_count == 0
     second = transcript(adapter, path, [("one", "answer one"), ("two", "answer two")])
-    adapter.handle_event(second)
+    stop(adapter, second)
     assert call.call_count == 1
     body = call.call_args.args[2]
     assert [m["content"][0]["text"] for m in body["messages"]] == ["one", "answer one", "two", "answer two"]
     assert body["session_id"].startswith(adapter.HOST + "-")
     assert "/" not in body["session_id"]
     assert body["date"] == "2026-09-28"
-    adapter.handle_event(second)
+    stop(adapter, second)
     assert call.call_count == 1
     assert not list(adapter.queue_root(config).rglob("*.json"))
 
@@ -387,7 +459,7 @@ def test_failed_batch_survives_restart_and_session_start_flushes_tail(adapter, t
     monkeypatch.setattr(adapter, "call", call)
     payload = transcript(adapter, tmp_path / "transcript.jsonl", [("question", "answer")])
     with pytest.raises(RuntimeError):
-        adapter.handle_event(payload)
+        stop(adapter, payload)
     original = call.call_args.args[2]
     assert len(list(adapter.queue_root(config).rglob("*.json"))) == 1
     call.side_effect = None
@@ -515,7 +587,7 @@ def test_cross_day_batches_flush_old_day_separately(adapter, tmp_path, monkeypat
 def test_subagent_and_continuation_stops_do_not_record(adapter, monkeypatch, extra):
     capture = Mock()
     monkeypatch.setattr(adapter, "capture", capture)
-    adapter.handle_event({"hook_event_name": "Stop", **extra})
+    adapter.handle_event({"hook_event_name": "Stop", **extra}, capture_only=True)
     capture.assert_not_called()
 
 

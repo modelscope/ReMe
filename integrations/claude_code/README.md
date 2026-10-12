@@ -113,9 +113,10 @@ run `python3 -m pip install "fastmcp>=3.1"` in the host environment. Hooks use o
 
 - `UserPromptSubmit` calls `search` synchronously with a short timeout. Results are bounded and
   wrapped in `<reme-context>` as untrusted historical evidence. A failure does not reject the prompt.
-- Native asynchronous `Stop` hooks extract only the completed user/final-assistant text from the
-  hook's local transcript, then submit `auto_memory` batches through the JSON Job API. Tool output,
-  reasoning, and injected ReMe context are excluded. The server does not need access to host files.
+- A synchronous `Stop` hook captures and queues the completed user/final-assistant text before the
+  next turn can start. A separate native asynchronous `Stop` hook submits those captured batches
+  through the JSON Job API without rereading the transcript. Tool output, reasoning, and injected
+  ReMe context are excluded. The server does not need access to host files.
 - Session and message IDs are stable and host-scoped. Repeated Stops are deduplicated. Per-session
   process locks serialize writes; batches never mix dates. Subagent events and hook continuations
   are excluded. No extra background daemon, package download, or ReMe process is started.

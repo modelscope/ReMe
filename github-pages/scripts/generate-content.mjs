@@ -54,6 +54,12 @@ const externalDocumentRewrites = {
     ['src="docs/figure/', 'src="../figure/'],
     ["(docs/zh/", "(./"],
   ],
+  "integrations/claude_code/README.md": [
+    ["(./README_ZH.md)", "(/zh/integrations/claude-code)"],
+  ],
+  "integrations/claude_code/README_ZH.md": [
+    ["(./README.md)", "(/en/integrations/claude-code)"],
+  ],
   "integrations/codex/README.md": [
     ["(./README_ZH.md)", "(/zh/integrations/codex)"],
     ["(../../docs/en/configuration.md)", "(/en/configuration)"],

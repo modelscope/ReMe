@@ -358,6 +358,30 @@ async def test_failed_dream_keeps_failure_state_and_releases_lock(plugin, monkey
         assert call.call_args.args[2]["hint"] == "one-off"
 
 
+@pytest.mark.asyncio
+async def test_raw_auto_dream_cannot_bypass_the_consolidation_lock(plugin, monkeypatch):
+    config, module, _ = plugin
+    state = importlib.import_module("reme_state")
+    upstream = FastMCP("test")
+    calls = []
+
+    @upstream.tool
+    def auto_dream() -> str:
+        calls.append("auto_dream")
+        return "consolidated"
+
+    monkeypatch.setattr(module, "ProxyClient", lambda *args, **kwargs: Client(upstream, **kwargs))
+    async with Client(module.create_server()) as client:
+        assert "auto_dream" not in {tool.name for tool in await client.list_tools()}
+        assert await module.ReMeProvider().get_tool("auto_dream") is None
+        with config.lock(state.endpoint_dir(config.load_config()) / "dream.lock"):
+            with pytest.raises(ToolError):
+                await client.call_tool("auto_dream", {})
+            with pytest.raises(ToolError, match="already running"):
+                await client.call_tool("reme_run_dream", {})
+        assert not calls
+
+
 def test_diagnostics_rotate_and_detect_interrupted_dream(plugin, monkeypatch):
     config, _, _ = plugin
     state = importlib.import_module("reme_state")

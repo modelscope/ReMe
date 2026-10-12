@@ -84,6 +84,15 @@ test("publishes portable and accurate DSH instructions", async () => {
   assert.match(chinese, /每 5 秒仅刷新 DSH 插件的运行时计数/);
 });
 
+test("keeps Claude Code language switches on the documentation site", async () => {
+  const english = await readFile(path.join(generatedDir, "en/integrations/claude-code.md"), "utf8");
+  const chinese = await readFile(path.join(generatedDir, "zh/integrations/claude-code.md"), "utf8");
+  assert.match(english, /\[中文说明\]\(\/zh\/integrations\/claude-code\)/);
+  assert.match(chinese, /\[English\]\(\/en\/integrations\/claude-code\)/);
+  assert.doesNotMatch(english, /\]\([^)]*README_ZH\.md\)/);
+  assert.doesNotMatch(chinese, /\]\([^)]*README\.md\)/);
+});
+
 test("publishes Studio screenshots with site-safe links", async () => {
   const english = await readFile(path.join(generatedDir, "en/workspace/studio.md"), "utf8");
   const chinese = await readFile(path.join(generatedDir, "zh/workspace/studio.md"), "utf8");

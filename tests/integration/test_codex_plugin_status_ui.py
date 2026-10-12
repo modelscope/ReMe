@@ -22,7 +22,7 @@ def snapshot(language):
     return {
         "checked_at": 1790757300,
         "language": language,
-        "plugin_version": "0.2.6",
+        "plugin_version": "0.2.7",
         "mcpUrl": "http://localhost:2333/mcp",
         "service": {
             "health_check": {"reachable": True, "answer": "ReMe v0.4.1.13 - healthy"},
@@ -156,6 +156,9 @@ def test_initial_result_refresh_offline_failure_theme_and_untrusted_text(languag
                         window.sendStatus();
                     } else if (m.method === 'tools/call') {
                         if (window.failRefresh) send({id:m.id, error:{code:-32603, message:'test failure'}});
+                        else if (window.delayRefresh) {
+                            setTimeout(() => send({id:m.id, result:window.result}), window.delayRefresh);
+                        }
                         else send({id:m.id, result:window.result});
                     }
                 });
@@ -247,10 +250,14 @@ def test_initial_result_refresh_offline_failure_theme_and_untrusted_text(languag
         assert "ConnectionError" in frame.locator("#details").inner_text()
         unhealthy = snapshot(language)
         unhealthy["service"]["health_check"]["answer"] = "ReMe v0.4.1.13 - unhealthy"
-        page.evaluate("value => { window.failRefresh = false; window.result = {structuredContent:value}; }", unhealthy)
+        page.evaluate(
+            "value => { window.failRefresh = false; window.delayRefresh = 100;"
+            " window.result = {structuredContent:value}; }",
+            unhealthy,
+        )
         frame.locator("#tab-overview").click()
         frame.locator("#refresh").click()
+        playwright.expect(frame.locator("#connection-state")).to_have_attribute("data-tone", "good")
         playwright.expect(frame.locator("#service-health")).to_have_attribute("data-tone", "bad")
-        assert frame.locator("#connection-state").get_attribute("data-tone") == "good"  # Reachable is not healthy.
         assert not errors and not external
         browser.close()

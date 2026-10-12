@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo
 HOST = "claude-code"
 HOME_ENV = "CLAUDE_CONFIG_DIR"
 HOME_DEFAULT = "~/.claude"
+CAPTURE_WAIT_SECONDS = 10
 DEFAULTS = {
     "mcp_url": "http://127.0.0.1:2333/mcp",
     "api_url": "",
@@ -218,7 +219,7 @@ def transcript_messages(path: Path):
 
 
 def completed_turn(payload: dict, session: str) -> list[dict]:
-    """Match this Stop's final reply to its native user turn, even after another turn starts."""
+    """Match the synchronous Stop's final reply before Claude can start the next turn."""
     final, transcript = payload.get("last_assistant_message"), payload.get("transcript_path")
     if not isinstance(final, str) or not final.strip() or not isinstance(transcript, str) or not transcript:
         return []
@@ -248,22 +249,29 @@ def queue_root(config: dict) -> Path:
     return data_dir() / "queue" / digest(config["endpoint"])
 
 
-def capture(config: dict, payload: dict) -> Path | None:
-    """Persist a completed turn before any network request."""
+def session_queue(config: dict, payload: dict) -> Path | None:
+    """Locate this session's durable queue without inspecting its transcript."""
     native_id = payload.get("session_id")
     if not isinstance(native_id, str) or not native_id:
         return None
     session = f"{HOST}-{digest(str(data_dir().resolve()) + ':' + native_id)}"
-    messages = completed_turn(payload, session)
+    return queue_root(config) / session
+
+
+def capture(config: dict, payload: dict) -> Path | None:
+    """Persist a completed turn before any network request."""
+    root = session_queue(config, payload)
+    if root is None:
+        return None
+    messages = completed_turn(payload, root.name)
     if len(messages) != 2:
         log_status("capture_skipped")
         return None
-    root = queue_root(config) / session
     key = digest(messages[-1]["id"])
     if not (root / f"{key}.done").exists() and not (root / f"{key}.json").exists():
         instant = datetime.fromisoformat(messages[-1]["created_at"].replace("Z", "+00:00"))
         day = instant.astimezone(ZoneInfo(config["timezone"])).date().isoformat()
-        write_json(root / f"{key}.json", {"session_id": session, "messages": messages, "date": day})
+        write_json(root / f"{key}.json", {"session_id": root.name, "messages": messages, "date": day})
     return root
 
 
@@ -337,7 +345,7 @@ def recall(config: dict, payload: dict) -> dict:
     return {"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": context}}
 
 
-def handle_event(payload: dict) -> dict:
+def handle_event(payload: dict, *, capture_only: bool = False) -> dict:
     """Dispatch root-conversation events; long work stays in host-managed async hooks."""
     if not isinstance(payload, dict) or payload.get("agent_id") or payload.get("agent_transcript_path"):
         return {}
@@ -352,9 +360,18 @@ def handle_event(payload: dict) -> dict:
     if event == "Stop":
         if payload.get("stop_hook_active"):
             return {}
-        root = capture(config, payload)
-        if root is not None:
-            flush(config, root)
+        if capture_only:
+            capture(config, payload)
+        elif (root := session_queue(config, payload)) is not None:
+            # Matching hooks run in parallel: the delivery process may start before capture.
+            # Only drain persisted turns, allowing the synchronous hook's time budget to finish.
+            deadline = time.monotonic() + CAPTURE_WAIT_SECONDS
+            while True:
+                flush(config, root)
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                time.sleep(min(0.1, remaining))
     else:
         deadline = time.monotonic() + config["shutdown_timeout"] if event == "SessionEnd" else None
         for root in sorted(queue_root(config).glob("*/")):
@@ -370,7 +387,7 @@ def handle_event(payload: dict) -> dict:
 def main() -> None:
     """Fail open with valid JSON and content-free diagnostics."""
     try:
-        result = handle_event(json.load(sys.stdin))
+        result = handle_event(json.load(sys.stdin), capture_only="--capture-only" in sys.argv[1:])
     except Exception as exc:  # Memory failures must not block coding conversations.
         log_status("hook_failed", exc)
         result = {}
