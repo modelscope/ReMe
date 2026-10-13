@@ -62,6 +62,47 @@ async def test_seatbelt_allows_null_device_redirection(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_seatbelt_write_file_with_launchd_stdin(tmp_path):
+    """The launchd job delivers input bytes through its configured stdin file."""
+    workspace = tmp_path.resolve()
+    backend = PathSeatbeltBackend(cwd=workspace, read_only_paths=[], writable_paths=[str(workspace)])
+    target = workspace / "nested" / "note.txt"
+
+    await backend.write_file(str(target), b"hello\n")
+
+    assert target.read_bytes() == b"hello\n"
+
+
+@pytest.mark.asyncio
+async def test_seatbelt_without_gui_launchd_uses_direct_sandbox(tmp_path, monkeypatch):
+    """A missing GUI domain warns while Seatbelt still enforces the path policy."""
+    root = tmp_path.resolve()
+    workspace = root / "workspace"
+    workspace.mkdir()
+    outside = root / "outside.txt"
+    backend = PathSeatbeltBackend(cwd=workspace, read_only_paths=[], writable_paths=[str(workspace)])
+
+    async def missing(_domain):
+        return False
+
+    monkeypatch.setattr(backend, "_has_gui_launchd", missing)
+    code = (
+        "from pathlib import Path;"
+        "Path('inside.txt').write_text('allowed');"
+        f"Path({str(outside)!r}).write_text('denied')"
+    )
+    with pytest.warns(RuntimeWarning, match="No macOS GUI launchd domain"):
+        result = await backend.exec_shell([sys.executable, "-c", code], timeout=5)
+    assert result.exit_code != 0
+    assert (workspace / "inside.txt").read_text() == "allowed"
+    assert not outside.exists()
+
+    with pytest.warns(RuntimeWarning, match="No macOS GUI launchd domain"):
+        await backend.write_file(str(workspace / "input.txt"), b"hello")
+    assert (workspace / "input.txt").read_bytes() == b"hello"
+
+
+@pytest.mark.asyncio
 async def test_seatbelt_runtime_permissions_preserve_file_isolation(tmp_path):
     """Startup grants do not expose sibling files or writable access to protected children."""
     root = tmp_path.resolve()
@@ -124,6 +165,26 @@ async def test_seatbelt_cannot_move_read_only_ancestor(tmp_path):
     sibling = await backend.exec_shell(["/bin/sh", "-c", "echo allowed > sibling.txt"], timeout=5)
     assert sibling.exit_code == 0, sibling.stderr.decode(errors="replace")
     assert (workspace / "sibling.txt").read_text(encoding="utf-8").strip() == "allowed"
+
+
+@pytest.mark.asyncio
+async def test_seatbelt_reaps_same_group_child_after_parent_exits(tmp_path):
+    """launchd clears a background child after its foreground command returns."""
+    workspace = tmp_path.resolve()
+    backend = PathSeatbeltBackend(cwd=workspace, read_only_paths=[], writable_paths=[str(workspace)])
+    marker = workspace / "late.txt"
+    child_code = f"import time;from pathlib import Path;time.sleep(1);Path({str(marker)!r}).write_text('late')"
+    parent_code = (
+        "import subprocess,sys;"
+        f"subprocess.Popen([sys.executable,'-c',{child_code!r}],"
+        "stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)"
+    )
+
+    result = await backend.exec_shell([sys.executable, "-c", parent_code], timeout=5)
+
+    assert result.exit_code == 0, result.stderr.decode(errors="replace")
+    await asyncio.sleep(1.2)
+    assert not marker.exists()
 
 
 @pytest.mark.asyncio

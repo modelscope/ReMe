@@ -43,33 +43,20 @@ class PythonExecuteStep(BaseStep):
 
         try:
             backend = file_sandbox_for_step(self)
-        except (TypeError, ValueError, RuntimeError) as exc:
-            self.context.response.success = False
-            self.context.response.answer = str(exc)
-            return self.context.response
-
-        try:
             result = await self._run_python(code, timeout, backend)
-        except (OSError, RuntimeError) as exc:
+        except (TypeError, ValueError, OSError, RuntimeError) as exc:
             self.context.response.success = False
             self.context.response.answer = str(exc)
             return self.context.response
         if result.timed_out:
             self.context.response.success = False
             self.context.response.answer = f"Python execution timed out after {timeout:g}s"
-            self.context.response.metadata.update(
-                {
-                    "returncode": result.returncode,
-                    "stderr": result.stderr,
-                    "python_timeout": timeout,
-                },
-            )
-            return self.context.response
-
-        stdout = result.stdout or ""
-        stderr = result.stderr or ""
-        self.context.response.success = result.returncode == 0
-        self.context.response.answer = stdout if stdout or result.returncode == 0 else stderr
+            stderr = result.stderr
+        else:
+            stdout = result.stdout or ""
+            stderr = result.stderr or ""
+            self.context.response.success = result.returncode == 0
+            self.context.response.answer = stdout if stdout or result.returncode == 0 else stderr
         self.context.response.metadata.update(
             {
                 "returncode": result.returncode,

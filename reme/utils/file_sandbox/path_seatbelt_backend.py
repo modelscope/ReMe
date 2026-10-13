@@ -3,10 +3,17 @@
 import asyncio
 import json
 import os
+import plistlib
 import shutil
 import sys
 import tempfile
+import uuid
 import warnings
+from pathlib import Path
+from types import SimpleNamespace
+
+import psutil
+from agentscope.tool import ExecResult
 
 from .file_sandbox_backend import FileSandboxBackend, contains
 
@@ -92,23 +99,16 @@ class PathSeatbeltBackend(FileSandboxBackend):
         return "\n".join(lines)
 
     async def _start_process(self, command: list[str], cwd: str, *, stdin=asyncio.subprocess.DEVNULL):
-        if sys.platform != "darwin":
-            raise RuntimeError("PathSeatbeltBackend requires macOS")
-        if shutil.which("sandbox-exec") is None:
-            raise RuntimeError("PathSeatbeltBackend requires sandbox-exec on PATH")
-        if not command:
-            raise ValueError("command must not be empty")
-        self._check_paths(cwd)
+        """Start Seatbelt directly when the GUI launchd domain is unavailable."""
         tempdir = tempfile.mkdtemp(prefix="reme-seatbelt-", dir=os.path.realpath(tempfile.gettempdir()))
         try:
-            env = {**os.environ, "HOME": self._cwd, "TMPDIR": tempdir}
             process = await asyncio.create_subprocess_exec(
                 "/usr/bin/sandbox-exec",
                 "-p",
                 self._profile(tempdir),
                 *command,
                 cwd=cwd,
-                env=env,
+                env={**os.environ, "HOME": self._cwd, "TMPDIR": tempdir},
                 stdin=stdin,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -124,3 +124,144 @@ class PathSeatbeltBackend(FileSandboxBackend):
         tempdir = self._process_tempdirs.pop(process.pid, None)
         if tempdir is not None:
             shutil.rmtree(tempdir)
+
+    @staticmethod
+    async def _has_gui_launchd(domain: str) -> bool:
+        process = await asyncio.create_subprocess_exec(
+            "/bin/launchctl",
+            "print",
+            domain,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        return await process.wait() == 0
+
+    @staticmethod
+    async def _launchctl(*arguments: str) -> str:
+        process = await asyncio.create_subprocess_exec(
+            "/bin/launchctl",
+            *arguments,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await process.communicate()
+        if process.returncode:
+            raise RuntimeError(f"launchctl {' '.join(arguments[:1])} failed: {stderr.decode(errors='replace').strip()}")
+        return stdout.decode(errors="replace").strip()
+
+    @staticmethod
+    async def _wait_status(status: Path, pid: int) -> int:
+        while True:
+            if status.exists():
+                return int(status.read_text(encoding="ascii"))
+            if not psutil.pid_exists(pid):
+                raise RuntimeError("launchd sandbox job exited without reporting a status")
+            await asyncio.sleep(0.02)
+
+    async def _run_job(self, command: list[str], cwd: str, *, data: bytes | None, timeout: float | None) -> ExecResult:
+        if sys.platform != "darwin":
+            raise RuntimeError("PathSeatbeltBackend requires macOS")
+        if shutil.which("sandbox-exec") is None:
+            raise RuntimeError("PathSeatbeltBackend requires sandbox-exec on PATH")
+        if not command:
+            raise ValueError("command must not be empty")
+        self._check_paths(cwd)
+        domain = f"gui/{os.getuid()}"
+        if not await self._has_gui_launchd(domain):
+            warnings.warn(
+                "No macOS GUI launchd domain; process-group cleanup is unavailable, running directly under Seatbelt",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            process = await self._start_process(
+                command,
+                cwd,
+                stdin=asyncio.subprocess.PIPE if data is not None else asyncio.subprocess.DEVNULL,
+            )
+            return await self._communicate(process, data=data, timeout=timeout)
+        control = Path(tempfile.mkdtemp(prefix="reme-seatbelt-", dir=os.path.realpath(tempfile.gettempdir())))
+        sandbox_tmp = control / "sandbox-tmp"
+        sandbox_tmp.mkdir()
+        stdout_path = control / "stdout"
+        stderr_path = control / "stderr"
+        status_path = control / "status"
+        stdin_path = control / "stdin"
+        label = f"ai.agentscope.reme.sandbox.{uuid.uuid4().hex}"
+        service = f"{domain}/{label}"
+        registered = False
+        timed_out = False
+        completed = False
+        pid = None
+        stdout = b""
+        stderr = b""
+        try:
+            if data is not None:
+                stdin_path.write_bytes(data)
+            # The shell reports the command's status in a control file. Its
+            # child inherits the launchd job's process group, so launchd can
+            # reap same-group background processes when the shell exits.
+            script = '"$@"; result=$?; printf "%s\\n" "$result" > "$0.tmp"; mv "$0.tmp" "$0"'
+            job = {
+                "Label": label,
+                "ProgramArguments": [
+                    "/bin/sh",
+                    "-c",
+                    script,
+                    str(status_path),
+                    "/usr/bin/sandbox-exec",
+                    "-p",
+                    self._profile(str(sandbox_tmp)),
+                    *command,
+                ],
+                "WorkingDirectory": cwd,
+                "EnvironmentVariables": {**os.environ, "HOME": self._cwd, "TMPDIR": str(sandbox_tmp)},
+                "StandardInPath": str(stdin_path) if data is not None else "/dev/null",
+                "StandardOutPath": str(stdout_path),
+                "StandardErrorPath": str(stderr_path),
+                "RunAtLoad": False,
+                "KeepAlive": False,
+                "AbandonProcessGroup": False,
+            }
+            plist_path = control / "job.plist"
+            with os.fdopen(os.open(plist_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "wb") as stream:
+                plistlib.dump(job, stream)
+            await self._launchctl("bootstrap", domain, str(plist_path))
+            registered = True
+            pid = int(await self._launchctl("kickstart", "-p", service))
+            try:
+                exit_code = await asyncio.wait_for(self._wait_status(status_path, pid), timeout=timeout)
+            except TimeoutError:
+                timed_out = True
+            else:
+                completed = True
+        finally:
+            try:
+                if registered:
+                    if not completed and pid is not None:
+                        self._kill_process(SimpleNamespace(pid=pid))
+                    await self._launchctl("bootout", service)
+            finally:
+                if not timed_out:
+                    stdout = stdout_path.read_bytes() if stdout_path.exists() else b""
+                    stderr = stderr_path.read_bytes() if stderr_path.exists() else b""
+                shutil.rmtree(control)
+        if timed_out:
+            return ExecResult(exit_code=-1, stdout=b"", stderr=b"timed out")
+        return ExecResult(exit_code=exit_code, stdout=stdout, stderr=stderr)
+
+    async def exec_shell(
+        self,
+        command: list[str],
+        *,
+        cwd: str | None = None,
+        timeout: float | None = None,
+    ) -> ExecResult:
+        return await self._run_job(command, cwd or self._cwd, data=None, timeout=timeout)
+
+    async def write_file(self, path: str, data: bytes) -> None:
+        if not isinstance(data, bytes):
+            raise TypeError("data must be bytes")
+        script = 'mkdir -p -- "$(dirname -- "$1")" && cat > "$1"'
+        result = await self._run_job(["/bin/sh", "-c", script, "sh", path], self._cwd, data=data, timeout=None)
+        if not result.ok():
+            raise OSError(result.stderr.decode(errors="replace"))

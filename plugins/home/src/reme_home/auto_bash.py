@@ -1,6 +1,7 @@
 """Run allowlisted shell commands without an approval prompt."""
 
 import asyncio
+from functools import cache
 
 from agentscope.message import TextBlock, ToolResultState
 from agentscope.permission import PermissionBehavior, PermissionContext, PermissionDecision
@@ -33,13 +34,15 @@ _READ_COMMANDS = {
             "--show-signature",
             "--remerge-diff",
             "--diff-merges",
+            "--pretty",
+            "--format",
         ],
     },
     "grep": {},
     "head": {},
     "ls": {},
     "pwd": {},
-    "sort": {"denied": ["-o", "--output", "--compress-program", "--temporary-directory"]},
+    "sort": {"denied": ["-o", "-T", "--output", "--compress-program", "--temporary-directory"]},
     "stat": {},
     "tail": {},
     "true": {},
@@ -54,6 +57,10 @@ _READ_ONLY_SETUP = r"""
 unset GIT_EXTERNAL_DIFF GIT_TRACE GIT_TRACE_SETUP GIT_TRACE_PERFORMANCE
 unset GIT_TRACE_PACK_ACCESS GIT_TRACE_PACKET GIT_TRACE_CURL GIT_TRACE2 GIT_TRACE2_EVENT GIT_TRACE2_PERF
 export GIT_OPTIONAL_LOCKS=0 GIT_PAGER=/bin/cat GIT_NO_LAZY_FETCH=1 GIT_TERMINAL_PROMPT=0
+sort() {
+    # A large sort otherwise writes temporary files, even without -o.
+    command sort -T /dev/null "$@"
+}
 git() {
     # These metadata queries do not read file contents through Git filters.
     if [ "$1" != rev-parse ] && [ "$1" != ls-files ] && \
@@ -71,10 +78,18 @@ git() {
         status) shift; set -- status --ignore-submodules=all "$@" ;;
     esac
     command git --no-pager -c core.fsmonitor=false -c diff.submodule=short \
-        -c log.showSignature=false -c log.diffMerges=off \
+        -c log.showSignature=false -c log.diffMerges=off -c format.pretty=medium \
         -c trace2.normalTarget=0 -c trace2.eventTarget=0 -c trace2.perfTarget=0 "$@"
 }
 """
+
+
+@cache
+def _read_specs():
+    """Build the fixed safecmd policy once, when read-only mode is used."""
+    from safecmd import CmdSpec  # pylint: disable=import-outside-toplevel
+
+    return {CmdSpec(name, denied=options.get("denied")) for name, options in _READ_COMMANDS.items()}
 
 
 def _literal_shell(node: dict, command: str, quoted: bool = False) -> bool:
@@ -162,7 +177,6 @@ class AutoBash(Bash):
         if "$" in command or "`" in command:
             return False
         try:
-            from safecmd import CmdSpec  # pylint: disable=import-outside-toplevel
             from safecmd.bashxtract import (  # pylint: disable=import-outside-toplevel
                 check_types,
                 collect_ops,
@@ -176,8 +190,8 @@ class AutoBash(Bash):
             check_types(ast)
             if not _literal_shell(ast, command):
                 return False
-            specs = {CmdSpec(name, denied=options.get("denied")) for name, options in _READ_COMMANDS.items()}
             commands = visit_stmts(ast.get("Stmts", []), command)
+            specs = _read_specs()
             if any(not validate_cmd(tokens, specs) or not _allowed_arguments(tokens) for tokens in commands):
                 return False
             return "=" not in collect_ops(ast) and all(
@@ -224,6 +238,7 @@ class AutoBashStep(BaseStep):
     """Expose AgentScope Bash with configurable read-only mode as a ReMe job."""
 
     async def execute(self):
+        """Run the command with the selected permission policy and backend."""
         assert self.context is not None
         command = self.context.get("command", "")
         timeout = self.context.get("timeout", self.kwargs.get("timeout", 60000))
@@ -249,9 +264,11 @@ class AutoBashStep(BaseStep):
             return self.context.response
 
         tool = AutoBash(cwd=self.workspace_path, is_read_only=is_read_only, backend=backend)
-        chunks = [chunk async for chunk in tool.call(command=command, timeout=timeout)]
-        self.context.response.success = all(chunk.state != ToolResultState.ERROR for chunk in chunks)
-        self.context.response.answer = "".join(
-            block.text for chunk in chunks for block in chunk.content if isinstance(block, TextBlock)
-        )
+        success = True
+        texts = []
+        async for chunk in tool.call(command=command, timeout=timeout):
+            success = success and chunk.state != ToolResultState.ERROR
+            texts.extend(block.text for block in chunk.content if isinstance(block, TextBlock))
+        self.context.response.success = success
+        self.context.response.answer = "".join(texts)
         return self.context.response

@@ -28,6 +28,13 @@ def linux_backend_selection(monkeypatch):
     monkeypatch.setattr("reme.utils.file_sandbox.sys.platform", "linux")
 
 
+@pytest.fixture(autouse=True)
+def isolated_git_config(tmp_path, monkeypatch):
+    """Keep Git tests independent of the developer's global and system config."""
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(tmp_path / "global.gitconfig"))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+
+
 @pytest.mark.asyncio
 async def test_auto_bash_runs_in_workspace(tmp_path):
     """Approved commands run relative to the configured workspace."""
@@ -56,6 +63,8 @@ async def test_auto_bash_runs_in_workspace(tmp_path):
         "find . -exec touch denied.txt {} \\;",
         "find . -fprint denied.txt",
         "sort -o denied.txt note.txt",
+        "sort -T denied.txt note.txt",
+        "sort -rTdenied.txt note.txt",
         "sort --compress-program='touch denied.txt' note.txt",
         "diff --output=denied.txt note.txt note.txt",
         "git add note.txt",
@@ -82,6 +91,9 @@ async def test_auto_bash_runs_in_workspace(tmp_path):
         "git show --textcon HEAD",
         "git log --show-signature",
         'git log --format="%G?"',
+        "git log --pretty=verify",
+        "git log --pre=verify",
+        "git show --format=verify",
         "git show --remerge-diff",
         "rg --hostname-bin=./hook --hyperlink-format=default hello .",
         "rg -z hello .",
@@ -222,18 +234,6 @@ async def test_unrestricted_tool_allows_commands_without_read_only_check(tmp_pat
     assert (tmp_path / "written.txt").exists()
 
 
-def test_auto_bash_defaults_to_sixty_seconds():
-    """Tool and default job expose the same 60-second timeout."""
-    manifest = Path(__file__).parents[1] / "src" / "reme_home" / "plugin.yaml"
-    with manifest.open(encoding="utf-8") as config_file:
-        job = yaml.safe_load(config_file)["application_defaults"]["jobs"]["auto_bash"]
-
-    assert inspect.signature(AutoBash.call).parameters["timeout"].default == 60000
-    assert AutoBash.input_schema["properties"]["timeout"]["default"] == 60000
-    assert job["parameters"]["properties"]["timeout"]["default"] == 60000
-    assert job["parameters"]["properties"]["is_read_only"]["default"] is True
-
-
 @pytest.mark.asyncio
 async def test_auto_bash_uses_path_backend_when_paths_supplied(tmp_path, monkeypatch):
     """AutoBash routes an injected path policy through the backend."""
@@ -270,12 +270,16 @@ async def test_sandbox_start_failure_does_not_run_on_host(tmp_path, monkeypatch)
 
 
 def test_home_manifest_declares_step_and_job():
-    """The installed manifest is the source for backend and job registration."""
+    """The installed manifest declares the job, Step, and tool defaults."""
     manifest = Path(__file__).parents[1] / "src" / "reme_home" / "plugin.yaml"
     config = yaml.safe_load(manifest.read_text(encoding="utf-8"))
     assert config["backends"]["auto_bash_step"] == "reme_home.auto_bash:AutoBashStep"
     job = config["application_defaults"]["jobs"]["auto_bash"]
     assert job["steps"] == [{"backend": "auto_bash_step"}]
+    assert inspect.signature(AutoBash.call).parameters["timeout"].default == 60000
+    assert AutoBash.input_schema["properties"]["timeout"]["default"] == 60000
+    assert job["parameters"]["properties"]["timeout"]["default"] == 60000
+    assert job["parameters"]["properties"]["is_read_only"]["default"] is True
     assert job["parameters"]["properties"]["read_only_paths"]["type"] == "array"
     assert job["parameters"]["properties"]["writable_paths"]["type"] == "array"
     assert job["parameters"]["properties"]["memory_limit_mib"]["minimum"] == 0
@@ -306,13 +310,10 @@ def test_home_plugin_registers_job_and_step(monkeypatch):
         "false",
         "grep hello note.txt",
         "find . -name note.txt",
-        "sort note.txt",
         "diff note.txt note.txt",
         "cmp note.txt note.txt",
         "git status --short",
         "git diff --stat",
-        "git log --oneline",
-        "git show HEAD",
         "git rev-parse HEAD",
         "git ls-files",
     ],
@@ -337,6 +338,65 @@ async def test_safe_redirection_is_allowed(tmp_path):
     assert await tool.check_read_only({"command": "echo hello 2>&1"})
     assert await tool.check_read_only({"command": "find . -name '*.txt'"})
     assert await tool.check_read_only({"command": "(cat note.txt) | head -n 1"})
+
+
+@pytest.mark.asyncio
+async def test_sort_does_not_create_temporary_files(tmp_path):
+    """Read-only sorting works in memory and fails closed when a spill is needed."""
+    (tmp_path / "small.txt").write_text("b\na\n", encoding="utf-8")
+    tool = AutoBash(cwd=tmp_path)
+
+    small = [chunk async for chunk in tool.call("sort small.txt")]
+    assert "".join(block.text for chunk in small for block in chunk.content) == "a\nb\n"
+
+    with (tmp_path / "large.txt").open("w", encoding="utf-8") as output:
+        for number in range(100000, 0, -1):
+            output.write(f"{number:012d} abcdefghijklmnopqrstuvwxyz\n")
+    large = [chunk async for chunk in tool.call("sort -S 1K large.txt > /dev/null")]
+    assert "sort:" in "".join(block.text for chunk in large for block in chunk.content)
+
+
+@pytest.mark.asyncio
+async def test_git_pretty_config_cannot_launch_gpg(tmp_path):
+    """Git format aliases and defaults cannot smuggle signature verification."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args, input_data=None):
+        return subprocess.run(["git", *args], cwd=repo, input=input_data, check=True, capture_output=True)
+
+    git("init", "-q")
+    git("config", "user.name", "Test")
+    git("config", "user.email", "test@example.org")
+    (repo / "note.txt").write_text("hello\n", encoding="utf-8")
+    git("add", "note.txt")
+    git("commit", "-qm", "test")
+    commit = git("cat-file", "commit", "HEAD").stdout
+    signed = commit.replace(b"\n\n", b"\ngpgsig -----BEGIN PGP SIGNATURE-----\n \n -----END PGP SIGNATURE-----\n\n", 1)
+    signed_hash = git("hash-object", "-t", "commit", "-w", "--stdin", input_data=signed).stdout.strip().decode()
+    git("update-ref", "HEAD", signed_hash)
+
+    marker = tmp_path / "gpg-ran"
+    helper = tmp_path / "fake-gpg"
+    helper.write_text(f'#!/bin/sh\nprintf called > "{marker}"\nexit 1\n', encoding="utf-8")
+    helper.chmod(0o700)
+    git("config", "pretty.verify", "format:%G?")
+    git("config", "pretty.medium", "format:%G?")
+    git("config", "pretty.oneline", "format:%G?")
+    git("config", "format.pretty", "format:%G?")
+    git("config", "gpg.program", str(helper))
+    tool = AutoBash(cwd=repo)
+
+    for command in ("git log", "git show HEAD", "git log --oneline"):
+        chunks = [chunk async for chunk in tool.call(command)]
+        assert chunks
+        assert all(chunk.state != ToolResultState.ERROR for chunk in chunks)
+        assert not marker.exists()
+
+    for command in ("git log --pretty=verify", "git show --format=verify"):
+        chunks = [chunk async for chunk in tool.call(command)]
+        assert chunks[-1].state == ToolResultState.ERROR
+        assert not marker.exists()
 
 
 @pytest.mark.asyncio
@@ -391,7 +451,6 @@ async def test_global_git_lfs_config_allows_metadata_queries(tmp_path, monkeypat
         capture_output=True,
     )
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
-    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
     tool = AutoBash(cwd=repo)
 
     for command, expected in (("git rev-parse --git-dir", ".git"), ("git ls-files", "note.txt")):
@@ -418,6 +477,11 @@ async def test_allow_and_denied_command_options_are_combined(tmp_path, monkeypat
     assert not await tool.check_read_only({"command": "echo goodbye"})
 
     monkeypatch.setitem(commands, "echo", {"allow": ["hello"], "denied": ["-n"]})
+    from safecmd import CmdSpec
+
+    specs = {spec for spec in auto_bash._read_specs() if "echo" not in spec.name}  # pylint: disable=protected-access
+    specs.add(CmdSpec("echo", denied=["-n"]))
+    monkeypatch.setattr(auto_bash, "_read_specs", lambda: specs)
     assert not await tool.check_read_only({"command": "echo hello -n"})
     assert await tool.check_read_only({"command": "find . -name note.txt"})
     assert not await tool.check_read_only({"command": "find . -delete"})

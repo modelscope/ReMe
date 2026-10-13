@@ -1,7 +1,9 @@
 """Shared file sandbox selection and macOS policy construction."""
 
 import asyncio
+import plistlib
 import sys
+from pathlib import Path
 
 import pytest
 from agentscope.tool import ExecResult
@@ -109,7 +111,7 @@ def test_seatbelt_excludes_read_only_child_from_writable_parent(tmp_path):
 @pytest.mark.asyncio
 async def test_sandbox_timeout_does_not_wait_forever_for_inherited_pipe(tmp_path, monkeypatch):
     """A surviving child with an output pipe must not hold the timeout response open."""
-    backend = PathSeatbeltBackend(cwd=tmp_path, read_only_paths=[], writable_paths=[])
+    backend = PathBubbleBackend(cwd=tmp_path, read_only_paths=[], writable_paths=[], memory_limit_mib=0)
 
     class StuckProcess:
         """Model a child that keeps its output pipe open after termination."""
@@ -140,19 +142,27 @@ async def test_seatbelt_launch_failure_cleans_up_without_host_fallback(tmp_path,
     """A failed sandbox launcher never starts the requested command directly."""
     monkeypatch.setattr(sys, "platform", "darwin")
     monkeypatch.setattr("reme.utils.file_sandbox.path_seatbelt_backend.shutil.which", lambda _: "/usr/bin/sandbox-exec")
-    calls = []
+    seen = {}
 
-    async def fail(*argv, **_kwargs):
-        calls.append(argv)
-        raise OSError("sandbox unavailable")
+    async def fail(*arguments):
+        seen["arguments"] = arguments
+        with open(arguments[-1], "rb") as stream:
+            seen["job"] = plistlib.load(stream)
+        raise RuntimeError("launchd unavailable")
 
-    monkeypatch.setattr("reme.utils.file_sandbox.path_seatbelt_backend.asyncio.create_subprocess_exec", fail)
     backend = PathSeatbeltBackend(cwd=tmp_path, read_only_paths=[], writable_paths=[])
-    with pytest.raises(OSError, match="sandbox unavailable"):
+    monkeypatch.setattr(backend, "_launchctl", fail)
+
+    async def available(_domain):
+        return True
+
+    monkeypatch.setattr(backend, "_has_gui_launchd", available)
+    with pytest.raises(RuntimeError, match="launchd unavailable"):
         await backend.exec_shell(["/bin/echo", "unsafe"])
-    assert calls[0][0] == "/usr/bin/sandbox-exec"
-    assert calls[0][-2:] == ("/bin/echo", "unsafe")
-    assert not backend._process_tempdirs  # pylint: disable=protected-access
+    assert seen["arguments"][0] == "bootstrap"
+    assert seen["job"]["AbandonProcessGroup"] is False
+    assert seen["job"]["ProgramArguments"][-2:] == ["/bin/echo", "unsafe"]
+    assert not Path(seen["arguments"][-1]).exists()
 
 
 @pytest.mark.asyncio
