@@ -1488,3 +1488,103 @@ def test_dashscope_serialized_quota_errors_keep_their_quota_policy(monkeypatch):
         assert sleeps == [7.0, 7.0]
 
     run(go())
+
+
+class ContextLength413Error(Exception):
+    """An over-limit input reported as HTTP 413 instead of 400.
+
+    Ollama v0.40.3 normalizes an embedding input-limit rejection to 413 and propagates that
+    status through the embedding endpoint, so the same over-long item that arrives as a 400
+    from an OpenAI-compatible gateway is a 413 for that provider.
+    """
+
+    status_code = 413
+    body = {"error": {"message": "the input length exceeds the context length"}}
+
+
+class RequestBodyTooLargeError(Exception):
+    """A bare 413 that never names an input: the request body itself is too large."""
+
+    status_code = 413
+
+
+class PerItemLimitAs413Embedding:
+    """Reject a whole request with HTTP 413 when any single text is over the per-item limit."""
+
+    dimensions = 2
+    vector_space_id = "fakespace000"
+    max_chars = 32
+
+    def __init__(self):
+        self.batch_sizes: list[int] = []
+
+    def initialize_model(self):
+        """Mirror the real component's idempotent initialization hook."""
+
+    async def __call__(self, texts: list[str], **_kwargs):
+        self.batch_sizes.append(len(texts))
+        if any(len(text) > self.max_chars for text in texts):
+            raise ContextLength413Error("the input length exceeds the context length")
+        return [[1.0, 0.0] for _ in texts]
+
+
+def test_context_length_rejection_reported_as_http_413_is_isolated():
+    """An over-limit input carried by a 413 must still reach the per-item isolation path.
+
+    Ollama normalizes an embedding input-limit rejection to 413, so a classifier that only
+    accepts 400 rejects the batch instead of isolating the item that caused it, and every
+    healthy vector in the request is lost.
+    """
+
+    async def go():
+        provider = PerItemLimitAs413Embedding()
+        store = LocalEmbeddingStore(
+            name="t_local_embedding_413_isolated",
+            max_retries=2,
+            enable_cache=False,
+        )
+        store.as_embedding = provider
+
+        results = await store._call_with_retry(["ok", "x" * 64, "also ok"])
+
+        assert results == [[1.0, 0.0], None, [1.0, 0.0]]
+        assert provider.batch_sizes == [3, 1, 1, 1]
+
+    run(go())
+
+
+def test_bare_http_413_without_an_input_signal_is_not_split():
+    """A 413 that names no input stays provider-wide, so the batch is not divided over it.
+
+    The status alone is ambiguous: it can describe an unrelated request-body limit, which no
+    single input explains, so only a 413 that blames the input itself may fan out per item.
+    """
+
+    async def go():
+        provider = AlwaysProviderWideFailureAsEmbedding(
+            RequestBodyTooLargeError("request entity too large"),
+        )
+        store = LocalEmbeddingStore(name="t_local_embedding_bare_413", max_retries=2)
+        store.as_embedding = provider
+
+        assert await store._call_with_retry(["a", "b", "c"]) is None
+        assert provider.batch_sizes == [3]
+
+    run(go())
+
+
+def test_input_dependent_classifier_accepts_a_413_only_with_an_input_signal():
+    """Pin both halves of the 413 boundary, and that the 400 behaviour is unchanged."""
+
+    store = LocalEmbeddingStore(name="t_local_embedding_413_classifier")
+
+    assert (
+        store._is_input_dependent_failure(
+            ContextLength413Error("the input length exceeds the context length"),
+        )
+        is True
+    )
+    assert store._is_input_dependent_failure(ContextLength413Error("too long")) is True
+    assert store._is_input_dependent_failure(RequestBodyTooLargeError("request entity too large")) is False
+    assert store._is_input_dependent_failure(ContextLengthError("too long")) is True
+    assert store._is_input_dependent_failure(GenAiClientError(400)) is False

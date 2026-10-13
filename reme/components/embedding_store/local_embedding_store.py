@@ -55,6 +55,13 @@ _CODE_IN_MESSAGE = re.compile(r'"code"\s*:\s*"([^"]+)"')
 # the only error allowed to fan out into per-item requests.
 _INPUT_DEPENDENT_STATUS_CODES = frozenset({400})
 
+# A 413 is ambiguous. Providers such as Ollama v0.40.3 normalize an embedding input-limit
+# rejection to 413, but a bare 413 can also describe an unrelated request-body limit that no
+# single input explains. It therefore only qualifies as input-dependent when the error itself
+# names the input length, which is why it is checked through the marker list instead of being
+# accepted outright.
+_INPUT_DEPENDENT_AMBIGUOUS_STATUS_CODES = frozenset({413})
+
 _INPUT_DEPENDENT_ERROR_TYPES = frozenset(
     {
         "ContextLengthError",
@@ -428,13 +435,20 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
         """Return whether a single input can be blamed for the rejected request.
 
         Only a context-length rejection qualifies: it is the one error an over-long item
-        explains by itself, and therefore the only one a per-item retry can resolve. Anything
-        else stays on the provider-wide path, so a client never answers a service failure with
-        one request per item.
+        explains by itself, and therefore the only one a per-item retry can resolve. It can
+        arrive as a ``400`` or, from a provider that normalizes the rejection (Ollama reports
+        ``413``), as an ambiguous status that is accepted only when the error names the input
+        itself. Anything else stays on the provider-wide path, so a client never answers a
+        service failure with one request per item.
         """
         status = LocalEmbeddingStore._http_status(error)
         if status is not None and status not in _INPUT_DEPENDENT_STATUS_CODES:
-            return False
+            if status not in _INPUT_DEPENDENT_AMBIGUOUS_STATUS_CODES:
+                return False
+            # The status alone does not name an input for an ambiguous code, so the error text
+            # has to carry the signal; otherwise this is a request-level rejection.
+            text = LocalEmbeddingStore._error_text(error)
+            return any(marker in text for marker in _INPUT_DEPENDENT_MARKERS)
         if type(error).__name__ in _INPUT_DEPENDENT_ERROR_TYPES:
             return True
         text = LocalEmbeddingStore._error_text(error)
