@@ -150,6 +150,16 @@ class ProactiveAgendaStep(BaseStep):
         # so the cooldown cannot be argued away by narrative coherence.
         daily = state.daily_dir or daily_dir(self)
         blocked = self._suppressed_deliveries(ws, daily, state.date)
+        # Reminders are the one exemption: a due schedule has to be announced
+        # every time it comes due, and reminder ids derive from a stable title,
+        # so blocking them would silence a recurring reminder for the whole
+        # cooldown window after a single delivery.
+        reminder_ids = {str(c.get("id")) for c in candidates if str(c.get("kind")) == "reminder"}
+        blocked = {
+            blocked_id: record
+            for blocked_id, record in blocked.items()
+            if blocked_id not in reminder_ids
+        }
         delivered = [c for c in candidates if str(c.get("id")) in blocked]
         if delivered:
             carded = [c for c in carded if str(c.get("id")) not in blocked]

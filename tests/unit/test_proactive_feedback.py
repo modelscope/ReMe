@@ -9,6 +9,7 @@ empty ``deliveries`` section changes nothing.
 
 import asyncio
 import datetime as dt
+from unittest.mock import patch
 
 import yaml
 
@@ -29,9 +30,11 @@ from reme.steps.evolve.proactive.utils import (
 
 from .test_proactive_refresh import (
     DAY,
+    EXTRACT_CLOCK,
     _FileStore,
     _interests,
     _reply,
+    _reminder,
     _run_full_chain,
     _state_topic,
     _topic,
@@ -452,6 +455,46 @@ def test_reader_reminder_still_outranks_and_survives(tmp_path):
     asyncio.run(run())
 
 
+def test_reader_reminder_is_exempt_from_the_cooldown(tmp_path):
+    """A reminder delivered inside the window is served again: due means due.
+
+    Reminder ids derive from a stable schedule title, so withholding them like
+    discovery items would silence a recurring reminder for the whole cooldown
+    after a single delivery.
+    """
+
+    async def run():
+        ws = tmp_path
+        rid = topic_id("牙医预约")
+        reminder = _state_topic("牙医预约", topic_id_value=rid, kind="reminder", confidence=0.9)
+        _write_state_with_deliveries(
+            ws,
+            [
+                {
+                    "topic_id": rid,
+                    "agenda_date": DAY,
+                    "delivered_at": f"{DAY}T09:00:00+08:00",
+                    "channel": "inbox",
+                    "status": "shown",
+                },
+            ],
+            open_topics=[reminder],
+        )
+        _write_interests_with_agenda(
+            ws,
+            [reminder],
+            [_agenda_item(rid, "牙医预约", kind="reminder", scenario_type="prepare_upcoming")],
+        )
+        step = ProactiveStep(app_context=ApplicationContext(workspace_dir=str(ws)))
+        response = await step(RuntimeContext(date=DAY, include_content=False, file_store=_FileStore(ws)))
+        assert [i["topic_id"] for i in response.answer["agenda"]] == [rid]
+        assert response.answer["agenda"][0]["kind"] == "reminder"
+        assert "delivered_ids" not in response.answer
+        assert "withheld" not in response.answer["summary"]
+
+    asyncio.run(run())
+
+
 # ---------------------------------------------------------------------------
 # proactive_agenda_step (writer)
 # ---------------------------------------------------------------------------
@@ -493,6 +536,57 @@ def test_agenda_step_suppresses_delivered_candidate(tmp_path):
         reason = suppressed[topic_id("任务一")]
         assert reason.startswith("already delivered on")
         assert "in_conversation" in reason and "executed" in reason
+
+    asyncio.run(run())
+
+
+def test_agenda_step_reminder_is_exempt_from_the_cooldown(tmp_path):
+    """A reported reminder is pinned again while a reported discovery item is not."""
+
+    async def run():
+        ws = tmp_path
+        _touch(ws / "daily" / DAY / "session.md", "牙医复诊在即，评审材料还差一版")
+        path = f"daily/{DAY}/session.md"
+        rid = topic_id("牙医复诊")
+        _write_state_with_deliveries(
+            ws,
+            [
+                {
+                    "topic_id": rid,
+                    "agenda_date": DAY,
+                    "delivered_at": f"{DAY}T09:00:00+08:00",
+                    "channel": "inbox",
+                    "status": "shown",
+                },
+                {
+                    "topic_id": topic_id("任务一"),
+                    "agenda_date": DAY,
+                    "delivered_at": f"{DAY}T09:00:00+08:00",
+                    "channel": "inbox",
+                    "status": "shown",
+                },
+            ],
+        )
+        extract_reply = _reply(
+            reminders=[_reminder("牙医复诊", due_at="2026-08-14T15:00", paths=[path])],
+            follow_ups=[
+                _topic("任务一", confidence=0.9, paths=[path]),
+                _topic("任务二", confidence=0.8, paths=[path]),
+            ],
+        )
+        with patch(EXTRACT_CLOCK, return_value=NOW):
+            _, _, _, context, resps = await _run_full_chain(ws, [extract_reply])
+        assert all(r.success for r in resps)
+
+        # only the discovery candidate counts as suppressed by the cooldown
+        assert context.get("proactive")["suppressed_delivered"] == 1
+        data = yaml.safe_load(_interests(ws).read_text(encoding="utf-8"))
+        titles = [i["title"] for i in data["agenda"]]
+        assert "牙医复诊" in titles
+        assert "任务一" not in titles
+        assert data["agenda"][0]["kind"] == "reminder"  # still pinned first
+        suppressed = {s["topic_id"] for s in data["suppressed"]}
+        assert rid not in suppressed
 
     asyncio.run(run())
 

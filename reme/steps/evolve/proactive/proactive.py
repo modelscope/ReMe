@@ -260,7 +260,9 @@ class ProactiveStep(BaseStep):
             item_id = str(item.get("topic_id") or "")
             if item_id not in kept_ids:
                 continue
-            if item_id in blocked:
+            # Reminders stay exempt from the cooldown, matching the agenda
+            # step: a due schedule is announced every time it comes due.
+            if item_id in blocked and str(item.get("kind") or "") != "reminder":
                 withheld.append(item_id)
                 continue
             agenda.append(item)
