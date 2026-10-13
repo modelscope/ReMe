@@ -48,7 +48,7 @@ reme reindex scope=embedding
 
 `reindex` rebuilds BM25 and/or embedding indexes from the current `file_chunks`. It does not scan the workspace, rechunk files, or rebuild the wikilink graph. Diagnose the watcher first when ingestion is the problem.
 
-`reindex` also keeps whatever chunks are already stored. When the chunking behavior itself changes — an upgraded ReMe or edited chunker settings — the stored chunks are reused as they are, so a plain `reindex` cannot refresh them. Re-chunk from the source files instead by clearing the derived chunk state and letting the watchers rescan; see [Recover derived state](#recover-derived-state). Source files are never modified by this recovery.
+When the chunking behavior itself changes — an upgraded ReMe or edited chunker settings — stored chunks stay as they are until the affected files are re-read from source. Back up, stop the service, move only the affected store's derived state (preserve unrelated catalogs), then restart and let the initial scan rebuild; see [Recover derived state](#recover-derived-state). Clearing derived state and rebuilding its indexes do not themselves modify source files.
 
 Rebuild a daily index page separately:
 
@@ -91,9 +91,10 @@ Do not remove anything until a backup exists. Then:
 1. preserve `session/`, `resource/`, `daily/`, and `digest/`;
 2. record the effective configuration and component backends;
 3. verify that the failure is limited to `metadata/`;
-4. move suspect derived state to an isolated backup location;
-5. restart with the same configuration and let watchers rebuild;
-6. validate search, graph traversal, and daily indexes.
+4. stop the service, so shutdown persistence cannot write the old in-memory state back over the cleanup;
+5. move only the affected store's derived state to an isolated backup location, preserving unrelated catalogs;
+6. restart with the same configuration and let watchers rebuild;
+7. validate search, graph traversal, and daily indexes.
 
 The internal layout of metadata files is not a public automation contract.
 
