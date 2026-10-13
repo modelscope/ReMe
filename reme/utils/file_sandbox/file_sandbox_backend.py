@@ -98,7 +98,7 @@ class FileSandboxBackend(BackendBase):
         timeout: float | None = None,
     ) -> ExecResult:
         """Drain output and release process resources on success, timeout, or cancellation."""
-        communication = asyncio.create_task(process.communicate() if data is None else process.communicate(data))
+        communication = asyncio.create_task(process.communicate(data))
         try:
             stdout, stderr = await asyncio.wait_for(asyncio.shield(communication), timeout=timeout)
         except TimeoutError:

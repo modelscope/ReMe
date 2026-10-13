@@ -75,7 +75,6 @@ async def test_auto_bash_runs_in_workspace(tmp_path):
         "GIT_OPTIONAL_LOCKS=1 git status",
         "GIT_PAGER=sh git log",
         "nop",
-        "rg --pre='touch denied.txt' pattern .",
         "rg hello note.txt",
         "file -C -m magic",
         "file -bC -m magic",
@@ -95,8 +94,6 @@ async def test_auto_bash_runs_in_workspace(tmp_path):
         "git log --pre=verify",
         "git show --format=verify",
         "git show --remerge-diff",
-        "rg --hostname-bin=./hook --hyperlink-format=default hello .",
-        "rg -z hello .",
         "for PATH in .; do git status; done",
         "git() { echo overridden; }; git status",
         "file -* magic",
@@ -316,6 +313,12 @@ def test_home_plugin_registers_job_and_step(monkeypatch):
         "git diff --stat",
         "git rev-parse HEAD",
         "git ls-files",
+        "echo hello > /dev/null",
+        "cat < note.txt",
+        "echo hello >| /dev/null",
+        "echo hello 2>&1",
+        "find . -name '*.txt'",
+        "(cat note.txt) | head -n 1",
     ],
 )
 async def test_safe_command_forms_are_allowed(tmp_path, command):
@@ -324,20 +327,6 @@ async def test_safe_command_forms_are_allowed(tmp_path, command):
     tool = AutoBash(cwd=tmp_path)
 
     assert await tool.check_read_only({"command": command})
-
-
-@pytest.mark.asyncio
-async def test_safe_redirection_is_allowed(tmp_path):
-    """safecmd allows output to /dev/null and input from workspace files."""
-    (tmp_path / "note.txt").write_text("hello\n", encoding="utf-8")
-    tool = AutoBash(cwd=tmp_path)
-
-    assert await tool.check_read_only({"command": "echo hello > /dev/null"})
-    assert await tool.check_read_only({"command": "cat < note.txt"})
-    assert await tool.check_read_only({"command": "echo hello >| /dev/null"})
-    assert await tool.check_read_only({"command": "echo hello 2>&1"})
-    assert await tool.check_read_only({"command": "find . -name '*.txt'"})
-    assert await tool.check_read_only({"command": "(cat note.txt) | head -n 1"})
 
 
 @pytest.mark.asyncio

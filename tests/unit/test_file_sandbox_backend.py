@@ -118,7 +118,7 @@ async def test_sandbox_timeout_does_not_wait_forever_for_inherited_pipe(tmp_path
 
         pid = 12345
 
-        async def communicate(self):
+        async def communicate(self, _data=None):
             """Wait forever until the caller cancels pipe draining."""
             await asyncio.Event().wait()
 

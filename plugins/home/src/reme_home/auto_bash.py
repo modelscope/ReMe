@@ -219,9 +219,7 @@ class AutoBash(Bash):
 
     async def call(self, command: str, description: str = "", timeout: int = 60000):
         """Apply the read-only guard when configured, then run the command."""
-        if self.is_read_only and (
-            not isinstance(command, str) or not await asyncio.to_thread(self._is_read_only, command)
-        ):
+        if self.is_read_only and not await asyncio.to_thread(self._is_read_only, command):
             yield ToolChunk(
                 content=[TextBlock(text="Permission denied: only read-only shell commands are allowed.")],
                 state=ToolResultState.ERROR,
