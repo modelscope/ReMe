@@ -12,6 +12,7 @@ probed path in not-found errors instead of the caller's raw input.
 
 import os
 import tempfile
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -207,14 +208,14 @@ async def test_read_answer_carries_the_frontmatter_itself():
         store = await _make_store()
         resp = await _run(FrontmatterReadStep, store, path="notes/post")
         assert resp.success is True
-        assert resp.answer == "Read frontmatter from notes/post.md (2 key(s)):\n- name: n\n- tags: a"
+        assert resp.answer == 'Read frontmatter from notes/post.md (2 key(s)):\n- name: n\n- tags: ["a"]'
         assert resp.metadata["frontmatter"] == {"name": "n", "tags": ["a"]}
         await store.close()
 
 
 @pytest.mark.asyncio
-async def test_read_answer_flattens_values_and_reports_empty():
-    """Multi-line, list and nested values stay on one line each; empty says so."""
+async def test_read_answer_preserves_value_structure_and_reports_empty():
+    """Multi-line values stay on one line each; lists keep their shape; empty says so."""
     with tempfile.TemporaryDirectory() as tmp, temp_chdir(tmp):
         _seed(
             Path(tmp),
@@ -225,15 +226,74 @@ async def test_read_answer_flattens_values_and_reports_empty():
         store = await _make_store()
 
         resp = await _run(FrontmatterReadStep, store, path="notes/rich.md")
+        assert resp.success is True
         assert resp.answer == (
             "Read frontmatter from notes/rich.md (4 key(s)):\n"
             "- name: Cobalt\n"
             "- description: line one line two\n"
-            "- tags: a, b\n"
+            '- tags: ["a", "b"]\n'
             '- nested: {"x": 1}'
         )
+        assert resp.metadata["frontmatter"] == {
+            "name": "Cobalt",
+            "description": "line one line two",
+            "tags": ["a", "b"],
+            "nested": {"x": 1},
+        }
 
         resp = await _run(FrontmatterReadStep, store, path="notes/empty.md")
+        assert resp.success is True
         assert resp.answer == "Read frontmatter from notes/empty.md (0 key(s)): (no keys)"
         assert resp.metadata["frontmatter"] == {}
+        await store.close()
+
+
+@pytest.mark.asyncio
+async def test_read_answer_tolerates_rich_yaml_types():
+    """Rendering must never turn a parseable frontmatter into a failed job.
+
+    Regression test for the review findings: YAML dates (``datetime.date``)
+    crashed ``json.dumps``, mixed mapping keys crashed ``sort_keys``, and
+    comma-joined lists / collapsed whitespace lost value boundaries. All of
+    these stay successful reads with the structured ``metadata`` untouched.
+    """
+    rich = (
+        "---\n"
+        "created: 2026-10-12\n"
+        "schedule:\n"
+        "  1: one\n"
+        "  label: two\n"
+        "tags: []\n"
+        "aliases:\n"
+        '  - "a, b"\n'
+        "  - c\n"
+        'command: "echo a  b"\n'
+        "description: |-\n"
+        "  line one\n"
+        "  line two\n"
+        "---\n"
+        "body\n"
+    )
+    with tempfile.TemporaryDirectory() as tmp, temp_chdir(tmp):
+        _seed(Path(tmp), "notes/types.md", rich)
+        store = await _make_store()
+        resp = await _run(FrontmatterReadStep, store, path="notes/types.md")
+        assert resp.success is True
+        assert resp.answer == (
+            "Read frontmatter from notes/types.md (6 key(s)):\n"
+            '- created: "2026-10-12"\n'
+            '- schedule: {"1": "one", "label": "two"}\n'
+            "- tags: []\n"
+            '- aliases: ["a, b", "c"]\n'
+            "- command: echo a  b\n"
+            "- description: line one\\nline two"
+        )
+        assert resp.metadata["frontmatter"] == {
+            "created": date(2026, 10, 12),
+            "schedule": {1: "one", "label": "two"},
+            "tags": [],
+            "aliases": ["a, b", "c"],
+            "command": "echo a  b",
+            "description": "line one\nline two",
+        }
         await store.close()

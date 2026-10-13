@@ -1,9 +1,11 @@
-"""``frontmatter_read_step`` — return the frontmatter dict of a markdown file.
+"""``frontmatter_read_step`` — surface a markdown file's frontmatter.
 
 Cheap structured read — frontmatter only, no body. Use ``body:read``
 for the post-frontmatter content slice, or whole-file ``read`` when
-you want both at once. Returns ``{exists: false}`` when the target
-doesn't exist; otherwise ``{exists: true, frontmatter: {...}}``.
+you want both at once. The answer is textual — ``- key: value`` per
+line — because MCP callers only ever see ``answer``; the parsed
+mapping itself is returned in ``metadata["frontmatter"]`` (and
+``exists: false`` in metadata when the target doesn't exist).
 
 ``path`` is a path relative to the workspace.
 """
@@ -20,25 +22,22 @@ from ...components import R
 
 
 def _render_value(value) -> str:
-    """Flatten one frontmatter value onto a single answer line."""
-    if isinstance(value, (list, tuple)):
-        rendered = ", ".join(str(item) for item in value)
-    elif isinstance(value, dict):
-        rendered = json.dumps(value, ensure_ascii=False, sort_keys=True)
-    else:
-        rendered = str(value)
-    return " ".join(rendered.split())
+    """Render one frontmatter key or value on a single answer line.
 
-
-def _render_frontmatter(meta: dict) -> list[str]:
-    """Render each frontmatter key on its own ``- key: value`` line.
-
-    ``frontmatter_read`` is served straight to the LLM, so the answer has to
-    carry the frontmatter itself; a key count alone leaves the caller with
-    nothing to act on. Values are flattened to one line each so a multi-line
-    description cannot break the line-per-key layout.
+    ``frontmatter_read`` is served straight to the LLM, so the answer has
+    to carry the frontmatter itself. Collections keep their JSON shape so
+    list boundaries, empty collections, and nested structure stay visible;
+    ``default=str`` covers YAML-only types such as dates, and skipping key
+    sort keeps mixed-type mapping keys loadable. Bare strings are the one
+    exception — quoting every scalar would drown the answer in noise — but
+    their line breaks are escaped so the one-key-per-line layout survives.
     """
-    return [f"- {key}: {_render_value(value)}" for key, value in meta.items()]
+    if isinstance(value, str):
+        return value.replace("\r", "\\r").replace("\n", "\\n")
+    try:
+        return json.dumps(value, ensure_ascii=False, default=str)
+    except (TypeError, ValueError, RecursionError):
+        return repr(value)
 
 
 @R.register("frontmatter_read_step")
@@ -87,7 +86,7 @@ class FrontmatterReadStep(BaseStep):
             return
         self.context.response.success = True
         header = f"Read frontmatter from {probed} ({len(meta)} key(s))"
-        rendered = _render_frontmatter(meta)
+        rendered = [f"- {_render_value(key)}: {_render_value(value)}" for key, value in meta.items()]
         self.context.response.answer = f"{header}:\n" + "\n".join(rendered) if rendered else f"{header}: (no keys)"
         self.context.response.metadata.update({"path": path, "exists": True, "frontmatter": meta, **resolved})
         self.logger.info(f"[{self.name}] path={path} keys={len(meta)}")
