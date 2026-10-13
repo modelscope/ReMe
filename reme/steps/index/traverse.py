@@ -145,10 +145,9 @@ def _render_answer(graph: TraverseGraph) -> str:
     so ``response.answer`` carries the readable form: a summary header, one line
     per reached node with its hop depth, and one line per directed edge with its
     anchor and depth. A node marked ``(unindexed)`` has no entry in the file
-    graph, so no frontmatter or hop metadata is known for it; it may still exist
-    on disk, because ``read`` resolves against the filesystem rather than the
-    index. The structured :class:`TraverseGraph` stays available in
-    ``metadata["graph"]`` for programmatic consumers.
+    graph; it may still exist on disk, because ``read`` resolves against the
+    filesystem rather than the index. The structured :class:`TraverseGraph`
+    stays available in ``metadata["graph"]`` for programmatic consumers.
     """
     lines = [
         f"=== traverse seeds={','.join(graph.seeds)} depth={graph.depth} "
@@ -163,7 +162,7 @@ def _render_answer(graph: TraverseGraph) -> str:
             target = f"{edge.target}#{edge.target_anchor}" if edge.target_anchor else edge.target
             lines.append(f"{edge.source} -> {target} (depth={edge.depth})")
     else:
-        lines.append("(no wikilink edges found)")
+        lines.append("(no edges reached within requested depth and direction)")
     return "\n".join(lines)
 
 
