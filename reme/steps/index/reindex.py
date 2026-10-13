@@ -5,19 +5,12 @@ from ...components import R
 
 
 def _render_reindex(details: dict) -> str:
-    """Render the store's reindex report as one readable summary line.
-
-    ReMe Studio's settings panel shows ``response.answer`` when it is a string
-    and otherwise falls back to a generic "index rebuilt" message
-    (``reme_studio/app/settings-center.tsx``). Returning the report dict as the
-    answer left that branch unreachable, so the operator never learned what was
-    actually rebuilt. The report itself stays in ``metadata`` for programmatic
-    consumers.
-    """
+    """Render the store's reindex report as one readable summary line."""
     scope = str(details.get("scope") or "all")
-    per_scope = {name: entry for name, entry in details.items() if isinstance(entry, dict)}
-    if per_scope:
-        counts = ", ".join(f"{name}={entry.get('indexed', 0)}" for name, entry in per_scope.items())
+    counts = ", ".join(
+        f"{name}={entry.get('indexed', 0)}" for name, entry in details.items() if isinstance(entry, dict)
+    )
+    if counts:
         return f"Reindexed scope={scope}: {counts}"
     return f"Reindexed scope={scope}: {details.get('indexed', 0)} indexed"
 

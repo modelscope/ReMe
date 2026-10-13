@@ -28,13 +28,13 @@ async def test_reindex_step_delegates_scope(scope):
 
 @pytest.mark.asyncio
 async def test_reindex_step_delegates_all_once():
-    """The step delegates the composite scope exactly once."""
+    """The step delegates the composite scope once; the answer summarizes it."""
     store = LocalFileStore(name="test_reindex_all", embedding_store="")
     details = {
         "scope": "all",
-        "bm25": {"scope": "bm25", "indexed": 3},
-        "embedding": {"scope": "embedding", "indexed": 3},
-        "tag": {"scope": "tag", "indexed": 3},
+        "bm25": {"scope": "bm25", "indexed": 7},
+        "embedding": {"scope": "embedding", "indexed": 5},
+        "tag": {"scope": "tag", "indexed": 2},
     }
     store.reindex = AsyncMock(return_value=details)
 
@@ -42,33 +42,7 @@ async def test_reindex_step_delegates_all_once():
 
     store.reindex.assert_awaited_once_with("all")
     assert response.metadata == details
-    assert response.answer == "Reindexed scope=all: bm25=3, embedding=3, tag=3"
-
-
-@pytest.mark.asyncio
-async def test_reindex_answer_is_a_readable_summary_of_the_report():
-    """The answer is a string, so Studio shows it instead of a generic message.
-
-    ReMe Studio only displays ``response.answer`` when it is a string
-    (``reme_studio/app/settings-center.tsx``); a dict answer silently fell back
-    to the generic "index rebuilt" text and the operator never saw the counts.
-    The full report stays in metadata either way.
-    """
-    store = LocalFileStore(name="test_reindex_answer", embedding_store="")
-    store.reindex = AsyncMock(
-        return_value={
-            "scope": "all",
-            "bm25": {"scope": "bm25", "indexed": 7},
-            "embedding": {"scope": "embedding", "indexed": 5},
-            "tag": {"scope": "tag", "indexed": 2},
-        },
-    )
-
-    response = await ReindexStep(file_store=store)(RuntimeContext(scope="all"))
-
-    assert isinstance(response.answer, str)
     assert response.answer == "Reindexed scope=all: bm25=7, embedding=5, tag=2"
-    assert response.metadata["bm25"] == {"scope": "bm25", "indexed": 7}
 
 
 def test_reindex_job_schema_exposes_tag_scope():
