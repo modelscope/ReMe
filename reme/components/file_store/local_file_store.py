@@ -1031,19 +1031,18 @@ class LocalFileStore(BaseFileStore):
 
     # -- extensions -----------------------------------------------------------
 
-    @classmethod
-    def _prepare_search_filter(cls, search_filter: dict | None) -> Callable[[FileChunk], bool]:
+    def _prepare_search_filter(self, search_filter: dict | None) -> Callable[[FileChunk], bool]:
         """Prepare query-local membership tests; retain the dict-based compatibility path."""
 
         def legacy(chunk):
-            return cls._matches_search_filter(chunk, search_filter)
+            return self._matches_search_filter(chunk, search_filter)
 
         # Subclasses may customize matching without implementing this new helper.
         if any(
             getattr(method, "__func__", method) is not getattr(base_method, "__func__", base_method)
             for method, base_method in (
-                (cls._matches_search_filter, LocalFileStore._matches_search_filter),
-                (cls._value_matches, LocalFileStore._value_matches),
+                (self._matches_search_filter, LocalFileStore._matches_search_filter),
+                (self._value_matches, LocalFileStore._value_matches),
             )
         ):
             return legacy
@@ -1055,12 +1054,12 @@ class LocalFileStore(BaseFileStore):
             for key in ("path", "paths"):
                 if key in search_filter:
                     has_exact_paths = True
-                    exact_paths.update(cls._as_filter_values(search_filter[key]))
+                    exact_paths.update(self._as_filter_values(search_filter[key]))
             prefixes = tuple(
                 str(value)
                 for key in ("path_prefix", "path_prefixes", "prefix", "prefixes")
                 if key in search_filter
-                for value in cls._as_filter_values(search_filter[key])
+                for value in self._as_filter_values(search_filter[key])
             )
             start_date = search_filter.get("start_date")
             end_date = search_filter.get("end_date")
@@ -1083,7 +1082,7 @@ class LocalFileStore(BaseFileStore):
             if prefixes and not chunk.path.startswith(prefixes):
                 return False
             if start_date or end_date:
-                path_date = cls._extract_date_from_path(chunk.path)
+                path_date = self._extract_date_from_path(chunk.path)
                 if not path_date:
                     if strict_date:
                         return False

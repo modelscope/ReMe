@@ -685,14 +685,14 @@ class FaissLocalFileStore(LocalFileStore):
         if ntotal < max(1, (max(limit, ef_search)) ** 0.5) * self.hnsw_m:
             k = ntotal if search_filter else min(ntotal, limit + len(self._tombstones))
             scores, rows = index.storage.search(q, k)
-            return self._collect_hits(rows[0].tolist(), scores[0].tolist(), limit, search_filter, matches=matches)
+            return self._collect_hits(rows[0].tolist(), scores[0].tolist(), limit, matches=matches)
 
         if not search_filter:
             # No filter: simple over-fetch to cover tombstones.
             k = min(ntotal, limit + len(self._tombstones))
             self._set_ef_search(index, limit)
             scores, rows = index.search(q, k)
-            return self._collect_hits(rows[0].tolist(), scores[0].tolist(), limit, search_filter, matches=matches)
+            return self._collect_hits(rows[0].tolist(), scores[0].tolist(), limit, matches=matches)
 
         # With filter: progressively increase k until we collect enough results
         # or exhaust the entire index.
@@ -700,7 +700,7 @@ class FaissLocalFileStore(LocalFileStore):
         while True:
             self._set_ef_search(index, limit)
             scores, rows = index.search(q, k)
-            results = self._collect_hits(rows[0].tolist(), scores[0].tolist(), limit, search_filter, matches=matches)
+            results = self._collect_hits(rows[0].tolist(), scores[0].tolist(), limit, matches=matches)
             if len(results) >= limit or k >= ntotal:
                 return results
             k = min(ntotal, k * 2)

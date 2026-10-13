@@ -4,6 +4,7 @@
 
 import copy
 import random
+from itertools import product
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -42,29 +43,31 @@ def test_differential_filter_combinations():
             "metadata": {"n": (1, 2), "absent": None},
         },
     ]
-    for _ in range(250):
+    store = make_store()
+    for path, prefix, date, metadata in product(path_filters, prefix_filters, date_filters, metadata_filters):
         config = {
-            **rng.choice(path_filters),
-            **rng.choice(prefix_filters),
-            **rng.choice(date_filters),
-            **rng.choice(metadata_filters),
+            **path,
+            **prefix,
+            **date,
+            **metadata,
         }
         original = copy.deepcopy(config)
-        prepared = LocalFileStore._prepare_search_filter(config)
+        prepared = store._prepare_search_filter(config)
         assert [prepared(chunk) for chunk in chunks] == [
             LocalFileStore._matches_search_filter(chunk, config) for chunk in chunks
         ]
         assert config == original
-    assert LocalFileStore._prepare_search_filter(None)(chunks[0])
+    assert store._prepare_search_filter(None)(chunks[0])
 
 
 def test_preparation_is_query_local_and_preserves_subclass_hooks():
+    store = make_store()
     candidate = FileChunk(path="one")
     config = {"paths": ["one"]}
-    prepared = LocalFileStore._prepare_search_filter(config)
+    prepared = store._prepare_search_filter(config)
     config["paths"][:] = ["two"]
     assert prepared(candidate)
-    assert not LocalFileStore._prepare_search_filter(config)(candidate)
+    assert not store._prepare_search_filter(config)(candidate)
 
     class CustomStore(LocalFileStore):
         """Existing subclass hook still governs the new hot path."""
@@ -73,8 +76,9 @@ def test_preparation_is_query_local_and_preserves_subclass_hooks():
         def _matches_search_filter(cls, chunk, search_filter):
             return chunk.path == "special"
 
-    assert not CustomStore._prepare_search_filter({})(candidate)
-    assert CustomStore._prepare_search_filter({})(FileChunk(path="special"))
+    custom_store = make_store(CustomStore)
+    assert not custom_store._prepare_search_filter({})(candidate)
+    assert custom_store._prepare_search_filter({})(FileChunk(path="special"))
 
 
 @pytest.mark.asyncio
@@ -109,6 +113,36 @@ async def test_static_subclass_hooks_preserve_search_results(hook, config):
         assert [(chunk.id, chunk.scores) for chunk in result] == [(chunk.id, chunk.scores) for chunk in legacy]
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("override", ["instance_method", "instance_attribute"])
+@pytest.mark.parametrize("config", [None, {}, {"group": "selected"}])
+async def test_bound_instance_matchers_preserve_search_results(override, config):
+    class CustomStore(LocalFileStore):
+        """A matcher may depend on state belonging to this store instance."""
+
+        def _matches_search_filter(self, chunk, search_filter):
+            return chunk.id == self.kwargs["allowed_id"]
+
+    store = make_store(CustomStore if override == "instance_method" else LocalFileStore)
+    store.kwargs["allowed_id"] = "29"
+    if override == "instance_attribute":
+        store._matches_search_filter = lambda chunk, _config: chunk.id == store.kwargs["allowed_id"]
+    index = BM25Index()
+    index.tokenizer = RegexTokenizer(filter_stopwords=False)
+    await index.add_docs({key: chunk.text for key, chunk in store.file_chunks.items()})
+    store.keyword_index = index
+    for search in (store.keyword_search, store.vector_search):
+        result = await search("alpha", 30, config)
+        with patch.object(
+            store,
+            "_prepare_search_filter",
+            side_effect=lambda filt: lambda chunk: store._matches_search_filter(chunk, filt),
+        ):
+            legacy = await search("alpha", 30, config)
+        assert [chunk.id for chunk in result] == ["29"]
+        assert [(chunk.id, chunk.scores) for chunk in result] == [(chunk.id, chunk.scores) for chunk in legacy]
+
+
 @pytest.mark.parametrize(
     "config",
     [
@@ -119,8 +153,9 @@ async def test_static_subclass_hooks_preserve_search_results(hook, config):
     ],
 )
 def test_malformed_conditions_keep_short_circuit_behavior(config):
+    store = make_store()
     candidate = FileChunk(path="one")
-    prepared = LocalFileStore._prepare_search_filter(config)
+    prepared = store._prepare_search_filter(config)
     try:
         expected = LocalFileStore._matches_search_filter(candidate, config)
     except (TypeError, ValueError) as error:

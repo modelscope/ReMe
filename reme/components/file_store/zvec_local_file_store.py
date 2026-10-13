@@ -461,14 +461,14 @@ class ZvecLocalFileStore(LocalFileStore):
 
         if not search_filter:
             hits = self._query_collection(collection, vector, min(limit, ntotal))
-            return self._collect_hits(hits, limit, search_filter, matches=matches)
+            return self._collect_hits(hits, limit, matches=matches)
 
         # With a post-filter: progressively increase k until we collect enough
         # results or exhaust the reachable index.
         k = min(ntotal, 3 * limit)
         while True:
             hits = self._query_collection(collection, vector, k)
-            results = self._collect_hits(hits, limit, search_filter, matches=matches)
+            results = self._collect_hits(hits, limit, matches=matches)
             if len(results) >= limit or k >= ntotal:
                 return results
             k = min(ntotal, k * 2)
