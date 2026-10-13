@@ -1,11 +1,15 @@
 """Pool ordering, reuse, and cleanup without Docker or model calls."""
 
-# pylint: disable=missing-class-docstring,missing-function-docstring,unused-argument
+# pylint: disable=missing-class-docstring,missing-function-docstring,protected-access,unused-argument
 
 from __future__ import annotations
 
 import asyncio
+import io
+import json
 from pathlib import Path
+import subprocess
+import tarfile
 
 import pytest
 
@@ -19,7 +23,7 @@ from deploy.benchmark_docker import (
     SourceSnapshot,
 )
 from deploy.benchmark_docker.docker_sandbox import SandboxCommandError, SandboxCommandTimeoutError
-from deploy.benchmark_docker.worker import _start_case_log
+from deploy.benchmark_docker import worker as sandbox_worker
 
 
 class FakeCase:
@@ -131,10 +135,12 @@ async def test_pool_exports_query_only_case_from_reused_workspace(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_pool_keeps_build_log_on_failure(tmp_path):
+@pytest.mark.parametrize("raises", [False, True], ids=["failed-result", "exception"])
+async def test_pool_keeps_build_log_on_failure(tmp_path, raises):
     class FailedBuildCase(FakeCase):
         async def run_build(self, jobs):
-            self.events.append((self.case_id, "build_failed"))
+            if raises:
+                raise TimeoutError("build exceeded command timeout")
             return {"success": False, "jobs": [{"error": "failed"}]}
 
     class FailedBuildFactory(FakeFactory):
@@ -148,34 +154,15 @@ async def test_pool_keeps_build_log_on_failure(tmp_path):
     result = (await BenchmarkDockerPool(FailedBuildFactory(events), concurrency=1).run([plan]))[0]
 
     assert not result.success
-    assert result.build == {"success": False, "jobs": [{"error": "failed"}]}
+    if raises:
+        assert result.error == "TimeoutError: build exceeded command timeout"
+        assert result.build is None
+    else:
+        assert result.error == "build failed"
+        assert result.build == {"success": False, "jobs": [{"error": "failed"}]}
     assert result.build_log == "build failed"
     assert log_path.read_text(encoding="utf-8") == "build failed"
     assert events.index(("failed", "read_build_log")) < events.index(("pool-0", "close"))
-
-
-@pytest.mark.asyncio
-async def test_pool_keeps_build_log_when_build_raises(tmp_path):
-    class TimedOutBuildCase(FakeCase):
-        async def run_build(self, jobs):
-            self.events.append((self.case_id, "build_timed_out"))
-            raise TimeoutError("build exceeded command timeout")
-
-    class TimedOutBuildFactory(FakeFactory):
-        async def create_cases(self, case_ids, *, concurrency):
-            return [TimedOutBuildCase(name, self.events) for name in case_ids]
-
-    events: list[tuple] = []
-    log_path = tmp_path / "build.log"
-    plan = CasePlan("timed-out", build_jobs=(JobRequest("build"),), export_build_log_to=log_path)
-
-    result = (await BenchmarkDockerPool(TimedOutBuildFactory(events), concurrency=1).run([plan]))[0]
-
-    assert result.error == "TimeoutError: build exceeded command timeout"
-    assert result.build is None
-    assert result.build_log == "build failed"
-    assert log_path.read_text(encoding="utf-8") == "build failed"
-    assert events.index(("timed-out", "read_build_log")) < events.index(("pool-0", "close"))
 
 
 @pytest.mark.asyncio
@@ -215,23 +202,109 @@ def test_source_snapshot_excludes_unrelated_and_secret_files(tmp_path):
     assert snapshot.file_count == 1
 
 
-def test_worker_writes_log_to_requested_artifact_path(tmp_path):
-    """The current ReMe logger accepts a directory, so bind the exact log file explicitly."""
-    from reme.utils import get_logger
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure_phase", ["config", "application"])
+async def test_build_log_captures_initialization_failure(tmp_path, monkeypatch, failure_phase):
+    if failure_phase == "config":
 
-    path = tmp_path / "build_log" / "build.log"
-    logger = _start_case_log(path)
-    try:
-        logger.info("benchmark marker")
-    finally:
-        get_logger(log_to_console=False, log_to_file=False, force_init=True)
-    assert "benchmark marker" in path.read_text(encoding="utf-8")
+        def fail_config(_request):
+            raise ValueError("invalid benchmark config")
+
+        monkeypatch.setattr(sandbox_worker, "_prepare_runtime", fail_config)
+        expected = "ValueError: invalid benchmark config"
+    else:
+        config = {
+            "workspace_dir": str(tmp_path / "workspace"),
+            "service": {"backend": "cli"},
+            "jobs": {"broken": {"backend": "missing"}},
+            "enable_logo": False,
+            "log_to_console": False,
+            "log_to_file": False,
+        }
+        monkeypatch.setattr(sandbox_worker, "_prepare_runtime", lambda _request: (tmp_path, config))
+        expected = "ValueError: Unregistered backend 'missing' for Job 'broken'"
+
+    with pytest.raises(ValueError, match="invalid benchmark config|Unregistered backend"):
+        await sandbox_worker._run_build({"case_root": str(tmp_path), "jobs": [{"job": "build"}]})
+
+    log_text = (tmp_path / "build_log" / "build.log").read_text(encoding="utf-8")
+    assert "Traceback (most recent call last):" in log_text
+    assert expected in log_text
+
+
+@pytest.mark.asyncio
+async def test_build_log_remains_bound_after_application_initializes_logger(tmp_path, monkeypatch):
+    import reme.reme as reme_module
+
+    monkeypatch.setattr(sandbox_worker, "_prepare_runtime", lambda _request: (tmp_path, {}))
+
+    class FakeReMe:
+        def __init__(self, **_kwargs):
+            from reme.utils import get_logger
+
+            get_logger(log_to_console=False, log_to_file=False, force_init=True)
+
+        async def start(self):
+            pass
+
+        async def close(self):
+            pass
+
+    async def run_job(_app, _job, _arguments):
+        return {"success": True}
+
+    monkeypatch.setattr(reme_module, "ReMe", FakeReMe)
+    monkeypatch.setattr(sandbox_worker, "_run_job_on_app", run_job)
+
+    result = await sandbox_worker._run_build({"case_root": str(tmp_path), "jobs": [{"job": "build"}]})
+
+    assert result["success"]
+    log_text = (tmp_path / "build_log" / "build.log").read_text(encoding="utf-8")
+    assert "[sandbox] build phase started" in log_text
+    assert "[sandbox] build phase finished" in log_text
+
+
+@pytest.mark.asyncio
+async def test_worker_checkpoint_commits_only_memory_paths(tmp_path, monkeypatch):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    subprocess.run(["git", "init", "--quiet", str(workspace)], check=True)
+    (workspace / "daily").mkdir()
+    (workspace / "daily" / "note.md").write_text("memory", encoding="utf-8")
+    (workspace / "digest").mkdir()
+    (workspace / "digest" / "note.md").write_text("digest", encoding="utf-8")
+    (workspace / "sessions").mkdir()
+    (workspace / "sessions" / "note.md").write_text("session", encoding="utf-8")
+    (workspace / "other.txt").write_text("unrelated", encoding="utf-8")
+    config = {"workspace_dir": str(workspace), "daily_dir": "daily", "digest_dir": "digest", "session_dir": "sessions"}
+    monkeypatch.setattr(sandbox_worker, "_prepare_runtime", lambda _request: (tmp_path, config))
+
+    result = await sandbox_worker._run_checkpoint({"message": "memory boundary"})
+
+    assert result["success"] is True
+    assert result["memory_checkpoint"]["message"] == "memory boundary"
+    committed = subprocess.run(
+        ["git", "show", "--pretty=format:", "--name-only", "HEAD"],
+        cwd=workspace,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert set(committed.stdout.splitlines()) == {"daily/note.md", "digest/note.md", "sessions/note.md"}
+    assert result["memory_checkpoint"]["paths"] == ["daily", "digest", "sessions"]
+    second = await sandbox_worker._run_checkpoint({"message": "empty boundary"})
+    assert second["memory_checkpoint"]["commit_sha"] != result["memory_checkpoint"]["commit_sha"]
+
+    config["daily_dir"] = "../outside"
+    with pytest.raises(ValueError, match="escapes the runtime workspace"):
+        await sandbox_worker._run_checkpoint({"message": "unsafe boundary"})
 
 
 class FakeBackend:
     def __init__(self) -> None:
         self.files: dict[str, bytes] = {}
         self.commands: list[list[str]] = []
+        self.worker_responses: dict[str, dict] = {}
 
     async def write_file(self, path: str, data: bytes) -> None:
         self.files[path] = data
@@ -243,11 +316,11 @@ class FakeBackend:
             raise FileNotFoundError(path) from exc
 
     async def exec_shell(self, command: list[str], *, cwd=None, timeout=None):
-        import json
         from types import SimpleNamespace
 
         self.commands.append(command)
         output = b""
+        exit_code = 0
         if len(command) > 2 and command[1] == "-c":
             output = json.dumps(
                 {
@@ -258,11 +331,14 @@ class FakeBackend:
             ).encode()
         if "/workspace/harness/worker.py" in command:
             request = json.loads(self.files[command[command.index("--request") + 1]])
-            response = {"success": True, "jobs": []} if request.get("mode") == "build" else {"success": True}
+            mode = request.get("mode", "job")
+            default = {"success": True, "jobs": []} if mode == "build" else {"success": True}
+            response = self.worker_responses.get(mode, default)
             self.files[command[command.index("--response") + 1]] = json.dumps(response).encode()
+            exit_code = 0 if response["success"] else 1
         if command[:2] == ["tar", "-czf"]:
             self.files[command[2]] = b"workspace archive"
-        return SimpleNamespace(exit_code=0, stdout=output, stderr=b"", ok=lambda: True)
+        return SimpleNamespace(exit_code=exit_code, stdout=output, stderr=b"", ok=lambda: exit_code == 0)
 
 
 class TimedOutBackend(FakeBackend):
@@ -291,16 +367,20 @@ class FakeWorkspace:
         self.closed = True
 
 
-@pytest.mark.asyncio
-async def test_backend_timeout_prevents_direct_case_reset(tmp_path):
+def _fake_docker_factory(tmp_path, workspace_builder, *, install_projects=(".",)):
     (tmp_path / "reme").mkdir()
     (tmp_path / "reme" / "__init__.py").write_text("ok", encoding="utf-8")
-    workspace = FakeWorkspace(TimedOutBackend())
-    factory = DockerReMeSandboxFactory(
-        SourceCandidate(SourceSnapshot.from_directory(tmp_path)),
+    return DockerReMeSandboxFactory(
+        SourceCandidate(SourceSnapshot.from_directory(tmp_path), install_projects=install_projects),
         plugins=("lme",),
-        workspace_builder=lambda _id, _image, _env: workspace,
+        workspace_builder=workspace_builder,
     )
+
+
+@pytest.mark.asyncio
+async def test_backend_timeout_prevents_direct_case_reset(tmp_path):
+    workspace = FakeWorkspace(TimedOutBackend())
+    factory = _fake_docker_factory(tmp_path, lambda _id, _image, _env: workspace)
     case = await factory.create_case("timed-out")
     try:
         with pytest.raises(SandboxCommandTimeoutError):
@@ -317,14 +397,12 @@ async def test_backend_timeout_prevents_direct_case_reset(tmp_path):
 
 @pytest.mark.asyncio
 async def test_source_candidate_installs_plugin_and_closes_container(tmp_path):
-    (tmp_path / "reme").mkdir()
-    (tmp_path / "reme" / "__init__.py").write_text("ok", encoding="utf-8")
     backend = FakeBackend()
     workspace = FakeWorkspace(backend)
-    factory = DockerReMeSandboxFactory(
-        SourceCandidate(SourceSnapshot.from_directory(tmp_path), install_projects=(".", "plugins/lme")),
-        plugins=("lme",),
-        workspace_builder=lambda _id, _image, _env: workspace,
+    factory = _fake_docker_factory(
+        tmp_path,
+        lambda _id, _image, _env: workspace,
+        install_projects=(".", "plugins/lme"),
     )
     case = await factory.create_case("example")
     try:
@@ -344,17 +422,42 @@ async def test_source_candidate_installs_plugin_and_closes_container(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_job_and_checkpoint_share_worker_request_path(tmp_path):
+    backend = FakeBackend()
+    workspace = FakeWorkspace(backend)
+    factory = _fake_docker_factory(tmp_path, lambda _id, _image, _env: workspace)
+    case = await factory.create_case("example")
+    try:
+        result = await case.run_job("answer", {"query": "hello"})
+        assert result.success
+        assert case.actions[-1].name == "job:answer"
+        job_request = json.loads(backend.files[next(path for path in backend.files if "/inbox/" in path)])
+        assert job_request["mode"] == "job"
+        assert job_request["arguments"] == {"query": "hello"}
+
+        await case.commit_memory_history("memory boundary")
+        assert case.actions[-1].name == "worker:checkpoint"
+        requests = [json.loads(content) for path, content in backend.files.items() if "/inbox/" in path]
+        assert requests[-1]["mode"] == "checkpoint"
+        assert requests[-1]["message"] == "memory boundary"
+        assert not any(command[0] == "git" and "commit" in command for command in backend.commands)
+        with pytest.raises(ValueError, match="non-empty"):
+            await case.commit_memory_history(" ")
+
+        backend.worker_responses["checkpoint"] = {"success": False, "error": "git commit failed"}
+        with pytest.raises(SandboxCommandError, match="git commit failed"):
+            await case.commit_memory_history("next boundary")
+        assert case.actions[-1].exit_code == 1
+    finally:
+        await case.close()
+
+
+@pytest.mark.asyncio
 async def test_pool_replaces_worker_after_backend_timeout(tmp_path):
-    (tmp_path / "reme").mkdir()
-    (tmp_path / "reme" / "__init__.py").write_text("ok", encoding="utf-8")
     timed_out_workspace = FakeWorkspace(TimedOutBackend())
     replacement_workspace = FakeWorkspace(FakeBackend())
     workspaces = iter((timed_out_workspace, replacement_workspace))
-    factory = DockerReMeSandboxFactory(
-        SourceCandidate(SourceSnapshot.from_directory(tmp_path)),
-        plugins=("lme",),
-        workspace_builder=lambda _id, _image, _env: next(workspaces),
-    )
+    factory = _fake_docker_factory(tmp_path, lambda _id, _image, _env: next(workspaces))
     plans = [
         CasePlan("timed-out", build_jobs=(JobRequest("build"),), export_build_log_to=tmp_path / "build.log"),
         CasePlan("next", build_jobs=(JobRequest("build"),)),
@@ -372,15 +475,9 @@ async def test_pool_replaces_worker_after_backend_timeout(tmp_path):
 
 @pytest.mark.asyncio
 async def test_query_only_evaluation_export_omits_missing_build_log(tmp_path):
-    (tmp_path / "reme").mkdir()
-    (tmp_path / "reme" / "__init__.py").write_text("ok", encoding="utf-8")
     backend = FakeBackend()
     workspace = FakeWorkspace(backend)
-    factory = DockerReMeSandboxFactory(
-        SourceCandidate(SourceSnapshot.from_directory(tmp_path)),
-        plugins=("lme",),
-        workspace_builder=lambda _id, _image, _env: workspace,
-    )
+    factory = _fake_docker_factory(tmp_path, lambda _id, _image, _env: workspace)
     case = await factory.create_case("query-only")
     try:
         backend.files["/workspace/case/queries/summary.json"] = b"{}"
@@ -396,9 +493,51 @@ async def test_query_only_evaluation_export_omits_missing_build_log(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_default_analysis_export_saves_logs_outside_archive(tmp_path):
+    class AnalysisBackend(FakeBackend):
+        async def exec_shell(self, command, *, cwd=None, timeout=None):
+            result = await super().exec_shell(command, cwd=cwd, timeout=timeout)
+            if command[:2] == ["tar", "-czf"] and command[-1] == "queries":
+                stream = io.BytesIO()
+                with tarfile.open(fileobj=stream, mode="w:gz") as archive:
+                    for name, content in (
+                        ("queries/summary.json", b"{}"),
+                        ("queries/q1/answer.log", b"answer log"),
+                    ):
+                        info = tarfile.TarInfo(name)
+                        info.size = len(content)
+                        archive.addfile(info, io.BytesIO(content))
+                self.files[command[2]] = stream.getvalue()
+            return result
+
+    backend = AnalysisBackend()
+    workspace = FakeWorkspace(backend)
+    factory = _fake_docker_factory(tmp_path, lambda _id, _image, _env: workspace)
+    case = await factory.create_case("example")
+    try:
+        backend.files["/workspace/case/runtime-layout.json"] = (
+            b'{"workspace_root":"reme_workspace","analysis_excludes":[]}'
+        )
+        backend.files["/workspace/case/build_log/build.log"] = b"build log"
+        backend.files["/workspace/case/queries/summary.json"] = b"{}"
+        archive = tmp_path / "analysis.tar.gz"
+        assert await case.export(archive) == archive
+        assert archive.read_bytes() == b"workspace archive"
+        artifacts = tmp_path / "analysis.tar.gz.artifacts"
+        assert (artifacts / "build_log" / "build.log").read_bytes() == b"build log"
+        assert (artifacts / "queries" / "summary.json").read_bytes() == b"{}"
+        assert (artifacts / "queries" / "q1" / "answer.log").read_bytes() == b"answer log"
+        archive_command = next(
+            command for command in backend.commands if command[:3] == ["tar", "-czf", "/tmp/reme-case-export.tar.gz"]
+        )
+        assert "build_log" not in archive_command
+        assert "queries" not in archive_command
+    finally:
+        await case.close()
+
+
+@pytest.mark.asyncio
 async def test_cancelled_case_initialization_closes_workspace(tmp_path):
-    (tmp_path / "reme").mkdir()
-    (tmp_path / "reme" / "__init__.py").write_text("ok", encoding="utf-8")
     started = asyncio.Event()
 
     class BlockingWorkspace(FakeWorkspace):
@@ -407,10 +546,7 @@ async def test_cancelled_case_initialization_closes_workspace(tmp_path):
             await asyncio.Event().wait()
 
     workspace = BlockingWorkspace(FakeBackend())
-    factory = DockerReMeSandboxFactory(
-        SourceCandidate(SourceSnapshot.from_directory(tmp_path)),
-        workspace_builder=lambda _id, _image, _env: workspace,
-    )
+    factory = _fake_docker_factory(tmp_path, lambda _id, _image, _env: workspace)
     task = asyncio.create_task(factory.create_case("cancelled"))
     await asyncio.wait_for(started.wait(), timeout=2)
     task.cancel()
@@ -421,8 +557,6 @@ async def test_cancelled_case_initialization_closes_workspace(tmp_path):
 
 @pytest.mark.asyncio
 async def test_cancelled_batch_creation_closes_completed_workspace(tmp_path):
-    (tmp_path / "reme").mkdir()
-    (tmp_path / "reme" / "__init__.py").write_text("ok", encoding="utf-8")
     second_started = asyncio.Event()
 
     class BlockingWorkspace(FakeWorkspace):
@@ -433,11 +567,7 @@ async def test_cancelled_batch_creation_closes_completed_workspace(tmp_path):
     first = FakeWorkspace(FakeBackend())
     second = BlockingWorkspace(FakeBackend())
     workspaces = iter((first, second))
-    factory = DockerReMeSandboxFactory(
-        SourceCandidate(SourceSnapshot.from_directory(tmp_path)),
-        plugins=("lme",),
-        workspace_builder=lambda _id, _image, _env: next(workspaces),
-    )
+    factory = _fake_docker_factory(tmp_path, lambda _id, _image, _env: next(workspaces))
     task = asyncio.create_task(factory.create_cases(["first", "second"], concurrency=2))
     await asyncio.wait_for(second_started.wait(), timeout=2)
     await asyncio.sleep(0)

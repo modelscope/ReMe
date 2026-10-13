@@ -63,11 +63,17 @@ and query-only cases; it includes `build_log` when that phase ran. Set
 build, the pool also returns its text in `CaseResult.build_log`. A timed-out
 AgentScope shell command makes its container unusable: the pool closes it after
 retaining the log and creates a replacement when more cases need a worker.
+The build log also records configuration and Application construction failures,
+including their tracebacks.
 
 For direct control, call `create_case()` or `create_cases()`, then use
 `run_job()`, `run_build()`, `run_queries()`, `export_workspace()`,
 `upload_workspace()`, `reset_case()`, and `close()`. Always close a case in a
 `finally` block or use its async context manager. Export before closing.
+The default `export("analysis.tar.gz")` also saves available construction and
+query logs under `analysis.tar.gz.artifacts/build_log/` and
+`analysis.tar.gz.artifacts/queries/`. These logs stay outside the archive;
+choose a new destination if that artifacts directory already exists.
 
 The candidate receives only query ID, question, answer Job, and answer
 arguments. Golden answers, rubrics, and scoring remain on the host. Workspace

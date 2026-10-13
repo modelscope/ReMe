@@ -211,18 +211,30 @@ async def _run(request: dict[str, Any]) -> dict[str, Any]:
 
 async def _run_build(request: dict[str, Any]) -> dict[str, Any]:
     """Execute all construction jobs in one Application and one build log."""
-    case_root, app_config = _prepare_runtime(request)
-    from reme.reme import ReMe
-    from reme.utils import get_logger
-
-    jobs = request.get("jobs")
-    if not isinstance(jobs, list) or not jobs:
-        raise ValueError("build request requires a non-empty jobs list")
-    build_log = case_root / "build_log" / "build.log"
+    build_log = Path(request["case_root"]) / "build_log" / "build.log"
     if build_log.exists():
         raise FileExistsError(f"build artifact already exists: {build_log}")
+    build_log.parent.mkdir(parents=True, exist_ok=True)
+    build_log.touch()
 
-    app = ReMe(**app_config)
+    try:
+        case_root, app_config = _prepare_runtime(request)
+        from reme.reme import ReMe
+        from reme.utils import get_logger
+
+        jobs = request.get("jobs")
+        if not isinstance(jobs, list) or not jobs:
+            raise ValueError("build request requires a non-empty jobs list")
+        app = ReMe(**app_config)
+    except Exception:
+        # Config resolution and Application construction can fail before the
+        # ReMe logger is usable. Write the traceback to the durable artifact.
+        with build_log.open("a", encoding="utf-8") as log_file:
+            traceback.print_exc(file=log_file)
+        raise
+
+    # Application.__init__ force-initializes the global logger, removing any
+    # sink bound before construction. Attach the build artifact afterwards.
     logger = _start_case_log(build_log)
     logger.info("[sandbox] build phase started")
     results: list[dict[str, Any]] = []
@@ -311,6 +323,15 @@ def _commit_memory_checkpoint(case_root: Path, app_config: dict[str, Any], messa
         "message": message,
         "paths": relative_paths,
     }
+
+
+async def _run_checkpoint(request: dict[str, Any]) -> dict[str, Any]:
+    """Commit host-requested memory history using the build checkpoint rules."""
+    message = request.get("message")
+    if not isinstance(message, str) or not message.strip():
+        raise ValueError("memory history commit message must be a non-empty string")
+    case_root, app_config = _prepare_runtime(request)
+    return {"success": True, "memory_checkpoint": _commit_memory_checkpoint(case_root, app_config, message)}
 
 
 async def _run_queries(request: dict[str, Any], *, write_summary: bool = True) -> dict[str, Any]:
@@ -435,6 +456,8 @@ def main() -> int:
             operation = _run_queries(request)
         elif mode == "query":
             operation = _run_queries(request, write_summary=False)
+        elif mode == "checkpoint":
+            operation = _run_checkpoint(request)
         else:
             raise ValueError(f"unknown sandbox worker mode: {mode!r}")
         result = asyncio.run(operation)

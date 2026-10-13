@@ -28,8 +28,6 @@ WORKSPACE_ARCHIVE = "/tmp/reme-workspace-upload.tar.gz"
 WORKSPACE_EXPORT_ARCHIVE = "/tmp/reme-workspace-export.tar.gz"
 RUNTIME_LAYOUT = f"{CASE_ROOT}/runtime-layout.json"
 _CASE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
-_GIT_AUTHOR_NAME = "ReMe Sandbox"
-_GIT_AUTHOR_EMAIL = "reme-sandbox@localhost"
 _PRIVATE_EVALUATION_FIELDS = frozenset(
     {"query", "question", "golden_answer", "question_type", "rubric", "judge_arguments"},
 )
@@ -500,29 +498,8 @@ class DockerReMeSandbox:
 
     async def _run_job(self, job: str, arguments: dict[str, Any] | None = None) -> JobResult:
         """Run one ReMe job while the caller holds the operation lock."""
-        assert self.backend is not None, "sandbox is not initialized"
-        request_id = uuid.uuid4().hex
-        request_path = f"{CASE_ROOT}/inbox/{request_id}.json"
-        response_path = f"{self.results_dir}/{request_id}.json"
-        request = {
-            "job": job,
-            "arguments": arguments or {},
-            "config": self.config,
-            "plugins": list(self.plugins),
-            "case_root": CASE_ROOT,
-            "workspace_dir": self.runtime_workspace,
-        }
-        await self.backend.write_file(request_path, json.dumps(request, ensure_ascii=False).encode("utf-8"))
-        await self._exec(
-            f"job:{job}",
-            [self.python, f"{HARNESS_ROOT}/worker.py", "--request", request_path, "--response", response_path],
-            cwd=CASE_ROOT,
-        )
-        try:
-            payload = json.loads((await self.backend.read_file(response_path)).decode("utf-8"))
-        except FileNotFoundError as exc:
-            raise SandboxCommandError(f"job {job!r} did not produce {response_path}") from exc
-        return JobResult.from_dict(payload)
+        response = await self._run_worker_request("job", {"job": job, "arguments": arguments or {}})
+        return JobResult.from_dict(response)
 
     async def _run_worker_request(self, mode: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Run one structured worker request and return its JSON response."""
@@ -540,15 +517,17 @@ class DockerReMeSandbox:
             **payload,
         }
         await self.backend.write_file(request_path, json.dumps(request, ensure_ascii=False).encode("utf-8"))
+        action_name = f"job:{payload['job']}" if mode == "job" else f"worker:{mode}"
         await self._exec(
-            f"worker:{mode}",
+            action_name,
             [self.python, f"{HARNESS_ROOT}/worker.py", "--request", request_path, "--response", response_path],
             cwd=CASE_ROOT,
         )
         try:
             result = json.loads((await self.backend.read_file(response_path)).decode("utf-8"))
         except FileNotFoundError as exc:
-            raise SandboxCommandError(f"worker mode {mode!r} did not produce {response_path}") from exc
+            description = f"job {payload['job']!r}" if mode == "job" else f"worker mode {mode!r}"
+            raise SandboxCommandError(f"{description} did not produce {response_path}") from exc
         if not isinstance(result, dict):
             raise SandboxCommandError(f"worker mode {mode!r} returned a non-object response")
         return result
@@ -674,77 +653,9 @@ class DockerReMeSandbox:
         if not isinstance(message, str) or not message.strip():
             raise ValueError("memory history commit message must be a non-empty string")
         async with self._operation_lock:
-            await self._commit_memory_history(message)
-
-    async def _daily_history_path(self) -> str:
-        """Return the validated workspace-relative daily directory from the runtime layout."""
-        return (await self._memory_history_paths())[0]
-
-    async def _memory_history_paths(self) -> list[str]:
-        """Return validated workspace-relative daily, digest, and session directories."""
-        assert self.backend is not None
-        try:
-            payload = json.loads((await self.backend.read_file(RUNTIME_LAYOUT)).decode("utf-8"))
-        except (FileNotFoundError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise SandboxCommandError(f"cannot resolve daily history path from runtime layout: {exc}") from exc
-
-        expected_root = PurePosixPath(self.runtime_workspace).relative_to(CASE_ROOT)
-        configured_paths = payload.get("configured_paths") if isinstance(payload, dict) else None
-        if not isinstance(configured_paths, dict):
-            raise SandboxCommandError("sandbox runtime layout has invalid configured_paths")
-        paths: list[str] = []
-        for field in ("daily_dir", "digest_dir", "session_dir"):
-            case_relative = self._validated_workspace_path(
-                configured_paths.get(field),
-                expected_root,
-                allow_root=False,
-            )
-            relative_path = PurePosixPath(case_relative).relative_to(expected_root).as_posix()
-            if relative_path not in paths:
-                paths.append(relative_path)
-        return paths
-
-    async def _commit_memory_history(self, message: str) -> None:
-        """Commit one host-selected boundary across configured durable memory directories."""
-        memory_paths = await self._memory_history_paths()
-        await self._exec_checked(
-            "stage_memory_history",
-            ["git", "add", "-A", "--", *memory_paths],
-            cwd=self.runtime_workspace,
-        )
-        changed_paths: list[str] = []
-        for path in memory_paths:
-            diff_result = await self._exec(
-                "check_memory_history",
-                ["git", "diff", "--cached", "--quiet", "--", path],
-                cwd=self.runtime_workspace,
-            )
-            if diff_result.exit_code not in (0, 1):
-                raise SandboxCommandError(
-                    f"cannot inspect staged memory changes: {_decode(diff_result.stderr)}",
-                )
-            if diff_result.exit_code == 1:
-                changed_paths.append(path)
-        commit_command = [
-            "git",
-            "-c",
-            f"user.name={_GIT_AUTHOR_NAME}",
-            "-c",
-            f"user.email={_GIT_AUTHOR_EMAIL}",
-            "commit",
-            "--quiet",
-            "--allow-empty",
-            "--only",
-            "-m",
-            message,
-        ]
-        if changed_paths:
-            commit_command.extend(["--", *changed_paths])
-        await self._exec_checked(
-            "commit_memory_history",
-            commit_command,
-            cwd=self.runtime_workspace,
-        )
+            result = await self._run_worker_request("checkpoint", {"message": message})
+            if result.get("success") is not True:
+                raise SandboxCommandError(result.get("error") or "memory history checkpoint failed")
 
     async def answer(self, *, query: str, query_time: str = "") -> JobResult:
         """Generate an answer with the candidate's agentic_answer job."""
@@ -799,7 +710,11 @@ class DockerReMeSandbox:
         profile: Literal["analysis", "full"] = "analysis",
         include_candidate: bool = False,
     ) -> Path:
-        """Download analysis artifacts, or the full case when requested."""
+        """Download the case archive and, for analysis, separate build/query logs.
+
+        Analysis logs are saved under ``<destination>.artifacts`` without
+        changing the archive's contents.
+        """
         if profile not in ("analysis", "full"):
             raise ValueError("export profile must be 'analysis' or 'full'")
         async with self._operation_lock:
@@ -1034,6 +949,10 @@ class DockerReMeSandbox:
     ) -> Path:
         """Export the active case while the caller holds the operation lock."""
         assert self.backend is not None, "sandbox is not initialized"
+        target = Path(destination).expanduser().resolve()
+        artifacts = Path(f"{target}.artifacts")
+        if profile == "analysis" and artifacts.exists():
+            raise FileExistsError(f"analysis artifacts already exist: {artifacts}")
         if include_candidate and isinstance(self.candidate, ImageCandidate):
             raise ValueError("an image candidate has no source directory to export")
         candidate_id = (
@@ -1086,10 +1005,49 @@ class DockerReMeSandbox:
             command.extend(["-C", "/workspace", "candidate"])
         await self._exec_checked("export_case", command)
         payload = await self.backend.read_file(EXPORT_ARCHIVE)
-        target = Path(destination).resolve()
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(payload)
+        if profile == "analysis":
+            await self._export_analysis_logs(artifacts)
         return target
+
+    async def _export_analysis_logs(self, destination: Path) -> None:
+        """Save available build and query artifacts alongside the analysis archive."""
+        assert self.backend is not None
+        try:
+            build_log = await self.backend.read_file(f"{CASE_ROOT}/build_log/build.log")
+        except FileNotFoundError:
+            build_log = None
+        if build_log is not None:
+            log_path = destination / "build_log" / "build.log"
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            log_path.write_bytes(build_log)
+
+        try:
+            await self.backend.read_file(f"{CASE_ROOT}/queries/summary.json")
+        except FileNotFoundError:
+            return
+        await self._exec_checked(
+            "export_analysis_queries",
+            ["tar", "-czf", EXPORT_ARCHIVE, "-C", CASE_ROOT, "queries"],
+        )
+        archive = await self.backend.read_file(EXPORT_ARCHIVE)
+        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as source:
+            for member in source:
+                path = _workspace_member_path(member.name)
+                if path is None or not path.parts or path.parts[0] != "queries":
+                    raise SandboxCommandError(f"query export contains unsafe path: {member.name!r}")
+                output = destination.joinpath(*path.parts)
+                if member.isdir():
+                    output.mkdir(parents=True, exist_ok=True)
+                elif member.isfile():
+                    content = source.extractfile(member)
+                    if content is None:
+                        raise SandboxCommandError(f"query export cannot read: {member.name!r}")
+                    output.parent.mkdir(parents=True, exist_ok=True)
+                    output.write_bytes(content.read())
+                else:
+                    raise SandboxCommandError(f"query export contains unsupported member: {member.name!r}")
 
     async def reset_case(self, case_id: str) -> None:
         """Discard the active case and prepare this container for another.
