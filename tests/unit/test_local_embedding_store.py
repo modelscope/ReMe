@@ -201,6 +201,35 @@ class PerItemLimitThenTransientErrorAsEmbedding:
         return [[1.0, 0.0] for _ in texts]
 
 
+class PerItemLimitThenQuotaAsEmbedding:
+    """Reject an over-limit batch, recover the first isolated item, then exhaust the quota.
+
+    Mirrors the review case: isolation starts, the first single-item request comes back, and
+    every later call then fails provider-wide. Asking for the remaining items would only
+    multiply the rejected requests, because no single item explains a quota failure.
+    """
+
+    dimensions = 2
+    vector_space_id = "fakespace000"
+    max_chars = 32
+
+    def __init__(self):
+        self.batch_sizes: list[int] = []
+        self.singles = 0
+
+    def initialize_model(self):
+        """Mirror the real component's idempotent initialization hook."""
+
+    async def __call__(self, texts: list[str], **_kwargs):
+        self.batch_sizes.append(len(texts))
+        if any(len(text) > self.max_chars for text in texts):
+            raise ContextLengthError("the input length exceeds the context length")
+        self.singles += 1
+        if self.singles > 1:
+            raise InsufficientQuotaError("quota exhausted")
+        return [[1.0, 0.0] for _ in texts]
+
+
 class AuthenticationError(Exception):
     """OpenAI-compatible 401 error used without importing the provider SDK."""
 
@@ -1371,5 +1400,91 @@ def test_bad_request_without_an_input_length_signal_is_not_split():
 
         assert await store._call_with_retry(["a", "b", "c"]) is None
         assert provider.batch_sizes == [3]
+
+    run(go())
+
+
+def test_isolation_stops_when_a_provider_wide_failure_hits():
+    """Once isolation meets a provider-wide failure, the remaining items are not requested.
+
+    The vectors already recovered stay in the result: only the items that were never answered
+    are dropped, and no further request is sent for them.
+    """
+
+    async def go():
+        provider = PerItemLimitThenQuotaAsEmbedding()
+        store = LocalEmbeddingStore(
+            name="t_local_embedding_isolation_stops",
+            max_retries=2,
+            enable_cache=False,
+        )
+        store.as_embedding = provider
+
+        results = await store._call_with_retry(["ok", "x" * 64, "also ok", "still ok"])
+
+        assert results == [[1.0, 0.0], None, None, None]
+        # One rejected batch, the recovered first item, the over-limit item, then the quota
+        # failure. The fourth item is never requested once the quota failure is seen.
+        assert provider.batch_sizes == [4, 1, 1, 1]
+
+    run(go())
+
+
+def test_isolation_keeps_going_while_only_inputs_fail():
+    """An input-dependent failure is local to its item, so isolation must continue.
+
+    This pins the other half of the boundary: stopping on every isolated failure would lose
+    the vectors of the items that are perfectly embeddable on their own.
+    """
+
+    async def go():
+        provider = PerItemLimitAsEmbedding()
+        store = LocalEmbeddingStore(
+            name="t_local_embedding_isolation_keeps_going",
+            max_retries=2,
+            enable_cache=False,
+        )
+        store.as_embedding = provider
+
+        results = await store._call_with_retry(["ok", "x" * 64, "also ok", "still ok"])
+
+        assert results == [[1.0, 0.0], None, [1.0, 0.0], [1.0, 0.0]]
+        assert provider.batch_sizes == [4, 1, 1, 1, 1]
+
+    run(go())
+
+
+def test_dashscope_serialized_quota_errors_keep_their_quota_policy(monkeypatch):
+    """A serialized DashScope quota error must classify as quota, not as a rate limit.
+
+    AgentScope embeds the structured response in the message, so the business error code has to
+    be read back out of it. Without that the opt-in quota retry policy is never applied and the
+    error is retried with the generic backoff instead.
+    """
+
+    async def go():
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+        error = DashScopeRuntimeError.for_status(429, code="insufficient_quota")
+        assert LocalEmbeddingStore._is_insufficient_quota(error) is True
+        assert LocalEmbeddingStore._is_rate_limited(error) is False
+
+        provider = AlwaysProviderWideFailureAsEmbedding(error)
+        store = LocalEmbeddingStore(
+            name="t_local_embedding_dashscope_quota",
+            max_retries=3,
+            quota_retry_delay=7.0,
+            enable_cache=False,
+        )
+        store.as_embedding = provider
+
+        assert await store._call_with_retry(["a", "b"]) is None
+        assert provider.batch_sizes == [2, 2, 2]
+        assert sleeps == [7.0, 7.0]
 
     run(go())

@@ -44,6 +44,12 @@ _TRANSPORT_FAILURE_TYPES = frozenset(
 # ``rate_limit_exceeded``, ``InvalidApiKey``) and is never a status.
 _STATUS_IN_MESSAGE = re.compile(r'"status_code"\s*:\s*(\d{3})')
 
+# The business error code travels the same way the status does: a string ``code`` on the
+# OpenAI-compatible SDKs, ``error.code`` inside a structured body, and a serialized
+# ``"code"`` in the message for AgentScope's DashScope ``RuntimeError``. Reading only the
+# attribute loses the DashScope case and misclassifies a quota error as a rate limit.
+_CODE_IN_MESSAGE = re.compile(r'"code"\s*:\s*"([^"]+)"')
+
 # A rejected batch can only be paid back one item at a time when the provider blames an input.
 # A context-length rejection is the one status an over-long item explains by itself, so it is
 # the only error allowed to fan out into per-item requests.
@@ -241,7 +247,27 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
             self.is_healthy = False
         return out
 
-    async def _call_with_retry(self, texts: list[str], **kwargs) -> list[list[float] | None] | None:
+    async def _call_with_retry(
+        self,
+        texts: list[str],
+        *,
+        terminal_failure: list[bool] | None = None,
+        **kwargs,
+    ) -> list[list[float] | None] | None:
+        """Answer a batch, retrying transient failures and isolating input ones.
+
+        ``terminal_failure`` is an optional out-parameter. When the caller passes a list,
+        it is set to ``[True]`` if this call gave up on a failure that no remaining item
+        can explain (a provider-wide error, exhausted quota, or exhausted transient
+        retries). The per-item isolation loop uses it to stop instead of asking for every
+        remaining item and multiplying the rejected requests.
+        """
+
+        def stop() -> None:
+            """Record that this failure ends the work for the whole batch."""
+            if terminal_failure is not None:
+                terminal_failure[:] = [True]
+
         for attempt in range(self.max_retries):
             try:
                 result = await self.as_embedding(texts, **kwargs)
@@ -263,6 +289,7 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
                         continue
                     self.logger.exception("Embedding request failed after exhausting rate-limit retries")
                     self.is_healthy = False
+                    stop()
                     return None
                 if (
                     self.quota_retry_delay is not None
@@ -280,6 +307,7 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
                     # This also covers the case where the quota retries above are exhausted.
                     self.logger.exception("Embedding request failed: quota exhausted")
                     self.is_healthy = False
+                    stop()
                     return None
                 if self._is_provider_wide_failure(error):
                     # Credentials, permissions and server outages describe the endpoint, not any
@@ -291,6 +319,7 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
                         await asyncio.sleep(delay)
                         continue
                     self.logger.exception("Embedding request failed: provider-wide error, not splitting")
+                    stop()
                     break
                 if self._is_input_dependent_failure(error):
                     # A rejection a single input explains by itself is the one case the per-item
@@ -304,8 +333,10 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
                 # the failing input is identified, so an unrecognized error is never answered
                 # with one request per item.
                 self.logger.exception("Embedding request failed: unrecognized error, not splitting")
+                stop()
                 break
         self.is_healthy = False
+        stop()
         return None
 
     async def _embed_individually(self, texts: list[str], **kwargs) -> list[list[float] | None]:
@@ -319,13 +350,24 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
         policy instead of losing the vector; a one-item request never splits again.
         """
         results: list[list[float] | None] = []
-        for text in texts:
-            single = await self._call_with_retry([text], **kwargs)
+        for index, text in enumerate(texts):
+            terminal: list[bool] = []
+            single = await self._call_with_retry([text], terminal_failure=terminal, **kwargs)
             if single:
                 results.append(single[0])
                 continue
             self.logger.error(f"Embedding request failed for a single item (chars={len(text)})")
             results.append(None)
+            if terminal and terminal[0]:
+                # No remaining item can explain a provider-wide failure, so asking for the
+                # rest would only multiply the rejected requests. Keep the vectors already
+                # recovered and leave the items that were never answered as None.
+                self.logger.error(
+                    f"Stopping per-item isolation after {index + 1}/{len(texts)} items: "
+                    "the failure is not specific to any input",
+                )
+                results.extend([None] * (len(texts) - index - 1))
+                break
         return results
 
     @staticmethod
@@ -416,28 +458,42 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
         return type(error).__name__ == "InternalServerError"
 
     @staticmethod
+    def _error_code(error: Exception) -> str | None:
+        """Return the provider's business error code, across the supported error shapes.
+
+        ``code`` covers the OpenAI-compatible SDKs when the provider puts the error name
+        there, ``error.code`` inside ``body`` covers the structured OpenAI payload, and the
+        serialized message covers AgentScope's DashScope ``RuntimeError`` — the same shape
+        ``_http_status`` already reads the status back out of. Without the last case a
+        DashScope quota error is indistinguishable from an ordinary 429.
+        """
+        code = getattr(error, "code", None)
+        if isinstance(code, str) and code:
+            return code
+        body = getattr(error, "body", None)
+        if isinstance(body, dict):
+            details = body.get("error", body)
+            if isinstance(details, dict):
+                inner = details.get("code")
+                if isinstance(inner, str) and inner:
+                    return inner
+        match = _CODE_IN_MESSAGE.search(str(error))
+        return match.group(1) if match else None
+
+    @staticmethod
     def _is_rate_limited(error: Exception) -> bool:
         """Recognize an OpenAI-compatible 429 response without importing a provider SDK."""
-        if LocalEmbeddingStore._is_insufficient_quota(error):
+        code = LocalEmbeddingStore._error_code(error)
+        if code == "insufficient_quota":
             return False
-        if LocalEmbeddingStore._http_status(error) == 429:
+        if code == "rate_limit_exceeded":
             return True
-        body = getattr(error, "body", None)
-        if not isinstance(body, dict):
-            return False
-        details = body.get("error", body)
-        return isinstance(details, dict) and details.get("code") == "rate_limit_exceeded"
+        return LocalEmbeddingStore._http_status(error) == 429
 
     @staticmethod
     def _is_insufficient_quota(error: Exception) -> bool:
         """Recognize OpenAI-compatible quota errors without importing a provider SDK."""
-        if getattr(error, "code", None) == "insufficient_quota":
-            return True
-        body = getattr(error, "body", None)
-        if not isinstance(body, dict):
-            return False
-        details = body.get("error", body)
-        return isinstance(details, dict) and details.get("code") == "insufficient_quota"
+        return LocalEmbeddingStore._error_code(error) == "insufficient_quota"
 
     def _validate_dim(self, emb: np.ndarray) -> bool:
         """Return whether an embedding exactly matches the configured dimension."""
