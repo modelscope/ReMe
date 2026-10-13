@@ -93,6 +93,7 @@ class BenchmarkDockerPool:
         available: asyncio.Queue[DockerReMeSandbox] = asyncio.Queue()
         for worker in workers:
             available.put_nowait(worker)
+        claimed = 0
 
         try:
             with TemporaryDirectory(prefix="reme-benchmark-pool-") as temporary:
@@ -102,6 +103,7 @@ class BenchmarkDockerPool:
                 tasks: dict[str, asyncio.Task[CaseResult]] = {}
 
                 async def execute(plan: CasePlan) -> CaseResult:
+                    nonlocal claimed
                     result = CaseResult(plan.case_id)
                     source = plan.workspace_source
                     if plan.reuse_workspace_from is not None:
@@ -111,6 +113,7 @@ class BenchmarkDockerPool:
                         source = parent.workspace_snapshot
 
                     worker = await available.get()
+                    claimed += 1
 
                     async def retain_failed_build_log() -> None:
                         try:
@@ -158,7 +161,17 @@ class BenchmarkDockerPool:
                         result.error = f"{type(exc).__name__}: {exc}"
                         return result
                     finally:
-                        available.put_nowait(worker)
+                        if worker.reusable:
+                            available.put_nowait(worker)
+                        else:
+                            # AgentScope reports a shell timeout while its process
+                            # may still be running. Destroy the container before
+                            # another case can reset and use this pool slot.
+                            await worker.close()
+                            if claimed < len(plans) and not asyncio.current_task().cancelling():
+                                replacement = await self.factory.create_case(f"pool-{len(workers)}")
+                                workers.append(replacement)
+                                available.put_nowait(replacement)
 
                 for plan in plans:
                     tasks[plan.case_id] = asyncio.create_task(execute(plan))

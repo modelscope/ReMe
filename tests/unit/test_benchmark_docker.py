@@ -18,6 +18,7 @@ from deploy.benchmark_docker import (
     SourceCandidate,
     SourceSnapshot,
 )
+from deploy.benchmark_docker.docker_sandbox import SandboxCommandError, SandboxCommandTimeoutError
 from deploy.benchmark_docker.worker import _start_case_log
 
 
@@ -26,6 +27,7 @@ class FakeCase:
         self.name = name
         self.events = events
         self.case_id = name
+        self.reusable = True
 
     async def reset_case(self, case_id: str) -> None:
         self.case_id = case_id
@@ -263,6 +265,17 @@ class FakeBackend:
         return SimpleNamespace(exit_code=0, stdout=output, stderr=b"", ok=lambda: True)
 
 
+class TimedOutBackend(FakeBackend):
+    async def exec_shell(self, command: list[str], *, cwd=None, timeout=None):
+        if "/workspace/harness/worker.py" in command:
+            from types import SimpleNamespace
+
+            self.commands.append(command)
+            self.files["/workspace/case/build_log/build.log"] = b"build still running"
+            return SimpleNamespace(exit_code=-1, stdout=b"", stderr=b"timed out", ok=lambda: False)
+        return await super().exec_shell(command, cwd=cwd, timeout=timeout)
+
+
 class FakeWorkspace:
     def __init__(self, backend: FakeBackend) -> None:
         self.backend = backend
@@ -276,6 +289,30 @@ class FakeWorkspace:
 
     async def close(self) -> None:
         self.closed = True
+
+
+@pytest.mark.asyncio
+async def test_backend_timeout_prevents_direct_case_reset(tmp_path):
+    (tmp_path / "reme").mkdir()
+    (tmp_path / "reme" / "__init__.py").write_text("ok", encoding="utf-8")
+    workspace = FakeWorkspace(TimedOutBackend())
+    factory = DockerReMeSandboxFactory(
+        SourceCandidate(SourceSnapshot.from_directory(tmp_path)),
+        plugins=("lme",),
+        workspace_builder=lambda _id, _image, _env: workspace,
+    )
+    case = await factory.create_case("timed-out")
+    try:
+        with pytest.raises(SandboxCommandTimeoutError):
+            await case.run_build([JobRequest("build")])
+        assert not case.reusable
+        assert case.actions[-1].exit_code == -1
+        assert await case.read_build_log() == "build still running"
+        with pytest.raises(SandboxCommandError, match="no longer reusable"):
+            await case.reset_case("next")
+    finally:
+        await case.close()
+    assert workspace.closed
 
 
 @pytest.mark.asyncio
@@ -304,6 +341,33 @@ async def test_source_candidate_installs_plugin_and_closes_container(tmp_path):
     finally:
         await case.close()
     assert workspace.closed
+
+
+@pytest.mark.asyncio
+async def test_pool_replaces_worker_after_backend_timeout(tmp_path):
+    (tmp_path / "reme").mkdir()
+    (tmp_path / "reme" / "__init__.py").write_text("ok", encoding="utf-8")
+    timed_out_workspace = FakeWorkspace(TimedOutBackend())
+    replacement_workspace = FakeWorkspace(FakeBackend())
+    workspaces = iter((timed_out_workspace, replacement_workspace))
+    factory = DockerReMeSandboxFactory(
+        SourceCandidate(SourceSnapshot.from_directory(tmp_path)),
+        plugins=("lme",),
+        workspace_builder=lambda _id, _image, _env: next(workspaces),
+    )
+    plans = [
+        CasePlan("timed-out", build_jobs=(JobRequest("build"),), export_build_log_to=tmp_path / "build.log"),
+        CasePlan("next", build_jobs=(JobRequest("build"),)),
+    ]
+
+    results = await BenchmarkDockerPool(factory, concurrency=1).run(plans)
+
+    assert "SandboxCommandTimeoutError" in results[0].error
+    assert results[0].build_log == "build still running"
+    assert (tmp_path / "build.log").read_text(encoding="utf-8") == "build still running"
+    assert results[1].success
+    assert timed_out_workspace.closed and replacement_workspace.closed
+    assert sum(command[:2] == ["rm", "-rf"] for command in timed_out_workspace.backend.commands) == 1
 
 
 @pytest.mark.asyncio

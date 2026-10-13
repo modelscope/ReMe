@@ -60,8 +60,9 @@ archive. A reused workspace may be queried without additional build jobs.
 `export_evaluation_to` saves the workspace and query artifacts for both build
 and query-only cases; it includes `build_log` when that phase ran. Set
 `export_build_log_to` to retain the construction log separately. On a failed
-build, the pool also returns its text in `CaseResult.build_log` before reusing
-or closing the container.
+build, the pool also returns its text in `CaseResult.build_log`. A timed-out
+AgentScope shell command makes its container unusable: the pool closes it after
+retaining the log and creates a replacement when more cases need a worker.
 
 For direct control, call `create_case()` or `create_cases()`, then use
 `run_job()`, `run_build()`, `run_queries()`, `export_workspace()`,

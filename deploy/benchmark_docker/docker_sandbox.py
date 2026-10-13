@@ -80,6 +80,10 @@ class SandboxCommandError(RuntimeError):
     """A required command failed inside a case sandbox."""
 
 
+class SandboxCommandTimeoutError(SandboxCommandError):
+    """A command timed out and may still be running inside the container."""
+
+
 def _validate_case_id(case_id: str) -> None:
     """Reject identifiers that are unsafe for Docker names and manifests."""
     if not _CASE_ID_RE.fullmatch(case_id):
@@ -332,7 +336,13 @@ class DockerReMeSandbox:
         self.python = "python3"
         self.actions: list[ActionRecord] = []
         self._closed = False
+        self._reusable = True
         self._operation_lock = asyncio.Lock()
+
+    @property
+    def reusable(self) -> bool:
+        """Whether another case can safely use this container."""
+        return self._reusable and not self._closed
 
     @property
     def runtime_workspace(self) -> str:
@@ -457,8 +467,14 @@ class DockerReMeSandbox:
 
     async def _exec(self, name: str, command: list[str], *, cwd: str | None = None) -> Any:
         assert self.backend is not None, "sandbox is not initialized"
+        if not self.reusable:
+            raise SandboxCommandError("sandbox container is no longer reusable")
         started = _utc_now()
-        result = await self.backend.exec_shell(command, cwd=cwd, timeout=self.command_timeout)
+        try:
+            result = await self.backend.exec_shell(command, cwd=cwd, timeout=self.command_timeout)
+        except TimeoutError as exc:
+            self._reusable = False
+            raise SandboxCommandTimeoutError(f"sandbox action {name!r} timed out; container must be destroyed") from exc
         self.actions.append(
             ActionRecord(
                 name=name,
@@ -469,6 +485,9 @@ class DockerReMeSandbox:
                 finished_at=_utc_now(),
             ),
         )
+        if result.exit_code == -1:
+            self._reusable = False
+            raise SandboxCommandTimeoutError(f"sandbox action {name!r} timed out; container must be destroyed")
         return result
 
     async def _exec_checked(self, name: str, command: list[str], *, cwd: str | None = None) -> Any:
