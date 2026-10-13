@@ -289,6 +289,12 @@ class DockerReMeSandboxFactory:
             async with semaphore:
                 return await self.create_case(case_id)
 
+        async def close_created(results: list[DockerReMeSandbox | BaseException]) -> None:
+            await asyncio.gather(
+                *(result.close() for result in results if isinstance(result, DockerReMeSandbox)),
+                return_exceptions=True,
+            )
+
         tasks = [asyncio.create_task(create(case_id)) for case_id in case_ids]
         try:
             results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -296,17 +302,11 @@ class DockerReMeSandboxFactory:
             for task in tasks:
                 task.cancel()
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            await asyncio.gather(
-                *(result.close() for result in results if isinstance(result, DockerReMeSandbox)),
-                return_exceptions=True,
-            )
+            await close_created(results)
             raise
         failures = [result for result in results if isinstance(result, BaseException)]
         if failures:
-            await asyncio.gather(
-                *(result.close() for result in results if isinstance(result, DockerReMeSandbox)),
-                return_exceptions=True,
-            )
+            await close_created(results)
             raise failures[0]
         return [result for result in results if isinstance(result, DockerReMeSandbox)]
 
@@ -747,24 +747,20 @@ class DockerReMeSandbox:
             return (await self._read_build_log()).decode("utf-8", errors="replace")
 
     async def _read_build_log(self) -> bytes:
+        return await self._require_artifact(f"{CASE_ROOT}/build_log/build.log", "build log")
+
+    async def _require_artifact(self, path: str, description: str) -> bytes:
+        """Read a required sandbox artifact, preserving its export-specific error."""
         assert self.backend is not None, "sandbox is not initialized"
-        source = f"{CASE_ROOT}/build_log/build.log"
         try:
-            return await self.backend.read_file(source)
+            return await self.backend.read_file(path)
         except FileNotFoundError as exc:
-            raise SandboxCommandError(f"build log is missing required artifact: {source}") from exc
+            raise SandboxCommandError(f"{description} is missing required artifact: {path}") from exc
 
     async def export_memory_construction(self, destination: str | Path) -> Path:
         """Download the post-construction workspace and its build log."""
         async with self._operation_lock:
-            assert self.backend is not None, "sandbox is not initialized"
-            required = f"{CASE_ROOT}/build_log/build.log"
-            try:
-                await self.backend.read_file(required)
-            except FileNotFoundError as exc:
-                raise SandboxCommandError(
-                    f"memory construction export is missing required artifact: {required}",
-                ) from exc
+            await self._require_artifact(f"{CASE_ROOT}/build_log/build.log", "memory construction export")
             return await self._export_archive(
                 destination,
                 "export_memory_construction",
@@ -775,12 +771,7 @@ class DockerReMeSandbox:
     async def export_queries(self, destination: str | Path) -> Path:
         """Download per-query logs, results, and their aggregate summary."""
         async with self._operation_lock:
-            assert self.backend is not None, "sandbox is not initialized"
-            required = f"{CASE_ROOT}/queries/summary.json"
-            try:
-                await self.backend.read_file(required)
-            except FileNotFoundError as exc:
-                raise SandboxCommandError(f"query export is missing required artifact: {required}") from exc
+            await self._require_artifact(f"{CASE_ROOT}/queries/summary.json", "query export")
             return await self._export_archive(destination, "export_queries", CASE_ROOT, ["queries"])
 
     async def export_query(self, query_id: str, destination: str | Path) -> Path:
@@ -788,24 +779,15 @@ class DockerReMeSandbox:
 
         self._validate_query_artifact_id(query_id)
         async with self._operation_lock:
-            assert self.backend is not None, "sandbox is not initialized"
             query_root = f"{CASE_ROOT}/queries/{query_id}"
-            required = f"{query_root}/result.json"
-            try:
-                await self.backend.read_file(required)
-            except FileNotFoundError as exc:
-                raise SandboxCommandError(f"query export is missing required artifact: {required}") from exc
+            await self._require_artifact(f"{query_root}/result.json", "query export")
             return await self._export_archive(destination, "export_query", CASE_ROOT, [f"queries/{query_id}"])
 
     async def export_evaluation(self, destination: str | Path) -> Path:
         """Download workspace and query artifacts, plus the build log when present."""
         async with self._operation_lock:
             assert self.backend is not None, "sandbox is not initialized"
-            summary = f"{CASE_ROOT}/queries/summary.json"
-            try:
-                await self.backend.read_file(summary)
-            except FileNotFoundError as exc:
-                raise SandboxCommandError(f"evaluation export is missing required artifact: {summary}") from exc
+            await self._require_artifact(f"{CASE_ROOT}/queries/summary.json", "evaluation export")
             try:
                 await self.backend.read_file(f"{CASE_ROOT}/build_log/build.log")
             except FileNotFoundError:

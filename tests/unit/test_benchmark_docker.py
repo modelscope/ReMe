@@ -786,22 +786,29 @@ async def test_query_only_evaluation_export_omits_missing_build_log(tmp_path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("method", "required", "members"),
+    ("method", "required", "description", "members"),
     [
-        ("export_memory_construction", "build_log/build.log", ["reme_workspace", "build_log"]),
-        ("export_queries", "queries/summary.json", ["queries"]),
-        ("export_query", "queries/q1/result.json", ["queries/q1"]),
+        (
+            "export_memory_construction",
+            "build_log/build.log",
+            "memory construction export",
+            ["reme_workspace", "build_log"],
+        ),
+        ("export_queries", "queries/summary.json", "query export", ["queries"]),
+        ("export_query", "queries/q1/result.json", "query export", ["queries/q1"]),
+        ("export_evaluation", "queries/summary.json", "evaluation export", ["reme_workspace", "queries"]),
     ],
 )
-async def test_archive_exports_check_required_artifacts(tmp_path, method, required, members):
+async def test_archive_exports_check_required_artifacts(tmp_path, method, required, description, members):
     backend = FakeBackend()
     case = await _fake_docker_factory(tmp_path, lambda _id, _image, _env: FakeWorkspace(backend)).create_case("example")
     destination = tmp_path / "exports" / "result.tar.gz"
     export = getattr(case, method)
     args = ("q1", destination) if method == "export_query" else (destination,)
     try:
-        with pytest.raises(SandboxCommandError, match="missing required artifact"):
+        with pytest.raises(SandboxCommandError) as failure:
             await export(*args)
+        assert str(failure.value) == f"{description} is missing required artifact: /workspace/case/{required}"
         backend.files[f"/workspace/case/{required}"] = b"{}"
         assert await export(*args) == destination
         assert destination.read_bytes() == b"workspace archive"
