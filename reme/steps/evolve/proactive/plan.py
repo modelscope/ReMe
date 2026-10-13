@@ -9,7 +9,8 @@ gets a deterministic fallback card so the agenda step never sees an empty input.
 Card contract: ``scenario_type`` (resume_task | answer_pending |
 explore_interest | prepare_upcoming | propose_delegation), ``opener`` (a casual,
 friend-like conversation opener that already names the minimal next action -
-never a "based on your records" notification tone), ``next_action``,
+never a "based on your records" notification tone, and never a stock lead-in
+worn into a template), ``next_action``,
 ``preconditions`` and ``delivery`` (in_conversation | notification |
 agenda_item). ``linked_memory`` is derived from the topic's paths/evidence by
 code, never by the LLM.
@@ -20,6 +21,7 @@ pins every reminder card it receives.
 """
 
 import asyncio
+import hashlib
 import json
 import time
 
@@ -44,6 +46,33 @@ MAX_NEXT_ACTION_CHARS = 200
 MAX_PRECONDITIONS = 5
 MAX_PRECONDITION_CHARS = 80
 
+# Deterministic openers, several per kind, so a batch of fallback cards does not
+# open every line the same way - one repeated lead-in reads as a script. ``{when}``
+# is the parenthesised due date (empty when unknown) and only reminder variants
+# carry it, because a reminder may not hide when it is due.
+FALLBACK_OPENERS = {
+    "reminder": (
+        "「{title}」{when}就快到了，要不要现在把准备事项先过一遍？",
+        "时间快到了：「{title}」{when}，先确认下会不会和别的安排撞上？",
+        "有件事排在前面了：「{title}」{when}，现在动手准备最从容。",
+    ),
+    "new_idea": (
+        "有件活儿我觉得可以替你办：「{title}」，要不要我先出个方案你看看？",
+        "「{title}」这件事其实可以直接交给我，要不要我先出一版草案给你审？",
+        "这活儿不必你自己来：「{title}」，我先跑个初稿你看看值不值？",
+    ),
+    "follow_up": (
+        "上次聊到「{title}」，好像还没收尾——要不要趁现在花几分钟往前推一步？",
+        "「{title}」还挂着，要不要我先去查一下最新进展，再回来跟你说下一步？",
+        "那件「{title}」好像只差临门一脚了，现在顺手推一下？",
+    ),
+    "interest_extend": (
+        "感觉你最近可能会想看看「{title}」，有空的话可以先从相关材料扫一眼。",
+        "「{title}」这块还能再往深挖一层，要不要我挑两处给你展开讲讲？",
+        "顺着「{title}」又翻到些延伸内容，值得的话我带你过一遍？",
+    ),
+}
+
 
 def linked_memory(candidate: dict) -> list[str]:
     """Workspace paths related to a topic, derived from paths + evidence."""
@@ -60,23 +89,22 @@ def linked_memory(candidate: dict) -> list[str]:
 
 
 def fallback_card(candidate: dict) -> dict:
-    """Deterministic card used when the LLM is absent or its output is unusable."""
+    """Deterministic card used when the LLM is absent or its output is unusable.
+
+    Its opener is picked per topic out of ``FALLBACK_OPENERS``, so the
+    no-LLM path honours the same "no repeated lead-in" rule the prompt states.
+    """
     kind = str(candidate.get("kind") or DEFAULT_KIND)
     title = str(candidate.get("title") or "")
     scenario = DEFAULT_SCENARIO_BY_KIND.get(kind, DEFAULT_SCENARIO_BY_KIND[DEFAULT_KIND])
+    opener = _fallback_opener(kind, candidate, title)
     if kind == "reminder":
-        due = str(candidate.get("due_at") or "").strip()
-        when = f"（{due}）" if due else ""
-        opener = f"对了，「{title}」{when}就快到了，要不要现在把准备事项先过一遍？"
         next_action = "确认时间、所需材料与是否和其它安排冲突，需要改期就现在说"
     elif kind == "new_idea":
-        opener = f"有件活儿我觉得可以替你办：「{title}」，要不要我先出个方案你看看？"
         next_action = "确认值不值得委托；值得的话由 agent 先产出一版草案供你审阅"
     elif kind == "follow_up":
-        opener = f"上次聊到「{title}」，好像还没收尾——要不要趁现在花几分钟往前推一步？"
         next_action = "先回顾相关记录，确认卡点，然后给出下一步动作"
     else:
-        opener = f"感觉你最近可能会想看看「{title}」，有空的话可以先从相关材料扫一眼。"
         next_action = "快速浏览相关材料，判断值不值得深入"
     memory = linked_memory(candidate)
     if memory:
@@ -88,6 +116,20 @@ def fallback_card(candidate: dict) -> dict:
         "preconditions": [],
         "delivery": "in_conversation",
     }
+
+
+def _fallback_opener(kind: str, candidate: dict, title: str) -> str:
+    """Pick one opener variant for this kind, seeded by the topic identity.
+
+    The seed is the topic id, so one topic keeps one opener across rounds
+    instead of flip-flopping, while different topics in the same round land on
+    different variants and the agenda does not read as one repeated sentence.
+    """
+    variants = FALLBACK_OPENERS.get(kind) or FALLBACK_OPENERS[DEFAULT_KIND]
+    seed = str(candidate.get("id") or title)
+    picked = variants[int(hashlib.sha1(seed.encode("utf-8")).hexdigest(), 16) % len(variants)]
+    due = str(candidate.get("due_at") or "").strip()
+    return picked.format(title=title, when=f"（{due}）" if due else "")
 
 
 def _clean_card(raw: dict, candidate: dict) -> dict:
