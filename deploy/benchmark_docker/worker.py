@@ -192,6 +192,7 @@ def _validate_query_id(query_id: Any) -> str:
 def _clear_query_state(app: Any) -> None:
     """Drop request-scoped metadata that must not leak into the next query."""
     app.context.metadata.pop("tool_contexts", None)
+    app.context.metadata.pop("__search_call_budgets", None)
 
 
 async def _run(request: dict[str, Any]) -> dict[str, Any]:

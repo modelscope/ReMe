@@ -70,8 +70,4 @@ class EvaluationQuery:
     question: str
     golden_answer: Any
     answer_arguments: dict[str, Any] = field(default_factory=dict)
-    judge_arguments: dict[str, Any] = field(default_factory=dict)
     answer_job: str = "agentic_answer"
-    judge_answer_argument: str = "agent_answer"
-    score_path: str = "answer"
-    score_mapping: dict[str, float] | None = field(default_factory=lambda: {"yes": 1.0, "no": 0.0})

@@ -269,8 +269,11 @@ class DockerReMeSandboxFactory:
         )
         try:
             await case.initialize()
-        except BaseException:
-            await workspace.close()
+        except BaseException as exc:
+            try:
+                await workspace.close()
+            except Exception as close_exc:
+                exc.add_note(f"workspace close failed: {type(close_exc).__name__}: {close_exc}")
             raise
         return case
 
@@ -302,6 +305,7 @@ class DockerReMeSandboxFactory:
         if failures:
             await asyncio.gather(
                 *(result.close() for result in results if isinstance(result, DockerReMeSandbox)),
+                return_exceptions=True,
             )
             raise failures[0]
         return [result for result in results if isinstance(result, DockerReMeSandbox)]
@@ -363,7 +367,7 @@ class DockerReMeSandbox:
         self.backend = self.workspace.get_backend()
         await self._create_case_layout()
         worker = Path(__file__).with_name("worker.py").read_bytes()
-        await self.backend.write_file(f"{HARNESS_ROOT}/worker.py", worker)
+        await self._write_file(f"{HARNESS_ROOT}/worker.py", worker)
 
         if isinstance(self.candidate, SourceCandidate):
             await self._install_source_candidate()
@@ -395,7 +399,7 @@ class DockerReMeSandbox:
 
     async def _install_source_candidate(self) -> None:
         assert self.backend is not None
-        await self.backend.write_file(SOURCE_ARCHIVE, self.candidate.snapshot.archive)
+        await self._write_file(SOURCE_ARCHIVE, self.candidate.snapshot.archive)
         await self._exec_checked("create_candidate_dir", ["mkdir", "-p", CANDIDATE_ROOT])
         await self._exec_checked(
             "extract_candidate",
@@ -463,6 +467,21 @@ class DockerReMeSandbox:
             if escaped:
                 raise SandboxCommandError(f"candidate plugin imports did not resolve under {CANDIDATE_ROOT}: {escaped}")
 
+    async def _write_file(self, path: str, data: bytes) -> None:
+        """Reject writes after an interrupted or uncertain Docker upload."""
+        assert self.backend is not None, "sandbox is not initialized"
+        if not self.reusable:
+            raise SandboxCommandError("sandbox container is no longer reusable")
+        try:
+            await self.backend.write_file(path, data)
+        except asyncio.CancelledError:
+            self._reusable = False
+            raise
+        except Exception:
+            # Docker may have accepted the upload before the client failed.
+            self._reusable = False
+            raise
+
     async def _exec(self, name: str, command: list[str], *, cwd: str | None = None) -> Any:
         assert self.backend is not None, "sandbox is not initialized"
         if not self.reusable:
@@ -473,6 +492,13 @@ class DockerReMeSandbox:
         except TimeoutError as exc:
             self._reusable = False
             raise SandboxCommandTimeoutError(f"sandbox action {name!r} timed out; container must be destroyed") from exc
+        except asyncio.CancelledError:
+            self._reusable = False
+            raise
+        except Exception:
+            # A backend failure may occur after Docker started the command.
+            self._reusable = False
+            raise
         self.actions.append(
             ActionRecord(
                 name=name,
@@ -516,7 +542,7 @@ class DockerReMeSandbox:
             "workspace_dir": self.runtime_workspace,
             **payload,
         }
-        await self.backend.write_file(request_path, json.dumps(request, ensure_ascii=False).encode("utf-8"))
+        await self._write_file(request_path, json.dumps(request, ensure_ascii=False).encode("utf-8"))
         action_name = f"job:{payload['job']}" if mode == "job" else f"worker:{mode}"
         await self._exec(
             action_name,
@@ -664,41 +690,9 @@ class DockerReMeSandbox:
             await self._write_named_result("answer.json", result)
             return result
 
-    async def judge(
-        self,
-        *,
-        query: str,
-        agent_answer: str,
-        golden_answer: str,
-        question_type: str = "",
-    ) -> JobResult:
-        """Run LLM-as-Judge and persist a normalized numeric score."""
-        async with self._operation_lock:
-            result = await self._run_job(
-                "answer_judge",
-                {
-                    "query": query,
-                    "agent_answer": agent_answer,
-                    "golden_answer": golden_answer,
-                    "question_type": question_type,
-                },
-            )
-            verdict = str(result.answer).strip().lower()
-            score = 1 if verdict == "yes" else 0 if verdict == "no" else None
-            assert self.backend is not None
-            await self.backend.write_file(
-                f"{self.results_dir}/score.json",
-                json.dumps(
-                    {"success": result.success, "score": score, "verdict": verdict, "raw": asdict(result)},
-                    ensure_ascii=False,
-                    default=str,
-                ).encode("utf-8"),
-            )
-            return result
-
     async def _write_named_result(self, name: str, result: JobResult) -> None:
         assert self.backend is not None
-        await self.backend.write_file(
+        await self._write_file(
             f"{self.results_dir}/{name}",
             json.dumps(asdict(result), ensure_ascii=False, default=str).encode("utf-8"),
         )
@@ -733,24 +727,19 @@ class DockerReMeSandbox:
         case directory, logs, or candidate source.
         """
         async with self._operation_lock:
-            assert self.backend is not None, "sandbox is not initialized"
-            await self._exec_checked(
+            return await self._export_archive(
+                destination,
                 "export_workspace",
-                ["tar", "-czf", WORKSPACE_EXPORT_ARCHIVE, "-C", self.runtime_workspace, "."],
+                self.runtime_workspace,
+                ["."],
+                archive_path=WORKSPACE_EXPORT_ARCHIVE,
             )
-            target = Path(destination).expanduser().resolve()
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(await self.backend.read_file(WORKSPACE_EXPORT_ARCHIVE))
-            return target
 
     async def export_build_log(self, destination: str | Path) -> Path:
         """Download the memory-construction log without wrapping it in an archive."""
         async with self._operation_lock:
             content = await self._read_build_log()
-            target = Path(destination).expanduser().resolve()
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(content)
-            return target
+            return self._save_host_file(destination, content)
 
     async def read_build_log(self) -> str:
         """Return the build log, including when construction failed."""
@@ -776,22 +765,12 @@ class DockerReMeSandbox:
                 raise SandboxCommandError(
                     f"memory construction export is missing required artifact: {required}",
                 ) from exc
-            await self._exec_checked(
+            return await self._export_archive(
+                destination,
                 "export_memory_construction",
-                [
-                    "tar",
-                    "-czf",
-                    EXPORT_ARCHIVE,
-                    "-C",
-                    CASE_ROOT,
-                    "reme_workspace",
-                    "build_log",
-                ],
+                CASE_ROOT,
+                ["reme_workspace", "build_log"],
             )
-            target = Path(destination).expanduser().resolve()
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(await self.backend.read_file(EXPORT_ARCHIVE))
-            return target
 
     async def export_queries(self, destination: str | Path) -> Path:
         """Download per-query logs, results, and their aggregate summary."""
@@ -802,14 +781,7 @@ class DockerReMeSandbox:
                 await self.backend.read_file(required)
             except FileNotFoundError as exc:
                 raise SandboxCommandError(f"query export is missing required artifact: {required}") from exc
-            await self._exec_checked(
-                "export_queries",
-                ["tar", "-czf", EXPORT_ARCHIVE, "-C", CASE_ROOT, "queries"],
-            )
-            target = Path(destination).expanduser().resolve()
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(await self.backend.read_file(EXPORT_ARCHIVE))
-            return target
+            return await self._export_archive(destination, "export_queries", CASE_ROOT, ["queries"])
 
     async def export_query(self, query_id: str, destination: str | Path) -> Path:
         """Download one leased query's logs and result without a case summary."""
@@ -823,14 +795,7 @@ class DockerReMeSandbox:
                 await self.backend.read_file(required)
             except FileNotFoundError as exc:
                 raise SandboxCommandError(f"query export is missing required artifact: {required}") from exc
-            await self._exec_checked(
-                "export_query",
-                ["tar", "-czf", EXPORT_ARCHIVE, "-C", CASE_ROOT, f"queries/{query_id}"],
-            )
-            target = Path(destination).expanduser().resolve()
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(await self.backend.read_file(EXPORT_ARCHIVE))
-            return target
+            return await self._export_archive(destination, "export_query", CASE_ROOT, [f"queries/{query_id}"])
 
     async def export_evaluation(self, destination: str | Path) -> Path:
         """Download workspace and query artifacts, plus the build log when present."""
@@ -847,23 +812,29 @@ class DockerReMeSandbox:
                 has_build_log = False
             else:
                 has_build_log = True
-            await self._exec_checked(
-                "export_evaluation",
-                [
-                    "tar",
-                    "-czf",
-                    EXPORT_ARCHIVE,
-                    "-C",
-                    CASE_ROOT,
-                    "reme_workspace",
-                    "queries",
-                    *(["build_log"] if has_build_log else []),
-                ],
-            )
-            target = Path(destination).expanduser().resolve()
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(await self.backend.read_file(EXPORT_ARCHIVE))
-            return target
+            members = ["reme_workspace", "queries", *(["build_log"] if has_build_log else [])]
+            return await self._export_archive(destination, "export_evaluation", CASE_ROOT, members)
+
+    @staticmethod
+    def _save_host_file(destination: str | Path, content: bytes) -> Path:
+        target = Path(destination).expanduser().resolve()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
+        return target
+
+    async def _export_archive(
+        self,
+        destination: str | Path,
+        name: str,
+        root: str,
+        members: list[str],
+        *,
+        archive_path: str = EXPORT_ARCHIVE,
+    ) -> Path:
+        """Archive selected sandbox paths and download the archive while locked."""
+        assert self.backend is not None, "sandbox is not initialized"
+        await self._exec_checked(name, ["tar", "-czf", archive_path, "-C", root, *members])
+        return self._save_host_file(destination, await self.backend.read_file(archive_path))
 
     async def upload_workspace(self, source: str | Path, *, clear: bool = True) -> None:
         """Copy a host workspace directory or exported archive into this case.
@@ -880,7 +851,7 @@ class DockerReMeSandbox:
             if clear:
                 await self._exec_checked("clear_runtime_workspace", ["rm", "-rf", self.runtime_workspace])
             await self._exec_checked("create_runtime_workspace", ["mkdir", "-p", self.runtime_workspace])
-            await self.backend.write_file(WORKSPACE_ARCHIVE, archive)
+            await self._write_file(WORKSPACE_ARCHIVE, archive)
             await self._exec_checked(
                 "upload_workspace",
                 ["tar", "-xzf", WORKSPACE_ARCHIVE, "-C", self.runtime_workspace],
@@ -974,11 +945,11 @@ class DockerReMeSandbox:
             "export_profile": profile,
             "exported_at": _utc_now(),
         }
-        await self.backend.write_file(
+        await self._write_file(
             f"{CASE_ROOT}/manifest.json",
             json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8"),
         )
-        await self.backend.write_file(
+        await self._write_file(
             f"{self.logs_dir}/actions.jsonl",
             b"".join(
                 (json.dumps(asdict(action), ensure_ascii=False) + "\n").encode("utf-8") for action in self.actions
@@ -1004,9 +975,7 @@ class DockerReMeSandbox:
         if include_candidate:
             command.extend(["-C", "/workspace", "candidate"])
         await self._exec_checked("export_case", command)
-        payload = await self.backend.read_file(EXPORT_ARCHIVE)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(payload)
+        self._save_host_file(target, await self.backend.read_file(EXPORT_ARCHIVE))
         if profile == "analysis":
             await self._export_analysis_logs(artifacts)
         return target
@@ -1072,8 +1041,9 @@ class DockerReMeSandbox:
         """Destroy the case container. Export before calling this method."""
         async with self._operation_lock:
             if not self._closed:
-                self._closed = True
+                self._reusable = False
                 await self.workspace.close()
+                self._closed = True
 
     async def __aenter__(self) -> "DockerReMeSandbox":
         return self

@@ -166,6 +166,116 @@ async def test_pool_keeps_build_log_on_failure(tmp_path, raises):
 
 
 @pytest.mark.asyncio
+async def test_pool_replacement_failure_preserves_healthy_cases():
+    events: list[tuple] = []
+
+    class Worker(FakeCase):
+        async def run_build(self, jobs):
+            if self.case_id == "broken":
+                self.reusable = False
+                raise RuntimeError("command failed")
+            await asyncio.sleep(0.02)
+            self.events.append((self.case_id, "finished"))
+            return {"success": True}
+
+    class Factory(FakeFactory):
+        async def create_cases(self, case_ids, *, concurrency):
+            return [Worker(name, self.events) for name in case_ids]
+
+        async def create_case(self, case_id):
+            raise RuntimeError("replacement failed")
+
+    plans = [CasePlan(case_id, build_jobs=(JobRequest("build"),)) for case_id in ("broken", "healthy", "waiting")]
+    results = await asyncio.wait_for(BenchmarkDockerPool(Factory(events), concurrency=2).run(plans), timeout=2)
+
+    assert [result.case_id for result in results] == ["broken", "healthy", "waiting"]
+    assert "command failed" in results[0].error
+    assert "replacement failed" in results[0].error
+    assert results[1].success and results[2].success
+    assert ("healthy", "finished") in events and ("waiting", "finished") in events
+
+
+@pytest.mark.asyncio
+async def test_pool_exhaustion_fails_waiting_cases():
+    events: list[tuple] = []
+
+    class BrokenCase(FakeCase):
+        async def run_build(self, jobs):
+            self.reusable = False
+            raise RuntimeError("command failed")
+
+    class Factory(FakeFactory):
+        async def create_cases(self, case_ids, *, concurrency):
+            return [BrokenCase(name, self.events) for name in case_ids]
+
+        async def create_case(self, case_id):
+            raise RuntimeError("replacement failed")
+
+    plans = [CasePlan(case_id, build_jobs=(JobRequest("build"),)) for case_id in ("broken", "waiting-1", "waiting-2")]
+    results = await asyncio.wait_for(BenchmarkDockerPool(Factory(events), concurrency=1).run(plans), timeout=2)
+
+    assert "replacement failed" in results[0].error
+    assert all("no available workers" in result.error for result in results[1:])
+    assert not any(case_id.startswith("waiting") for case_id, action in events if action == "reset")
+
+
+@pytest.mark.asyncio
+async def test_pool_exhaustion_unblocks_dependent_cases():
+    events: list[tuple] = []
+
+    class BrokenCase(FakeCase):
+        async def run_build(self, jobs):
+            self.reusable = False
+            raise RuntimeError("command failed")
+
+    class Factory(FakeFactory):
+        async def create_cases(self, case_ids, *, concurrency):
+            return [BrokenCase(name, self.events) for name in case_ids]
+
+        async def create_case(self, case_id):
+            raise RuntimeError("replacement failed")
+
+    plans = [
+        CasePlan("dependent", reuse_workspace_from="waiting"),
+        CasePlan("broken", build_jobs=(JobRequest("build"),)),
+        CasePlan("waiting", build_jobs=(JobRequest("build"),)),
+    ]
+    results = await asyncio.wait_for(BenchmarkDockerPool(Factory(events), concurrency=1).run(plans), timeout=2)
+
+    assert results[0].error == "source case 'waiting' failed"
+    assert "replacement failed" in results[1].error
+    assert "no available workers" in results[2].error
+
+
+@pytest.mark.asyncio
+async def test_pool_close_failure_retires_slot_without_replacement():
+    events: list[tuple] = []
+
+    class BrokenCase(FakeCase):
+        async def run_build(self, jobs):
+            self.reusable = False
+            raise RuntimeError("command failed")
+
+        async def close(self):
+            self.events.append((self.name, "close failed"))
+            raise RuntimeError("close failed")
+
+    class Factory(FakeFactory):
+        async def create_cases(self, case_ids, *, concurrency):
+            return [BrokenCase(name, self.events) for name in case_ids]
+
+        async def create_case(self, case_id):
+            pytest.fail("replacement must not start while the old container may still be running")
+
+    plans = [CasePlan(case_id, build_jobs=(JobRequest("build"),)) for case_id in ("broken", "next")]
+    results = await asyncio.wait_for(BenchmarkDockerPool(Factory(events), concurrency=1).run(plans), timeout=2)
+
+    assert "close failed" in results[0].error
+    assert results[1].error == "no available workers"
+    assert ("next", "build", 1) not in events
+
+
+@pytest.mark.asyncio
 async def test_pool_cancels_case_before_closing_container():
     started = asyncio.Event()
     events: list[tuple] = []
@@ -262,6 +372,52 @@ async def test_build_log_remains_bound_after_application_initializes_logger(tmp_
     log_text = (tmp_path / "build_log" / "build.log").read_text(encoding="utf-8")
     assert "[sandbox] build phase started" in log_text
     assert "[sandbox] build phase finished" in log_text
+
+
+@pytest.mark.asyncio
+async def test_worker_clears_search_budget_between_queries(tmp_path, monkeypatch):
+    import reme.reme as reme_module
+
+    monkeypatch.setattr(sandbox_worker, "_prepare_runtime", lambda _request: (tmp_path, {}))
+    seen_metadata: list[dict] = []
+    apps = []
+
+    class FakeReMe:
+        def __init__(self, **_kwargs):
+            from types import SimpleNamespace
+
+            self.context = SimpleNamespace(metadata={"shared": "retained"})
+            apps.append(self)
+
+        async def start(self):
+            pass
+
+        async def close(self):
+            pass
+
+    async def run_job(app, _job, _arguments):
+        seen_metadata.append(dict(app.context.metadata))
+        app.context.metadata["tool_contexts"] = {"same-id": {"seen": True}}
+        app.context.metadata["__search_call_budgets"] = {"same-id": {"count": 1}}
+        return {"success": True, "answer": "ok", "metadata": {}, "error": None}
+
+    monkeypatch.setattr(reme_module, "ReMe", FakeReMe)
+    monkeypatch.setattr(sandbox_worker, "_run_job_on_app", run_job)
+
+    result = await sandbox_worker._run_queries(
+        {
+            "case_root": str(tmp_path),
+            "queries": [
+                {"query_id": "q1", "question": "first"},
+                {"query_id": "q2", "question": "second"},
+            ],
+        },
+    )
+
+    assert result["success"]
+    assert len(apps) == 1
+    assert seen_metadata == [{"shared": "retained"}, {"shared": "retained"}]
+    assert apps[0].context.metadata == {"shared": "retained"}
 
 
 @pytest.mark.asyncio
@@ -396,6 +552,142 @@ async def test_backend_timeout_prevents_direct_case_reset(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_external_timeout_prevents_case_reset(tmp_path):
+    started = asyncio.Event()
+
+    class BlockingBackend(FakeBackend):
+        async def exec_shell(self, command, *, cwd=None, timeout=None):
+            if "/workspace/harness/worker.py" in command:
+                self.commands.append(command)
+                started.set()
+                await asyncio.Event().wait()
+            return await super().exec_shell(command, cwd=cwd, timeout=timeout)
+
+    workspace = FakeWorkspace(BlockingBackend())
+    factory = _fake_docker_factory(tmp_path, lambda _id, _image, _env: workspace)
+    case = await factory.create_case("timed-out")
+    try:
+        build = asyncio.create_task(case.run_build([JobRequest("build")]))
+        await asyncio.wait_for(started.wait(), timeout=2)
+        with pytest.raises(TimeoutError):
+            await asyncio.wait_for(build, timeout=0.01)
+        assert not case.reusable
+        with pytest.raises(SandboxCommandError, match="no longer reusable"):
+            await case.reset_case("next")
+        inbox_count = sum("/inbox/" in path for path in workspace.backend.files)
+        with pytest.raises(SandboxCommandError, match="no longer reusable"):
+            await case.run_build([JobRequest("build")])
+        assert sum("/inbox/" in path for path in workspace.backend.files) == inbox_count
+    finally:
+        await case.close()
+    assert workspace.closed
+
+
+@pytest.mark.asyncio
+async def test_cancelled_request_upload_prevents_case_reset(tmp_path):
+    started = asyncio.Event()
+
+    class BlockingBackend(FakeBackend):
+        async def write_file(self, path, data):
+            if "/inbox/" in path:
+                started.set()
+                await asyncio.Event().wait()
+            await super().write_file(path, data)
+
+    workspace = FakeWorkspace(BlockingBackend())
+    factory = _fake_docker_factory(tmp_path, lambda _id, _image, _env: workspace)
+    case = await factory.create_case("cancelled-upload")
+    try:
+        build = asyncio.create_task(case.run_build([JobRequest("build")]))
+        await asyncio.wait_for(started.wait(), timeout=2)
+        build.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await build
+        assert not case.reusable
+        with pytest.raises(SandboxCommandError, match="no longer reusable"):
+            await case.reset_case("next")
+    finally:
+        await case.close()
+    assert workspace.closed
+
+
+@pytest.mark.asyncio
+async def test_backend_write_error_prevents_case_reset(tmp_path):
+    class FailingBackend(FakeBackend):
+        async def write_file(self, path, data):
+            if "/inbox/" in path:
+                raise RuntimeError("Docker upload stream failed")
+            await super().write_file(path, data)
+
+    workspace = FakeWorkspace(FailingBackend())
+    factory = _fake_docker_factory(tmp_path, lambda _id, _image, _env: workspace)
+    case = await factory.create_case("write-error")
+    try:
+        with pytest.raises(RuntimeError, match="Docker upload stream failed"):
+            await case.run_build([JobRequest("build")])
+        assert not case.reusable
+        with pytest.raises(SandboxCommandError, match="no longer reusable"):
+            await case.reset_case("next")
+    finally:
+        await case.close()
+    assert workspace.closed
+
+
+@pytest.mark.asyncio
+async def test_backend_exec_error_prevents_case_reset(tmp_path):
+    class FailingBackend(FakeBackend):
+        async def exec_shell(self, command, *, cwd=None, timeout=None):
+            if "/workspace/harness/worker.py" in command:
+                raise RuntimeError("Docker exec stream failed")
+            return await super().exec_shell(command, cwd=cwd, timeout=timeout)
+
+    workspace = FakeWorkspace(FailingBackend())
+    factory = _fake_docker_factory(tmp_path, lambda _id, _image, _env: workspace)
+    case = await factory.create_case("exec-error")
+    try:
+        with pytest.raises(RuntimeError, match="Docker exec stream failed"):
+            await case.run_build([JobRequest("build")])
+        assert not case.reusable
+        with pytest.raises(SandboxCommandError, match="no longer reusable"):
+            await case.reset_case("next")
+    finally:
+        await case.close()
+    assert workspace.closed
+
+
+@pytest.mark.asyncio
+async def test_cancelled_close_can_be_retried(tmp_path):
+    started = asyncio.Event()
+
+    class InterruptibleWorkspace(FakeWorkspace):
+        def __init__(self):
+            super().__init__(FakeBackend())
+            self.close_calls = 0
+
+        async def close(self):
+            self.close_calls += 1
+            if self.close_calls == 1:
+                started.set()
+                await asyncio.Event().wait()
+            self.closed = True
+
+    workspace = InterruptibleWorkspace()
+    factory = _fake_docker_factory(tmp_path, lambda _id, _image, _env: workspace)
+    case = await factory.create_case("close-retry")
+    closing = asyncio.create_task(case.close())
+    await asyncio.wait_for(started.wait(), timeout=2)
+    closing.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await closing
+    assert not case.reusable
+    assert not workspace.closed
+
+    await case.close()
+    assert workspace.closed
+    assert workspace.close_calls == 2
+
+
+@pytest.mark.asyncio
 async def test_source_candidate_installs_plugin_and_closes_container(tmp_path):
     backend = FakeBackend()
     workspace = FakeWorkspace(backend)
@@ -493,6 +785,32 @@ async def test_query_only_evaluation_export_omits_missing_build_log(tmp_path):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("method", "required", "members"),
+    [
+        ("export_memory_construction", "build_log/build.log", ["reme_workspace", "build_log"]),
+        ("export_queries", "queries/summary.json", ["queries"]),
+        ("export_query", "queries/q1/result.json", ["queries/q1"]),
+    ],
+)
+async def test_archive_exports_check_required_artifacts(tmp_path, method, required, members):
+    backend = FakeBackend()
+    case = await _fake_docker_factory(tmp_path, lambda _id, _image, _env: FakeWorkspace(backend)).create_case("example")
+    destination = tmp_path / "exports" / "result.tar.gz"
+    export = getattr(case, method)
+    args = ("q1", destination) if method == "export_query" else (destination,)
+    try:
+        with pytest.raises(SandboxCommandError, match="missing required artifact"):
+            await export(*args)
+        backend.files[f"/workspace/case/{required}"] = b"{}"
+        assert await export(*args) == destination
+        assert destination.read_bytes() == b"workspace archive"
+        assert ["tar", "-czf", "/tmp/reme-case-export.tar.gz", "-C", "/workspace/case", *members] in backend.commands
+    finally:
+        await case.close()
+
+
+@pytest.mark.asyncio
 async def test_default_analysis_export_saves_logs_outside_archive(tmp_path):
     class AnalysisBackend(FakeBackend):
         async def exec_shell(self, command, *, cwd=None, timeout=None):
@@ -575,3 +893,34 @@ async def test_cancelled_batch_creation_closes_completed_workspace(tmp_path):
     with pytest.raises(asyncio.CancelledError):
         await task
     assert first.closed and second.closed
+
+
+@pytest.mark.asyncio
+async def test_failed_case_creation_preserves_initialization_error_when_close_fails(tmp_path):
+    class BrokenWorkspace(FakeWorkspace):
+        async def initialize(self):
+            raise RuntimeError("initialization failed")
+
+        async def close(self):
+            raise RuntimeError("close failed")
+
+    factory = _fake_docker_factory(tmp_path, lambda _id, _image, _env: BrokenWorkspace(FakeBackend()))
+    with pytest.raises(RuntimeError, match="initialization failed") as failure:
+        await factory.create_case("broken")
+    assert any("close failed" in note for note in failure.value.__notes__)
+
+
+@pytest.mark.asyncio
+async def test_failed_batch_creation_preserves_creation_error_when_close_fails(tmp_path):
+    class CloseFailsWorkspace(FakeWorkspace):
+        async def close(self):
+            raise RuntimeError("close failed")
+
+    class InitializeFailsWorkspace(FakeWorkspace):
+        async def initialize(self):
+            raise RuntimeError("initialization failed")
+
+    workspaces = iter((CloseFailsWorkspace(FakeBackend()), InitializeFailsWorkspace(FakeBackend())))
+    factory = _fake_docker_factory(tmp_path, lambda _id, _image, _env: next(workspaces))
+    with pytest.raises(RuntimeError, match="initialization failed"):
+        await factory.create_cases(["first", "second"], concurrency=2)
