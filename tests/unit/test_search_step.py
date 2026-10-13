@@ -6,6 +6,7 @@ import asyncio
 import importlib.util
 from pathlib import Path
 
+import pytest
 from agentscope.message import Msg
 
 from reme.components.file_store import BaseFileStore
@@ -13,6 +14,7 @@ from reme.components.file_store.local_file_store import LocalFileStore
 from reme.components.tag_index import LocalTagIndex
 from reme.components import ApplicationContext
 from reme.components.runtime_context import RuntimeContext
+from reme.config.config_parser import parse_kwargs
 from reme.enumeration import LinkScopeEnum
 from reme.schema import FileChunk, FileLink, FileNode, Response
 from reme.steps.index import (
@@ -25,12 +27,19 @@ from reme.steps.index import (
 )
 from reme.steps.index._source_format import ALL_RETURNED_MESSAGE, NO_RESULTS_MESSAGE
 
-_SEARCH_V2_PATH = Path(__file__).parents[2] / "plugins" / "beam" / "src" / "reme_beam" / "search_v2.py"
-_SEARCH_V2_SPEC = importlib.util.spec_from_file_location("reme_beam.search_v2", _SEARCH_V2_PATH)
-assert _SEARCH_V2_SPEC is not None and _SEARCH_V2_SPEC.loader is not None
-_SEARCH_V2_MODULE = importlib.util.module_from_spec(_SEARCH_V2_SPEC)
-_SEARCH_V2_SPEC.loader.exec_module(_SEARCH_V2_MODULE)
-SearchV2Step = _SEARCH_V2_MODULE.SearchV2Step
+
+def _load_search_v2_step(plugin: str) -> type:
+    """Load SearchV2Step from a benchmark plugin's source file."""
+    path = Path(__file__).parents[2] / "plugins" / plugin / "src" / f"reme_{plugin}" / "search_v2.py"
+    spec = importlib.util.spec_from_file_location(f"reme_{plugin}.search_v2", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.SearchV2Step
+
+
+SearchV2Step = _load_search_v2_step("beam")
+LmeSearchV2Step = _load_search_v2_step("lme")
 
 
 class FakeSearchStore(BaseFileStore):
@@ -804,25 +813,32 @@ def test_search_steps_no_results_shows_no_results_message():
     asyncio.run(run())
 
 
-def test_search_steps_search_for_the_text_of_a_numeric_query():
-    """``reme search query=404`` passes the query as an int; the steps search for "404"."""
+_QUERY_STEP_CLASSES = [
+    pytest.param(SearchStep, id="search"),
+    pytest.param(VectorSearchStep, id="vector_search"),
+    pytest.param(Bm25SearchStep, id="bm25_search"),
+    pytest.param(NodeSearchStep, id="node_search"),
+    pytest.param(SearchV2Step, id="beam_search_v2"),
+    pytest.param(LmeSearchV2Step, id="lme_search_v2"),
+]
+
+
+@pytest.mark.parametrize("value", ["404", "0", "0.0"])
+@pytest.mark.parametrize("step_cls", _QUERY_STEP_CLASSES)
+def test_search_steps_search_for_the_text_of_a_numeric_query(step_cls, value):
+    """The CLI parses ``query=0`` as a number; the search steps still search for its text."""
 
     async def run():
-        for make_step in (
-            lambda store: SearchStep(file_store=store, expand_links=False),
-            lambda store: VectorSearchStep(file_store=store),
-            lambda store: Bm25SearchStep(file_store=store),
-            lambda store: NodeSearchStep(file_store=store),
-        ):
-            store = FakeSearchStore(
-                vector_results=[_chunk("hit", "digest/a.md", "Error 404 from the gateway", "vector", 0.9)],
-                keyword_results=[_chunk("hit", "digest/a.md", "Error 404 from the gateway", "keyword", 4.0)],
-            )
-            resp = await make_step(store)(RuntimeContext(query=404, limit=5))
+        store = FakeSearchStore(
+            vector_results=[_chunk("hit", "digest/a.md", f"Error {value} from the gateway", "vector", 0.9)],
+            keyword_results=[_chunk("hit", "digest/a.md", f"Error {value} from the gateway", "keyword", 4.0)],
+        )
+        query = parse_kwargs(f"query={value}")["query"]
+        resp = await step_cls(file_store=store)(RuntimeContext(query=query, limit=5))
 
-            assert resp.success is True
-            assert store.calls and {call[1] for call in store.calls} == {"404"}
-            assert "digest/a.md" in resp.answer
+        assert resp.success is True
+        assert store.calls and {call[1] for call in store.calls} == {value}
+        assert "digest/a.md" in resp.answer
 
     asyncio.run(run())
 

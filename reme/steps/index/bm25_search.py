@@ -23,7 +23,8 @@ class Bm25SearchStep(_ToolContextDedupMixin, BaseStep):
 
     async def execute(self):
         assert self.context is not None
-        query: str = str(self.context.get("query") or "").strip()
+        raw_query = self.context.get("query")
+        query: str = "" if raw_query is None else str(raw_query).strip()
         limit: int = int(self.context.get("limit") or 5)
         min_score: float = float(self.context.get("min_score") or 0.0)
         tool_context_id: str = (self.context.get("tool_context_id", "") or "").strip()

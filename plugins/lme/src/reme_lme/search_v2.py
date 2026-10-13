@@ -99,7 +99,8 @@ class SearchV2Step(_ToolContextDedupMixin, BaseStep):
 
     async def execute(self):
         assert self.context is not None
-        query: str = (self.context.get("query", "") or "").strip()
+        raw_query = self.context.get("query")
+        query: str = "" if raw_query is None else str(raw_query).strip()
         limit: int = int(self.context.get("limit") or _default_limit())
         min_score: float = float(self.context.get("min_score") or 0.0)
         # vector_weight: prefer agent-supplied context value; fallback to YAML kwargs / default 0.7.
