@@ -23,17 +23,18 @@ async def test_reindex_step_delegates_scope(scope):
     store.reindex.assert_awaited_once_with(scope)
     store.clear.assert_not_called()
     assert response.metadata == {"indexed": 3, "scope": scope}
+    assert response.answer == f"Reindexed scope={scope}: 3 indexed"
 
 
 @pytest.mark.asyncio
 async def test_reindex_step_delegates_all_once():
-    """The step delegates the composite scope exactly once."""
+    """The step delegates the composite scope once; the answer summarizes it."""
     store = LocalFileStore(name="test_reindex_all", embedding_store="")
     details = {
         "scope": "all",
-        "bm25": {"scope": "bm25", "indexed": 3},
-        "embedding": {"scope": "embedding", "indexed": 3},
-        "tag": {"scope": "tag", "indexed": 3},
+        "bm25": {"scope": "bm25", "indexed": 7},
+        "embedding": {"scope": "embedding", "indexed": 5},
+        "tag": {"scope": "tag", "indexed": 2},
     }
     store.reindex = AsyncMock(return_value=details)
 
@@ -41,6 +42,7 @@ async def test_reindex_step_delegates_all_once():
 
     store.reindex.assert_awaited_once_with("all")
     assert response.metadata == details
+    assert response.answer == "Reindexed scope=all: bm25=7, embedding=5, tag=2"
 
 
 def test_reindex_job_schema_exposes_tag_scope():
