@@ -1,53 +1,74 @@
 import z from "@deepseek-ai/schemastery";
 
-import { nextDailyRun, validTimezone } from "./scheduling.js";
-import type { ReMeConfig, ReMeConfigInput, ReMeSettings } from "./types.js";
+import { validTimezone, validateDailyCron } from "./scheduling.js";
+import type { ReMeConfig, ReMeConfigInput } from "./types.js";
 
-/** Durable DSH settings section owned by the ReMe integration. */
-export const REME_SETTINGS_NAMESPACE = "reme-memory";
+const DEFAULT_ENDPOINT =
+  process.env.REME_URL ||
+  `http://${process.env.REME_HOST || "127.0.0.1"}:${
+    process.env.REME_PORT || "2333"
+  }`;
+const DEFAULT_DREAM_CRON = process.env.REME_DSH_DREAM_CRON || "0 23 * * *";
 
 export const Config = z.object({
-  endpoint: z.string().description("ReMe HTTP service URL"),
-  requestTimeoutMs: z.natural().min(1000).max(120000).default(10000),
-  backgroundTimeoutMs: z.natural().min(1000).max(3600000).default(3600000),
-  shutdownTimeoutMs: z.natural().min(100).max(60000).default(5000),
-  autoMemoryEnabled: z.boolean().default(true),
-  autoMemoryInterval: z.natural().min(1).max(1000).default(5),
-  autoDreamEnabled: z.boolean().default(true),
-  dreamCron: z.string().description("Daily cron in the workspace timezone"),
-  dreamHint: z.string().default(""),
+  endpoint: checkedString(
+    DEFAULT_ENDPOINT,
+    "ReMe HTTP service URL",
+    assertEndpoint,
+  ),
+  requestTimeoutMs: z.natural().min(1000).max(120000).default(10000).volatile(),
+  backgroundTimeoutMs: z
+    .natural()
+    .min(1000)
+    .max(3600000)
+    .default(3600000)
+    .volatile(),
+  shutdownTimeoutMs: z.natural().min(100).max(60000).default(5000).volatile(),
+  autoMemoryEnabled: z.boolean().default(true).volatile(),
+  autoMemoryInterval: z.natural().min(1).max(1000).default(5).volatile(),
+  autoDreamEnabled: z.boolean().default(true).volatile(),
+  dreamCron: checkedString(
+    DEFAULT_DREAM_CRON,
+    "Daily cron in the workspace timezone",
+    validateDailyCron,
+  ),
+  dreamHint: z.string().default("").volatile(),
   dreamIntervalMs: z.natural().max(2147483647).default(0),
-  rootAgentsOnly: z.boolean().default(true),
-  language: z.union(["en", "zh"]).default("en"),
-  searchLimit: z.natural().min(1).max(50).default(5),
-  timezone: z
-    .string()
-    .default("Asia/Shanghai")
-    .description("IANA timezone matching the ReMe workspace"),
+  rootAgentsOnly: z.boolean().default(true).volatile(),
+  language: z.union(["en", "zh"]).default("en").volatile(),
+  searchLimit: z.natural().min(1).max(50).default(5).volatile(),
+  timezone: checkedString(
+    "Asia/Shanghai",
+    "IANA timezone matching the ReMe workspace",
+    (value) => {
+      if (!validTimezone(value))
+        throw new TypeError(`Invalid ReMe timezone: ${value}`);
+    },
+  ),
 });
 
-/** User-editable subset of the DSH integration configuration. */
-export const SettingsConfig: z<ReMeSettings> = z.object({
-  endpoint: z.string().required().description("ReMe HTTP service URL"),
-  requestTimeoutMs: z.natural().min(1000).max(120000).default(10000),
-  backgroundTimeoutMs: z.natural().min(1000).max(3600000).default(3600000),
-  shutdownTimeoutMs: z.natural().min(100).max(60000).default(5000),
-  autoMemoryEnabled: z.boolean().default(true),
-  autoMemoryInterval: z.natural().min(1).max(1000).default(5),
-  autoDreamEnabled: z.boolean().default(true),
-  dreamCron: z
+function checkedString(
+  defaultValue: string,
+  description: string,
+  check: (value: string) => void,
+) {
+  const form = z
     .string()
-    .required()
-    .description("Daily cron in the workspace timezone"),
-  dreamHint: z.string().default(""),
-  rootAgentsOnly: z.boolean().default(true),
-  language: z.union(["en", "zh"]).default("en"),
-  searchLimit: z.natural().min(1).max(50).default(5),
-  timezone: z
-    .string()
-    .default("Asia/Shanghai")
-    .description("IANA timezone matching the ReMe workspace"),
-});
+    .description(description)
+    .default(defaultValue)
+    .volatile();
+  const host = z
+    .transform(z.string(), (value) => {
+      check(value);
+      return value;
+    })
+    .description(description)
+    .default(defaultValue)
+    .volatile();
+  // DSH sends Config.toJSON() to the browser; keep Host validation while serializing a plain form field.
+  host.toJSON = () => form.toJSON();
+  return host;
+}
 
 const DEFAULT_CONFIG: Readonly<ReMeConfig> = Object.freeze({
   endpoint: "http://127.0.0.1:2333",
@@ -70,6 +91,17 @@ export function resolveConfig(
   input: ReMeConfigInput = {},
   env: Record<string, string | undefined> = process.env,
 ): ReMeConfig {
+  input = Object.fromEntries(
+    Object.entries(input).map(([key, value]) => [
+      key,
+      value !== null &&
+      typeof value === "object" &&
+      "get" in value &&
+      typeof value.get === "function"
+        ? value.get()
+        : value,
+    ]),
+  ) as ReMeConfigInput;
   const unknownKeys = Object.keys(input).filter(
     (key) => !(key in DEFAULT_CONFIG),
   );
@@ -126,31 +158,8 @@ export function resolveConfig(
   config.language = config.language === "zh" ? "zh" : "en";
   if (!validTimezone(config.timezone))
     throw new TypeError(`Invalid ReMe timezone: ${String(config.timezone)}`);
-  nextDailyRun(config.dreamCron, config.timezone);
+  validateDailyCron(config.dreamCron);
   return config;
-}
-
-/** Project the full plugin configuration into its user-editable settings section. */
-export function settingsFrom(config: ReMeConfig): ReMeSettings {
-  const { dreamIntervalMs: _dreamIntervalMs, ...settings } = config;
-  return settings;
-}
-
-/** Layer current DSH user settings over fixed deployment-only values. */
-export function mergeSettings(
-  base: ReMeConfig,
-  settings: ReMeSettings,
-): ReMeConfig {
-  return { ...base, ...settings };
-}
-
-/** Reject a settings section the integration cannot use. */
-export function validateSettings(settings: ReMeSettings): void {
-  assertEndpoint(settings.endpoint);
-  if (!validTimezone(settings.timezone)) {
-    throw new TypeError(`Invalid ReMe timezone: ${String(settings.timezone)}`);
-  }
-  nextDailyRun(settings.dreamCron, settings.timezone);
 }
 
 function assertEndpoint(value: string): void {

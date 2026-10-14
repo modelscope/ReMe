@@ -1,7 +1,9 @@
 """Shared lifecycle and helpers for automatic resource processors."""
 
+import asyncio
 import hashlib
 import re
+import uuid
 from abc import abstractmethod
 from collections.abc import Mapping
 from contextlib import contextmanager
@@ -10,13 +12,14 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 import frontmatter
+from agentscope.message import DataBlock, TextBlock, UserMsg
 from watchfiles import Change
 
 from ...components.runtime_context import RuntimeContext
 from ..base_step import BaseStep
 from ..file_io import refresh_day_index, validate_filename_component
 from ..file_io._path import is_relative_to, resolve_path
-from ._evolve import now
+from ._evolve import agent_reply_result_text, now
 
 _SOURCE_RESOURCE_KEY = "source_resource"
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -69,6 +72,11 @@ class _ResourceNoteState:
 def _compute_note_stem(filename: str) -> str:
     """Return the daily note stem for a resource filename."""
     return PurePosixPath(filename).stem
+
+
+def _compute_agent_session_id(path: str) -> str:
+    """Return a stable UUID session id for agent backends."""
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, path))
 
 
 def _parse_resource_path(file_path: str, resource_dir: str) -> tuple[str, str]:
@@ -141,6 +149,11 @@ class BaseAutoResourceStep(BaseStep):
     resource_fallback = False
     resource_suffixes: frozenset[str] = frozenset()
     router_inherit_keys = frozenset({"file_store", "language"})
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.create_tools: list[str] = ["write"]
+        self.update_tools: list[str] = ["read", "edit", "frontmatter_update", "write"]
 
     @classmethod
     def matches_change(cls, change: Mapping[str, Any]) -> bool:
@@ -233,11 +246,16 @@ class BaseAutoResourceStep(BaseStep):
         return f"[[{file_path}]]"
 
     def _frontmatter(self, path: str) -> dict:
-        post = frontmatter.loads((self.file_store.workspace_path / path).read_text(encoding="utf-8"))
+        data = self._note_bytes(path)
+        if data is None:
+            raise FileNotFoundError(path)
+        post = frontmatter.loads(data.decode("utf-8"))
         return dict(post.metadata or {})
 
     def _note_bytes(self, path: str) -> bytes | None:
-        note_path = self.file_store.workspace_path / path
+        note_path, error = resolve_path(self.file_store.workspace_path, path)
+        if error or note_path is None:
+            raise ValueError(f"invalid resource note path {path!r}: {error}")
         if not note_path.is_file():
             return None
         return note_path.read_bytes()
@@ -348,6 +366,121 @@ class BaseAutoResourceStep(BaseStep):
         _, note_path = self._unique_daily_note_path(day, note_stem, file_path, current_path="")
         return _ResourceNoteState(path=note_path, created=True, before_bytes=None)
 
+    async def _interpret_resource(
+        self,
+        file_path: str,
+        day: str,
+        note_stem: str,
+        added: bool,
+        file_content: str,
+        *,
+        input_blocks: list[TextBlock | DataBlock] | None = None,
+        resource_instructions: str = "",
+        note_metadata: dict | None = None,
+        reply_kwargs: dict | None = None,
+    ) -> str | None:
+        """Run the same note-writing agent for text and native multimodal inputs."""
+        state = await self._prepare_resource_note(day, file_path, note_stem)
+        prompt_name = "user_message_create" if state.created else "user_message_update"
+        prompt = self.prompt_format(
+            prompt_name,
+            workspace_dir=str(self.workspace_path),
+            note_path=state.path,
+            note_stem=note_stem,
+            file_path=file_path,
+            source_resource=self._source_resource_link(file_path),
+            file_content=file_content,
+            resource_instructions=f"\n\n{resource_instructions}" if resource_instructions else "",
+            date=day,
+        )
+        if resource_instructions and "{resource_instructions}" not in self.get_prompt(prompt_name):
+            prompt = f"{prompt}\n\n{resource_instructions}"
+        inputs = UserMsg(name="user", content=[*input_blocks, TextBlock(text=prompt)]) if input_blocks else prompt
+        self.logger.info(f"[{self.name}] agent start file_path={file_path} note_path={state.path}")
+        agent_kwargs = {
+            "system_prompt": self.prompt_format("system_prompt"),
+            "job_tools": self.create_tools if state.created else self.update_tools,
+            **(reply_kwargs or {}),
+        }
+        if "session_id" not in agent_kwargs:
+            agent_kwargs["session_id"] = _compute_agent_session_id(file_path)
+        # Consume the resource-only option before forwarding kwargs to the wrapper.
+        if agent_kwargs.pop("scope_note_tools", False):
+            # Bind the final allocated path last, never a path supplied by the agent.
+            agent_kwargs["injected_job_kwargs"] = {
+                **(agent_kwargs.get("injected_job_kwargs") or {}),
+                "file_store": self.file_store.name,
+                "_allowed_paths": [state.path],
+            }
+        try:
+            result = await self.agent_wrapper.reply(inputs, **agent_kwargs)
+        except (Exception, asyncio.CancelledError):
+            self.context.response.success = False
+            try:
+                await self._recover_resource_note(state, day, file_path, note_stem, added, note_metadata)
+            except Exception:
+                self.logger.exception(f"[{self.name}] failed to finalize resource after agent error: {file_path}")
+            raise
+        note_path = await self._finalize_resource_note(
+            state,
+            day,
+            file_path,
+            note_stem,
+            added,
+            metadata=note_metadata,
+        )
+        self.context.response.success = True
+        self.context.response.answer = agent_reply_result_text(result)
+        if note_path is None:
+            self.logger.info(f"[{self.name}] done without note file_path={file_path} modified=False")
+            return None
+        session_id = agent_kwargs.get("session_id")
+        if session_id is None and isinstance(result, Mapping):
+            session_id = result.get("session_id")
+        if session_id:
+            self.context.response.metadata["agent_session_id"] = session_id
+        self.logger.info(
+            f"[{self.name}] agent done file_path={file_path} modified={self.context.response.metadata['modified']}",
+        )
+        return note_path
+
+    async def _recover_resource_note(
+        self,
+        state: _ResourceNoteState,
+        day: str,
+        file_path: str,
+        note_stem: str,
+        added: bool,
+        metadata: dict | None,
+    ) -> None:
+        """Finalize only a changed, explicitly owned note, without claiming another file."""
+        after_bytes = self._note_bytes(state.path)
+        modified = after_bytes != state.before_bytes
+        self.context.response.metadata.update(
+            {
+                "path": state.path,
+                "created": state.created and after_bytes is not None,
+                "modified": modified,
+            },
+        )
+        if (
+            modified
+            and after_bytes is not None
+            and str(self._frontmatter(state.path).get(_SOURCE_RESOURCE_KEY, "")).strip()
+            == self._source_resource_link(file_path)
+        ):
+            await self._finalize_resource_note(
+                state,
+                day,
+                file_path,
+                note_stem,
+                added,
+                metadata=metadata,
+            )
+
+    def _validate_resource_note(self, path: str, file_path: str, before_bytes: bytes | None) -> None:
+        """Optional modality-specific acceptance check; text keeps its existing behavior."""
+
     async def _resolve_written_note(
         self,
         state: _ResourceNoteState,
@@ -375,8 +508,8 @@ class BaseAutoResourceStep(BaseStep):
             raise RuntimeError(f"resource note path is owned by another source: {state.path}")
         return state.path
 
-    async def _ensure_resource_frontmatter(self, path: str, file_path: str) -> None:
-        metadata = {_SOURCE_RESOURCE_KEY: self._source_resource_link(file_path)}
+    async def _ensure_resource_frontmatter(self, path: str, file_path: str, metadata: dict | None = None) -> None:
+        metadata = {**(metadata or {}), _SOURCE_RESOURCE_KEY: self._source_resource_link(file_path)}
         current = self._frontmatter(path)
         if all(current.get(key) == value for key, value in metadata.items()):
             return
@@ -461,6 +594,8 @@ class BaseAutoResourceStep(BaseStep):
         file_path: str,
         note_stem: str,
         added: bool,
+        *,
+        metadata: dict | None = None,
     ) -> str | None:
         """Resolve, source-link, rename, index, and report one processor write."""
         staged_bytes = self._note_bytes(state.path)
@@ -478,7 +613,7 @@ class BaseAutoResourceStep(BaseStep):
 
         modified = self._note_modified(state.path, state.before_bytes, note_path)
         self.context.response.metadata.update({"path": note_path, "created": state.created, "modified": modified})
-        await self._ensure_resource_frontmatter(note_path, file_path)
+        await self._ensure_resource_frontmatter(note_path, file_path, metadata)
         note_path = await self._rename_from_frontmatter_name(
             note_path,
             day,
@@ -500,6 +635,7 @@ class BaseAutoResourceStep(BaseStep):
                 "index": index_payload,
             },
         )
+        self._validate_resource_note(note_path, file_path, state.before_bytes)
         return note_path
 
     async def _handle_delete(self, file_path: str, date_str: str, note_stem: str) -> None:
@@ -556,6 +692,11 @@ class BaseAutoResourceStep(BaseStep):
     ) -> None:
         """Interpret one added or modified resource into its daily note."""
 
+    def _skip_resource_change(self, file_path: str) -> bool:
+        """Allow a processor to disable its lifecycle after common input validation."""
+        del file_path
+        return False
+
     async def _handle_change(self, file_path: str, raw_change) -> dict:
         assert self.context is not None
         self._resource_lookup = None
@@ -587,6 +728,15 @@ class BaseAutoResourceStep(BaseStep):
             return {
                 "success": False,
                 "path": str(file_path),
+                "change": change.name,
+                "answer": self.context.response.answer,
+                "metadata": dict(self.context.response.metadata),
+            }
+
+        if self._skip_resource_change(file_path):
+            return {
+                "success": self.context.response.success,
+                "path": file_path,
                 "change": change.name,
                 "answer": self.context.response.answer,
                 "metadata": dict(self.context.response.metadata),

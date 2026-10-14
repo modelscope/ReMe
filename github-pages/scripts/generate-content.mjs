@@ -11,6 +11,9 @@ const externalDocuments = [
   ["zh/overview.md", "README_ZH.md"],
   ["en/overview.md", "README.md"],
   ["en/integrations/claude-code.md", "integrations/claude_code/README.md"],
+  ["zh/integrations/claude-code.md", "integrations/claude_code/README_ZH.md"],
+  ["en/integrations/codex.md", "integrations/codex/README.md"],
+  ["zh/integrations/codex.md", "integrations/codex/README_ZH.md"],
   ["en/integrations/hermes.md", "integrations/hermes_agent/README.md"],
   ["zh/integrations/dsh.md", "integrations/dsh/README_ZH.md"],
   ["en/integrations/dsh.md", "integrations/dsh/README.md"],
@@ -51,6 +54,24 @@ const externalDocumentRewrites = {
     ['src="docs/figure/', 'src="../figure/'],
     ["(docs/zh/", "(./"],
   ],
+  "integrations/claude_code/README.md": [
+    ["(./README_ZH.md)", "(/zh/integrations/claude-code)"],
+  ],
+  "integrations/claude_code/README_ZH.md": [
+    ["(./README.md)", "(/en/integrations/claude-code)"],
+  ],
+  "integrations/codex/README.md": [
+    ["(./README_ZH.md)", "(/zh/integrations/codex)"],
+    ["(../../docs/en/configuration.md)", "(/en/configuration)"],
+    ["(./figures/README.md)", "(https://github.com/agentscope-ai/ReMe/blob/main/integrations/codex/figures/README.md)"],
+    ["(./figures/", "(/figures/codex/"],
+  ],
+  "integrations/codex/README_ZH.md": [
+    ["(./README.md)", "(/en/integrations/codex)"],
+    ["(../../docs/zh/configuration.md)", "(/zh/configuration)"],
+    ["(./figures/README.md)", "(https://github.com/agentscope-ai/ReMe/blob/main/integrations/codex/figures/README.md)"],
+    ["(./figures/", "(/figures/codex/"],
+  ],
   "integrations/dsh/README.md": [
     ["(./README_ZH.md)", "(/zh/integrations/dsh)"],
     ["(./figures/", "(/figures/dsh/"],
@@ -60,9 +81,15 @@ const externalDocumentRewrites = {
   ],
   "integrations/openclaw/README.md": [
     ["(./README_ZH.md)", "(/zh/integrations/openclaw)"],
+    ["(./figures/", "(/figures/openclaw/"],
   ],
   "integrations/openclaw/README_ZH.md": [
     ["(./README.md)", "(/en/integrations/openclaw)"],
+    ["(./figures/", "(/figures/openclaw/"],
+  ],
+  "integrations/hermes_agent/README.md": [
+    ["(README_ZH.md)", "(/zh/integrations/hermes)"],
+    ["(figures/", "(/figures/hermes/"],
   ],
   "reme_studio/README.md": [
     ["(./README_ZH.md)", "(/zh/workspace/studio)"],
@@ -215,6 +242,9 @@ await cp(path.join(repoDir, "docs"), outputDir, {
   filter: (source) => ![".DS_Store", "plans"].includes(path.basename(source)),
 });
 await cp(path.join(siteDir, "public", "CNAME"), path.join(outputDir, "public", "CNAME"));
+await cp(path.join(siteDir, "public", "ecosystem"), path.join(outputDir, "public", "ecosystem"), {
+  recursive: true,
+});
 await cp(path.join(repoDir, "docs/figure/reme-icon.svg"), path.join(outputDir, "public", "reme-icon.svg"));
 await cp(path.join(repoDir, "docs/figure/reme-logo-fashion.svg"), path.join(outputDir, "public", "reme-logo.svg"));
 
@@ -229,7 +259,17 @@ for (const [destination, source] of externalDocuments) {
   sourceMap[destination] = source;
 }
 
+await cp(path.join(repoDir, "integrations/codex/figures"), path.join(outputDir, "public/figures/codex"), {
+  recursive: true,
+  filter: (source) => !source.endsWith(".md"),
+});
 await cp(path.join(repoDir, "integrations/dsh/figures"), path.join(outputDir, "public/figures/dsh"), {
+  recursive: true,
+});
+await cp(path.join(repoDir, "integrations/openclaw/figures"), path.join(outputDir, "public/figures/openclaw"), {
+  recursive: true,
+});
+await cp(path.join(repoDir, "integrations/hermes_agent/figures"), path.join(outputDir, "public/figures/hermes"), {
   recursive: true,
 });
 await cp(path.join(repoDir, "reme_studio/figures"), path.join(outputDir, "public/figures/studio"), {

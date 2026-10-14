@@ -55,9 +55,44 @@ workspace/
 
 ## 图像资源
 
-图像文件的解读方式相同：视觉模型写入一张 caption 卡片并链接原图。卡片正文以 `![[resource/...]]` 嵌入链接开头，frontmatter 携带 `kind: image` 与 `media_type`，文本检索因此可以通过 caption 命中图像内容。
+文本和图像共用 agent-wrapper 与笔记写入工具；图片输入只是在理解提示词旁加入原生 AgentScope 图像块。
+Agent 写入一张 caption 卡片并链接原图。卡片正文以 `![[resource/...]]` 嵌入链接开头，frontmatter 携带
+`kind: image` 与 `media_type`，文本检索因此可以通过 caption 命中图像内容。
 
-视觉模型优先使用配置中的 `as_llm` `vision` 实例，未配置时回退到 `default` 实例——默认模型具备视觉能力时无需额外配置。宽或高超过 2048px 的图像会降采样，格式不被模型接受的图像会转码；这些处理只发生在请求前的内存副本中，`resource/` 下的原图文件不会被修改。图像变更时卡片原地重写；图像删除时卡片随之删除。
+图像处理默认开启（`include_images=true`），需要绑定兼容模型与 formatter 的 AgentScope wrapper。
+通过 `components.agent_wrapper.<name>.as_llm` 配置模型，在资源 Step 上用 `agent_wrapper` 选择对应 wrapper。
+原图片 Step 的 `as_llm` 覆盖项和自动选择 `as_llm.vision` 的逻辑由此绑定方式替代。
+不再单独调用 caption 模型或执行额外的 schema 提取；Agent 失败后也不以纯文本重跑。
+这是一次 Agent 工作流，工具调用可能带来多轮模型请求。
+
+每次解读图片都会新建会话，处理记录可通过返回的 `agent_session_id` 查找。更新同一张图片时，仍然修改原来的卡片。
+卡片正文应包含原图引用和 `## Caption` 下的描述或文字转录，不能留空或直接写入 JSON。
+`status` 留给后续流程填写，更新卡片时保留原值。
+
+自定义图片提示词使用 `prompt_dict.resource_instructions`，中文使用 `resource_instructions_zh`；旧配置中的
+`user_message` / `user_message_zh` 需相应改名。公共创建或更新模板通过
+`{resource_instructions}` 插入图片要求；旧模板没有该占位符时，图片要求会追加到末尾。
+
+在 `auto_resource` 调用或 Job 默认值中设置 `include_images=false`，会跳过图片的**全部事件，包括删除**。
+调用参数优先于 Job 默认值，两者都未设置时默认开启。监听任务可设置 `jobs.resource_watch_loop.include_images=false`，
+手动任务默认值可设置 `jobs.auto_resource.include_images=false`。图片子类通过现有逐资源结果和 warning 日志说明跳过原因，
+不影响文本处理。已有图片卡片保持不变，即使原图被删除也不清理。重新开启不会自动补处理旧事件，需要显式把相关路径再次提交给
+`auto_resource`。尊重 wrapper 配置的图片数量上限，每次资源调用至少需要容纳一张图片，不会自动提高上限。
+
+在启动常驻服务时配置 wrapper，例如将每个 Agent 上下文的图片上限设为一张：
+
+```bash
+reme start components.agent_wrapper.default.context_config.max_image_num=1
+```
+
+监听任务会自动处理资源变更。如需显式重新处理已存在的 `resource/photo.png`，在另一个终端使用同一 workspace 调用客户端：
+
+```bash
+reme auto_resource include_images=true changes='[{"path":"resource/photo.png","change":"modified"}]'
+```
+
+宽或高超过 2048px 的图像会降采样，格式不被模型接受的图像会转码；这些处理只发生在请求前的内存副本中，
+`resource/` 下的原图文件不会被修改。图像处理开启时，图像变更会原地更新卡片，图像删除会清理关联卡片。
 
 在完整解码前，系统会检查图像尺寸，默认上限为 40,000,000 像素；超限图像或 Pillow
 decompression-bomb 警告只会导致当前资源失败。缩放或转码前，会按 EXIF orientation 校正仅用于请求的内存副本。
@@ -85,8 +120,12 @@ daily/2026-06-20/市场报告要点.md
 source_resource: "[[resource/2026-06-20/market-report.md]]"
 ```
 
-如果资源文件更新，Auto Resource 只会通过精确匹配的 `source_resource` 找到对应卡片并更新；如果资源文件删除，也只会清理显式关联的
+对于已启用处理的资源，文件更新时 Auto Resource 只会通过精确匹配的 `source_resource` 找到对应卡片并更新；文件删除时也只会清理显式关联的
 daily note。缺少该来源标记的同 stem 笔记会被视为用户笔记并保留，新资源卡片则会使用无冲突路径。
+
+处理失败时，`modified` 会标明卡片文件有没有变化。Agent 写完文件后再报错或被取消，已写内容仍然保留；
+系统会尝试补齐通过 `source_resource` 关联的卡片元数据，并更新当天索引，调用仍按原来的错误或取消结束。
+图片笔记未通过格式检查时也会报错，已写内容同样保留。失败的调用不会自动重试。
 
 ## 当天索引
 

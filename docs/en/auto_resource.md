@@ -61,19 +61,57 @@ without changing the router.
 
 ## Image Resources
 
-Image files are interpreted the same way: a vision model writes a caption card that links back to the original image.
+Text and image resources share the same agent-wrapper and note-writing tools. Image inputs add a native AgentScope
+image block alongside the interpretation instructions; the agent writes a caption card linked to the original image.
 The card body starts with an `![[resource/...]]` embed link and the frontmatter carries `kind: image` and `media_type`,
 so text search reaches image content through the caption.
 
-The vision model is the `vision` instance of `as_llm` when configured, and otherwise falls back to the `default`
-instance — a multimodal default model needs no extra configuration. Images wider or taller than 2048px are downscaled,
+Image processing is enabled by default (`include_images=true`) and requires an AgentScope wrapper bound to a compatible
+model and formatter. Configure the model through `components.agent_wrapper.<name>.as_llm`, selecting the wrapper with
+`agent_wrapper` on the resource Step. The former image-Step `as_llm` override and automatic `as_llm.vision` selection
+are replaced by that binding. There is no separate caption model, schema-extraction call, or text-only retry after an
+agent failure. An agent workflow can make multiple model requests while using its tools.
+
+Each image interpretation starts a new session. Use the returned `agent_session_id` to find its processing record;
+reprocessing the same image still updates the original card. The body should contain the image embed followed by a
+description or transcription under `## Caption`, not an empty caption or a JSON response. Leave `status` to later
+processing steps and keep its existing value when updating the card.
+
+Customize image instructions with `prompt_dict.resource_instructions` (`resource_instructions_zh` for Chinese).
+Rename existing `user_message` / `user_message_zh` settings accordingly.
+Shared create/update templates insert these instructions at `{resource_instructions}`; older templates
+without the placeholder receive them at the end.
+
+Set `include_images=false` on an `auto_resource` call or as a Job default to skip **all** image events, including
+deletions. Call-time values override Job defaults; when neither is set, image processing is enabled. For the watcher, use
+`jobs.resource_watch_loop.include_images=false`; for manual calls, use `jobs.auto_resource.include_images=false`.
+The image processor reports each skip in the existing result and warning log; text processing is unchanged. Existing
+image cards are left untouched, even if their source image is deleted. Re-enabling images does not replay skipped
+events; explicitly submit the affected paths to `auto_resource` when compensation is needed. The wrapper's configured
+image-count limit is respected and must allow at least one image per resource call; it is not increased automatically.
+
+Configure the wrapper when starting the persistent service. For example, to allow one image per agent context:
+
+```bash
+reme start components.agent_wrapper.default.context_config.max_image_num=1
+```
+
+The watcher processes resource changes automatically. To explicitly reprocess an existing `resource/photo.png`, run
+the client in another terminal using the same workspace:
+
+```bash
+reme auto_resource include_images=true changes='[{"path":"resource/photo.png","change":"modified"}]'
+```
+
+Images wider or taller than 2048px are downscaled,
 and provider-unfriendly formats are re-encoded, in memory for the request only; the original file under
 `resource/` is never modified. Before a full decode, image dimensions are checked against a default limit of 40,000,000
 pixels; images over the limit and Pillow decompression-bomb warnings fail only that resource. EXIF orientation is
 applied to the in-memory request copy before resizing or conversion. Oversized JPEGs first use decoder-level
 downsampling, followed by a final thumbnail pass when needed. The VLM request MIME and the card's frontmatter
 `media_type` use the format Pillow detects from the image bytes, rather than trusting the filename extension. When an
-image changes, its card is rewritten in place; when the image is deleted, the card is removed with it.
+image changes, its card is updated in place; when the image is deleted, the card is removed with it, provided image
+processing is enabled.
 
 Image preprocessing uses Pillow from the `core` extra. HEIC resources additionally require the optional
 `image-heif` extra: `pip install "reme-ai[image-heif]"`. Other supported image formats do not load or require the HEIF
@@ -97,8 +135,13 @@ source_resource: "[[resource/2026-06-20/market-report.md]]"
 ```
 
 When a resource changes, Auto Resource finds and updates the corresponding card through an exact `source_resource`
-match. When a resource is deleted, only the explicitly linked daily note is removed. A same-stem note without that
+match. When an enabled resource is deleted, only the explicitly linked daily note is removed. A same-stem note without that
 provenance marker is treated as user-owned and left untouched; new resource cards use a collision-free path instead.
+
+A failed call may still have changed a card; `modified` records whether the file changed. If the agent writes the card
+and then fails or is cancelled, the written content stays on disk. ReMe tries to complete metadata and update the day's
+index for the card linked through `source_resource`, while preserving the original error or cancellation. A failed
+image-note format check also leaves the written content in place. Failed calls are not retried automatically.
 
 ## Daily Index
 

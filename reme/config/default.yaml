@@ -182,6 +182,10 @@ jobs:
         memory_hint:
           type: string
           description: "optional hint"
+        include_images:
+          type: boolean
+          description: "Use session images with a vision-capable AgentScope model; save Base64 originals and cite sources"
+          default: false
         date:
           type: string
           description: "YYYY-MM-DD daily note date; empty = infer from message timestamps or today"
@@ -216,6 +220,10 @@ jobs:
     parameters:
       type: object
       properties:
+        include_images:
+          type: boolean
+          description: "Process image resource changes with a vision-capable AgentScope wrapper; false skips all image events, including deletes"
+          default: true
         changes:
           type: array
           description: "resource change batch, each item has path/file_path and change"
@@ -850,17 +858,6 @@ components:
       parameters:
         max_tokens: 65536
         thinking_enable: false
-
-    # Optional dedicated vision model for image resources (auto_image_resource_step).
-    # Falls back to the "default" instance above when absent; uncomment to
-    # decouple the vision model from the main LLM.
-    # vision:
-    #   backend: ${VLM_BACKEND:-openai}
-    #   model: ${VLM_MODEL_NAME:-}
-    #   stream: false
-    #   credential:
-    #     api_key: ${VLM_API_KEY:-}
-    #     base_url: ${VLM_BASE_URL:-}
 
   agent_wrapper:
     default:

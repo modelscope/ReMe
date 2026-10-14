@@ -1,6 +1,32 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { apply } from "../dist/index.js";
+import { apply, Config } from "../dist/index.js";
+import { hasGuidance } from "../dist/guidance.js";
+
+test("recognizes guidance already stored by the previous DSH plugin", () => {
+  const legacy = {
+    role: "user",
+    source: { kind: "plugin", plugin: "reme-memory", form: "instructions" },
+  };
+  assert.equal(
+    hasGuidance({ events: [{ type: "user/message", data: legacy }] }),
+    true,
+  );
+  assert.equal(hasGuidance({ events: [] }, [legacy]), true);
+  assert.equal(
+    hasGuidance({
+      events: [
+        {
+          type: "user/message",
+          data: {
+            source: { kind: "plugin", plugin: "other", form: "instructions" },
+          },
+        },
+      ],
+    }),
+    false,
+  );
+});
 
 test("composes root-agent guidance and reme_search on supported DSH releases", async () => {
   const handlers = new Map();
@@ -59,13 +85,12 @@ test("composes root-agent guidance and reme_search on supported DSH releases", a
       },
     },
   };
-  handlers.get("agent/session-start")({ agent, source: "startup" });
+  handlers.get("agent/created")({ agent, source: "startup" });
   assert.equal(injected.length, 1);
-  assert.equal(injected[0].source.kind, "plugin");
-  assert.equal(injected[0].source.plugin, "reme-memory");
+  assert.equal(injected[0].source.kind, "reme-memory");
   assert.match(injected[0].content[0].text, /长期记忆/);
 
-  handlers.get("agent/session-start")({ agent, source: "resume" });
+  handlers.get("agent/created")({ agent, source: "resume" });
   assert.equal(injected.length, 1);
 
   await Promise.all(agentCleanups.map((cleanup) => cleanup()));
@@ -95,7 +120,7 @@ test("keeps prompt injection and capture out of subagents by default", async () 
   };
   apply(ctx, { autoDreamEnabled: false });
   let injected = false;
-  handlers.get("agent/session-start")({
+  handlers.get("agent/created")({
     agent: {
       status: "idle",
       session: { id: "child", header: { origin: "subagent" }, events: [] },
@@ -113,10 +138,8 @@ test("keeps prompt injection and capture out of subagents by default", async () 
   assert.equal(injected, false);
 });
 
-test("registers a ReMe settings namespace and reads changed values for new sessions", () => {
+test("reads live DSH configuration for new sessions", async () => {
   const handlers = new Map();
-  let section;
-  let notify;
   const ctx = {
     fiber: { state: 0 },
     logger: { debug() {}, warn() {}, log() {} },
@@ -135,31 +158,16 @@ test("registers a ReMe settings namespace and reads changed values for new sessi
     on(name, handler) {
       handlers.set(name, handler);
     },
-    inject(names, callback) {
-      if (!names.includes("settings")) return;
-      const settingsCtx = {
-        settings: {
-          installSection(owner, ns, _schema, base, hooks) {
-            assert.equal(owner, ctx);
-            section = base;
-            assert.equal(String(ns), "reme-memory");
-            hooks.setSource(() => section);
-            notify = hooks.onChange;
-          },
-        },
-      };
-      callback(settingsCtx);
-    },
   };
-  apply(ctx, {
+  const config = await Config["~standard"].validate({
     autoMemoryEnabled: false,
     autoDreamEnabled: false,
-    language: "en",
+    language: "zh",
   });
-  section = { ...section, language: "zh" };
-  notify();
+  assert.equal(config.issues, undefined);
+  apply(ctx, config.value);
   const injected = [];
-  handlers.get("agent/session-start")({
+  handlers.get("agent/created")({
     agent: {
       status: "idle",
       session: { id: "settings-session", header: {}, events: [] },
@@ -175,4 +183,63 @@ test("registers a ReMe settings namespace and reads changed values for new sessi
     },
   });
   assert.match(injected[0].content[0].text, /长期记忆/);
+
+  config.value.language[Symbol.for("cosmokit.volatile.write")]("en");
+  handlers.get("loader/volatile-update")([["language"]]);
+  handlers.get("agent/created")({
+    agent: {
+      status: "idle",
+      session: { id: "updated-session", header: {}, events: [] },
+      inbox: { nextStep: [] },
+      inject(message) {
+        injected.push(message);
+      },
+      ctx: {
+        effect() {
+          return () => {};
+        },
+      },
+    },
+  });
+  assert.match(injected[1].content[0].text, /Long-term Memory/);
+});
+
+test("session events read a validated configuration snapshot", () => {
+  const handlers = new Map();
+  const ctx = {
+    logger: { debug() {}, warn() {}, log() {} },
+    provide() {},
+    plugin() {
+      return Promise.resolve();
+    },
+    effect(execute) {
+      return execute();
+    },
+    tools: {
+      register() {
+        return () => {};
+      },
+    },
+    on(name, handler) {
+      handlers.set(name, handler);
+    },
+  };
+  apply(ctx, { autoMemoryEnabled: false, autoDreamEnabled: false });
+  const original = Intl.DateTimeFormat.prototype.formatToParts;
+  let scans = 0;
+  Intl.DateTimeFormat.prototype.formatToParts = function (...args) {
+    scans += 1;
+    return original.apply(this, args);
+  };
+  try {
+    for (let index = 0; index < 100; index += 1) {
+      handlers.get("session/event")(
+        { id: "quiet", header: {}, events: [] },
+        { type: "unrelated" },
+      );
+    }
+    assert.equal(scans, 0);
+  } finally {
+    Intl.DateTimeFormat.prototype.formatToParts = original;
+  }
 });

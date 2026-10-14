@@ -1,13 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  Config,
-  mergeSettings,
-  resolveConfig,
-  SettingsConfig,
-  settingsFrom,
-  validateSettings,
-} from "../dist/config.js";
+import { Context } from "@deepseek-ai/cordis";
+import Loader from "@deepseek-ai/cordis-plugin-loader";
+import z from "@deepseek-ai/schemastery";
+import { Config, resolveConfig } from "../dist/config.js";
 
 test("resolves the established ReMe host and port environment", () => {
   const config = resolveConfig(
@@ -27,8 +23,53 @@ test("exports a Cordis schema that rejects invalid configuration", async () => {
 
   const valid = await Config["~standard"].validate({ language: "zh" });
   assert.equal(valid.issues, undefined);
-  assert.equal(valid.value.autoMemoryInterval, 5);
-  assert.equal(valid.value.shutdownTimeoutMs, 5000);
+  assert.equal(valid.value.autoMemoryInterval.get(), 5);
+  assert.equal(valid.value.shutdownTimeoutMs.get(), 5000);
+  assert.equal(resolveConfig(valid.value).language, "zh");
+
+  for (const input of [
+    { endpoint: "not-a-url" },
+    { endpoint: "http://localhost:bad-port" },
+    { endpoint: "http://localhost:65536" },
+    { endpoint: "http://[:::]" },
+    { endpoint: "http://999.0.0.1" },
+    { dreamCron: "every night" },
+    { timezone: "Mars/Olympus" },
+  ]) {
+    assert.throws(() => Config["~standard"].validate(input));
+  }
+
+  for (const timezone of [
+    "US/Pacific",
+    "US/Eastern",
+    "Etc/GMT+8",
+    "Etc/GMT-8",
+  ]) {
+    const result = Config["~standard"].validate({ timezone });
+    assert.equal(result.issues, undefined);
+    assert.equal(result.value.timezone.get(), timezone);
+  }
+});
+
+test("volatile settings survive Host projection and browser schema rehydration", () => {
+  const fields = Object.entries(Config.dict).flatMap(([name, schema]) => {
+    if (!schema.meta.volatile) return [];
+    const plain = new z(schema.toJSON());
+    delete plain.meta.volatile;
+    return [[name, plain]];
+  });
+  const hostForm = z.object(Object.fromEntries(fields));
+  const browserForm = new z(JSON.parse(JSON.stringify(hostForm.toJSON())));
+  const defaults = Config["~standard"].validate({}).value;
+  const values = Object.fromEntries(
+    fields.map(([name]) => [name, defaults[name].get()]),
+  );
+  assert.equal(browserForm["~standard"].validate(values).issues, undefined);
+  assert.equal(
+    browserForm["~standard"].validate({ ...values, timezone: "US/Pacific" })
+      .issues,
+    undefined,
+  );
 });
 
 test("rejects unknown options and invalid IANA timezones", () => {
@@ -64,27 +105,72 @@ test("normalizes bounded plugin configuration", () => {
   assert.equal(config.rootAgentsOnly, false);
 });
 
-test("projects editable DSH settings without test-only intervals", async () => {
-  const base = resolveConfig({ dreamIntervalMs: 5000 }, {});
-  const settings = settingsFrom(base);
-  assert.equal("dreamIntervalMs" in settings, false);
-  const validated = await SettingsConfig["~standard"].validate({
-    ...settings,
-    searchLimit: 8,
-  });
-  assert.equal(validated.issues, undefined);
-  const merged = mergeSettings(base, validated.value);
-  assert.equal(merged.searchLimit, 8);
-});
-
 test("rejects settings that cannot be scheduled or reached", () => {
-  const settings = settingsFrom(resolveConfig({}, {}));
   assert.throws(
-    () => validateSettings({ ...settings, endpoint: "file:///tmp/reme" }),
+    () => resolveConfig({ endpoint: "file:///tmp/reme" }),
     /absolute http/,
   );
   assert.throws(
-    () => validateSettings({ ...settings, dreamCron: "every night" }),
+    () => resolveConfig({ dreamCron: "every night" }),
     /daily form/,
   );
+});
+
+test("Loader keeps the previous live values when an update fails schema validation", async () => {
+  const ctx = new Context();
+  let live;
+  try {
+    await ctx.plugin(Loader);
+    ctx.loader.builtins.remeTest = {
+      name: "reme-test",
+      Config,
+      apply(_owner, input) {
+        live = input;
+      },
+    };
+    const id = await ctx.loader.create({
+      id: "reme-memory",
+      name: "cordis:remeTest",
+      config: {
+        endpoint: "http://valid.test",
+        autoMemoryEnabled: false,
+        autoDreamEnabled: false,
+        timezone: "US/Pacific",
+      },
+    });
+    const entry = ctx.loader.resolve(id);
+    await entry.fiber.await();
+    for (const patch of [
+      { endpoint: "not-a-url" },
+      { endpoint: "http://localhost:65536" },
+      { endpoint: "http://999.0.0.1" },
+      { dreamCron: "every night" },
+      { timezone: "Mars/Olympus" },
+    ]) {
+      await entry.update({
+        config: {
+          endpoint: "http://valid.test",
+          autoMemoryEnabled: true,
+          autoDreamEnabled: false,
+          timezone: "US/Pacific",
+          ...patch,
+        },
+      });
+      assert.equal(live.endpoint.get(), "http://valid.test");
+      assert.equal(live.autoMemoryEnabled.get(), false);
+      assert.equal(live.dreamCron.get(), "0 23 * * *");
+      assert.equal(live.timezone.get(), "US/Pacific");
+    }
+    await entry.update({
+      config: {
+        endpoint: "http://updated.test",
+        autoMemoryEnabled: false,
+        autoDreamEnabled: false,
+        timezone: "US/Pacific",
+      },
+    });
+    assert.equal(live.endpoint.get(), "http://updated.test");
+  } finally {
+    await ctx.fiber.dispose();
+  }
 });

@@ -4,6 +4,7 @@ import asyncio
 import heapq
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
+from inspect import getattr_static
 from pathlib import Path
 from typing import Any, AsyncGenerator, TypeVar
 
@@ -18,6 +19,7 @@ from .utils import execute_stream_task, print_logo, get_logger
 
 T = TypeVar("T", bound=BaseComponent)
 _NodeKey = tuple[str, str]
+_UNSET = object()
 
 
 class Application(BaseComponent):
@@ -206,6 +208,9 @@ class Application(BaseComponent):
 
     async def _start_one(self, c: BaseComponent) -> None:
         """Start one component and record it for ordered shutdown."""
+        if isinstance(c, BaseJob) and not c.enabled:
+            self.logger.info(f"Skipping disabled job: {c.name}")
+            return
         try:
             if isinstance(c, BackgroundJob):
                 self.logger.info(f"Starting background job: {c.name}")
@@ -241,8 +246,9 @@ class Application(BaseComponent):
                 raise KeyError(f"Component '{name}' not found in {component_type}")
 
             component = group[name]
+            # Validate fields without evaluating lazy properties before injection.
             for key in kwargs:
-                if not hasattr(component, key):
+                if getattr_static(component, key, _UNSET) is _UNSET and not hasattr(component, key):
                     raise AttributeError(f"Component {component_type}:{name} has no attribute '{key}'")
             for key, value in kwargs.items():
                 setattr(component, key, value)
@@ -311,8 +317,9 @@ class Application(BaseComponent):
                 expected_type=BaseComponent,
                 name=name,
             )
+            # Validate fields without evaluating lazy properties before injection.
             for key, value in (runtime_updates or {}).items():
-                if not hasattr(replacement, key):
+                if getattr_static(replacement, key, _UNSET) is _UNSET and not hasattr(replacement, key):
                     raise AttributeError(
                         f"Replacement {component_type}:{name} has no attribute '{key}'",
                     )
@@ -367,18 +374,23 @@ class Application(BaseComponent):
 
     # ----- Job execution -------------------------------------------------
 
-    async def run_job(self, name: str, /, **kwargs) -> Response:
-        """Execute a registered job by name and return its final Response."""
+    def _get_enabled_job(self, name: str) -> BaseJob:
+        """Resolve a job and reject execution when disabled."""
         if name not in self.context.jobs:
             raise KeyError(f"Job '{name}' not found")
-        return await self.context.jobs[name](**kwargs)
+        job = self.context.jobs[name]
+        job.check_enabled()
+        return job
+
+    async def run_job(self, name: str, /, **kwargs) -> Response:
+        """Execute a registered job by name and return its final Response."""
+        return await self._get_enabled_job(name)(**kwargs)
 
     async def run_stream_job(self, name: str, /, **kwargs) -> AsyncGenerator[StreamChunk, None]:
         """Execute a streaming job, yielding chunks as they are produced."""
-        if name not in self.context.jobs:
-            raise KeyError(f"Job '{name}' not found")
+        job = self._get_enabled_job(name)
         stream_queue: asyncio.Queue = asyncio.Queue()
-        task = asyncio.create_task(self.context.jobs[name](stream_queue=stream_queue, **kwargs))
+        task = asyncio.create_task(job(stream_queue=stream_queue, **kwargs))
         async for chunk in execute_stream_task(
             stream_queue=stream_queue,
             task=task,

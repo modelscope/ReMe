@@ -1,23 +1,128 @@
 """auto_memory — record conversation facts into a daily note via an agent."""
 
+import base64
+import binascii
 import datetime
 from pathlib import Path
+import re
+from urllib.parse import urlsplit
+from uuid import uuid4
 import zoneinfo
 
 import aiofiles
 import frontmatter
-from agentscope.message import Msg
+from agentscope.agent import ContextConfig
+from agentscope.message import DataBlock, Msg, TextBlock, UserMsg
 
 from ._evolve import agent_reply_result_text, format_history, now
 from ..base_step import BaseStep
-from ..file_io import extract_daily_date, parse_daily_date, refresh_day_index
+from ..file_io import extract_daily_date, get_path_lock, parse_daily_date, refresh_day_index, write_file_safe
 from ..file_io import validate_filename_component, validate_session_id
+from ..file_io._path import IMAGE_MIME_BY_EXT, _check_path_permission, resolve_path
 from ..index import normalize_posix_path
 from ...components import R
+from ...utils.wikilink_handler import WikilinkHandler
 
 _SESSION_ID_KEY = "session_id"
 _SOURCE_CONVERSATION_KEY = "source_conversation"
 _MESSAGE_TIME_ALIASES = ("time_created", "timestamp", "createdAt", "timeCreated", "created_time")
+
+
+def _checked_write_path(workspace: Path, relative: str, allowed_paths) -> Path:
+    """Use the file Jobs' path and permission checks for attachments and note metadata."""
+    target, error = resolve_path(workspace, relative)
+    if error or target is None:
+        raise ValueError(error or "Invalid write path")
+    if not _check_path_permission(workspace, target, allowed_paths):
+        raise PermissionError(f"No permission to write {relative}")
+    return target
+
+
+def _check_existing_image(target: Path) -> bool:
+    if target.is_file():
+        return True
+    if target.exists():
+        raise ValueError(f"Image attachment path is not a file: {target.name}")
+    return False
+
+
+async def _save_session_images(
+    workspace: Path,
+    session_dir: str,
+    session_id: str,
+    messages: list[Msg],
+    images: dict[str, DataBlock],
+    allowed_paths=None,
+) -> list[str]:
+    """Save Base64 bytes and annotate prepared image markers; URLs remain remote.
+
+    ``messages`` must be the invocation-owned copies from image preparation.
+    Image data and caller-owned messages remain unchanged. Image identity uses
+    the message ID and block position, not the image block's optional identity.
+    """
+    workspace = workspace.resolve()
+    error = validate_filename_component(session_id, kind="session_id")
+    if error:
+        raise ValueError(error)
+    if Path(session_dir).is_absolute():
+        raise ValueError("session_dir must be workspace-relative")
+    pending: dict[Path, tuple[str, bytes]] = {}
+    replacements = []
+    sources = []
+    for message in messages:
+        for index, block in enumerate(message.content):
+            if not isinstance(block, TextBlock) or block.text not in images:
+                continue
+            image = images[block.text]
+            source = image.source
+            if source.type == "url":
+                reference = str(source.url)
+            else:
+                # A reversible encoding, not a hash: also distinguish IDs on
+                # case-insensitive filesystems without trusting IDs as paths.
+                encoded_id = message.id.encode("utf-8").hex()
+                suffix = next(
+                    (ext for ext, mime in IMAGE_MIME_BY_EXT.items() if mime == source.media_type.lower()),
+                    ".bin",
+                )
+                filename = f"msg-{encoded_id}-image-{index}{suffix}"
+                if len(filename) > 255:
+                    raise ValueError("Message ID is too long for an image attachment filename")
+                relative = (Path(session_dir) / "images" / session_id / filename).as_posix()
+                error = WikilinkHandler.validate_src_dst(relative, relative)
+                if error:
+                    raise ValueError(f"Image attachment path cannot be linked: {error}")
+                target = _checked_write_path(workspace, relative, allowed_paths)
+                # Wait for any in-process writer before reusing the attachment.
+                # Stable message IDs and block positions identify an image.
+                async with await get_path_lock(target):
+                    target = _checked_write_path(workspace, relative, allowed_paths)
+                    if not _check_existing_image(target):
+                        try:
+                            payload = base64.b64decode(source.data, validate=True)
+                        except (ValueError, binascii.Error) as exc:
+                            raise ValueError("Image source contains invalid Base64") from exc
+                        if not payload:
+                            raise ValueError("Image source contains empty Base64 data")
+                        if target in pending and pending[target][1] != payload:
+                            raise ValueError("Conflicting images share the same message ID and block position")
+                        pending[target] = (relative, payload)
+                reference = f"[[{relative}]]"
+            replacements.append((message, index, block, reference))
+            if reference not in sources:
+                sources.append(reference)
+
+    # Validate every input before creating files. Recheck each path under the
+    # existing file-operation lock so concurrent saves cannot overwrite it.
+    for relative, payload in pending.values():
+        target = _checked_write_path(workspace, relative, allowed_paths)
+        async with await get_path_lock(target):
+            target = _checked_write_path(workspace, relative, allowed_paths)
+            if not _check_existing_image(target):
+                await write_file_safe(target, payload)
+    for message, index, block, reference in replacements:
+        message.content[index] = block.model_copy(update={"text": f"Image source: {reference}\n{block.text}"})
+    return sources
 
 
 def _sanitize_msg_for_save(msg: Msg) -> Msg:
@@ -118,11 +223,39 @@ class AutoMemoryStep(BaseStep):
         notes = list_response.metadata.get("notes") or []
         return self._find_session_note(notes, session_id)
 
-    async def _ensure_session_frontmatter(self, path: str, session_id: str) -> None:
+    async def _ensure_session_frontmatter(
+        self,
+        path: str,
+        session_id: str,
+        image_sources: list[str] | None = None,
+    ) -> None:
         metadata = {
             _SESSION_ID_KEY: session_id,
             _SOURCE_CONVERSATION_KEY: self._session_link(session_id),
         }
+        if image_sources is not None and (
+            not isinstance(image_sources, list) or any(not isinstance(source, str) for source in image_sources)
+        ):
+            raise ValueError("source_images must be a list of strings")
+        if image_sources:
+            workspace = self.file_store.workspace_path.resolve()
+            allowed_paths = self.context.get("_allowed_paths")
+            target = _checked_write_path(workspace, path, allowed_paths)
+            # Read and merge under the same lock as native file Jobs so a
+            # concurrent write cannot lose its source links to a stale list.
+            async with await get_path_lock(target):
+                target = _checked_write_path(workspace, path, allowed_paths)
+                if not target.is_file():
+                    raise ValueError(f"Memory note not found: {path}")
+                post = frontmatter.loads(target.read_text(encoding="utf-8"))
+                current_sources = post.metadata.get("source_images", [])
+                if not isinstance(current_sources, list) or any(not isinstance(s, str) for s in current_sources):
+                    raise ValueError("Existing source_images must be a list of strings")
+                metadata["source_images"] = list(dict.fromkeys([*current_sources, *image_sources]))
+                if not all(post.metadata.get(key) == value for key, value in metadata.items()):
+                    post.metadata.update(metadata)
+                    await write_file_safe(target, frontmatter.dumps(post))
+            return
         current = self._frontmatter(path)
         if all(current.get(key) == value for key, value in metadata.items()):
             return
@@ -273,6 +406,57 @@ class AutoMemoryStep(BaseStep):
         """
         return format_history(messages)
 
+    def _prepare_image_history(
+        self,
+        messages: list[Msg],
+        day: str,
+    ) -> tuple[list[Msg], dict[str, DataBlock], dict | None]:
+        """Validate image inputs before saving, without reading or changing their sources."""
+        include_images = self.context.get("include_images", False)
+        if include_images is False:
+            return messages, {}, None
+        images = [
+            (message_index, block_index, block)
+            for message_index, message in enumerate(messages)
+            for block_index, block in enumerate(message.content)
+            if isinstance(block, DataBlock) and block.source.media_type.startswith("image/")
+        ]
+        if not images:
+            return messages, {}, None
+        wrapper = self.agent_wrapper
+        if wrapper is None or wrapper.backend != "agentscope":
+            raise NotImplementedError("Auto Memory image inputs require the AgentScope wrapper")
+        for _, _, block in images:
+            if block.source.type == "url" and urlsplit(str(block.source.url)).scheme not in {"http", "https"}:
+                raise ValueError("Image URLs must use HTTP(S); convert local files to Base64Source before calling")
+        reply_kwargs = dict(self._reply_extra_kwargs(day))
+        context_config = reply_kwargs.get("context_config", wrapper.kwargs.get("context_config")) or {}
+        limit = ContextConfig(**context_config).max_image_num
+        if len(images) > limit:
+            raise ValueError(
+                f"Session has {len(images)} images, exceeding context_config.max_image_num={limit}; "
+                "configure the AgentScope wrapper's image limit explicitly",
+            )
+        prepared = [message.model_copy(deep=True) for message in messages]
+        image_blocks = {}
+        prefix = f"__reme_image_{uuid4().hex}_"
+        for number, (message_index, block_index, _) in enumerate(images):
+            marker = f"{prefix}{number}__"
+            image_blocks[marker] = prepared[message_index].content[block_index]
+            prepared[message_index].content[block_index] = TextBlock(text=marker)
+        return prepared, image_blocks, reply_kwargs
+
+    def _image_user_message(self, prompt: str, images: dict[str, DataBlock]) -> UserMsg:
+        """Add source instructions and restore images after rendering the memory prompt."""
+        prompt += "\n\n" + self.prompt_format("image_sources_instructions")
+        parts = re.split("(" + "|".join(map(re.escape, images)) + ")", prompt)
+        if [part for part in parts if part in images] != list(images):
+            raise ValueError("Memory prompt must preserve every image once in conversation order")
+        return UserMsg(
+            name="user",
+            content=[images[part] if part in images else TextBlock(text=part) for part in parts if part],
+        )
+
     # pylint: disable=too-many-return-statements
     async def execute(self):
         assert self.context is not None
@@ -311,6 +495,7 @@ class AutoMemoryStep(BaseStep):
             self.logger.warning(f"[{self.name}] invalid date={raw_date!r}")
             return
 
+        history_messages, images, reply_kwargs = self._prepare_image_history(messages, day)
         await self._save_session_messages(session_id, messages)
 
         if not messages:
@@ -333,6 +518,24 @@ class AutoMemoryStep(BaseStep):
         created = note is None
         before_note_path = note_path
         before_note_bytes = self._note_bytes(note_path) if note_path else None
+        # Keep attachment provenance even when the Agent uses a full rewrite,
+        # or this call updates an image-backed note with images disabled.
+        image_sources = []
+        if before_note_bytes is not None:
+            previous_sources = frontmatter.loads(before_note_bytes.decode("utf-8")).get("source_images", [])
+            if isinstance(previous_sources, list) and all(isinstance(source, str) for source in previous_sources):
+                image_sources = previous_sources
+            elif images:
+                raise ValueError("Existing source_images must be a list of strings")
+        if images:
+            image_sources += await _save_session_images(
+                self.file_store.workspace_path,
+                self._session_dir(),
+                session_id,
+                history_messages,
+                images,
+                self.context.get("_allowed_paths"),
+            )
         self.logger.info(
             f"[{self.name}] note lookup session_id={session_id!r} path={note_path!r} "
             f"created={created} msgs={len(messages)} hint={bool(memory_hint)}",
@@ -345,14 +548,17 @@ class AutoMemoryStep(BaseStep):
             note_path=note_path,
             session_id=session_id,
             session_file=self._session_source_path(session_id),
-            history=self._format_history(messages),
+            history=self._format_history(history_messages),
         )
+        if images:
+            user_message = self._image_user_message(user_message, images)
 
         self.logger.info(f"[{self.name}] agent start path={note_path} template={template_key}")
         # Existing-note updates are restricted to the resolved note path. New
         # notes retain the upstream ``daily_write`` date behavior, where the
         # model supplies the date from the prompt.
-        reply_kwargs = self._reply_extra_kwargs(day)
+        if reply_kwargs is None:
+            reply_kwargs = self._reply_extra_kwargs(day)
         if not created:
             reply_kwargs["injected_job_kwargs"] = {"_allowed_paths": [note_path]}
         result = await self.agent_wrapper.reply(
@@ -383,9 +589,11 @@ class AutoMemoryStep(BaseStep):
                 self.logger.info(f"[{self.name}] done without note session_id={session_id!r} modified=False")
                 return
             note_path = str(note["path"])
+            if image_sources:
+                await self._ensure_session_frontmatter(note_path, session_id, image_sources)
         else:
             try:
-                await self._ensure_session_frontmatter(note_path, session_id)
+                await self._ensure_session_frontmatter(note_path, session_id, image_sources)
                 note_path = await self._rename_from_frontmatter_name(note_path, day)
             except RuntimeError as exc:
                 self.context.response.success = False

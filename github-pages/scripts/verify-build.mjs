@@ -35,6 +35,13 @@ const requiredFiles = [
   "CNAME",
   "reme-icon.svg",
   "reme-logo.svg",
+  "ecosystem/qwenpaw.png",
+  "ecosystem/deepseek-harness.svg",
+  "ecosystem/openclaw.svg",
+  "ecosystem/claude-code.png",
+  "ecosystem/hermes.svg",
+  "ecosystem/zvec.ico",
+  "ecosystem/faiss.png",
   "hashmap.json",
   "sitemap.xml",
   "llms.txt",
@@ -47,8 +54,16 @@ const requiredFiles = [
   "en/traffic.html",
   "zh/configuration.html",
   "en/configuration.html",
+  "zh/reme-blog.html",
+  "en/reme-blog.html",
+  "zh/blog_20260920.html",
+  "en/blog_20260920.html",
+  "zh/blog_20261009.html",
+  "en/blog_20261009.html",
   "zh/services.html",
   "en/services.html",
+  "studio/index.html",
+  "studio/reme-icon.svg",
   "zh/workspace/studio.html",
   "en/workspace/studio.html",
   "zh/reference/jobs.html",
@@ -73,9 +88,29 @@ assert.match(ChineseHomepage, /89\.4%/);
 assert.match(ChineseHomepage, /公开、透明的访问趋势/);
 
 const ChineseStudio = await readFile(path.join(outputDir, "zh/workspace/studio.html"), "utf8");
-assert.match(ChineseStudio, /class="VPLink link VPNavBarMenuLink active" href="\/zh\/workspace\/studio"/);
-assert.match(ChineseStudio, /<span[^>]*>Studio<\/span>/);
+assert.match(ChineseStudio, /href="\/studio\/\?lang=zh"/);
+assert.match(ChineseStudio, /<span[^>]*>体验Studio<\/span>/);
 assert.doesNotMatch(ChineseStudio, /<aside[^>]*class="VPSidebar/);
+
+const EnglishStudio = await readFile(path.join(outputDir, "en/workspace/studio.html"), "utf8");
+assert.match(EnglishStudio, /href="\/studio\/\?lang=en"/);
+assert.match(EnglishStudio, /<span[^>]*>Try Studio<\/span>/);
+
+// Studio is a separate static app: every entry must bypass VitePress routing.
+for (const language of ["zh", "en"]) {
+  for (const page of ["index.html", "workspace/studio.html"]) {
+    const html = await readFile(path.join(outputDir, language, page), "utf8");
+    const links = [...html.matchAll(/<a\b[^>]*href="\/studio\/\?lang=[^"]+"[^>]*>/g)];
+    assert.ok(links.length, `${language}/${page}: Studio entry exists`);
+    for (const [link] of links) assert.match(link, /target="_self"/, "Studio must use full-page navigation");
+  }
+}
+
+const studioDemo = await readFile(path.join(outputDir, "studio/index.html"), "utf8");
+assert.match(studioDemo, /<title>Try ReMe Studio<\/title>/);
+for (const match of studioDemo.matchAll(/(?:src|href)="(\.\/[^"?#]+)"/g)) {
+  await access(path.join(outputDir, "studio", match[1]));
+}
 
 const ChineseTraffic = await readFile(path.join(outputDir, "zh/traffic.html"), "utf8");
 assert.match(ChineseTraffic, /S1OZK1PSDLEpyiU5/);
@@ -89,6 +124,20 @@ const ChineseConfiguration = await readFile(path.join(outputDir, "zh/configurati
 assert.match(ChineseConfiguration, /搜索文档/);
 assert.match(ChineseConfiguration, /复制 Markdown/);
 assert.match(ChineseConfiguration, /在 GitHub 查看源文件/);
+
+const ChineseBlog = await readFile(path.join(outputDir, "zh/blog_20260920.html"), "utf8");
+assert.match(ChineseBlog, /<h1[^>]*>给记忆加上“标签”/);
+assert.match(ChineseBlog, />记忆标签<\/p>/, "the Chinese sidebar must use the localized article name");
+assert.match(
+  ChineseBlog,
+  /<a class="VPLink link link" href="\/zh\/reme-blog"[^>]*>.*?<h2 class="text"[^>]*>ReMe 博客<\/h2>/,
+  "the blog sidebar heading must link to the blog landing page",
+);
+
+const EnglishBlog = await readFile(path.join(outputDir, "en/blog_20260920.html"), "utf8");
+assert.match(EnglishBlog, /<h1[^>]*>ReMe Memory Tags/);
+assert.match(EnglishBlog, /How Does the Tag Index Work\?/);
+assert.doesNotMatch(EnglishBlog, /full article is currently available in Chinese/);
 
 const jobReference = await readFile(path.join(outputDir, "en/reference/jobs.html"), "utf8");
 assert.match(jobReference, /Job API Reference/);

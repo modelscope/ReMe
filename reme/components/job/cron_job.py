@@ -41,6 +41,7 @@ class CronJob(BackgroundJob):
         return context.response
 
     async def __call__(self, **kwargs) -> Response:
+        self.check_enabled()
         assert self._stop_event is not None
         while not self._stop_event.is_set():
             await self._wait_or_stop(self._next_fire_delay())

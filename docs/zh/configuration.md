@@ -79,6 +79,19 @@ base_url: ${LLM_BASE_URL:-https://example.com/v1}
 
 `session_dir` 必须保持 workspace-relative。其他 workspace 子目录也应使用清晰、稳定的相对名称。
 
+## Job 启停
+
+`jobs.<name>.enabled` 默认为 `true`，适用于所有 Job 类型。禁用的 Job 保留配置，但不启动、不暴露接口，
+通过 `Application.run_job()` / `run_stream_job()` 调用时会报错。由宿主插件负责调度时，可以关闭 ReMe 的 Dream cron：
+
+```bash
+reme start jobs.dream_cron.enabled=false
+```
+
+重启服务后生效。独立的 `auto_dream` 接口仍可调用，其他 Job 继续运行。
+`enable_serve` 独立控制接口暴露：`enabled=true, enable_serve=false` 允许本地调用。
+Background 和 cron Job 始终不暴露服务接口。
+
 ## LLM 配置
 
 默认 LLM 使用 OpenAI-compatible 接口：
