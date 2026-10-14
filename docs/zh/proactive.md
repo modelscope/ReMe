@@ -199,16 +199,15 @@ Skipped: interests file not found at daily/2026-06-20/interests.yaml
 
 ## 运行方式
 
-通过正常应用生命周期立即执行一次 refresh：
+### 启动服务并读取 topics
+
+在一个终端启动服务，并保持运行；默认 cron 会按配置刷新 topics：
 
 ```bash
-reme start job=proactive_refresh date=2026-06-20
+reme start config=default
 ```
 
-该命令可能调用配置的 LLM，并更新 `_proactive.yaml`、`interests.yaml` 与 proactive catalog；它不会运行 Auto
-Dream。
-
-读取生成的 topics：
+在另一个终端读取生成的 topics：
 
 ```bash
 reme proactive_read date=2026-06-20
@@ -219,6 +218,18 @@ reme proactive_read date=2026-06-20
 ```bash
 reme proactive_read date=2026-06-20 include_content=false
 ```
+
+### 无服务单次 refresh
+
+维护或调试需要立即执行 refresh 时，通过正常应用生命周期在本地运行一次：
+
+```bash
+reme start config=default job=proactive_refresh date=2026-06-20
+```
+
+`proactive_refresh` 设置了 `enable_serve: false`，不能通过 `reme proactive_refresh` 调用运行中的服务。
+这条本地命令可能调用配置的 LLM，并更新 `_proactive.yaml`、`interests.yaml` 与 proactive catalog；它不会运行 Auto
+Dream。完成后，通过上面的服务读取流程获取 topics。
 
 ## 与 auto_dream 的关系
 

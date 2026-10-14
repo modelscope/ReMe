@@ -208,16 +208,15 @@ This lets a host agent treat "there is no proactive refresh result for today yet
 
 ## Running Proactive
 
-Run one refresh immediately through the normal application lifecycle:
+### Start the Service and Read Topics
+
+Start the service in one terminal and leave it running. The configured cron refreshes topics on schedule:
 
 ```bash
-reme start job=proactive_refresh date=2026-06-20
+reme start config=default
 ```
 
-This command may call the configured LLM and may update `_proactive.yaml`, `interests.yaml`, and the proactive catalog.
-It does not run Auto Dream.
-
-Read the generated topics:
+From another terminal, read the generated topics:
 
 ```bash
 reme proactive_read date=2026-06-20
@@ -228,6 +227,18 @@ Omit the raw YAML content:
 ```bash
 reme proactive_read date=2026-06-20 include_content=false
 ```
+
+### One-shot Refresh Without a Persistent Service
+
+For maintenance or debugging that needs an immediate refresh, run the Job locally through the normal lifecycle:
+
+```bash
+reme start config=default job=proactive_refresh date=2026-06-20
+```
+
+`proactive_refresh` has `enable_serve: false`, so `reme proactive_refresh` cannot call it through a running service.
+The local command may call the configured LLM and update `_proactive.yaml`, `interests.yaml`, and the proactive catalog.
+It does not run Auto Dream. After it finishes, use the service-based read workflow above to retrieve the topics.
 
 ## Relationship to auto_dream
 

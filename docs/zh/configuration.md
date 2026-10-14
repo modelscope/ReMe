@@ -15,6 +15,8 @@ ReMe 使用 YAML 或 JSON 描述 Service、Job 和 Component。默认配置位�
 2. 选中的配置文件；未指定时使用内置 `default`。
 3. 命令行 dot notation 覆盖。
 
+在一个终端选择一条启动命令，并保持服务运行：
+
 ```bash
 reme start
 reme start config=demo
@@ -27,6 +29,8 @@ reme start service.port=8181 workspace_dir=/data/reme
 可选的 `cookbook` 变体继承 `default`，并组合独立安装的 Auto Fin、Daily Paper 与钉钉插件；配置加载前必须提供三个
 钉钉应用凭据环境变量。该配置还会启用 `text-embedding-v4` 向量检索，默认通过 AgentScope 使用
 `${LLM_MODEL_NAME:-qwen3.8-max}`，并让钉钉桥接通过 Claude Code 复用 `LLM_MODEL_NAME` 与 `LLM_API_KEY`。
+
+在另一个终端调用 `reme <job-name>`，例如 `reme help`；CLI 会发现正在运行的服务配置。
 
 ## 值的解析
 

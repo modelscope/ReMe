@@ -125,11 +125,15 @@ flowchart LR
     J --> K["client(action=action, **kwargs)"]
 ```
 
-Common commands:
+Start a service in one terminal and leave it running; omit `config` to use the default configuration:
 
 ```bash
 reme start
-reme start service.port=8181
+```
+
+From another terminal, call Jobs through the running service:
+
+```bash
 reme version
 reme search query="memory" limit=5
 reme search query="memory" backend=mcp
@@ -658,9 +662,11 @@ execution model is required.
 
 ### 10.1 Adding a Normal Request Job
 
-Add the Job under `jobs:` in a YAML configuration:
+Save a configuration such as `/path/to/uppercase.yaml`, inheriting the default service and adding the Job:
 
 ```yaml
+extends: default
+
 jobs:
   uppercase:
     backend: base
@@ -677,10 +683,15 @@ jobs:
       - backend: uppercase_step
 ```
 
-Start and call it:
+Start that configuration in one terminal and leave it running:
 
 ```bash
-reme start
+reme start config=/path/to/uppercase.yaml
+```
+
+From another terminal, call the Job:
+
+```bash
 reme uppercase text="hello"
 ```
 

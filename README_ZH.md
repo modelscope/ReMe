@@ -155,6 +155,8 @@ EOF
 
 ### 启动服务
 
+在一个终端启动 ReMe，并保持运行：
+
 ```bash
 reme start
 ```
@@ -165,6 +167,8 @@ reme start
 reme start service.port=8181
 # reme start workspace_dir=/tmp/reme-demo service.port=8181
 ```
+
+在另一个终端调用正在运行的服务。CLI 会发现服务配置；以下 `curl` 示例使用默认端口 `2333`：
 
 ```bash
 reme version

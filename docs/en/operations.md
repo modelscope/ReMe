@@ -9,7 +9,8 @@ ReMe recovery protects user-owned workspace files and rebuilds catalogs, indexes
 
 ## Quick diagnosis
 
-Run these in order:
+These commands inspect a running service. For a new deployment, first start it as shown in [Quick Start](./quick_start.md).
+From another terminal, run these in order:
 
 ```bash
 reme find_reme

@@ -10,12 +10,20 @@ ReMe can run as a local HTTP service, a standalone MCP server, or a one-shot CLI
 
 ## HTTP API
 
+Start the service in one terminal and leave it running. Choose one of these startup commands:
+
 ```bash
 reme start
 reme start service.host=127.0.0.1 service.port=8181
 ```
 
-Regular Jobs become `POST /<job-name>`:
+From another terminal, call a Job through the CLI client:
+
+```bash
+reme search query="user preferences" limit=5
+```
+
+Regular Jobs also become `POST /<job-name>`; this HTTP example uses the default port `2333`:
 
 ```bash
 curl -s http://127.0.0.1:2333/search \

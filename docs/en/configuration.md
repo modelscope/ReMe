@@ -15,6 +15,8 @@ Configuration is merged in this order, with later values winning:
 2. The selected file; `default` is used when none is specified.
 3. CLI dot-notation overrides.
 
+Choose one startup command in one terminal and leave the service running:
+
 ```bash
 reme start
 reme start config=demo
@@ -29,6 +31,8 @@ DingTalk plugins. It requires the three DingTalk application credential environm
 loading. It also enables `text-embedding-v4` vector retrieval, uses AgentScope with
 `${LLM_MODEL_NAME:-qwen3.8-max}` by default, and runs the DingTalk bridge through Claude Code with the same
 `LLM_MODEL_NAME` and `LLM_API_KEY`.
+
+From another terminal, call `reme <job-name>`, such as `reme help`; the CLI discovers the running service configuration.
 
 ## CLI values
 
