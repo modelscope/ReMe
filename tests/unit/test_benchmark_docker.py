@@ -1299,6 +1299,7 @@ async def test_pool_retries_strict_delete_without_replacing_uncertain_container(
     from types import SimpleNamespace
     from unittest.mock import AsyncMock
 
+    pytest.importorskip("aiodocker")
     from deploy.benchmark_docker.direct_docker_workspace import DirectDockerWorkspace
 
     workspaces = []
@@ -1306,6 +1307,8 @@ async def test_pool_retries_strict_delete_without_replacing_uncertain_container(
     client = SimpleNamespace(close=AsyncMock())
 
     class StrictWorkspace(DirectDockerWorkspace):
+        # Provisioning deliberately populates the inherited Docker handles.
+        # pylint: disable=attribute-defined-outside-init
         async def _provision_backend(self):
             self._container, self._client, self._backend = container, client, TimedOutBackend()
 

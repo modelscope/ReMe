@@ -1,15 +1,15 @@
 """Direct workspace lifecycle without a Docker daemon."""
 
-# pylint: disable=missing-function-docstring,protected-access
+# pylint: disable=missing-function-docstring,protected-access,wrong-import-position
 
 import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
-from aiodocker.exceptions import DockerError
 import pytest
 
-from deploy.benchmark_docker.direct_docker_workspace import DirectDockerWorkspace
+DockerError = pytest.importorskip("aiodocker.exceptions").DockerError
+from deploy.benchmark_docker.direct_docker_workspace import DirectDockerWorkspace  # noqa: E402
 
 
 def make_workspace():
