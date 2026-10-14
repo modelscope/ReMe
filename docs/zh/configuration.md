@@ -113,6 +113,84 @@ components:
 基础文件操作、BM25 检索、wikilink 遍历和 `proactive_read` 不需要 LLM。`auto_memory`、`auto_resource`、
 `auto_dream` 和 proactive refresh 等演化流程需要可用 LLM。
 
+## Classifier 配置
+
+`as_classifier` 是独立的概率分类组件，当前提供 `jev` backend，通过 AgentScope `2.0.10` 调用 TypeSafe API。
+它接受共享的文本或 JSON object 与命名问题，返回二分类概率、选项分类或评分结果。
+
+安装可选依赖：
+
+```bash
+pip install "reme-ai[core,classifier-jev]"
+# 从源码安装时：
+pip install -e ".[core,classifier-jev]"
+```
+
+`core` 不包含 Jev SDK，`full` 包含该 extra。只设置环境变量不会自动启用组件；默认配置中的 classifier 示例保持注释。
+组件启动不导入可选分类模块、不创建客户端，首次分类调用才检查依赖和凭证。客户端由组件复用，关闭时先等待正在执行的请求结束，再释放客户端。
+
+| 环境变量 | 默认值 | 作用 |
+|---|---|---|
+| `CLASSIFIER_BACKEND` | `jev` | Classifier backend |
+| `CLASSIFIER_MODEL_NAME` | `jev-latest` | 模型名或别名 |
+| `CLASSIFIER_API_KEY` | 空 | TypeSafe API key，分类调用时必须提供 |
+| `CLASSIFIER_BASE_URL` | `null` | 可选 API 地址；空值使用 SDK 默认地址 |
+
+启用组件的配置示例：
+
+```yaml
+components:
+  as_classifier:
+    default:
+      backend: ${CLASSIFIER_BACKEND:-jev}
+      model: ${CLASSIFIER_MODEL_NAME:-jev-latest}
+      credential:
+        api_key: ${CLASSIFIER_API_KEY:-}
+        base_url: ${CLASSIFIER_BASE_URL:-null}
+      timeout: 30
+      max_retries: 2
+      retry_delay: 0.5
+```
+
+`timeout` 是单次请求的超时秒数；`max_retries` 是首次请求之外的重试次数；`retry_delay` 是初始退避秒数。
+这三个字段通过 YAML 或 CLI 覆盖配置，重试由 SDK 执行。
+
+内置 `classifier_demo` 配置通过 `extends: default` 继承默认 HTTP/MCP 服务、组件和 Job，并增加 classifier 与
+可通过服务调用的 `jev` Job。默认后台任务也会启动。先在一个终端启动服务：
+
+```bash
+export CLASSIFIER_API_KEY=your-typesafe-api-key
+reme start config=classifier_demo \
+  components.as_classifier.default.timeout=15
+```
+
+再在另一个终端调用，客户端会发现正在运行的服务配置：
+
+```bash
+reme jev state="我的账户被重复扣款，请尽快处理"
+```
+
+调用会把 `state` 和问题发送给 TypeSafe。省略 `questions` 时，demo 同时判断是否紧急、选择客服类别和评估优先级。
+可以完整替换演示问题，也可以传入 JSON object：
+
+```bash
+reme jev \
+  state='{"request":"我的账户被重复扣款","channel":"email"}' \
+  questions='{"urgent":{"type":"binary","instructions":"是否需要紧急处理？"}}'
+```
+
+问题的 `type` 支持 `binary`、`choice`、`score`。`binary` 可提供 `criteria.true` / `criteria.false` 描述；
+`choice` 需要非空 `criteria` object，key 是类别，value 是描述或 `null`；`score` 需要非空的有序描述列表，
+分数从零开始。问题可提供 `instructions`。显式传入空的 `questions` 会报错，不会退回 demo 默认问题。
+
+`reme jev` 显示标准 Response JSON，分类结果位于 `answer`，包含 `model`、`content`、
+`usage`、响应标识和时间等信息。`content` 按问题名组织，保留概率与置信度；评分分布的整数 key 在 JSON 中变为字符串。
+Step 同时写入请求内的 `context.data["classifier_result"]`，可供后续 Step 消费，不自动写入记忆文件。
+SDK 错误沿用 BaseJob 的 `success=false` 契约。
+
+在自己的 Job 中使用 `classifier_demo_step`，通过 Step 配置 `as_classifier: <组件名>` 选择命名组件。
+组件接口见 `reme/components/as_classifier/`；问题与答案契约由 AgentScope classifier schema 定义。
+
 ## Embedding 配置
 
 向量检索默认关闭。只设置 `EMBEDDING_API_KEY` 不会自动启用它；还需要同时启用 `as_embedding`、`embedding_store`，并把它连接到 `file_store`：

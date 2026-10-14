@@ -122,6 +122,9 @@ cd ..
 
 The static build requires Node.js 22.13 or newer and makes Studio available from the source tree.
 
+Optional Jev classification uses `pip install "reme-ai[core,classifier-jev]"`. Configure a TypeSafe API key and run the
+service demo as described in [Classifier configuration](https://reme.agentscope.io/en/configuration#classifier-configuration).
+
 ### Docker
 
 With Docker and Compose 2.24.0+, build and start ReMe with the bundled Studio:
