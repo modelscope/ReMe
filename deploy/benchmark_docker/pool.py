@@ -13,6 +13,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
+from ._cleanup import finish_cleanup, format_error
 from .docker_sandbox import DockerReMeSandbox, DockerReMeSandboxFactory
 from .models import EvaluationQuery, JobRequest
 
@@ -44,7 +45,7 @@ class CaseResult:
 
     @property
     def success(self) -> bool:
-        """Whether all requested phases completed successfully."""
+        """Whether all requested phases and owned-worker cleanup succeeded."""
         return (
             self.error is None
             and (self.build is None or self.build.get("success") is True)
@@ -94,10 +95,13 @@ class BenchmarkDockerPool:
         available: asyncio.Queue[DockerReMeSandbox | None] = asyncio.Queue()
         for worker in workers:
             available.put_nowait(worker)
-        claimed = 0
+        unclaimed = set(by_id)
         live_slots = len(workers)
         next_worker_index = len(workers)
         exhaustion_error = "no available workers"
+        worker_results: dict[int, list[CaseResult]] = {}
+        results: list[CaseResult] = []
+        run_error: BaseException | None = None
 
         try:
             with TemporaryDirectory(prefix="reme-benchmark-pool-") as temporary:
@@ -107,35 +111,26 @@ class BenchmarkDockerPool:
                 tasks: dict[str, asyncio.Task[CaseResult]] = {}
 
                 async def execute(plan: CasePlan) -> CaseResult:
-                    nonlocal claimed, live_slots, next_worker_index, exhaustion_error
+                    nonlocal live_slots, next_worker_index, exhaustion_error
                     result = CaseResult(plan.case_id)
                     source = plan.workspace_source
                     if plan.reuse_workspace_from is not None:
                         parent = await tasks[plan.reuse_workspace_from]
                         if parent.workspace_snapshot is None:
+                            unclaimed.discard(plan.case_id)
                             return CaseResult(plan.case_id, error=f"source case {parent.case_id!r} failed")
                         source = parent.workspace_snapshot
 
                     worker = await available.get()
+                    unclaimed.discard(plan.case_id)
                     if worker is None:
                         return CaseResult(plan.case_id, error=exhaustion_error)
-                    claimed += 1
+                    worker_results.setdefault(id(worker), []).append(result)
 
                     def record_lifecycle_error(phase: str, exc: Exception) -> str:
-                        detail = f"{phase} failed: {type(exc).__name__}: {exc}"
+                        detail = f"{phase} failed: {format_error(exc)}"
                         result.error = f"{result.error}; {detail}" if result.error else detail
                         return detail
-
-                    async def retain_failed_build_log() -> None:
-                        try:
-                            result.build_log = await worker.read_build_log()
-                        except Exception as exc:
-                            result.error += f"; build log unavailable: {type(exc).__name__}: {exc}"
-                        if plan.export_build_log_to is not None:
-                            try:
-                                await worker.export_build_log(plan.export_build_log_to)
-                            except Exception as exc:
-                                result.error += f"; build log export failed: {type(exc).__name__}: {exc}"
 
                     try:
                         await worker.reset_case(plan.case_id)
@@ -146,11 +141,11 @@ class BenchmarkDockerPool:
                                 result.build = await worker.run_build(list(plan.build_jobs))
                             except Exception as exc:
                                 result.error = f"{type(exc).__name__}: {exc}"
-                                await retain_failed_build_log()
+                                await self._retain_failed_build_log(worker, plan, result)
                                 return result
                             if not result.build.get("success"):
                                 result.error = "build failed"
-                                await retain_failed_build_log()
+                                await self._retain_failed_build_log(worker, plan, result)
                                 return result
                             if plan.export_build_log_to is not None:
                                 await worker.export_build_log(plan.export_build_log_to)
@@ -179,12 +174,14 @@ class BenchmarkDockerPool:
                             try:
                                 await worker.close()
                             except Exception as exc:
-                                record_lifecycle_error("worker close", exc)
+                                exhaustion_error = (
+                                    f"no available workers: {record_lifecycle_error('worker close', exc)}"
+                                )
                             else:
                                 closed = True
 
                             replaced = False
-                            if closed and claimed < len(plans) and not asyncio.current_task().cancelling():
+                            if closed and unclaimed and not asyncio.current_task().cancelling():
                                 worker_index = next_worker_index
                                 next_worker_index += 1
                                 try:
@@ -202,7 +199,7 @@ class BenchmarkDockerPool:
                                 if live_slots == 0:
                                     # Every future case, including one waiting on a
                                     # parent, must be able to leave available.get().
-                                    for _ in range(len(plans) - claimed):
+                                    for _ in unclaimed:
                                         available.put_nowait(None)
 
                 for plan in plans:
@@ -211,15 +208,53 @@ class BenchmarkDockerPool:
                     results = await asyncio.gather(*(tasks[plan.case_id] for plan in plans))
                 finally:
                     for task in tasks.values():
-                        if not task.done():
+                        if not task.done() and not task.cancelling():
                             task.cancel()
                     await asyncio.gather(*tasks.values(), return_exceptions=True)
                 for plan, result in zip(plans, results):
                     if plan.export_workspace_to is None:
                         result.workspace_snapshot = None  # The internal temporary archive is about to be deleted.
                 return results
+        except BaseException as exc:
+            run_error = exc
+            raise
         finally:
-            await asyncio.gather(*(worker.close() for worker in workers), return_exceptions=True)
+            await self._close_workers(workers, worker_results, results, run_error)
+
+    @staticmethod
+    async def _retain_failed_build_log(worker: DockerReMeSandbox, plan: CasePlan, result: CaseResult) -> None:
+        """Keep diagnostics without replacing the original build failure."""
+        try:
+            result.build_log = await worker.read_build_log()
+        except Exception as exc:
+            result.error += f"; build log unavailable: {type(exc).__name__}: {exc}"
+        if plan.export_build_log_to is not None:
+            try:
+                await worker.export_build_log(plan.export_build_log_to)
+            except Exception as exc:
+                result.error += f"; build log export failed: {type(exc).__name__}: {exc}"
+
+    @staticmethod
+    async def _close_workers(
+        workers: list[DockerReMeSandbox],
+        worker_results: dict[int, list[CaseResult]],
+        results: list[CaseResult],
+        run_error: BaseException | None,
+    ) -> None:
+        """Finish all teardown and attach failures to results or the run error."""
+        outcomes, cleanup_cancel = await finish_cleanup(worker.close() for worker in workers)
+        for worker, outcome in zip(workers, outcomes):
+            if isinstance(outcome, BaseException):
+                detail = f"worker {worker.container_id!r} final close failed: {format_error(outcome)}"
+                error = run_error if run_error is not None else cleanup_cancel
+                if error is not None:
+                    error.add_note(detail)
+                # An unused worker is still owned by this run; report its
+                # failure on all results rather than silently dropping it.
+                for result in worker_results.get(id(worker)) or results:
+                    result.error = f"{result.error}; {detail}" if result.error else detail
+        if cleanup_cancel is not None and run_error is None:
+            raise cleanup_cancel
 
     @staticmethod
     def _check_acyclic(plans: dict[str, CasePlan]) -> None:

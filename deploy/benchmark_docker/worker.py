@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 import json
 import logging
 import os
@@ -137,24 +139,24 @@ async def _run_job_on_app(app: Any, job: str, arguments: dict[str, Any]) -> dict
         ):
             response = await app.run_job(job, **arguments)
     except Exception as exc:  # Preserve usage accumulated before a job failure.
-        return {
+        result = {
             "success": False,
             "answer": "",
             "metadata": {},
-            "token_usage": token_usage,
-            "job_call_counts": {name: count for name, count in job_call_counts.items() if count},
             "error": f"{type(exc).__name__}: {exc}",
             "exception": _exception_details(exc),
             "traceback": traceback.format_exc(),
         }
-    return {
-        "success": bool(response.success),
-        "answer": response.answer,
-        "metadata": response.metadata,
-        "token_usage": token_usage,
-        "job_call_counts": {name: count for name, count in job_call_counts.items() if count},
-        "error": None if response.success else str(response.answer),
-    }
+    else:
+        result = {
+            "success": bool(response.success),
+            "answer": response.answer,
+            "metadata": response.metadata,
+            "error": None if response.success else str(response.answer),
+        }
+    result["token_usage"] = token_usage
+    result["job_call_counts"] = {name: count for name, count in job_call_counts.items() if count}
+    return result
 
 
 def _atomic_write_json(path: Path, value: Any) -> None:
@@ -195,6 +197,37 @@ def _clear_query_state(app: Any) -> None:
     app.context.metadata.pop("__search_call_budgets", None)
 
 
+@asynccontextmanager
+async def _application_scope(app: Any, failed_results: list[dict[str, Any]] | None = None) -> AsyncIterator[None]:
+    """Close the app, attaching cleanup diagnostics to already-failed results.
+
+    Propagating exceptions retain cleanup notes; cleanup alone still raises.
+    """
+    error: BaseException | None = None
+    try:
+        yield
+    except BaseException as exc:
+        error = exc
+        raise
+    finally:
+        try:
+            await app.close()
+        except BaseException as exc:
+            if error is None:
+                if isinstance(exc, Exception) and failed_results:
+                    diagnostic = {
+                        "error": f"{type(exc).__name__}: {exc}",
+                        "exception": _exception_details(exc),
+                        "traceback": traceback.format_exc(),
+                    }
+                    for result in failed_results:
+                        result.setdefault("cleanup_errors", []).append(diagnostic)
+                else:
+                    raise
+            else:
+                error.add_note("Application close failed:\n" + "".join(traceback.format_exception(exc, chain=False)))
+
+
 async def _run(request: dict[str, Any]) -> dict[str, Any]:
     """Construct an Application, run one job, and close it deterministically."""
     job = request["job"]
@@ -203,11 +236,19 @@ async def _run(request: dict[str, Any]) -> dict[str, Any]:
     from reme.reme import ReMe
 
     app = ReMe(**app_config)
-    try:
+    failed_results: list[dict[str, Any]] = []
+    async with _application_scope(app, failed_results):
         await app.start()
-        return await _run_job_on_app(app, job, job_args)
-    finally:
-        await app.close()
+        result = await _run_job_on_app(app, job, job_args)
+        if not result["success"]:
+            failed_results.append(result)
+    return result
+
+
+def _append_build_error(build_log: Path, detail: str) -> None:
+    """Keep build diagnostics even when the candidate reconfigures the logger."""
+    with build_log.open("a", encoding="utf-8") as log_file:
+        log_file.write(detail.rstrip() + "\n")
 
 
 async def _run_build(request: dict[str, Any]) -> dict[str, Any]:
@@ -227,38 +268,47 @@ async def _run_build(request: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(jobs, list) or not jobs:
             raise ValueError("build request requires a non-empty jobs list")
         app = ReMe(**app_config)
-    except Exception:
-        # Config resolution and Application construction can fail before the
-        # ReMe logger is usable. Write the traceback to the durable artifact.
-        with build_log.open("a", encoding="utf-8") as log_file:
-            traceback.print_exc(file=log_file)
+        logger = None
+        results: list[dict[str, Any]] = []
+        failed_results: list[dict[str, Any]] = []
+        try:
+            async with _application_scope(app, failed_results):
+                # Application.__init__ resets the global logger. Attach afterwards.
+                logger = _start_case_log(build_log)
+                logger.info("[sandbox] build phase started")
+                await app.start()
+                for index, specification in enumerate(jobs):
+                    if not isinstance(specification, dict) or not isinstance(specification.get("job"), str):
+                        raise ValueError(f"invalid build job at index {index}")
+                    arguments = specification.get("arguments") or {}
+                    if not isinstance(arguments, dict):
+                        raise ValueError(f"build job arguments must be an object at index {index}")
+                    result = await _run_job_on_app(app, specification["job"], arguments)
+                    if not result["success"]:
+                        failed_results.append(result)
+                        _append_build_error(
+                            build_log,
+                            f"[sandbox] build job {specification['job']!r} failed: "
+                            f"{result.get('error') or 'job failed'}\n"
+                            f"{result.get('traceback') or ''}",
+                        )
+                    item = {"job": specification["job"], "result": result}
+                    checkpoint = specification.get("memory_checkpoint")
+                    if checkpoint is not None and (not isinstance(checkpoint, str) or not checkpoint.strip()):
+                        raise ValueError(f"invalid memory_checkpoint at index {index}")
+                    if result["success"] and checkpoint is not None:
+                        item["memory_checkpoint"] = _commit_memory_checkpoint(case_root, app_config, checkpoint)
+                    results.append(item)
+            for result in failed_results:
+                for diagnostic in result.get("cleanup_errors", []):
+                    _append_build_error(build_log, diagnostic["traceback"])
+        finally:
+            if logger is not None:
+                logger.info("[sandbox] build phase finished")
+            get_logger(log_to_console=False, log_to_file=False, force_init=True)
+    except BaseException:
+        _append_build_error(build_log, traceback.format_exc())
         raise
-
-    # Application.__init__ force-initializes the global logger, removing any
-    # sink bound before construction. Attach the build artifact afterwards.
-    logger = _start_case_log(build_log)
-    logger.info("[sandbox] build phase started")
-    results: list[dict[str, Any]] = []
-    try:
-        await app.start()
-        for index, specification in enumerate(jobs):
-            if not isinstance(specification, dict) or not isinstance(specification.get("job"), str):
-                raise ValueError(f"invalid build job at index {index}")
-            arguments = specification.get("arguments") or {}
-            if not isinstance(arguments, dict):
-                raise ValueError(f"build job arguments must be an object at index {index}")
-            result = await _run_job_on_app(app, specification["job"], arguments)
-            item = {"job": specification["job"], "result": result}
-            checkpoint = specification.get("memory_checkpoint")
-            if checkpoint is not None and (not isinstance(checkpoint, str) or not checkpoint.strip()):
-                raise ValueError(f"invalid memory_checkpoint at index {index}")
-            if result["success"] and checkpoint is not None:
-                item["memory_checkpoint"] = _commit_memory_checkpoint(case_root, app_config, checkpoint)
-            results.append(item)
-    finally:
-        logger.info("[sandbox] build phase finished")
-        await app.close()
-        get_logger(log_to_console=False, log_to_file=False, force_init=True)
     return {
         "success": len(results) == len(jobs) and all(item["result"]["success"] for item in results),
         "jobs": results,
@@ -361,60 +411,67 @@ async def _run_queries(request: dict[str, Any], *, write_summary: bool = True) -
 
     app = ReMe(**app_config)
     results: list[dict[str, Any]] = []
-    try:
-        await app.start()
-        for query, query_id in zip(queries, query_ids):
-            query_dir = queries_root / query_id
-            query_dir.mkdir(parents=False, exist_ok=False)
-            log_path = query_dir / "answer.log"
-            logger = _start_case_log(log_path)
-            logger.info(f"[sandbox] query started query_id={query_id!r}")
-            answer_result: dict[str, Any] | None = None
-            error: str | None = None
-            exception: dict[str, Any] | None = None
-            try:
-                question = query.get("question")
-                if not isinstance(question, str):
-                    raise ValueError(f"query {query_id!r} requires a string question")
-                answer_arguments = dict(query.get("answer_arguments") or {})
-                answer_arguments["query"] = question
-                answer_result = await _run_job_on_app(
-                    app,
-                    str(query.get("answer_job") or "agentic_answer"),
-                    answer_arguments,
-                )
-                if not answer_result["success"]:
-                    error = answer_result.get("error") or "answer job failed"
-                    exception = answer_result.get("exception")
-            except Exception as exc:  # Keep later queries runnable and preserve this query's log.
-                error = f"{type(exc).__name__}: {exc}"
-                exception = _exception_details(exc)
-                traceback_text = traceback.format_exc()
-            else:
-                traceback_text = None
-            finally:
-                logger.info(f"[sandbox] query finished query_id={query_id!r}")
-                _clear_query_state(app)
-                get_logger(log_to_console=False, log_to_file=False, force_init=True)
+    failed_results: list[dict[str, Any]] = []
+    async with _application_scope(app, failed_results):
+        try:
+            await app.start()
+            for query, query_id in zip(queries, query_ids):
+                query_dir = queries_root / query_id
+                query_dir.mkdir(parents=False, exist_ok=False)
+                log_path = query_dir / "answer.log"
+                logger = _start_case_log(log_path)
+                logger.info(f"[sandbox] query started query_id={query_id!r}")
+                answer_result: dict[str, Any] | None = None
+                error: str | None = None
+                exception: dict[str, Any] | None = None
+                try:
+                    question = query.get("question")
+                    if not isinstance(question, str):
+                        raise ValueError(f"query {query_id!r} requires a string question")
+                    answer_arguments = dict(query.get("answer_arguments") or {})
+                    answer_arguments["query"] = question
+                    answer_result = await _run_job_on_app(
+                        app,
+                        str(query.get("answer_job") or "agentic_answer"),
+                        answer_arguments,
+                    )
+                    if not answer_result["success"]:
+                        error = answer_result.get("error") or "answer job failed"
+                        exception = answer_result.get("exception")
+                except Exception as exc:  # Keep later queries runnable and preserve this query's log.
+                    error = f"{type(exc).__name__}: {exc}"
+                    exception = _exception_details(exc)
+                    traceback_text = traceback.format_exc()
+                else:
+                    traceback_text = None
+                finally:
+                    logger.info(f"[sandbox] query finished query_id={query_id!r}")
+                    _clear_query_state(app)
+                    get_logger(log_to_console=False, log_to_file=False, force_init=True)
 
-            result = {
-                "query_id": query_id,
-                "question": query.get("question"),
-                "answer": answer_result.get("answer") if answer_result is not None else None,
-                "score": None,
-                "answer_result": answer_result,
-                "judge_result": None,
-                "error": error,
-            }
-            if exception is not None:
-                result["exception"] = exception
-            if traceback_text is not None:
-                result["traceback"] = traceback_text
-            _atomic_write_json(query_dir / "result.json", result)
-            results.append(result)
-    finally:
-        get_logger(log_to_console=False, log_to_file=False, force_init=True)
-        await app.close()
+                result = {
+                    "query_id": query_id,
+                    "question": query.get("question"),
+                    "answer": answer_result.get("answer") if answer_result is not None else None,
+                    "score": None,
+                    "answer_result": answer_result,
+                    "judge_result": None,
+                    "error": error,
+                }
+                if exception is not None:
+                    result["exception"] = exception
+                if traceback_text is not None:
+                    result["traceback"] = traceback_text
+                _atomic_write_json(query_dir / "result.json", result)
+                results.append(result)
+                if error is not None:
+                    failed_results.append(result)
+        finally:
+            get_logger(log_to_console=False, log_to_file=False, force_init=True)
+
+    for result in failed_results:
+        if result.get("cleanup_errors"):
+            _atomic_write_json(queries_root / result["query_id"] / "result.json", result)
 
     summary = {
         "schema_version": 1,

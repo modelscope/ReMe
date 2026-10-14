@@ -7,6 +7,7 @@ import fnmatch
 import gzip
 import hashlib
 import io
+import os
 from pathlib import Path
 from pathlib import PurePosixPath
 import tarfile
@@ -98,14 +99,26 @@ class SourceSnapshot:
             raise ValueError(f"candidate source is not a directory: {root}")
 
         files: list[tuple[Path, Path]] = []
-        for path in root.rglob("*"):
-            relative = path.relative_to(root)
-            if _is_excluded(relative, excludes):
-                continue
-            if path.is_symlink():
-                raise ValueError(f"candidate source contains a symbolic link: {relative}")
-            if path.is_file():
-                files.append((relative, path))
+        # Component matches exclude every descendant. Full-path matches may
+        # exclude only the directory itself, so they must not prune traversal.
+        directory_patterns = tuple(pattern for pattern in excludes if "/" not in pattern)
+        for current, directories, filenames in os.walk(root, topdown=True, followlinks=False):
+            directory = Path(current)
+            for name in directories[:]:
+                path = directory / name
+                if any(fnmatch.fnmatch(name, pattern) for pattern in directory_patterns):
+                    directories.remove(name)
+                elif path.is_symlink() and not _is_excluded(path.relative_to(root), excludes):
+                    raise ValueError(f"candidate source contains a symbolic link: {path.relative_to(root)}")
+            for name in filenames:
+                path = directory / name
+                relative = path.relative_to(root)
+                if _is_excluded(relative, excludes):
+                    continue
+                if path.is_symlink():
+                    raise ValueError(f"candidate source contains a symbolic link: {relative}")
+                if path.is_file():
+                    files.append((relative, path))
 
         raw = io.BytesIO()
         with gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as compressed:

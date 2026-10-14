@@ -54,17 +54,55 @@ asyncio.run(main())
 Each worker completes one case's build and queries before taking the next
 case. A case can set `reuse_workspace_from="case-1"` to receive the source
 case's workspace **as it stood immediately after construction**, or provide
-`workspace_source` pointing at a host directory or `export_workspace()`
-archive. A reused workspace may be queried without additional build jobs.
+`workspace_source` pointing at a host workspace directory or a saved archive.
+A reused workspace may be queried without additional build jobs.
 `export_workspace_to` persists a portable snapshot beyond the pool run.
+To build memory once and query it in later runs using the same factory:
+
+```python
+memory = Path("artifacts/memory.tar.gz")
+pool = BenchmarkDockerPool(factory, concurrency=2)
+built = (await pool.run([
+    CasePlan("build-memory", build_jobs=(JobRequest("auto_memory", {
+        "session_id": "s1", "messages": [],
+    }),), export_workspace_to=memory),
+]))[0]
+if not built.success:
+    raise RuntimeError(built.error or "memory build failed")
+
+# This may run later in another process with a compatible factory/config.
+answers = await pool.run([
+    CasePlan("query-memory", workspace_source=memory,
+             queries=(EvaluationQuery("q1", "Question?", "Private answer"),)),
+])
+```
+
+Use compatible candidate code, plugins, and workspace path configuration when
+restoring memory. Uploading a snapshot does not change the receiving config.
+`export_workspace()` archives contain workspace contents directly. Case archives
+from `export_memory_construction()`, `export_evaluation()`, and `export()` carry
+a `manifest.json` format marker and restore only `reme_workspace/`, including
+its Git history; build logs and query artifacts are excluded from the upload.
+Evaluation exports contain the workspace after queries; use a construction or
+workspace export before queries to preserve the original built memory.
+Query-only case exports cannot be uploaded as workspaces. Older full case
+archives remain supported. Older partial archives with a `reme_workspace`
+wrapper but no manifest are rejected; to reuse one, extract it and supply its
+`reme_workspace` directory.
+
 `export_evaluation_to` saves the workspace and query artifacts for both build
 and query-only cases; it includes `build_log` when that phase ran. Set
 `export_build_log_to` to retain the construction log separately. On a failed
 build, the pool also returns its text in `CaseResult.build_log`. A timed-out
 AgentScope shell command makes its container unusable: the pool closes it after
 retaining the log and creates a replacement when more cases need a worker.
-The build log also records configuration and Application construction failures,
-including their tracebacks.
+Replacement requires successful cleanup of the old worker. Cleanup failures
+are reported in `CaseResult.error` and make `success` false for cases that used
+that worker; failures for an unused worker apply to the whole run. Cancellation
+waits for owned-container cleanup before propagating. A failed `close()` retains
+unfinished Docker handles so another call can retry removal.
+The build log also records configuration, construction, build job, checkpoint,
+and Application lifecycle failures, including available tracebacks.
 
 For direct control, call `create_case()` or `create_cases()`, then use
 `run_job()`, `run_build()`, `run_queries()`, `export_workspace()`,

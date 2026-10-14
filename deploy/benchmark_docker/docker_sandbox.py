@@ -15,6 +15,7 @@ import tarfile
 from typing import Any, Callable, Literal, Protocol
 import uuid
 
+from ._cleanup import cleanup_on_error
 from .candidate import ImageCandidate, SourceCandidate
 from .models import ActionRecord, EvaluationQuery, JobRequest, JobResult
 
@@ -28,6 +29,7 @@ WORKSPACE_ARCHIVE = "/tmp/reme-workspace-upload.tar.gz"
 WORKSPACE_EXPORT_ARCHIVE = "/tmp/reme-workspace-export.tar.gz"
 RUNTIME_LAYOUT = f"{CASE_ROOT}/runtime-layout.json"
 _CASE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+_CASE_ARCHIVE_FORMAT = "reme-case-v1"
 _PRIVATE_EVALUATION_FIELDS = frozenset(
     {"query", "question", "golden_answer", "question_type", "rubric", "judge_arguments"},
 )
@@ -110,19 +112,60 @@ def _workspace_member_path(name: str) -> PurePosixPath | None:
     return path
 
 
+def _case_archive_workspace_root(
+    archive: tarfile.TarFile,
+    members: dict[PurePosixPath, tarfile.TarInfo],
+) -> PurePosixPath | None:
+    """Distinguish marked case artifacts from raw workspace contents."""
+    workspace_root = PurePosixPath("reme_workspace")
+    has_workspace = any(path.parts[0] == workspace_root.name for path in members)
+    manifest = members.get(PurePosixPath("manifest.json"))
+    if manifest is None:
+        if has_workspace:
+            raise ValueError(
+                "unmarked case archive; upload its reme_workspace directory or recreate it with a current case export",
+            )
+        return None
+    if not manifest.isfile():
+        raise ValueError("workspace archive manifest.json must be a regular file")
+    content = archive.extractfile(manifest)
+    assert content is not None
+    try:
+        payload = json.loads(content.read())
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        if has_workspace:
+            raise ValueError("case archive contains an invalid manifest.json") from exc
+        return None  # A raw workspace may contain an unrelated manifest file.
+    if not isinstance(payload, dict) or "archive_format" not in payload:
+        if has_workspace and not isinstance(payload, dict):
+            raise ValueError("case archive manifest.json must be an object")
+        # Older full case exports have a manifest without archive_format.
+        return workspace_root if has_workspace else None
+    if payload["archive_format"] != _CASE_ARCHIVE_FORMAT:
+        raise ValueError(f"unsupported case archive format: {payload['archive_format']!r}")
+    root = payload.get("workspace_root")
+    if root is None:
+        raise ValueError("case archive has no reusable workspace")
+    if root != workspace_root.as_posix():
+        raise ValueError(f"case archive has an invalid workspace root: {root!r}")
+    if not has_workspace:
+        raise ValueError("case archive workspace is missing")
+    return workspace_root
+
+
 def _archive_workspace(source: str | Path) -> bytes:
     """Create a safe, deterministic gzip tar archive from a host workspace.
 
     ``source`` may be a workspace directory or an archive previously returned
-    by :meth:`DockerReMeSandbox.export_workspace`. Incoming archives are read
-    and rebuilt so links, special files, and traversal paths never reach the
-    sandbox extractor.
+    by :meth:`DockerReMeSandbox.export_workspace`, or a marked case archive
+    containing a workspace. Incoming archives are read and rebuilt so links,
+    special files, and traversal paths never reach the sandbox extractor.
     """
     supplied_path = Path(source).expanduser()
     if supplied_path.is_symlink():
         raise ValueError("workspace source must not be a symbolic link")
     source_path = supplied_path.resolve(strict=True)
-    entries: list[tuple[PurePosixPath, tarfile.TarInfo, bytes | None]] = []
+    entries: list[tuple[tarfile.TarInfo, bytes | None]] = []
     if source_path.is_dir():
         for item in sorted(source_path.rglob("*"), key=lambda value: value.relative_to(source_path).as_posix()):
             relative = item.relative_to(source_path)
@@ -130,67 +173,58 @@ def _archive_workspace(source: str | Path) -> bytes:
                 raise ValueError(f"workspace source contains a symbolic link: {relative}")
             path = _workspace_member_path(relative.as_posix())
             assert path is not None
+            info = tarfile.TarInfo(path.as_posix())
+            info.mode = item.stat().st_mode & 0o777
             if item.is_dir():
-                info = tarfile.TarInfo(path.as_posix())
                 info.type = tarfile.DIRTYPE
-                info.mode = item.stat().st_mode & 0o777
-                entries.append((path, info, None))
+                data = None
             elif item.is_file():
-                info = tarfile.TarInfo(path.as_posix())
-                info.size = item.stat().st_size
-                info.mode = item.stat().st_mode & 0o777
-                entries.append((path, info, item.read_bytes()))
+                data = item.read_bytes()
+                info.size = len(data)
             else:
                 raise ValueError(f"workspace source contains unsupported file: {relative}")
+            entries.append((info, data))
     elif source_path.is_file():
         with tarfile.open(source_path, mode="r:*") as archive:
-            members = archive.getmembers()
-            normalized_paths = [path for member in members if (path := _workspace_member_path(member.name)) is not None]
-            # ``export()`` archives the whole case, while ``export_workspace``
-            # archives only the workspace contents. Accept both forms so an
-            # existing case artifact can seed independent query sandboxes.
-            case_export = PurePosixPath("manifest.json") in normalized_paths and any(
-                path.parts and path.parts[0] == "reme_workspace" for path in normalized_paths
-            )
-            seen: set[PurePosixPath] = set()
-            for member in members:
+            members: dict[PurePosixPath, tarfile.TarInfo] = {}
+            for member in archive.getmembers():
                 path = _workspace_member_path(member.name)
                 if path is None:
                     continue
-                if case_export:
-                    if not path.parts or path.parts[0] != "reme_workspace":
+                if path in members:
+                    raise ValueError(f"workspace archive contains duplicate path: {path}")
+                members[path] = member
+            workspace_root = _case_archive_workspace_root(archive, members)
+            for path, member in members.items():
+                if workspace_root is not None:
+                    if path != workspace_root and workspace_root not in path.parents:
                         continue
-                    if len(path.parts) == 1:
+                    if path == workspace_root:
                         if not member.isdir():
                             raise ValueError("case export has a non-directory reme_workspace entry")
                         continue
-                    path = PurePosixPath(*path.parts[1:])
-                if path in seen:
-                    raise ValueError(f"workspace archive contains duplicate path: {path}")
-                seen.add(path)
+                    path = path.relative_to(workspace_root)
+                info = tarfile.TarInfo(path.as_posix())
+                info.mode = member.mode & 0o777
                 if member.isdir():
-                    info = tarfile.TarInfo(path.as_posix())
                     info.type = tarfile.DIRTYPE
-                    info.mode = member.mode & 0o777
-                    entries.append((path, info, None))
+                    data = None
                 elif member.isfile():
                     content = archive.extractfile(member)
                     if content is None:
                         raise ValueError(f"workspace archive cannot read file: {path}")
                     data = content.read()
-                    info = tarfile.TarInfo(path.as_posix())
                     info.size = len(data)
-                    info.mode = member.mode & 0o777
-                    entries.append((path, info, data))
                 else:
                     raise ValueError(f"workspace archive contains unsupported entry: {member.name!r}")
+                entries.append((info, data))
     else:
         raise ValueError(f"workspace source is neither a directory nor a file: {source_path}")
 
     raw = io.BytesIO()
     with gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as compressed:
         with tarfile.open(fileobj=compressed, mode="w") as archive:
-            for _path, info, data in entries:
+            for info, data in entries:
                 info.mtime = 0
                 info.uid = info.gid = 0
                 info.uname = info.gname = ""
@@ -270,10 +304,7 @@ class DockerReMeSandboxFactory:
         try:
             await case.initialize()
         except BaseException as exc:
-            try:
-                await workspace.close()
-            except Exception as close_exc:
-                exc.add_note(f"workspace close failed: {type(close_exc).__name__}: {close_exc}")
+            await cleanup_on_error([(f"workspace {container_id!r}", workspace.close())], exc)
             raise
         return case
 
@@ -285,30 +316,38 @@ class DockerReMeSandboxFactory:
             raise ValueError("case_ids must be unique")
         semaphore = asyncio.Semaphore(concurrency)
 
-        async def create(case_id: str) -> DockerReMeSandbox:
-            async with semaphore:
-                return await self.create_case(case_id)
-
-        async def close_created(results: list[DockerReMeSandbox | BaseException]) -> None:
-            await asyncio.gather(
-                *(result.close() for result in results if isinstance(result, DockerReMeSandbox)),
-                return_exceptions=True,
-            )
+        async def create(case_id: str) -> DockerReMeSandbox | BaseException:
+            try:
+                async with semaphore:
+                    return await self.create_case(case_id)
+            except BaseException as exc:
+                # Preserve cleanup notes on CancelledError instead of letting
+                # gather replace it with a fresh cancellation exception.
+                return exc
 
         tasks = [asyncio.create_task(create(case_id)) for case_id in case_ids]
+        error: BaseException | None = None
         try:
             results = await asyncio.gather(*tasks, return_exceptions=True)
-        except BaseException:
+        except BaseException as exc:
+            error = exc
             for task in tasks:
-                task.cancel()
+                if not task.done() and not task.cancelling():
+                    task.cancel()
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            await close_created(results)
-            raise
+        created = [result for result in results if isinstance(result, DockerReMeSandbox)]
         failures = [result for result in results if isinstance(result, BaseException)]
-        if failures:
-            await close_created(results)
-            raise failures[0]
-        return [result for result in results if isinstance(result, DockerReMeSandbox)]
+        if error is None:
+            if not failures:
+                return created
+            error = failures.pop(0)
+            for failure in failures:
+                error.add_note(f"additional creation failure: {type(failure).__name__}: {failure}")
+        for failure in failures:
+            for note in getattr(failure, "__notes__", ()):
+                error.add_note(note)
+        await cleanup_on_error(((f"workspace {case.container_id!r}", case.close()) for case in created), error)
+        raise error
 
 
 class DockerReMeSandbox:
@@ -474,10 +513,7 @@ class DockerReMeSandbox:
             raise SandboxCommandError("sandbox container is no longer reusable")
         try:
             await self.backend.write_file(path, data)
-        except asyncio.CancelledError:
-            self._reusable = False
-            raise
-        except Exception:
+        except (Exception, asyncio.CancelledError):
             # Docker may have accepted the upload before the client failed.
             self._reusable = False
             raise
@@ -492,10 +528,7 @@ class DockerReMeSandbox:
         except TimeoutError as exc:
             self._reusable = False
             raise SandboxCommandTimeoutError(f"sandbox action {name!r} timed out; container must be destroyed") from exc
-        except asyncio.CancelledError:
-            self._reusable = False
-            raise
-        except Exception:
+        except (Exception, asyncio.CancelledError):
             # A backend failure may occur after Docker started the command.
             self._reusable = False
             raise
@@ -687,15 +720,11 @@ class DockerReMeSandbox:
         """Generate an answer with the candidate's agentic_answer job."""
         async with self._operation_lock:
             result = await self._run_job("agentic_answer", {"query": query, "query_time": query_time})
-            await self._write_named_result("answer.json", result)
+            await self._write_file(
+                f"{self.results_dir}/answer.json",
+                json.dumps(asdict(result), ensure_ascii=False, default=str).encode("utf-8"),
+            )
             return result
-
-    async def _write_named_result(self, name: str, result: JobResult) -> None:
-        assert self.backend is not None
-        await self._write_file(
-            f"{self.results_dir}/{name}",
-            json.dumps(asdict(result), ensure_ascii=False, default=str).encode("utf-8"),
-        )
 
     async def export(
         self,
@@ -758,43 +787,52 @@ class DockerReMeSandbox:
             raise SandboxCommandError(f"{description} is missing required artifact: {path}") from exc
 
     async def export_memory_construction(self, destination: str | Path) -> Path:
-        """Download the post-construction workspace and its build log."""
+        """Download the workspace and build log; reusable with upload_workspace."""
         async with self._operation_lock:
-            await self._require_artifact(f"{CASE_ROOT}/build_log/build.log", "memory construction export")
             return await self._export_archive(
                 destination,
                 "export_memory_construction",
                 CASE_ROOT,
                 ["reme_workspace", "build_log"],
+                required=("build_log/build.log", "memory construction export"),
             )
 
     async def export_queries(self, destination: str | Path) -> Path:
         """Download per-query logs, results, and their aggregate summary."""
         async with self._operation_lock:
-            await self._require_artifact(f"{CASE_ROOT}/queries/summary.json", "query export")
-            return await self._export_archive(destination, "export_queries", CASE_ROOT, ["queries"])
+            return await self._export_archive(
+                destination,
+                "export_queries",
+                CASE_ROOT,
+                ["queries"],
+                required=("queries/summary.json", "query export"),
+            )
 
     async def export_query(self, query_id: str, destination: str | Path) -> Path:
         """Download one leased query's logs and result without a case summary."""
 
         self._validate_query_artifact_id(query_id)
         async with self._operation_lock:
-            query_root = f"{CASE_ROOT}/queries/{query_id}"
-            await self._require_artifact(f"{query_root}/result.json", "query export")
-            return await self._export_archive(destination, "export_query", CASE_ROOT, [f"queries/{query_id}"])
+            return await self._export_archive(
+                destination,
+                "export_query",
+                CASE_ROOT,
+                [f"queries/{query_id}"],
+                required=(f"queries/{query_id}/result.json", "query export"),
+            )
 
     async def export_evaluation(self, destination: str | Path) -> Path:
-        """Download workspace and query artifacts, plus the build log when present."""
+        """Download reusable workspace and query artifacts, plus any build log."""
         async with self._operation_lock:
             assert self.backend is not None, "sandbox is not initialized"
             await self._require_artifact(f"{CASE_ROOT}/queries/summary.json", "evaluation export")
+            members = ["reme_workspace", "queries"]
             try:
                 await self.backend.read_file(f"{CASE_ROOT}/build_log/build.log")
             except FileNotFoundError:
-                has_build_log = False
+                pass
             else:
-                has_build_log = True
-            members = ["reme_workspace", "queries", *(["build_log"] if has_build_log else [])]
+                members.append("build_log")
             return await self._export_archive(destination, "export_evaluation", CASE_ROOT, members)
 
     @staticmethod
@@ -812,15 +850,27 @@ class DockerReMeSandbox:
         members: list[str],
         *,
         archive_path: str = EXPORT_ARCHIVE,
+        required: tuple[str, str] | None = None,
     ) -> Path:
         """Archive selected sandbox paths and download the archive while locked."""
         assert self.backend is not None, "sandbox is not initialized"
+        if required is not None:
+            path, description = required
+            await self._require_artifact(f"{root}/{path}", description)
+        if root == CASE_ROOT:
+            await self._write_export_manifest(
+                name.removeprefix("export_"),
+                workspace_root="reme_workspace" if "reme_workspace" in members else None,
+            )
+            members = ["manifest.json", *members]
         await self._exec_checked(name, ["tar", "-czf", archive_path, "-C", root, *members])
         return self._save_host_file(destination, await self.backend.read_file(archive_path))
 
     async def upload_workspace(self, source: str | Path, *, clear: bool = True) -> None:
-        """Copy a host workspace directory or exported archive into this case.
+        """Copy a host workspace directory or exported memory archive into this case.
 
+        Case archives restore only their workspace; logs and query artifacts
+        are excluded. Query-only archives cannot seed a runtime workspace.
         By default the existing runtime workspace is deleted first, ensuring a
         query case receives only the supplied memory state. Set ``clear=False``
         only when intentionally merging files into the current workspace.
@@ -893,27 +943,16 @@ class DockerReMeSandbox:
                 excludes.append(normalized)
         return workspace_root_value, excludes
 
-    async def _export(
-        self,
-        destination: str | Path,
-        *,
-        profile: Literal["analysis", "full"],
-        include_candidate: bool,
-    ) -> Path:
-        """Export the active case while the caller holds the operation lock."""
-        assert self.backend is not None, "sandbox is not initialized"
-        target = Path(destination).expanduser().resolve()
-        artifacts = Path(f"{target}.artifacts")
-        if profile == "analysis" and artifacts.exists():
-            raise FileExistsError(f"analysis artifacts already exist: {artifacts}")
-        if include_candidate and isinstance(self.candidate, ImageCandidate):
-            raise ValueError("an image candidate has no source directory to export")
+    async def _write_export_manifest(self, profile: str, *, workspace_root: str | None) -> None:
+        """Identify case archive layout without adding artifacts to its workspace."""
         candidate_id = (
             self.candidate.candidate_id
             if isinstance(self.candidate, SourceCandidate)
             else self.candidate.resolved_candidate_id
         )
         manifest = {
+            "archive_format": _CASE_ARCHIVE_FORMAT,
+            "workspace_root": workspace_root,
             "case_id": self.case_id,
             "container_id": self.container_id,
             "candidate_id": candidate_id,
@@ -931,6 +970,23 @@ class DockerReMeSandbox:
             f"{CASE_ROOT}/manifest.json",
             json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8"),
         )
+
+    async def _export(
+        self,
+        destination: str | Path,
+        *,
+        profile: Literal["analysis", "full"],
+        include_candidate: bool,
+    ) -> Path:
+        """Export the active case while the caller holds the operation lock."""
+        assert self.backend is not None, "sandbox is not initialized"
+        target = Path(destination).expanduser().resolve()
+        artifacts = Path(f"{target}.artifacts")
+        if profile == "analysis" and artifacts.exists():
+            raise FileExistsError(f"analysis artifacts already exist: {artifacts}")
+        if include_candidate and isinstance(self.candidate, ImageCandidate):
+            raise ValueError("an image candidate has no source directory to export")
+        await self._write_export_manifest(profile, workspace_root="reme_workspace")
         await self._write_file(
             f"{self.logs_dir}/actions.jsonl",
             b"".join(
