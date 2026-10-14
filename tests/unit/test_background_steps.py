@@ -922,6 +922,7 @@ def test_update_index_replaces_large_malformed_json_without_changing_source():
                 assert nodes["daily/healthy.json"].chunk_ids
 
                 source.write_bytes(replacement)
+                step = UpdateIndexStep(file_store=fs, persist=False, app_context=app_ctx)
                 response = await step(RuntimeContext(changes=[{"change": "modified", "path": str(source)}]))
 
                 assert response.success is True

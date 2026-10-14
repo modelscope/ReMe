@@ -124,7 +124,7 @@ class JsonFileChunker(BaseFileChunker):
         try:
             data = json.loads(raw_text)
         except json.JSONDecodeError:
-            # Malformed JSON: fall back to treating the whole file as one chunk.
+            # Malformed JSON: fall back to line-based text chunking.
             total_lines = raw_text.count("\n") + 1
             if len(raw_text) <= self.chunk_chars:
                 chunk = FileChunk(
@@ -138,13 +138,12 @@ class JsonFileChunker(BaseFileChunker):
                     [chunk],
                 )
             else:
-                lines = StringIO(raw_text)
                 chunked_lines = [{"text": "", "start_line": 1, "end_line": 1}]
-                for idx, line in enumerate(lines):
+                for line_no, line in enumerate(StringIO(raw_text), start=1):
                     if chunked_lines[-1]["text"] and len(chunked_lines[-1]["text"]) + len(line) > self.chunk_chars:
-                        chunked_lines.append({"text": "", "start_line": idx + 1, "end_line": idx + 1})
+                        chunked_lines.append({"text": "", "start_line": line_no, "end_line": line_no})
                     chunked_lines[-1]["text"] += line
-                    chunked_lines[-1]["end_line"] = idx + 1
+                    chunked_lines[-1]["end_line"] = line_no
                 chunks = [
                     FileChunk(
                         path=rel_path,
