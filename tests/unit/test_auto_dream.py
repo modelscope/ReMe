@@ -756,6 +756,7 @@ def test_finish_does_not_readd_a_failed_day_index(tmp_path):
             workspace=str(tmp_path),
             daily_dir="daily",
             changed_paths=[rel_path],
+            existing={rel_path: day_index.stat().st_mtime},
             failed_paths=[rel_path],
             errors=["extract unavailable"],
         )
