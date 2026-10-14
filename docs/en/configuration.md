@@ -109,6 +109,84 @@ Built-in registrations include `openai`, `anthropic`, `dashscope`, `deepseek`, `
 File operations, BM25 search, wikilink traversal, and `proactive_read` do not require an LLM. Evolution workflows such
 as `auto_memory`, `auto_resource`, `auto_dream`, and proactive refresh do.
 
+## Classifier Configuration
+
+`as_classifier` is an independent probabilistic classifier component. Its `jev` backend calls the TypeSafe API through
+AgentScope `2.0.10`. It evaluates named binary, choice, or score questions against shared text or a JSON object.
+
+Install the optional dependencies:
+
+```bash
+pip install "reme-ai[core,classifier-jev]"
+# For a source checkout:
+pip install -e ".[core,classifier-jev]"
+```
+
+`core` excludes the Jev SDK; `full` includes this extra. Environment variables alone do not enable classification, and
+the default classifier configuration remains commented out. Startup does not import optional classifier modules or
+create a client. The first classification checks dependencies and credentials; shutdown waits for active requests before
+closing the shared client.
+
+| Environment variable | Default | Purpose |
+|---|---|---|
+| `CLASSIFIER_BACKEND` | `jev` | Classifier backend |
+| `CLASSIFIER_MODEL_NAME` | `jev-latest` | Model name or alias |
+| `CLASSIFIER_API_KEY` | Empty | TypeSafe API key, required when classifying |
+| `CLASSIFIER_BASE_URL` | `null` | Optional API URL; empty values use the SDK default |
+
+To enable a component:
+
+```yaml
+components:
+  as_classifier:
+    default:
+      backend: ${CLASSIFIER_BACKEND:-jev}
+      model: ${CLASSIFIER_MODEL_NAME:-jev-latest}
+      credential:
+        api_key: ${CLASSIFIER_API_KEY:-}
+        base_url: ${CLASSIFIER_BASE_URL:-null}
+      timeout: 30
+      max_retries: 2
+      retry_delay: 0.5
+```
+
+`timeout` is the per-request timeout in seconds; `max_retries` counts retries after the initial request; `retry_delay`
+is the initial backoff in seconds. Configure these fields through YAML or CLI overrides. The SDK performs retries.
+
+The standalone `classifier_demo` configuration contains a CLI service, one classifier, and one demo Job, without the
+default background tasks:
+
+```bash
+export CLASSIFIER_API_KEY=your-typesafe-api-key
+reme start config=classifier_demo job=classifier_demo \
+  state="My account was charged twice. Please help urgently." \
+  components.as_classifier.default.timeout=15
+```
+
+Calls send the state and questions to TypeSafe. Omitting `questions` evaluates urgency, customer-support routing, and
+priority together. You can replace the demo questions completely and pass a JSON object as state:
+
+```bash
+reme start config=classifier_demo job=classifier_demo \
+  state='{"request":"My account was charged twice","channel":"email"}' \
+  questions='{"urgent":{"type":"binary","instructions":"Does this need urgent attention?"}}'
+```
+
+Question types are `binary`, `choice`, and `score`. Binary questions accept optional `criteria.true` / `criteria.false`
+descriptions. Choice questions require a non-empty `criteria` object mapping category names to descriptions or `null`.
+Score questions require a non-empty ordered list of descriptions, starting at score zero. Each question can include
+`instructions`. Explicit empty or `null` questions fail validation instead of selecting the demo defaults.
+
+The CLI prints the complete classifier result. Ordinary Job calls return the same JSON object in `Response.answer`,
+including `model`, `content`, `usage`, response identity, and timing information. Answers preserve probabilities and
+confidence and are keyed by question name; integer score-distribution keys become strings in JSON. The Step also writes
+`context.data["classifier_result"]` for subsequent Steps in that request, without automatically writing memory files.
+SDK errors follow BaseJob's `success=false` contract; failed CLI calls exit with code 1.
+
+Use `classifier_demo_step` in your own Job and select a named component with the Step setting `as_classifier: <name>`.
+See `reme/components/as_classifier/` for the component interface. AgentScope classifier schemas define question and
+answer contracts.
+
 ## Embeddings
 
 Vector retrieval is disabled by default. Credentials alone do not enable it: configure `as_embedding`, `embedding_store`, and connect the store to `file_store`.
