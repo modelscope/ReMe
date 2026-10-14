@@ -232,7 +232,17 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
 
     async def _compute_batch(self, batch: list[Miss], **kwargs) -> list[tuple[int, str, np.ndarray]]:
         texts = [text for _, text, _ in batch]
-        embeddings = await self._call_with_retry(texts, **kwargs)
+        # A provider-wide failure can end a request after some of its vectors were already
+        # recovered. Those vectors are still worth keeping, but they must not report the
+        # provider as healthy again: the unhealthy-to-healthy transition is what schedules
+        # missing-vector backfill, so a hidden outage would either trigger it while the
+        # provider is still unavailable or suppress a later genuine recovery.
+        terminal_failure: list[bool] = []
+        embeddings = await self._call_with_retry(
+            texts,
+            terminal_failure=terminal_failure,
+            **kwargs,
+        )
         if not embeddings or len(embeddings) != len(texts):
             return []
         out: list[tuple[int, str, np.ndarray]] = []
@@ -248,7 +258,7 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
         if bad_dims:
             details = ", ".join(f"{count} with dim {dim}" for dim, count in sorted(bad_dims.items()))
             self.logger.error(f"Embedding dimension mismatch in batch: expected {self.dimensions}; rejected {details}")
-        if out:
+        if out and not terminal_failure:
             self.is_healthy = True
         else:
             self.is_healthy = False
@@ -267,7 +277,9 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
         it is set to ``[True]`` if this call gave up on a failure that no remaining item
         can explain (a provider-wide error, exhausted quota, or exhausted transient
         retries). The per-item isolation loop uses it to stop instead of asking for every
-        remaining item and multiplying the rejected requests.
+        remaining item and multiplying the rejected requests, and it forwards the same
+        flag to its caller so a request that recovered some vectors before the failure is
+        still not reported as healthy.
         """
 
         def stop() -> None:
@@ -334,7 +346,11 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
                     self.logger.exception("Embedding request failed: input-dependent error")
                     self.is_healthy = False
                     if len(texts) > 1:
-                        return await self._embed_individually(texts, **kwargs)
+                        return await self._embed_individually(
+                            texts,
+                            terminal_failure=terminal_failure,
+                            **kwargs,
+                        )
                     return None
                 # Anything else counts as provider-wide. Splitting cannot recover a vector unless
                 # the failing input is identified, so an unrecognized error is never answered
@@ -346,7 +362,13 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
         stop()
         return None
 
-    async def _embed_individually(self, texts: list[str], **kwargs) -> list[list[float] | None]:
+    async def _embed_individually(
+        self,
+        texts: list[str],
+        *,
+        terminal_failure: list[bool] | None = None,
+        **kwargs,
+    ) -> list[list[float] | None]:
         """Retry a rejected batch one item at a time so one bad item cannot drop the rest.
 
         Provider-side request errors, such as a per-item context-length limit, reject the
@@ -355,6 +377,8 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
         Each single-item request goes back through ``_call_with_retry`` so a transient
         failure (429, connection error, timeout) still gets the existing backoff and retry
         policy instead of losing the vector; a one-item request never splits again.
+        When the loop stops on a provider-wide failure, ``terminal_failure`` is set for the
+        caller so the vectors recovered before it are not read as a healthy provider.
         """
         results: list[list[float] | None] = []
         for index, text in enumerate(texts):
@@ -368,7 +392,11 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
             if terminal and terminal[0]:
                 # No remaining item can explain a provider-wide failure, so asking for the
                 # rest would only multiply the rejected requests. Keep the vectors already
-                # recovered and leave the items that were never answered as None.
+                # recovered and leave the items that were never answered as None. The batch
+                # caller has to learn about it as well: a partial success must not report
+                # the provider as healthy again.
+                if terminal_failure is not None:
+                    terminal_failure[:] = [True]
                 self.logger.error(
                     f"Stopping per-item isolation after {index + 1}/{len(texts)} items: "
                     "the failure is not specific to any input",

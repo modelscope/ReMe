@@ -1430,6 +1430,40 @@ def test_isolation_stops_when_a_provider_wide_failure_hits():
     run(go())
 
 
+def test_partial_success_keeps_a_failed_provider_unhealthy():
+    """Recovered vectors must not overwrite the health state of a provider-wide failure.
+
+    Isolation can recover an early item and then meet a provider-wide failure such as
+    exhausted quota. ``_call_with_retry`` marks the store unhealthy and stops, but the
+    vectors recovered before it are still returned. Treating that partial success as a
+    healthy provider would hide the outage, and it would break the unhealthy-to-healthy
+    transition the file store uses to schedule missing-vector backfill. The existing
+    isolation test drives ``_call_with_retry`` directly, so it never sees the overwrite.
+    """
+
+    async def go():
+        provider = PerItemLimitThenQuotaAsEmbedding()
+        store = LocalEmbeddingStore(
+            name="t_local_embedding_partial_health",
+            max_retries=2,
+            enable_cache=False,
+        )
+        store.as_embedding = provider
+
+        vectors = await store.get_embeddings(["ok", "x" * 64, "also ok", "still ok"])
+
+        # The vector recovered before the outage is kept ...
+        assert vectors[0] is not None
+        assert vectors[1] is None and vectors[2] is None and vectors[3] is None
+        # ... and the provider-wide failure still decides the health state.
+        assert store.is_healthy is False
+        # One rejected batch, the recovered first item, the over-limit item, then the quota
+        # failure: the fourth item is never requested.
+        assert provider.batch_sizes == [4, 1, 1, 1]
+
+    run(go())
+
+
 def test_isolation_keeps_going_while_only_inputs_fail():
     """An input-dependent failure is local to its item, so isolation must continue.
 
