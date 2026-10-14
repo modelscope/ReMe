@@ -10,9 +10,8 @@ def _render_reindex(details: dict) -> str:
     counts = ", ".join(
         f"{name}={entry.get('indexed', 0)}" for name, entry in details.items() if isinstance(entry, dict)
     )
-    if counts:
-        return f"Reindexed scope={scope}: {counts}"
-    return f"Reindexed scope={scope}: {details.get('indexed', 0)} indexed"
+    summary = counts or f"{details.get('indexed', 0)} indexed"
+    return f"Reindexed scope={scope}: {summary}"
 
 
 @R.register("reindex_step")
