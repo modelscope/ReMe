@@ -1,12 +1,12 @@
 # Optional Jev demo. Install reme-ai[core,classifier-jev] and set CLASSIFIER_API_KEY.
-# reme start config=classifier_demo job=classifier_demo state="I was charged twice."
-service:
-  backend: cli
+# Start the service: reme start config=classifier_demo
+# Call it from another terminal: reme jev state="I was charged twice."
+extends: default
 
 jobs:
-  classifier_demo:
+  jev:
     backend: base
-    enable_serve: false
+    enable_serve: true
     description: "Classify customer requests with Jev; returns typed answers, probabilities, and usage."
     parameters:
       type: object

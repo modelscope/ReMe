@@ -521,7 +521,7 @@ flowchart LR
 | `as_embedding`    | `default`                       | 默认未配置；示例为 `openai` | 取消配置注释后提供 embedding 模型封装                      |
 | `embedding_store` | `default`                       | 默认未配置；示例为 `local`  | 取消配置注释后依赖 `as_embedding: default`                 |
 | `as_llm`          | `default`                       | `${LLM_BACKEND:-openai}`    | LLM 模型封装                                               |
-| `as_classifier`   | `default`                       | 默认未配置；示例为 `jev` | 可选概率分类；通过独立 classifier_demo 配置演示              |
+| `as_classifier`   | `default`                       | 默认未配置；示例为 `jev` | 可选概率分类；通过继承 default 的 classifier_demo 配置演示   |
 | `agent_wrapper`   | `default`                       | `agentscope`                | AgentScope wrapper                                         |
 | `agent_wrapper`   | `claude_code`                   | `claude_code`               | Claude Code wrapper                                        |
 | `agent_wrapper`   | `codex/codex_oauth`             | `codex`                     | 分别使用 API key 与 OAuth 的 Codex wrapper                 |

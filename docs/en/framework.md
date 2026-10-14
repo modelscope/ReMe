@@ -538,7 +538,7 @@ Current default components in `reme/config/default.yaml`:
 | `service`         | singleton                       | `http`                                           | Default HTTP service.                                                          |
 | `tokenizer`       | `default`                       | `regex`                                          | BM25 tokenizer.                                                                |
 | `as_embedding`    | `default`                       | Not configured by default; example uses `openai` | Provides the embedding model wrapper after uncommenting the example config.    |
-| `as_classifier`   | `default`                       | Not configured by default; example uses `jev` | Optional probabilistic classifier; demonstrated by the standalone classifier_demo config. |
+| `as_classifier`   | `default`                       | Not configured by default; example uses `jev` | Optional probabilistic classifier; demonstrated by the classifier_demo config extending default. |
 | `embedding_store` | `default`                       | Not configured by default; example uses `local`  | Depends on `as_embedding: default` after uncommenting the example config.      |
 | `as_llm`          | `default`                       | `${LLM_BACKEND:-openai}`                         | LLM model wrapper.                                                             |
 | `agent_wrapper`   | `default`                       | `agentscope`                                     | AgentScope wrapper.                                                            |

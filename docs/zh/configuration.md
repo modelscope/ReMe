@@ -155,32 +155,38 @@ components:
 `timeout` 是单次请求的超时秒数；`max_retries` 是首次请求之外的重试次数；`retry_delay` 是初始退避秒数。
 这三个字段通过 YAML 或 CLI 覆盖配置，重试由 SDK 执行。
 
-内置 `classifier_demo` 配置只有 CLI service、一个 classifier 和一个 demo Job，不启动默认后台任务：
+内置 `classifier_demo` 配置通过 `extends: default` 继承默认 HTTP/MCP 服务、组件和 Job，并增加 classifier 与
+可通过服务调用的 `jev` Job。默认后台任务也会启动。先在一个终端启动服务：
 
 ```bash
 export CLASSIFIER_API_KEY=your-typesafe-api-key
-reme start config=classifier_demo job=classifier_demo \
-  state="我的账户被重复扣款，请尽快处理" \
+reme start config=classifier_demo \
   components.as_classifier.default.timeout=15
+```
+
+再在另一个终端调用，客户端会发现正在运行的服务配置：
+
+```bash
+reme jev state="我的账户被重复扣款，请尽快处理"
 ```
 
 调用会把 `state` 和问题发送给 TypeSafe。省略 `questions` 时，demo 同时判断是否紧急、选择客服类别和评估优先级。
 可以完整替换演示问题，也可以传入 JSON object：
 
 ```bash
-reme start config=classifier_demo job=classifier_demo \
+reme jev \
   state='{"request":"我的账户被重复扣款","channel":"email"}' \
   questions='{"urgent":{"type":"binary","instructions":"是否需要紧急处理？"}}'
 ```
 
 问题的 `type` 支持 `binary`、`choice`、`score`。`binary` 可提供 `criteria.true` / `criteria.false` 描述；
 `choice` 需要非空 `criteria` object，key 是类别，value 是描述或 `null`；`score` 需要非空的有序描述列表，
-分数从零开始。问题可提供 `instructions`。显式传入空或 `null` 的 `questions` 会报错，不会退回 demo 默认问题。
+分数从零开始。问题可提供 `instructions`。显式传入空的 `questions` 会报错，不会退回 demo 默认问题。
 
-CLI 打印完整分类结果；普通 Job 调用通过 `Response.answer` 返回相同 JSON object，包含 `model`、`content`、
+`reme jev` 显示标准 Response JSON，分类结果位于 `answer`，包含 `model`、`content`、
 `usage`、响应标识和时间等信息。`content` 按问题名组织，保留概率与置信度；评分分布的整数 key 在 JSON 中变为字符串。
 Step 同时写入请求内的 `context.data["classifier_result"]`，可供后续 Step 消费，不自动写入记忆文件。
-SDK 错误沿用 BaseJob 的 `success=false` 契约；CLI 调用失败时退出码为 1。
+SDK 错误沿用 BaseJob 的 `success=false` 契约。
 
 在自己的 Job 中使用 `classifier_demo_step`，通过 Step 配置 `as_classifier: <组件名>` 选择命名组件。
 组件接口见 `reme/components/as_classifier/`；问题与答案契约由 AgentScope classifier schema 定义。

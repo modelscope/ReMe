@@ -113,7 +113,7 @@ cd ..
 
 静态构建要求 Node.js 22.13 或更高版本，并让源码安装可以直接使用 Studio。
 
-可选 Jev 分类功能使用 `pip install "reme-ai[core,classifier-jev]"` 安装。配置 TypeSafe API key 后即可运行独立 demo，
+可选 Jev 分类功能使用 `pip install "reme-ai[core,classifier-jev]"` 安装。配置 TypeSafe API key 后即可启动服务并调用 `reme jev`，
 详见[Classifier 配置](https://reme.agentscope.io/zh/configuration#classifier-配置)。
 
 ### Docker

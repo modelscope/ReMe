@@ -153,21 +153,27 @@ components:
 `timeout` is the per-request timeout in seconds; `max_retries` counts retries after the initial request; `retry_delay`
 is the initial backoff in seconds. Configure these fields through YAML or CLI overrides. The SDK performs retries.
 
-The standalone `classifier_demo` configuration contains a CLI service, one classifier, and one demo Job, without the
-default background tasks:
+The `classifier_demo` configuration uses `extends: default` to inherit the HTTP/MCP service, components, and Jobs,
+then adds a classifier and a service-exposed `jev` Job. The default background tasks also start. First start the service
+in one terminal:
 
 ```bash
 export CLASSIFIER_API_KEY=your-typesafe-api-key
-reme start config=classifier_demo job=classifier_demo \
-  state="My account was charged twice. Please help urgently." \
+reme start config=classifier_demo \
   components.as_classifier.default.timeout=15
+```
+
+Then call it from another terminal; the client discovers the running service configuration:
+
+```bash
+reme jev state="My account was charged twice. Please help urgently."
 ```
 
 Calls send the state and questions to TypeSafe. Omitting `questions` evaluates urgency, customer-support routing, and
 priority together. You can replace the demo questions completely and pass a JSON object as state:
 
 ```bash
-reme start config=classifier_demo job=classifier_demo \
+reme jev \
   state='{"request":"My account was charged twice","channel":"email"}' \
   questions='{"urgent":{"type":"binary","instructions":"Does this need urgent attention?"}}'
 ```
@@ -175,13 +181,13 @@ reme start config=classifier_demo job=classifier_demo \
 Question types are `binary`, `choice`, and `score`. Binary questions accept optional `criteria.true` / `criteria.false`
 descriptions. Choice questions require a non-empty `criteria` object mapping category names to descriptions or `null`.
 Score questions require a non-empty ordered list of descriptions, starting at score zero. Each question can include
-`instructions`. Explicit empty or `null` questions fail validation instead of selecting the demo defaults.
+`instructions`. Explicit empty questions fail validation instead of selecting the demo defaults.
 
-The CLI prints the complete classifier result. Ordinary Job calls return the same JSON object in `Response.answer`,
-including `model`, `content`, `usage`, response identity, and timing information. Answers preserve probabilities and
+`reme jev` displays the standard Response JSON, with the classifier result under `answer`, including `model`, `content`,
+`usage`, response identity, and timing information. Answers preserve probabilities and
 confidence and are keyed by question name; integer score-distribution keys become strings in JSON. The Step also writes
 `context.data["classifier_result"]` for subsequent Steps in that request, without automatically writing memory files.
-SDK errors follow BaseJob's `success=false` contract; failed CLI calls exit with code 1.
+SDK errors follow BaseJob's `success=false` contract.
 
 Use `classifier_demo_step` in your own Job and select a named component with the Step setting `as_classifier: <name>`.
 See `reme/components/as_classifier/` for the component interface. AgentScope classifier schemas define question and
