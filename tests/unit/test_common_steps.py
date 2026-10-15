@@ -502,7 +502,6 @@ def test_traverse_answer_is_llm_readable_and_actionable():
                 {"source": "a.md", "target": "b.md", "target_anchor": None, "depth": 1},
                 {"source": "a.md", "target": "c.md", "target_anchor": "intro", "depth": 1},
             ]
-            assert _graph(response) == _graph(response)  # structured payload is preserved verbatim
             await store.close()
         print("✓ test_traverse_answer_is_llm_readable_and_actionable passed")
 

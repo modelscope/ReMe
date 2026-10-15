@@ -55,9 +55,15 @@ into the conversation source.
 ## Server status
 
 To check ReMe is up: call `version` and `health_check`, then summarize the version and the health
-snapshot (components, workspace). If the `mcp__reme__…` tools are not available at all, the server
-is not running — tell the user to start it with the command above. The plugin connects at
-`http://127.0.0.1:2333/mcp`; a different host/port must match the `url` in the bundled `.mcp.json`.
+snapshot (components, workspace). If the `mcp__reme__…` tools are not available, do not conclude
+the server is not running — first check whether the ReMe plugin is enabled (host's plugin
+manager) and run `/mcp` to see the connection status. The tools can also disappear when the
+server's tool allowlist blocks them, or when the connection has failed mid-session. Only when
+the plugin is enabled, `/mcp` shows a successful connection, and the tool allowlist is not
+filtering them out, should you tell the user the server itself is not running and ask them to
+start it. The plugin connects over a stdio bridge configured by the host — the upstream address
+lives in `mcp_url` inside the host's `reme/config.json`, not in any bundled `.mcp.json`. After
+changing `mcp_url`, reconnect MCP in the host so the new address takes effect.
 
 ## Workspace model
 
