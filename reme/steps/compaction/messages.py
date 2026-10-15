@@ -1,7 +1,4 @@
-"""Pair and rebuild AgentScope blocks without rewriting conversation text.
-
-Algorithm attribution and MIT license: see LICENSE.compaction.
-"""
+"""Pair and rebuild AgentScope blocks without rewriting conversation text."""
 
 from collections import defaultdict
 from copy import deepcopy

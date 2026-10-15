@@ -1,7 +1,4 @@
-"""Bound the decision model's observation view without changing output messages.
-
-Algorithm attribution and MIT license: see LICENSE.compaction.
-"""
+"""Bound the decision model's observation view without changing output messages."""
 
 import json
 import re
