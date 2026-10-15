@@ -20,7 +20,7 @@ from reme import Application
 from reme.config import resolve_app_config
 from reme.schema.compaction import CompactionRequest
 from reme.steps.compaction.messages import collect_pairs
-from reme.steps.compaction.state import estimate_decision_tokens, fit_state
+from reme.steps.compaction.state import build_batches, estimate_decision_tokens
 from reme.utils.env_utils import load_env
 
 pytestmark = pytest.mark.skipif(
@@ -107,17 +107,18 @@ async def _run_case(
     request = CompactionRequest(
         messages=history,
         goal=goal,
+        source_refs={block["id"]: archive.as_uri() + "#" + block["id"] for block in _blocks(history, "tool_call")},
         eligible_tool_names=eligible,
         protected_call_ids=protected_calls,
         protected_message_ids=protected_messages,
         options={"preserve_recent_messages": 2, "max_state_tokens": 6000},
     )
     pairs = collect_pairs(request)
-    state, _ = fit_state(request, pairs)
-    # Fit a few question pairs per request, exercising repeated state and concurrency.
+    # Each batch carries only its evidence, rather than repeatedly copying the whole history.
+    state, questions = build_batches(request, pairs)[0]
     options = request.options.model_dump()
     options.update(
-        max_request_tokens=estimate_decision_tokens({"state": state, "questions": {}}) + 750,
+        max_request_tokens=max(1800, estimate_decision_tokens({"state": state, "questions": questions}) // 3),
         max_concurrency=2,
         total_timeout_seconds=90,
     )
@@ -131,7 +132,7 @@ async def _run_case(
     decisions = {item["call_id"]: item for item in result["decisions"]}
     for call_id in must_keep:
         assert decisions[call_id]["action"] == "keep", f"Current verbatim evidence was lost: {call_id}"
-    assert any(decisions[call_id]["action"] == "drop_call" for call_id in irrelevant)
+    assert any(decisions[call_id]["action"] == "preview" for call_id in irrelevant)
     remaining = {message["id"]: message for message in result["messages"]}
     protected_ids = {original[0]["id"], *(message["id"] for message in original[-2:]), *protected_messages}
     for message in original:
@@ -161,8 +162,8 @@ async def _run_case(
             block for block in original_tools if block["id"] == call_id
         ]
     for item in decisions.values():
-        if item["reason"] != "protected":
-            assert 0 <= item["keep_call"] <= 1 and 0 <= item["keep_result"] <= 1
+        if item["probability"] is not None:
+            assert 0 <= item["probability"] <= 1
     stats = result["stats"]
     assert result["changed"] and stats["chars_after"] < stats["chars_before"]
     assert stats["requests"] >= 2
@@ -178,7 +179,7 @@ async def _run_case(
                 "requests": stats["requests"],
                 "usage": stats["usage"],
                 "decisions": {
-                    key: {field: value[field] for field in ("action", "keep_call", "keep_result")}
+                    key: {field: value[field] for field in ("action", "probability")}
                     for key, value in decisions.items()
                 },
             },
@@ -187,7 +188,7 @@ async def _run_case(
     )
 
 
-def test_payment_retry_patch_keeps_source_and_removes_completed_ui_task(live_config, tmp_path):
+def test_payment_retry_patch_keeps_source_and_previews_completed_ui_task(live_config, tmp_path):
     """Exact next-edit evidence competes with large, completed unrelated work."""
     history = [
         {
@@ -321,7 +322,7 @@ def test_payment_retry_patch_keeps_source_and_removes_completed_ui_task(live_con
     )
 
 
-def test_replication_incident_keeps_verbatim_evidence_and_removes_unrelated_reports(live_config, tmp_path):
+def test_replication_incident_keeps_verbatim_evidence_and_previews_unrelated_reports(live_config, tmp_path):
     """A forensic report needs exact event records amid mixed operational history."""
     history = [
         {

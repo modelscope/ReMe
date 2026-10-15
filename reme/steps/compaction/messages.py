@@ -1,11 +1,10 @@
 """Pair and rebuild AgentScope blocks without rewriting conversation text."""
 
 from collections import defaultdict
-from copy import deepcopy
 from dataclasses import dataclass
 import json
 
-from ...schema.compaction import CallDecision, CompactionRequest
+from ...schema.compaction import CompactionRequest
 
 
 @dataclass(frozen=True)
@@ -20,6 +19,7 @@ class ToolPair:
     result_location: tuple[int, int]
     result_chars: int
     protected: bool
+    source_ref: str | None
 
 
 def result_text(block: dict) -> str | None:
@@ -47,7 +47,10 @@ def collect_pairs(request: CompactionRequest) -> list[ToolPair]:
     protected = {
         index
         for index, message in enumerate(messages)
-        if index == 0 or index >= recent or message.get("id") in request.protected_message_ids
+        if index == 0
+        or index >= recent
+        or message.get("role") == "system"
+        or message.get("id") in request.protected_message_ids
     }
     for mi, message in enumerate(messages):
         for bi, block in enumerate(message["content"]):
@@ -85,44 +88,41 @@ def collect_pairs(request: CompactionRequest) -> list[ToolPair]:
             or result.get("state") != "success"
             or result.get("name") != call.get("name")
             or text is None
+            or call_id not in request.source_refs
         )
         pairs.append(
-            ToolPair(f"t{len(pairs) + 1}", call_id, call.get("name", ""), inputs, ci, ri, len(text or ""), pinned),
+            ToolPair(
+                f"t{len(pairs) + 1}",
+                call_id,
+                call.get("name", ""),
+                inputs,
+                ci,
+                ri,
+                len(text or ""),
+                pinned,
+                request.source_refs.get(call_id),
+            ),
         )
     return pairs
 
 
-def apply_decisions(
-    messages: list[dict],
-    pairs: list[ToolPair],
-    decisions: list[CallDecision],
-    head: int,
-) -> list[dict]:
-    """Work on a deep copy; delete only empty messages touched by a decision."""
-    output = deepcopy(messages)
-    by_id = {pair.id: pair for pair in pairs}
-    removed: set[tuple[int, int]] = set()
-    for decision in decisions:
-        pair = by_id[decision.id]
-        if pair.protected or decision.action == "keep":
-            continue
-        if decision.action == "drop_call":
-            removed.update((pair.call_location, pair.result_location))
-        else:
-            mi, bi = pair.result_location
-            block = output[mi]["content"][bi]
-            text = result_text(block)
-            marker = (
-                f"\n[Compacted tool output; {len(text) - min(head, len(text))} chars omitted. "
-                "Consult archived history.]"
-            )
-            shortened = text[:head] + marker
-            if len(shortened) < len(text):
-                block["output"] = shortened
-    kept = []
-    for mi, message in enumerate(output):
-        content = [block for bi, block in enumerate(message["content"]) if (mi, bi) not in removed]
-        if content or len(content) == len(message["content"]):
-            message["content"] = content
-            kept.append(message)
-    return kept
+def excerpt(text: str, limit: int) -> str:
+    """Keep both ends verbatim; never exceed the character limit."""
+    if len(text) <= limit:
+        return text
+    marker = "\n…\n"
+    if limit < len(marker):
+        return text[:limit]
+    available = limit - len(marker)
+    head = (available + 1) // 2
+    tail = available - head
+    return text[:head] + marker + (text[-tail:] if tail else "")
+
+
+def preview_result(block: dict, source_ref: str | None, limit: int) -> str | None:
+    """Build one recoverable replacement without copying or changing the source history."""
+    text = result_text(block)
+    if text is None or not source_ref:
+        return None
+    replacement = excerpt(text, limit) + f"\n[Compacted output. Recover from: {source_ref}]"
+    return replacement if len(replacement) < len(text) else None

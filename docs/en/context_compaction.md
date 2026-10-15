@@ -1,62 +1,35 @@
 # Context compaction with decision models
 
-Long tasks accumulate source reads, stale searches, repeated diagnostics, and completed side tasks.
-`compact_context` uses the **next action** to judge whether an old tool call still matters and whether its full result
-must remain verbatim. It returns a proposed message snapshot and per-call decisions. The host decides whether to apply it.
+`compact_context` proposes recoverable previews of old tool results. It scores evidence for the current task,
+keeps tool calls and uncertain evidence, and leaves source history under the host's control. The provider-independent
+`as_decision_model` interface currently supports AgentScope's TypeSafe/Jev adapter.
 
-The workflow calls the provider-independent `as_decision_model` interface. The current `agentscope` adapter uses
-AgentScope's TypeSafe/Jev implementation; jobs keep the same interface when another backend is registered.
+![Evidence, conservative selection, budget fitting, and source recovery](../figure/decision-context-compaction.svg)
 
-![Decision-model context compaction: guards, bounded observation, two probabilities, and host application](../figure/decision-context-compaction.svg)
+## How it works
 
-## How one pass works
+1. **Archive first.** Supply an AgentScope 2.x JSON message snapshot, `goal`, optional `next_action`, a read-only tool
+   allowlist, and `source_refs` mapping original call IDs to recoverable archive locations. References are opaque host
+   identifiers: ReMe does not open, verify, or create them. The host must archive before applying a proposal and provide
+   a retrieval tool that resolves them. No reference means no compaction for that pair.
+2. **Protect structure and indispensable evidence.** Pair unique `tool_call` / `tool_result` IDs. First, system, recent,
+   explicitly protected messages and calls stay intact. Failed/unfinished calls, non-text results, invalid inputs,
+   mismatched tool names, and ambiguous pairs stay intact. `eligible_tool_names` defaults to empty.
+3. **Show bounded evidence.** Each request contains its own candidate units: tool name, input, result head/tail preview,
+   character count and completeness flags. It also carries the goal, next action and bounded first/system/protected/recent text. Thinking is
+   not sent. Hosts must sanitize inputs and outputs before inference; previews may contain source data.
+4. **Ask one question per pair.** Does this evidence contain information needed to continue correctly? The question
+   measures usefulness, not irrecoverability. Missing or truncated context expresses uncertainty. Oversized units are
+   left unobserved and retained; they are never scored after their evidence has been removed.
+5. **Replace only clearly unnecessary results.** At probability `<= drop_threshold` (default `0.1`), a result can become
+   a verbatim head/tail excerpt plus its source reference. Higher, invalid, or missing probabilities retain the result.
+   Provider errors and timeouts retain the affected evidence; external cancellation propagates after requests drain.
 
-1. **The host archives the original history.** Supply an AgentScope 2.x JSON message snapshot, current `goal`, eligible
-   tool names, and protection lists. ReMe neither archives history nor updates a running Agent's state. Apply proposals
-   only when the original record remains recoverable.
-2. **Deterministic guards select candidates.** Match `tool_call` and `tool_result` by ID. Calls must be `finished`, results
-   must be `success`, tools must be explicitly allowlisted, and outputs must be entirely text. Duplicate IDs, missing or
-   reversed pairs, and invalid JSON inputs are ineligible.
-3. **Build a bounded observation.** Send the goal, conversation text, tool names, shortened inputs, and result character
-   counts. Tool-result bodies and thinking are omitted. When necessary, shorten inputs and old text, omit old text-only
-   messages, or merge old call records in this view. These changes do not rewrite conversation text in the returned snapshot.
-4. **Ask two binary questions per candidate.** `call_<id>` asks whether the call and its input still matter for the next
-   action. `result_<id>` asks whether the full output must remain verbatim and later retrieval would be insufficient.
-   Keep each question pair together; batches repeat the same observation and run under concurrency and timeout limits.
-5. **Rebuild only after every batch succeeds.** Validate answer types and probabilities before applying decisions to a
-   deep copy. Missing answers, invalid probabilities, failed batches, or timeout fail the call without a partial proposal.
-   The host should continue using its saved original snapshot.
+No tool call or message is deleted. Replacements occur only when shorter. User/assistant text, thinking, metadata and
+source inputs remain unchanged. Explicitly protect constraints, audit receipts and unique evidence; probabilities are
+not substitutes for host protection rules. The threshold is a conservative starting point, not a calibrated guarantee.
 
-## From probabilities to actions
-
-With retention threshold `t` (default `0.5`), check the result probability first:
-
-| Condition | Action | Proposed snapshot |
-| --- | --- | --- |
-| `p_result >= t` | `keep` | Keep the call and its complete result, even if `p_call` is lower |
-| `p_result < t` and `p_call >= t` | `drop_result` | Keep the call; shorten long text output to a prefix plus an omission marker |
-| Both probabilities `< t` | `drop_call` | Remove both tool blocks; remove a message only if this makes it empty |
-
-The default prefix is 300 characters. The marker points back to archived history. Replacement occurs only if it makes
-output shorter, so `drop_result` can leave a short output unchanged. User text, assistant text, thinking, and untouched
-block fields remain intact.
-
-Deterministic protection takes precedence over probabilities:
-
-- The first message, the most recent `preserve_recent_messages` messages, and `protected_message_ids` are protected.
-  Protection of either endpoint protects the complete pair.
-- `protected_call_ids` and tools outside `eligible_tool_names` are protected. The default allowlist is empty, so no tools
-  are compacted unless the caller explicitly opts them in.
-- Unfinished or failed calls, non-text outputs, and mismatched tool names remain intact. Duplicate or missing IDs are
-  also retained, but may have no entry in `decisions`.
-
-The host must choose read-only tools for the allowlist; ReMe cannot infer tool side effects from their names.
-Explicitly protect indispensable audit records, change receipts, and evidence; semantic probabilities are insufficient
-as the sole protection mechanism.
-
-## Configure and call the service
-
-Install dependencies and configure credentials:
+## Configure and call
 
 ```bash
 pip install "reme-ai[core,decision]"
@@ -65,9 +38,8 @@ export DECISION_MODEL_BACKEND=agentscope
 # Optional: DECISION_MODEL_NAME and DECISION_MODEL_BASE_URL
 ```
 
-The CLI also loads these `DECISION_MODEL_*` variables from `.env`. The backend name is `agentscope`; see
-[decision model configuration](./configuration.md#decision-model-configuration) for the complete settings.
-Omitting the model name or setting it to `null` uses the adapter's SDK default.
+The CLI also loads `DECISION_MODEL_*` from `.env`. See [configuration](./configuration.md#decision-model-configuration).
+An omitted or `null` model uses the SDK default.
 
 Start the service in one terminal:
 
@@ -75,93 +47,91 @@ Start the service in one terminal:
 reme start config=decision_compaction
 ```
 
-Call it from a second terminal. This short example illustrates the request format; the integration scenarios below
-provide longer histories:
+Call from another terminal, using references the host has already archived and can resolve:
 
 ```bash
 reme compact_context \
-  goal='Fix payment retries; the completed icon search is irrelevant' \
-  eligible_tool_names='["search_code"]' \
+  goal='Fix payment retries' next_action='Review the retry implementation' \
+  eligible_tool_names='["search_code"]' source_refs='{"c1":"archive/demo/c1"}' \
   options='{"preserve_recent_messages":1}' \
-  messages='[{"id":"m0","role":"user","content":[{"type":"text","text":"Preserve payment source; clean old icon searches"}]},{"id":"m1","role":"assistant","content":[{"type":"tool_call","id":"c1","name":"search_code","input":"{\"pattern\":\"logo\",\"path\":\"web/icons\"}","state":"finished"},{"type":"tool_result","id":"c1","name":"search_code","output":"Icon paths from a completed task","state":"success"}]},{"id":"m2","role":"user","content":[{"type":"text","text":"Now focus on payment retries"}]}]'
+  messages='[{"role":"user","content":[{"type":"text","text":"Fix retries"}]},{"role":"assistant","content":[{"type":"tool_call","id":"c1","name":"search_code","input":"{\"path\":\"icons\"}","state":"finished"},{"type":"tool_result","id":"c1","name":"search_code","output":"Old icon search results","state":"success"}]},{"role":"user","content":[{"type":"text","text":"Inspect payment code next"}]}]'
 ```
 
-`decision_compaction` inherits the default service configuration and other jobs, including normal background workflows.
-For embedding in a host process, assemble only the compaction job and its decision component as the integration tests do.
+A short result may remain unchanged when adding the recovery marker would make it larger.
+The preset inherits the default service and background jobs. For embedding, assemble only the compaction job/component
+as shown in [integration tests](https://github.com/agentscope-ai/ReMe/blob/main/tests/integration/test_decision_compaction.py).
 
-The standard Response's `answer` contains:
+## Host token budget
 
-- `schema_version` and `messages`: version and proposed snapshot; `changed` and `reason`: whether it changed, with
-  `compacted`, `no_change`, or `no_candidates`.
-- `decisions`: internal pair ID, original `call_id`, action, reason, and `keep_call` / `keep_result` probabilities for
-  pairs evaluated by the model.
-- `stats`: message and character counts before and after, candidate/protected counts, estimated observation tokens and
-  fitting stage, request count, provider usage, and elapsed time. The same statistics appear in `response.metadata.compaction`.
+Decision request estimates and downstream input budgets are separate. To enforce `max_output_tokens`, embed the Step
+with a synchronous `token_counter(messages)` that counts the host's actual serialized model input, including system
+instructions, tool schemas and framing. The counter must return a non-negative integer; configuration without a counter
+fails before inference. ReMe's search tokenizers are not model token counters.
 
-Check `success`, recalculate the final input budget with the host model's tokenizer, and apply, repeat, or reject the
-proposal. Compaction does not automatically summarize, write long-term memory, or execute historical tool calls.
+```python
+step = CompactContextStep(as_decision_model=decision_model, token_counter=count_model_input)
+response = await step(
+    messages=snapshot,
+    goal="Fix retries",
+    next_action="Review the patch",
+    source_refs=archive_refs,
+    eligible_tool_names=["read_file"],
+    options={"max_output_tokens": 32000},
+)
+```
 
-## Budgets, concurrency, and timeout
+Already within budget means no model requests. Otherwise eligible low-probability results are previewed in increasing
+probability order until the budget is met. A replacement must reduce both size and the host count. Required/uncertain
+content is never removed to force a fit. If it still does not fit, `reason="budget_exceeded"` and `budget_met=false`:
+use host summarization or another fallback before applying. Without a requested budget, all eligible low-probability
+results may be previewed and `budget_met` is `null`; the host must check the final input itself.
 
-| `options` field | Default | Purpose |
+## Contract and defaults
+
+The standard Response `answer` has `schema_version=2`, proposed `messages`, `changed`, `reason`, `budget_met`, `decisions`
+and `stats`. Each decision has the original `call_id`, internal `id`, `action` (`keep` / `preview`), `probability`, `reason`
+and `source_ref`. Reasons distinguish protection, uncertainty, unobserved evidence, invalid answers, provider errors,
+timeout and no savings. Statistics include before/after sizes and host token counts, candidate/protection counts,
+maximum estimated batch-state tokens, request count, usage and elapsed time. Statistics also appear in response metadata.
+
+| Option | Default | Meaning |
 | --- | --- | --- |
-| `keep_threshold` | `0.5` | Shared retention threshold for both questions |
-| `preserve_recent_messages` | `6` | Messages protected verbatim, counted as messages rather than turns |
-| `max_state_tokens` | `25000` | Estimated observation token limit |
-| `max_request_tokens` | `30000` | Per-batch estimated observation/question budget, including a 256-token overhead reserve |
-| `truncate_head_chars` | `300` | Text prefix retained by `drop_result` |
-| `max_concurrency` | `4` | Concurrent decision requests, from 1 to 32 |
-| `total_timeout_seconds` | `30` | Overall deadline for decision requests and their queueing |
+| `drop_threshold` | `0.1` | Preview only results at or below this probability |
+| `preserve_recent_messages` | `6` | Protect this many recent messages |
+| `evidence_chars` | `2000` | Maximum characters per input/result preview or recent text |
+| `preview_chars` | `300` | Maximum head/tail excerpt in the proposed result, excluding recovery marker |
+| `max_state_tokens` | `25000` | Estimated decision-state ceiling |
+| `max_request_tokens` | `30000` | Estimated state/questions ceiling, including 256 tokens of overhead |
+| `max_output_tokens` | `null` | Optional host-counted input budget |
+| `max_concurrency` | `4` | Maximum concurrent decision requests |
+| `total_timeout_seconds` | `30` | Overall request and queueing deadline |
 
-Component `timeout`, `max_retries`, and `retry_delay` control individual provider requests and retries. The compaction
-preset uses 10 seconds, one retry, and 0.5 seconds of initial backoff. Local token estimates differ from provider billing
-and from the host model tokenizer. If the observation cannot fit, or a single question pair cannot fit a request, the
-call fails and the host retains its original snapshot.
-
-## Two live-model integration scenarios
-
-The [integration tests](https://github.com/agentscope-ai/ReMe/blob/main/tests/integration/test_decision_compaction.py)
-provide two synthetic long-task histories. Historical deploys, rollbacks, and database queries are fixture data and are
-never executed; only the decision requests call the real TypeSafe/Jev API.
-
-| Scenario | Current task and important candidates | Distractors and protection boundaries |
-| --- | --- | --- |
-| Payment retry patch | Produce an exact patch from previously read source and regression-test lines; keep those candidate results intact | Completed theme CSS, icon searches, and obsolete inventory include removable calls; preserve billing evidence, approval receipts, failed/pending work, duplicate IDs, and recent messages |
-| Replication incident | Quote exact incident logs and WAL offsets in a root-cause report; keep the verbatim evidence intact | Mix in completed marketing reports, holiday weather, and retired-system load tests; preserve audit approval, rollback receipts, non-text charts, failed queries, and recent messages |
-
-Both cases check real batched inference, removal of at least one irrelevant call, full retention of critical candidates,
-protected history and conversation text, unchanged original input and temporary archive, and a reduction in output
-characters. Semantic assertions can expose model/configuration changes; the tests do not fabricate probabilities to pass.
-
-A live run on 2026-10-15 against the locally configured TypeSafe/Jev endpoint passed both cases. These are JSON
-character counts, not token savings:
-
-| Scenario | Characters before | Characters after | Reduction | Irrelevant calls removed | Decision requests |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Payment retry patch | 39,438 | 12,738 | 67.7% | 3 | 2 |
-| Replication incident | 51,485 | 12,828 | 75.1% | 4 | 2 |
-
-Explicitly opt in to live API calls:
+The integration suite contains two synthetic scenarios: payment retry debugging and replica-lag investigation, with
+important source/log evidence competing against completed unrelated tasks. Run explicitly with configured credentials:
 
 ```bash
-REME_RUN_DECISION_INTEGRATION=1 \
-  pytest tests/integration/test_decision_compaction.py -v -s
+REME_RUN_DECISION_INTEGRATION=1 pytest tests/integration/test_decision_compaction.py -v -s
 ```
 
-Tests read the environment or repository-root `.env`, with existing environment variables taking precedence. They skip
-without opt-in or without an API key. Output contains only synthetic-scenario actions, probabilities, character counts,
-and usage. Workspaces and original snapshots use pytest temporary directories. Savings depend on history, goal, and
-model decisions; these two scenarios do not establish a general performance guarantee.
+Only model requests run externally; fixture tool calls are not executed. These cases test behavior, not general task
+success. Evaluate real trajectories against recency and rule-based previews, measuring recovery, continuation quality,
+latency and total cost alongside token reduction. ReMe does not automatically summarize or write persistent memory.
 
-## Boundaries
 
-The decision model sees a limited observation and cannot inspect omitted tool-result contents. Incomplete goals or
-insufficient tool descriptions can hide relevant evidence. The host must supply a clear next-action goal, explicitly
-protect indispensable information, and retain recoverable original history after applying a proposal.
-This strategy reduces old tool traces; it does not provide automatic triggering, a final token-budget guarantee,
-summary generation, or archival storage.
+## Span-selection experiment
 
-Contracts and implementation: [compaction schema](https://github.com/agentscope-ai/ReMe/blob/main/reme/schema/compaction.py),
-[pairing and rebuilding](https://github.com/agentscope-ai/ReMe/blob/main/reme/steps/compaction/messages.py),
-[observation and batching](https://github.com/agentscope-ai/ReMe/blob/main/reme/steps/compaction/state.py), and
-[job step](https://github.com/agentscope-ai/ReMe/blob/main/reme/steps/compaction/compact_context.py).
+The [benchmark protocol and results (Chinese)](https://github.com/agentscope-ai/ReMe/blob/main/benchmark/compaction/RESULTS.md)
+describe a local run on October 15, 2026, using a synthetic Hermes payment trajectory and a controlled long-log
+augmentation. It compares full evidence, Jev span selection, head/tail clipping and ordinary Qwen summaries under
+600/1000 evidence-token allowances, with identical system/user instructions and evaluation prompts.
+Span ranking is implemented in the experiment runner; the pair-level, low-probability preview policy above is unchanged.
+
+At the 1000-token allowance, Jev retained 100% of facts versus 90% for summarization on the short sample, but 85%
+versus 90% on the long-log variant. Jev reduced the long-log request from 8617 to 3557 input tokens (58.7%), with
+about 0.8 seconds of compaction versus 16.5 seconds for summarization. Every arm passed all six function-level repair
+tests, so those tests did not distinguish repair quality.
+
+This run demonstrates input reduction and lower observed compaction latency, without establishing consistent quality
+improvements over summarization. It uses one task and its synthetic variant, with two answers per context. Budgets use
+a local tokenizer proxy, input usage comes from the API, and total billing cost and archive recovery were not tested.
+See the benchmark for scoring, complete results, omission analysis and reproduction commands.
