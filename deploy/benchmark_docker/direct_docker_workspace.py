@@ -15,6 +15,8 @@ from typing import Any
 from aiodocker.exceptions import DockerError
 from agentscope.workspace import DockerWorkspace
 
+DOCKER_CLEANUP_TIMEOUT = 30.0
+
 
 class DirectDockerWorkspace(DockerWorkspace):
     """Use the supplied image directly and skip the unused MCP gateway."""
@@ -28,6 +30,7 @@ class DirectDockerWorkspace(DockerWorkspace):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._lifecycle_lock = asyncio.Lock()
+        self._stopped = False
 
     async def _build_or_reuse_image(self) -> None:
         """Select the caller-provided image instead of deriving a gateway image."""
@@ -56,13 +59,36 @@ class DirectDockerWorkspace(DockerWorkspace):
                     exc.add_note(f"workspace close failed: {type(close_exc).__name__}: {close_exc}")
                 raise
             self.is_alive = True
+            self._stopped = False
+
+    async def stop(self) -> None:
+        """Kill all container processes without asking the candidate to shut down."""
+        async with self._lifecycle_lock:
+            self.is_alive = False
+            if self._container is None or self._stopped:
+                return
+            async with asyncio.timeout(DOCKER_CLEANUP_TIMEOUT):
+                try:
+                    await self._container.kill(signal="SIGKILL")
+                    await self._container.wait(condition="not-running")
+                except DockerError as exc:
+                    if exc.status != 404:
+                        # Docker returns 409 for an already stopped container.
+                        if exc.status != 409 or (await self._container.show())["State"]["Running"]:
+                            raise
+                self._stopped = True
 
     async def _teardown_backend(self) -> None:
         """Remove the container, preserving handles until cleanup is confirmed."""
         self.is_alive = False
         if self._container is not None:
             # Preserve AgentScope's bind-mount ownership repair on native Linux.
-            if self.host_workdir is not None and sys.platform == "linux" and self._backend is not None:
+            if (
+                not self._stopped
+                and self.host_workdir is not None
+                and sys.platform == "linux"
+                and self._backend is not None
+            ):
                 try:
                     await self._backend.exec_shell(
                         ["chown", "-R", f"{os.getuid()}:{os.getgid()}", self.workdir],
@@ -71,16 +97,16 @@ class DirectDockerWorkspace(DockerWorkspace):
                 except Exception:
                     pass
             try:
-                # Force deletion also stops a running container; a separate kill
-                # would add a failure point without proving that removal succeeded.
-                await self._container.delete(force=True)
+                # Also stop processes if an earlier explicit stop failed, and
+                # retain handles unless Docker confirms removal.
+                await asyncio.wait_for(self._container.delete(force=True), timeout=DOCKER_CLEANUP_TIMEOUT)
             except DockerError as exc:
                 if exc.status != 404:
                     raise
             self._container = None
             self._backend = None
         if self._client is not None:
-            await self._client.close()
+            await asyncio.wait_for(self._client.close(), timeout=DOCKER_CLEANUP_TIMEOUT)
             self._client = None
         self._backend = None
 

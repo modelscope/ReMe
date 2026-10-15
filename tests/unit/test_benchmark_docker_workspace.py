@@ -14,11 +14,47 @@ from deploy.benchmark_docker.direct_docker_workspace import DirectDockerWorkspac
 
 def make_workspace():
     workspace = DirectDockerWorkspace(workspace_id="cleanup-test")
-    workspace._container = SimpleNamespace(delete=AsyncMock())
+    workspace._container = SimpleNamespace(kill=AsyncMock(), wait=AsyncMock(), delete=AsyncMock())
     workspace._client = SimpleNamespace(close=AsyncMock())
     workspace._backend = SimpleNamespace(exec_shell=AsyncMock())
     workspace.is_alive = True
     return workspace
+
+
+@pytest.mark.asyncio
+async def test_stop_kills_and_confirms_exit_before_removal():
+    workspace = make_workspace()
+    container = workspace._container
+    await workspace.stop()
+    container.kill.assert_awaited_once_with(signal="SIGKILL")
+    container.wait.assert_awaited_once_with(condition="not-running")
+    container.delete.assert_not_awaited()
+    assert workspace._backend is not None
+    assert not workspace.is_alive
+    await workspace.stop()
+    assert container.kill.await_count == 1
+    await workspace.close()
+    container.delete.assert_awaited_once_with(force=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["kill", "delete"])
+async def test_docker_cleanup_timeout_retains_handles(monkeypatch, operation):
+    from deploy.benchmark_docker import direct_docker_workspace
+
+    monkeypatch.setattr(direct_docker_workspace, "DOCKER_CLEANUP_TIMEOUT", 0.01)
+    workspace = make_workspace()
+    container = workspace._container
+
+    async def blocked(**_kwargs):
+        await asyncio.Event().wait()
+
+    getattr(container, operation).side_effect = blocked
+    with pytest.raises(TimeoutError):
+        await (workspace.stop() if operation == "kill" else workspace.close())
+    assert workspace._container is container
+    getattr(container, operation).side_effect = None
+    await workspace.close()
 
 
 @pytest.mark.asyncio

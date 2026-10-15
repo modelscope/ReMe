@@ -30,6 +30,8 @@ WORKSPACE_EXPORT_ARCHIVE = "/tmp/reme-workspace-export.tar.gz"
 RUNTIME_LAYOUT = f"{CASE_ROOT}/runtime-layout.json"
 _CASE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 _CASE_ARCHIVE_FORMAT = "reme-case-v1"
+_CLEANUP_TIMEOUT = 30.0
+_LOG_TIMEOUT = 5.0
 _PRIVATE_EVALUATION_FIELDS = frozenset(
     {"query", "question", "golden_answer", "question_type", "rubric", "judge_arguments"},
 )
@@ -68,6 +70,10 @@ class Workspace(Protocol):
         """Close the workspace."""
         raise NotImplementedError
 
+    async def stop(self) -> None:
+        """Force-stop container processes while keeping files available."""
+        raise NotImplementedError
+
     def get_backend(self) -> Backend:
         """Return the execution backend."""
         raise NotImplementedError
@@ -81,7 +87,7 @@ class SandboxCommandError(RuntimeError):
 
 
 class SandboxCommandTimeoutError(SandboxCommandError):
-    """A command timed out and may still be running inside the container."""
+    """A command timed out; cleanup failures are attached as exception notes."""
 
 
 def _validate_case_id(case_id: str) -> None:
@@ -379,6 +385,7 @@ class DockerReMeSandbox:
         self._closed = False
         self._reusable = True
         self._operation_lock = asyncio.Lock()
+        self._build_log: bytes | None = None
 
     @property
     def reusable(self) -> bool:
@@ -524,13 +531,15 @@ class DockerReMeSandbox:
             raise SandboxCommandError("sandbox container is no longer reusable")
         started = _utc_now()
         try:
-            result = await self.backend.exec_shell(command, cwd=cwd, timeout=self.command_timeout)
+            async with asyncio.timeout(self.command_timeout):
+                result = await self.backend.exec_shell(command, cwd=cwd, timeout=self.command_timeout)
         except TimeoutError as exc:
-            self._reusable = False
-            raise SandboxCommandTimeoutError(f"sandbox action {name!r} timed out; container must be destroyed") from exc
-        except (Exception, asyncio.CancelledError):
+            error = SandboxCommandTimeoutError(f"sandbox action {name!r} timed out")
+            await cleanup_on_error([(f"container {self.container_id!r}", self._abort())], error)
+            raise error from exc
+        except (Exception, asyncio.CancelledError) as exc:
             # A backend failure may occur after Docker started the command.
-            self._reusable = False
+            await cleanup_on_error([(f"container {self.container_id!r}", self._abort())], exc)
             raise
         self.actions.append(
             ActionRecord(
@@ -543,9 +552,35 @@ class DockerReMeSandbox:
             ),
         )
         if result.exit_code == -1:
-            self._reusable = False
-            raise SandboxCommandTimeoutError(f"sandbox action {name!r} timed out; container must be destroyed")
+            error = SandboxCommandTimeoutError(f"sandbox action {name!r} timed out")
+            await cleanup_on_error([(f"container {self.container_id!r}", self._abort())], error)
+            raise error
         return result
+
+    async def _abort(self) -> None:
+        """Retire an uncertain command while its caller holds the operation lock."""
+        self._reusable = False
+        error = None
+        try:
+            await asyncio.wait_for(self.workspace.stop(), timeout=_CLEANUP_TIMEOUT)
+            # Read files only after the candidate has stopped. Diagnostics must
+            # never delay termination or prevent container removal.
+            try:
+                assert self.backend is not None
+                self._build_log = await asyncio.wait_for(
+                    self.backend.read_file(f"{CASE_ROOT}/build_log/build.log"),
+                    timeout=_LOG_TIMEOUT,
+                )
+            except Exception:
+                pass
+        except BaseException as exc:
+            error = exc
+            raise
+        finally:
+            if error is None:
+                await self._close_workspace()
+            else:
+                await cleanup_on_error([("container removal", self._close_workspace())], error)
 
     async def _exec_checked(self, name: str, command: list[str], *, cwd: str | None = None) -> Any:
         result = await self._exec(name, command, cwd=cwd)
@@ -776,6 +811,10 @@ class DockerReMeSandbox:
             return (await self._read_build_log()).decode("utf-8", errors="replace")
 
     async def _read_build_log(self) -> bytes:
+        if self._build_log is not None:
+            return self._build_log
+        if not self.reusable:
+            raise SandboxCommandError("build log unavailable after interrupted command")
         return await self._require_artifact(f"{CASE_ROOT}/build_log/build.log", "build log")
 
     async def _require_artifact(self, path: str, description: str) -> bytes:
@@ -1078,10 +1117,14 @@ class DockerReMeSandbox:
     async def close(self) -> None:
         """Destroy the case container. Export before calling this method."""
         async with self._operation_lock:
-            if not self._closed:
-                self._reusable = False
-                await self.workspace.close()
-                self._closed = True
+            await self._close_workspace()
+
+    async def _close_workspace(self) -> None:
+        """Close without acquiring the operation lock a second time."""
+        if not self._closed:
+            self._reusable = False
+            await asyncio.wait_for(self.workspace.close(), timeout=_CLEANUP_TIMEOUT)
+            self._closed = True
 
     async def __aenter__(self) -> "DockerReMeSandbox":
         return self

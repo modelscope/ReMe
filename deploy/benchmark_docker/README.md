@@ -93,9 +93,17 @@ wrapper but no manifest are rejected; to reuse one, extract it and supply its
 `export_evaluation_to` saves the workspace and query artifacts for both build
 and query-only cases; it includes `build_log` when that phase ran. Set
 `export_build_log_to` to retain the construction log separately. On a failed
-build, the pool also returns its text in `CaseResult.build_log`. A timed-out
-AgentScope shell command makes its container unusable: the pool closes it after
-retaining the log and creates a replacement when more cases need a worker.
+build, the pool also returns its text in `CaseResult.build_log`. `command_timeout`
+(default 1800 seconds) bounds the entire shell command, including worker startup,
+jobs, and Application shutdown. On timeout, cancellation, or a shell backend
+failure, the sandbox force-stops the container without candidate or plugin
+cooperation, attempts to cache the build log for up to 5 seconds, and removes the
+container before propagating the error. Docker stop and removal each have a
+30-second timeout; cleanup failures include the container ID in exception notes.
+Only the cached build log remains available after removal. The pool creates a
+replacement when more cases need a worker.
+Custom `workspace_builder` implementations must provide an async `stop()` that
+force-stops execution while retaining files for diagnostics, in addition to `close()`.
 Replacement requires successful cleanup of the old worker. Cleanup failures
 are reported in `CaseResult.error` and make `success` false for cases that used
 that worker; failures for an unused worker apply to the whole run. Cancellation

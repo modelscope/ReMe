@@ -103,6 +103,45 @@ def _query(query_id: str) -> EvaluationQuery:
 
 
 @pytest.mark.asyncio
+async def test_real_docker_timeout_kills_blocked_thread_pool(base_image):
+    """A host deadline must terminate a worker blocked in executor shutdown."""
+    from deploy.benchmark_docker.direct_docker_workspace import DirectDockerWorkspace
+    from deploy.benchmark_docker.docker_sandbox import DockerReMeSandbox, SandboxCommandTimeoutError
+
+    container_id = f"timeout-{uuid.uuid4().hex[:12]}"
+    workspace = DirectDockerWorkspace(workspace_id=container_id, base_image=base_image)
+    case = DockerReMeSandbox(
+        case_id="timeout",
+        container_id=container_id,
+        candidate=ImageCandidate(base_image),
+        workspace=workspace,
+        config="unused",
+        plugins=(),
+        command_timeout=2,
+        environment_names=[],
+    )
+    try:
+        await workspace.initialize()
+        case.backend = workspace.get_backend()
+        # Reproduce the shutdown condition without importing ReMe or a plugin.
+        script = (
+            "import threading; from pathlib import Path; from concurrent.futures import ThreadPoolExecutor; "
+            "pool = ThreadPoolExecutor(1); pool.submit(threading.Event().wait); "
+            "log = Path('/workspace/case/build_log/build.log'); log.parent.mkdir(parents=True); "
+            "log.write_text('waiting for thread pool shutdown'); pool.shutdown(wait=True)"
+        )
+        # pylint: disable=protected-access
+        async with case._operation_lock:
+            with pytest.raises(SandboxCommandTimeoutError):
+                await asyncio.wait_for(case._exec("blocked-close", ["python3", "-c", script]), timeout=75)
+        assert not _container_exists(f"as_ws_{container_id}")
+        assert not case.reusable
+        assert await case.read_build_log() == "waiting for thread pool shutdown"
+    finally:
+        await case.close()
+
+
+@pytest.mark.asyncio
 async def test_real_docker_source_pool_workspace_reuse(base_image, tmp_path):
     """Run build, query, workspace reuse, and query-only export in a real container."""
     source = _candidate_source(tmp_path)

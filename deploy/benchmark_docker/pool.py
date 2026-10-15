@@ -140,7 +140,7 @@ class BenchmarkDockerPool:
                             try:
                                 result.build = await worker.run_build(list(plan.build_jobs))
                             except Exception as exc:
-                                result.error = f"{type(exc).__name__}: {exc}"
+                                result.error = format_error(exc)
                                 await self._retain_failed_build_log(worker, plan, result)
                                 return result
                             if not result.build.get("success"):
@@ -162,14 +162,14 @@ class BenchmarkDockerPool:
                             await worker.export_evaluation(plan.export_evaluation_to)
                         return result
                     except Exception as exc:  # Keep other cases running and release this worker.
-                        result.error = f"{type(exc).__name__}: {exc}"
+                        result.error = format_error(exc)
                         return result
                     finally:
                         if worker.reusable:
                             available.put_nowait(worker)
                         else:
-                            # A timed-out command may still be running in the container.
-                            # Retire it before allowing another case into this slot.
+                            # Confirm cleanup (or retry a failed removal) before
+                            # allowing another case into this slot.
                             closed = False
                             try:
                                 await worker.close()

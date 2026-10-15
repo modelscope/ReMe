@@ -803,6 +803,7 @@ class FakeWorkspace:
     def __init__(self, backend: FakeBackend) -> None:
         self.backend = backend
         self.closed = False
+        self.stopped = False
 
     async def initialize(self) -> None:
         pass
@@ -812,6 +813,9 @@ class FakeWorkspace:
 
     async def close(self) -> None:
         self.closed = True
+
+    async def stop(self) -> None:
+        self.stopped = True
 
 
 def _fake_docker_factory(tmp_path, workspace_builder, *, install_projects=(".",)):
@@ -833,6 +837,7 @@ async def test_backend_timeout_prevents_direct_case_reset(tmp_path):
         with pytest.raises(SandboxCommandTimeoutError):
             await case.run_build([JobRequest("build")])
         assert not case.reusable
+        assert workspace.stopped and workspace.closed
         assert case.actions[-1].exit_code == -1
         assert await case.read_build_log() == "build still running"
         with pytest.raises(SandboxCommandError, match="no longer reusable"):
@@ -863,6 +868,7 @@ async def test_external_timeout_prevents_case_reset(tmp_path):
         with pytest.raises(TimeoutError):
             await asyncio.wait_for(build, timeout=0.01)
         assert not case.reusable
+        assert workspace.stopped and workspace.closed
         with pytest.raises(SandboxCommandError, match="no longer reusable"):
             await case.reset_case("next")
         inbox_count = sum("/inbox/" in path for path in workspace.backend.files)
@@ -871,6 +877,98 @@ async def test_external_timeout_prevents_case_reset(tmp_path):
         assert sum("/inbox/" in path for path in workspace.backend.files) == inbox_count
     finally:
         await case.close()
+    assert workspace.closed
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["deadline", "backend-timeout", "cancel"])
+async def test_interrupted_worker_stops_before_reading_logs_and_removal(tmp_path, failure):
+    events = []
+    started = asyncio.Event()
+    stopping = asyncio.Event()
+    release_stop = asyncio.Event()
+
+    class BlockingBackend(FakeBackend):
+        async def exec_shell(self, command, *, cwd=None, timeout=None):
+            if "/workspace/harness/worker.py" in command:
+                self.files["/workspace/case/build_log/build.log"] = b"closing application"
+                started.set()
+                if failure == "backend-timeout":
+                    raise TimeoutError("backend timed out")
+                await asyncio.Event().wait()  # Includes a worker stuck in Application.close().
+            return await super().exec_shell(command, cwd=cwd, timeout=timeout)
+
+        async def read_file(self, path):
+            events.append("read")
+            assert workspace.stopped
+            return await super().read_file(path)
+
+    class OrderedWorkspace(FakeWorkspace):
+        async def stop(self):
+            stopping.set()
+            await release_stop.wait()
+            events.append("stop")
+            await super().stop()
+
+        async def close(self):
+            events.append("close")
+            await super().close()
+
+    workspace = OrderedWorkspace(BlockingBackend())
+    factory = _fake_docker_factory(tmp_path, lambda _id, _image, _env: workspace)
+    case = await factory.create_case("interrupted")
+    case.command_timeout = 0.01 if failure == "deadline" else 10
+    task = asyncio.create_task(case.run_build([JobRequest("build")]))
+    await asyncio.wait_for(started.wait(), timeout=2)
+    if failure == "cancel":
+        task.cancel()
+    await asyncio.wait_for(stopping.wait(), timeout=2)
+    if failure == "cancel":
+        task.cancel()  # Repeated cancellation must not interrupt container cleanup.
+    release_stop.set()
+    expected = asyncio.CancelledError if failure == "cancel" else SandboxCommandTimeoutError
+    with pytest.raises(expected):
+        await asyncio.wait_for(task, timeout=2)
+    assert events == ["stop", "read", "close"]
+    assert workspace.closed and not case.reusable
+    assert await case.read_build_log() == "closing application"
+    await case.close()
+    assert events == ["stop", "read", "close"]
+
+
+@pytest.mark.asyncio
+async def test_failed_stop_still_removes_container_and_preserves_timeout(tmp_path):
+    class BrokenStopWorkspace(FakeWorkspace):
+        async def stop(self):
+            raise RuntimeError("kill failed")
+
+    workspace = BrokenStopWorkspace(TimedOutBackend())
+    factory = _fake_docker_factory(tmp_path, lambda _id, _image, _env: workspace)
+    case = await factory.create_case("failed-stop")
+    with pytest.raises(SandboxCommandTimeoutError) as failure:
+        await case.run_build([JobRequest("build")])
+    assert workspace.closed
+    assert any("kill failed" in note for note in failure.value.__notes__)
+    with pytest.raises(SandboxCommandError, match="log unavailable"):
+        await case.read_build_log()
+
+
+@pytest.mark.asyncio
+async def test_blocked_diagnostics_cannot_prevent_removal(tmp_path, monkeypatch):
+    from deploy.benchmark_docker import docker_sandbox
+
+    monkeypatch.setattr(docker_sandbox, "_LOG_TIMEOUT", 0.01)
+
+    class BlockedLogBackend(TimedOutBackend):
+        async def read_file(self, path):
+            assert workspace.stopped
+            await asyncio.Event().wait()
+
+    workspace = FakeWorkspace(BlockedLogBackend())
+    factory = _fake_docker_factory(tmp_path, lambda _id, _image, _env: workspace)
+    case = await factory.create_case("blocked-log")
+    with pytest.raises(SandboxCommandTimeoutError):
+        await asyncio.wait_for(case.run_build([JobRequest("build")]), timeout=2)
     assert workspace.closed
 
 
@@ -1340,7 +1438,11 @@ async def test_pool_retries_strict_delete_without_replacing_uncertain_container(
     from deploy.benchmark_docker.direct_docker_workspace import DirectDockerWorkspace
 
     workspaces = []
-    container = SimpleNamespace(delete=AsyncMock(side_effect=[RuntimeError("delete failed"), None]))
+    container = SimpleNamespace(
+        kill=AsyncMock(),
+        wait=AsyncMock(),
+        delete=AsyncMock(side_effect=[RuntimeError("delete failed"), RuntimeError("delete failed"), None]),
+    )
     client = SimpleNamespace(close=AsyncMock())
 
     class StrictWorkspace(DirectDockerWorkspace):
@@ -1361,6 +1463,6 @@ async def test_pool_retries_strict_delete_without_replacing_uncertain_container(
     assert "worker close failed" in results[0].error
     assert "delete failed" in results[1].error
     assert len(workspaces) == 1
-    assert container.delete.await_count == 2
+    assert container.delete.await_count == 3
     assert workspaces[0]._container is workspaces[0]._client is None
     client.close.assert_awaited_once()
