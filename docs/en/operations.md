@@ -48,7 +48,7 @@ reme reindex scope=embedding
 
 `reindex` rebuilds BM25 and/or embedding indexes from the current `file_chunks`. It does not scan the workspace, rechunk files, or rebuild the wikilink graph. Diagnose the watcher first when ingestion is the problem.
 
-When the chunking behavior itself changes — an upgraded ReMe or edited chunker settings — stored chunks stay as they are until the affected files are re-read from source. Back up, stop the service, move only the affected store's derived state (preserve unrelated catalogs), then restart and let the initial scan rebuild; see [Recover derived state](#recover-derived-state). Clearing derived state and rebuilding its indexes do not themselves modify source files.
+When a ReMe upgrade or chunker configuration change alters chunking behavior, existing chunks do not refresh automatically. To apply the new behavior, follow [Recover derived state](#recover-derived-state).
 
 Rebuild a daily index page separately:
 
@@ -93,7 +93,7 @@ Do not remove anything until a backup exists. Then:
 3. verify that the failure is limited to `metadata/`;
 4. stop the service, so shutdown persistence cannot write the old in-memory state back over the cleanup;
 5. move only the affected store's derived state to an isolated backup location, preserving unrelated catalogs;
-6. restart with the same configuration and let watchers rebuild;
+6. restart with the same configuration and let watchers rebuild the files in their configured watch scope;
 7. validate search, graph traversal, and daily indexes.
 
 The internal layout of metadata files is not a public automation contract.
