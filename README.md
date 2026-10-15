@@ -122,6 +122,9 @@ cd ..
 
 The static build requires Node.js 22.13 or newer and makes Studio available from the source tree.
 
+Optional Jev classification uses `pip install "reme-ai[core,classifier-jev]"`. Configure a TypeSafe API key and run the
+service demo as described in [Classifier configuration](https://reme.agentscope.io/en/configuration#classifier-configuration).
+
 ### Docker
 
 With Docker and Compose 2.24.0+, build and start ReMe with the bundled Studio:
@@ -162,6 +165,8 @@ Basic file operations, BM25 search, wikilink traversal, and reading proactive to
 
 ### Start the Service
 
+Start ReMe in one terminal and leave it running:
+
 ```bash
 reme start
 ```
@@ -172,6 +177,9 @@ The default service address is `127.0.0.1:2333`. If the port is occupied, specif
 reme start service.port=8181
 # reme start workspace_dir=/tmp/reme-demo service.port=8181
 ```
+
+From another terminal, call the running service. The CLI discovers its configuration; the `curl` example uses the
+default port `2333`:
 
 ```bash
 reme version

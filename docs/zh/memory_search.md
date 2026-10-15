@@ -145,7 +145,13 @@ search:
       max_links_per_direction: 10
 ```
 
-调用时：
+先在一个终端启动服务，并保持运行：
+
+```bash
+reme start config=default
+```
+
+在另一个终端调用已启动的服务：
 
 ```bash
 reme search query="最近关于索引的讨论" limit=5

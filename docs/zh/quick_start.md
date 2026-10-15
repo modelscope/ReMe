@@ -50,6 +50,8 @@ EOF
 
 ## 启动
 
+在一个终端启动 ReMe，并保持运行：
+
 ```bash
 reme start
 ```
@@ -59,6 +61,8 @@ reme start
 ```bash
 reme start service.port=8181
 ```
+
+在另一个终端调用正在运行的服务：
 
 ```bash
 reme version

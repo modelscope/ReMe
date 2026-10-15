@@ -41,11 +41,7 @@ curl -s http://127.0.0.1:2333/daily_paper \
   -d '{"topics":"Agent memory"}'
 ```
 
-如果只需运行一次 Job，无需启动长期服务：
-
-```bash
-reme start plugins='["daily-paper"]' job=daily_paper topics="Agent memory"
-```
+脚本需要无服务单次执行时，参见[一次性 Job](../../docs/zh/services.md#一次性-job)。常规使用采用上面的服务启动与客户端调用流程。
 
 自定义应用配置需要提供 `agent_wrapper.default`、启用 tag index 的 `file_store.default`，以及
 Daily Paper 和自动标签使用的 `search`、`read`、`list_tags`、`frontmatter_read` 和

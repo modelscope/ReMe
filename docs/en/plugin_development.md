@@ -77,7 +77,17 @@ reme plugins validate ./path/to/my-plugin
 reme plugins install ./path/to/my-plugin --editable
 reme plugins list
 reme plugins show my-plugin
+```
+
+Start the enabled plugin's service in one terminal and leave it running:
+
+```bash
 reme start plugins='["my-plugin"]'
+```
+
+From another terminal, call its Job:
+
+```bash
 reme my_action text=hello
 ```
 

@@ -845,6 +845,17 @@ components:
 #      backend: local
 #      as_embedding: default
 
+#  as_classifier:
+#    default:
+#      backend: ${CLASSIFIER_BACKEND:-jev}
+#      model: ${CLASSIFIER_MODEL_NAME:-jev-latest}
+#      credential:
+#        api_key: ${CLASSIFIER_API_KEY:-}
+#        base_url: ${CLASSIFIER_BASE_URL:-null}
+#      timeout: 30
+#      max_retries: 2
+#      retry_delay: 0.5
+
   as_llm:
     default:
       backend: ${LLM_BACKEND:-openai}
