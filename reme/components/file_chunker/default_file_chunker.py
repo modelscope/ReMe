@@ -98,6 +98,12 @@ class DefaultFileChunker(BaseFileChunker):
             links = []
 
         chunks = self.chunk_content(content, rel_path, parse_links=is_markdown)
+        line_offset = text[: len(text) - len(content)].count("\n") if is_markdown else 0
+        if line_offset:
+            for chunk in chunks:
+                chunk.start_line += line_offset
+                chunk.end_line += line_offset
+                chunk.set_hash_id()
         chunk_ids = [c.id for c in chunks]
         return (
             FileNode(

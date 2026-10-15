@@ -4,10 +4,55 @@ import asyncio
 import os
 import tempfile
 
+import pytest
+
 from reme.components.file_chunker import DefaultFileChunker
+from reme.schema import FileChunk
 from reme.utils.wikilink_handler import WikilinkHandler
 
 # Add parent path for import
+
+
+@pytest.mark.parametrize(
+    "prefix,start_line",
+    [("", 1), ("---\nname: t\n---\n", 4), ("---\nname: t\n---\n\n\n", 6)],
+)
+def test_markdown_front_matter_preserves_source_lines(tmp_path, prefix, start_line):
+    """Byte chunking must cite the original Markdown body and refresh its ID."""
+    body = "# H\nline 1\nline 2\n"
+    path = tmp_path / "note.md"
+    path.write_text(prefix + body, encoding="utf-8")
+
+    node, chunks = asyncio.run(DefaultFileChunker().chunk(path))
+
+    assert len(chunks) == 1
+    chunk = chunks[0]
+    assert (chunk.start_line, chunk.end_line) == (start_line, start_line + 2)
+    assert chunk.text == body
+    expected = FileChunk(path=chunk.path, start_line=start_line, end_line=start_line + 2, text=body).set_hash_id()
+    assert chunk.id == expected.id
+    assert node.chunk_ids == [expected.id]
+
+
+def test_markdown_front_matter_offsets_every_chunk(tmp_path):
+    """All overlapping chunks retain their original file ranges and hashes."""
+    body = "".join(f"line {i:02d}\n" for i in range(40))
+    path = tmp_path / "note.md"
+    path.write_text("---\nname: t\n---\n" + body, encoding="utf-8")
+    chunker = DefaultFileChunker(chunk_byte_size=100, overlap_byte_size=8)
+
+    node, chunks = asyncio.run(chunker.chunk(path))
+
+    assert [(chunk.start_line, chunk.end_line) for chunk in chunks] == [(4, 16), (15, 27), (27, 39), (38, 43)]
+    for chunk in chunks:
+        expected = FileChunk(
+            path=chunk.path,
+            start_line=chunk.start_line,
+            end_line=chunk.end_line,
+            text=chunk.text,
+        ).set_hash_id()
+        assert chunk.id == expected.id
+    assert node.chunk_ids == [chunk.id for chunk in chunks]
 
 
 def test_parse_empty_file():
