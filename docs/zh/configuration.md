@@ -196,12 +196,6 @@ SDK 错误沿用 BaseJob 的 `success=false` 契约。
 新增供应商时，实现 `BaseAsDecisionModel` 并注册 backend；Job 按组件名选择模型。当前适配器使用 AgentScope classifier
 schema 定义问题与答案。接口见 `reme/components/as_decision_model/`。`model` 为 null 时使用适配器默认模型。
 
-迁移：组件键 `as_classifier` 改为 `as_decision_model`，backend `jev` 改为 `agentscope`，配置 `classifier_demo` 改为
-`decision_demo`，Job `jev` 改为 `decide`，安装 extra `classifier-jev` 改为 `decision`。环境变量改为
-`DECISION_MODEL_BACKEND`、`DECISION_MODEL_NAME`、`DECISION_MODEL_API_KEY` 和 `DECISION_MODEL_BASE_URL`。Python 导入路径改为
-`reme.components.as_decision_model`，基类和适配器分别为 `BaseAsDecisionModel`、`AgentScopeAsDecisionModel`；Step 输出键改为
-`context.data["decision_result"]`。旧名称不保留别名。
-
 工具历史压缩使用同一决策模型接口：先启动 `reme start config=decision_compaction`，再在另一终端调用
 `reme compact_context`，传入 `messages` 以及需要的保护和预算选项。返回值是建议的快照，归档和应用由调用方负责。
 请求 token 预算使用预留开销的估算值，与宿主模型的 tokenizer 独立。

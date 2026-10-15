@@ -55,8 +55,8 @@ export DECISION_MODEL_BACKEND=agentscope
 # 可选：DECISION_MODEL_NAME、DECISION_MODEL_BASE_URL
 ```
 
-`.env` 也可以配置这些变量。旧的 `CLASSIFIER_*` 名称需按[配置迁移说明](./configuration.md#决策模型配置)改为
-`DECISION_MODEL_*`；backend 应为 `agentscope`。省略模型名或配置为 `null` 时使用适配器的 SDK 默认模型。
+`.env` 也可以配置上述 `DECISION_MODEL_*` 变量，backend 使用 `agentscope`，完整设置见
+[决策模型配置](./configuration.md#决策模型配置)。省略模型名或配置为 `null` 时使用适配器的 SDK 默认模型。
 
 在一个终端启动服务：
 

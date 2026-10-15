@@ -198,12 +198,6 @@ Implement `BaseAsDecisionModel` and register a backend to add another provider. 
 they do not select a provider directly. The current adapter uses AgentScope classifier question and answer schemas.
 See `reme/components/as_decision_model/` for the interface. A null `model` uses the adapter default.
 
-Migration: rename `as_classifier` to `as_decision_model`, backend `jev` to `agentscope`, config `classifier_demo` to
-`decision_demo`, Job `jev` to `decide`, and install extra `classifier-jev` to `decision`. Environment variables now use
-`DECISION_MODEL_BACKEND`, `DECISION_MODEL_NAME`, `DECISION_MODEL_API_KEY`, and `DECISION_MODEL_BASE_URL`. Python imports
-move to `reme.components.as_decision_model`; the base and adapter are `BaseAsDecisionModel` and
-`AgentScopeAsDecisionModel`. Step output is available as `context.data["decision_result"]`. Old names are not aliases.
-
 For tool-history compaction, start `reme start config=decision_compaction` and call `reme compact_context` from another
 terminal with `messages` and any protection or budget options. It uses the same decision model interface and returns
 a proposed snapshot; the caller owns archiving and applying it. Request token budgets are estimates with overhead

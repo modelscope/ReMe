@@ -65,8 +65,8 @@ export DECISION_MODEL_BACKEND=agentscope
 # Optional: DECISION_MODEL_NAME and DECISION_MODEL_BASE_URL
 ```
 
-The CLI also loads `.env`. Migrate old `CLASSIFIER_*` variables to `DECISION_MODEL_*` as described in
-[configuration](./configuration.md#decision-model-configuration); the backend name is `agentscope`.
+The CLI also loads these `DECISION_MODEL_*` variables from `.env`. The backend name is `agentscope`; see
+[decision model configuration](./configuration.md#decision-model-configuration) for the complete settings.
 Omitting the model name or setting it to `null` uses the adapter's SDK default.
 
 Start the service in one terminal:
