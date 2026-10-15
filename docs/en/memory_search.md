@@ -157,7 +157,13 @@ search:
       max_links_per_direction: 10
 ```
 
-Call it with:
+Start the service in one terminal and leave it running:
+
+```bash
+reme start config=default
+```
+
+From another terminal, call the running service:
 
 ```bash
 reme search query="recent discussions about indexing" limit=5

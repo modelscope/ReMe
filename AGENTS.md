@@ -203,6 +203,9 @@ reference is generated from `reme/config/default.yaml`; do not edit generated pa
 
 - Preserve unrelated user changes in a dirty working tree.
 - Make the smallest coherent change and avoid unrelated cleanup or broad refactors.
+- Documentation should recommend two-stage service usage: start `reme start config=<name-or-path>` in one terminal,
+  then call `reme <job-name>` from another. Keep `reme start job=...` in explicitly labeled one-shot CLI sections;
+  service-private jobs must retain their documented local execution path.
 - Do not edit generated output when the source can be changed instead. The publish workflow builds
   `reme_studio/dist-static` and stages it under `reme_studio/src/reme_studio/static`; change `reme_studio/` source for
   frontend work.

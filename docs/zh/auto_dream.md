@@ -137,7 +137,13 @@ Finish 后，`auto_dream` 和 `dream_cron` 都会通过 `auto_tag_step` 为本�
 
 ## 运行方式
 
-CLI：
+先在一个终端启动服务，并保持运行：
+
+```bash
+reme start config=default
+```
+
+在另一个终端调用已启动的服务：
 
 ```bash
 reme auto_dream date=2026-06-20

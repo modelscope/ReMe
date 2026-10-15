@@ -38,7 +38,7 @@ reme start config=cookbook
 with its cron Job, and explicitly starts the DingTalk Agent bridge as a background Job. The business plugins remain
 usable without DingTalk.
 
-## Markdown sending Job example
+## Markdown Sending Without a Persistent Service
 
 Add a private one-shot Job to an application config when direct sending is useful:
 

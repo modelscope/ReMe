@@ -148,7 +148,13 @@ updates follow the existing asynchronous file watcher.
 
 ## Running Auto Dream
 
-CLI:
+Start the service in one terminal and leave it running:
+
+```bash
+reme start config=default
+```
+
+From another terminal, call the running service:
 
 ```bash
 reme auto_dream date=2026-06-20

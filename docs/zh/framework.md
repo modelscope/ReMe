@@ -120,11 +120,15 @@ flowchart LR
     J --> K["client(action=action, **kwargs)"]
 ```
 
-常用命令：
+在一个终端启动服务并保持运行；省略 `config` 时使用默认配置：
 
 ```bash
 reme start
-reme start service.port=8181
+```
+
+在另一个终端通过已启动的服务调用 Job：
+
+```bash
 reme version
 reme search query="memory" limit=5
 reme search query="memory" backend=mcp
@@ -638,9 +642,11 @@ Job 通常不需要写 Python 类，只需要在配置里编排已有 Step。只
 
 ### 10.1 新增普通请求型 Job
 
-在 YAML 配置的 `jobs:` 下新增：
+将配置保存为例如 `/path/to/uppercase.yaml`，继承默认服务并添加 Job：
 
 ```yaml
+extends: default
+
 jobs:
   uppercase:
     backend: base
@@ -657,10 +663,15 @@ jobs:
       - backend: uppercase_step
 ```
 
-启动后调用：
+在一个终端启动这份配置并保持运行：
 
 ```bash
-reme start
+reme start config=/path/to/uppercase.yaml
+```
+
+在另一个终端调用 Job：
+
+```bash
 reme uppercase text="hello"
 ```
 

@@ -165,6 +165,8 @@ Basic file operations, BM25 search, wikilink traversal, and reading proactive to
 
 ### Start the Service
 
+Start ReMe in one terminal and leave it running:
+
 ```bash
 reme start
 ```
@@ -175,6 +177,9 @@ The default service address is `127.0.0.1:2333`. If the port is occupied, specif
 reme start service.port=8181
 # reme start workspace_dir=/tmp/reme-demo service.port=8181
 ```
+
+From another terminal, call the running service. The CLI discovers its configuration; the `curl` example uses the
+default port `2333`:
 
 ```bash
 reme version
