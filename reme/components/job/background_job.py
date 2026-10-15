@@ -26,6 +26,7 @@ class BackgroundJob(BaseJob):
     On close, the stop_event is set and the task is given up to
     ``close_timeout`` seconds to exit gracefully; after that cancellation is
     requested on its event loop and close waits for the actual worker to exit.
+    Cancellation of close is propagated only after worker cleanup finishes.
     Job bodies must cooperate with cancellation, including in thread-pool mode.
     If a single run survives at least ``attempt_reset_after`` seconds before
     crashing, the backoff attempt counter resets — so a long-stable job that
@@ -99,25 +100,43 @@ class BackgroundJob(BaseJob):
     async def _close(self) -> None:
         if self._stop_event is not None:
             self._stop_event.set()
-        await self._shutdown_task()
-        await super()._close()
+        try:
+            await self._shutdown_task()
+        finally:
+            await super()._close()
 
     async def _shutdown_task(self) -> None:
         """Wait for graceful exit, then request cancellation and await completion."""
         if self._task is None:
             return
-        try:
-            # shield prevents wait_for's cancellation from propagating to the task itself,
-            # so a timeout here truly times out instead of cancelling silently.
-            await asyncio.wait_for(asyncio.shield(self._task), timeout=self.close_timeout)
-        except asyncio.TimeoutError:
-            self._cancel_task()
-            with contextlib.suppress(BaseException):
-                await asyncio.shield(self._task)
-        except Exception:
-            self.logger.exception(f"Background task '{self.name}' raised during close")
+
+        async def wait_for_exit() -> None:
+            try:
+                try:
+                    # A timeout must not cancel the executor's completion future.
+                    await asyncio.wait_for(asyncio.shield(self._task), timeout=self.close_timeout)
+                except asyncio.TimeoutError:
+                    self._cancel_task()
+                    await self._task
+            except asyncio.CancelledError:
+                pass  # The worker or queued executor future was cancelled.
+            except Exception:
+                self.logger.exception(f"Background task '{self.name}' raised during close")
+
+        # Shield the whole shutdown so repeated caller cancellations cannot
+        # interrupt worker cleanup or cancel the executor's completion future.
+        shutdown = asyncio.create_task(wait_for_exit())
+        cancelled = None
+        while not shutdown.done():
+            try:
+                await asyncio.shield(shutdown)
+            except asyncio.CancelledError as exc:
+                cancelled = exc
+        shutdown.result()
         self._task = None
         self._executor_future = None
+        if cancelled is not None:
+            raise cancelled
 
     def _backoff_delay(self, attempt: int) -> float:
         """Exponential backoff with ±50% jitter, capped at backoff_cap."""

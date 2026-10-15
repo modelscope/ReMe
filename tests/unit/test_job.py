@@ -407,6 +407,109 @@ def test_thread_pool_shutdown_before_coroutine_starts(queued):
     asyncio.run(run())
 
 
+@pytest.mark.parametrize("use_thread_pool", [False, True], ids=["async", "thread"])
+@pytest.mark.parametrize("phase", ["graceful", "forced"])
+def test_close_finishes_worker_cleanup_before_propagating_repeated_cancellation(use_thread_pool, phase):
+    async def run():
+        started, cleaning, release, finished = (threading.Event() for _ in range(4))
+
+        class WaitingJob(BackgroundJob):
+            async def __call__(self, **kwargs):
+                started.set()
+                try:
+                    await asyncio.sleep(1)
+                finally:
+                    cleaning.set()
+                    deadline = asyncio.get_running_loop().time() + 1
+                    while not release.is_set() and asyncio.get_running_loop().time() < deadline:
+                        await asyncio.sleep(0.001)
+                    finished.set()
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            job = WaitingJob(
+                app_context=SimpleNamespace(thread_pool=pool),
+                use_thread_pool=use_thread_pool,
+                close_timeout=0.1 if phase == "graceful" else 0.01,
+            )
+            await job.start()
+            worker = job._task
+            executor_future = job._executor_future
+            closing = None
+            try:
+                assert await asyncio.to_thread(started.wait, 1)
+                closing = asyncio.create_task(job.close())
+                if phase == "forced":
+                    assert await asyncio.to_thread(cleaning.wait, 1)
+                else:
+                    await asyncio.sleep(0)
+                for _ in range(3):
+                    closing.cancel()
+                    await asyncio.sleep(0)
+                assert not closing.done()
+                assert not worker.done()
+                assert job.is_started
+                assert await asyncio.to_thread(cleaning.wait, 1)
+                release.set()
+                with pytest.raises(asyncio.CancelledError):
+                    await asyncio.wait_for(closing, 1)
+                assert finished.is_set()
+                assert worker.done()
+                assert executor_future is None or executor_future.done()
+                assert job._task is None
+                assert job._executor_future is None
+                assert not job.is_started
+            finally:
+                release.set()
+                if closing is not None:
+                    await asyncio.gather(closing, return_exceptions=True)
+                await asyncio.gather(worker, return_exceptions=True)
+                await job.close()
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("use_thread_pool", [False, True], ids=["async", "thread"])
+def test_close_logs_worker_cleanup_failure_after_timeout(use_thread_pool):
+    async def run():
+        started = threading.Event()
+        errors = []
+
+        class FailingCleanupJob(BackgroundJob):
+            async def __call__(self, **kwargs):
+                started.set()
+                try:
+                    await asyncio.sleep(1)
+                finally:
+                    raise RuntimeError("worker cleanup failed")
+
+        def capture_error(_message):
+            import sys
+
+            errors.append(sys.exception())
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            job = FailingCleanupJob(
+                app_context=SimpleNamespace(thread_pool=pool),
+                use_thread_pool=use_thread_pool,
+                supervisor=False,
+                close_timeout=0.01,
+            )
+            job.logger = MagicMock()
+            job.logger.exception.side_effect = capture_error
+            await job.start()
+            try:
+                assert await asyncio.to_thread(started.wait, 1)
+            finally:
+                await job.close()
+            assert len(errors) == 1
+            assert isinstance(errors[0], RuntimeError)
+            assert str(errors[0]) == "worker cleanup failed"
+            assert job._task is None
+            assert job._executor_future is None
+
+    asyncio.run(run())
+
+
 def test_cron_uses_configured_timezone(monkeypatch):
     from zoneinfo import ZoneInfo
 
