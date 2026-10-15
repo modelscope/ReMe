@@ -10,7 +10,7 @@ from typing import Any
 
 from .token_utils import estimate_token_count
 
-DEFAULT_TOKENIZER = "Qwen/Qwen3.5-122B-A10B"
+DEFAULT_TOKENIZER = "Qwen/Qwen3.8-27B"
 
 
 def _estimated_count(text: str) -> int:
@@ -18,63 +18,59 @@ def _estimated_count(text: str) -> int:
 
 
 class QwenTokenTools:
-    """Count and truncate text with a lazily loaded Hugging Face tokenizer."""
+    """Count and truncate text with a lazily loaded Hugging Face tokenizer.
+
+    Install ``reme-ai[qwen-tokenizer]`` for exact counts. The default source
+    downloads tokenizer data only; select the inference model's source when
+    model-specific token counts are needed. Truncation preserves a prefix of
+    the original string, including when the tokenizer normalizes its input.
+    """
 
     def __init__(self, tokenizer_source: str = DEFAULT_TOKENIZER, *, tokenizer: Any | None = None) -> None:
         if not isinstance(tokenizer_source, str) or not tokenizer_source.strip():
             raise ValueError("tokenizer_source must be a non-empty string")
         self.tokenizer_source = tokenizer_source.strip()
         self._tokenizer = tokenizer
-        self._missing_tokenizer_warning_lock = Lock()
-        self._missing_tokenizer_warned = False
+        self._tokenizer_lock = Lock()
         self._tokenizer_unavailable = False
 
-    def _warn_missing_tokenizer(self, reason: str) -> None:
-        with self._missing_tokenizer_warning_lock:
-            if self._missing_tokenizer_warned:
-                return
-            self._missing_tokenizer_warned = True
-        warnings.warn(
-            f"Qwen tokenizer is unavailable ({reason}); token count is estimated from UTF-8 byte length.",
-            RuntimeWarning,
-            stacklevel=3,
-        )
-
     @property
-    def tokenizer(self) -> Any:
-        """Load the configured tokenizer on first use."""
-        if self._tokenizer is None:
-            self._tokenizer = _load_tokenizer(self.tokenizer_source)
-        return self._tokenizer
-
-    def _available_tokenizer(self) -> Any | None:
-        with self._missing_tokenizer_warning_lock:
+    def tokenizer(self) -> Any | None:
+        """Load once under a lock; warn once and return None if unavailable."""
+        with self._tokenizer_lock:
             if self._tokenizer_unavailable:
                 return None
             try:
-                return self.tokenizer
+                if self._tokenizer is None:
+                    self._tokenizer = _load_tokenizer(self.tokenizer_source)
+                return self._tokenizer
             except (ImportError, RuntimeError) as exc:
                 self._tokenizer_unavailable = True
                 reason = "missing 'tokenizers' package" if isinstance(exc, ImportError) else "load failed"
-        self._warn_missing_tokenizer(reason)
+        warnings.warn(
+            f"Qwen tokenizer is unavailable ({reason}); token count is estimated from UTF-8 byte length. "
+            "Install exact tokenization support with: pip install 'reme-ai[qwen-tokenizer]'.",
+            RuntimeWarning,
+            stacklevel=3,
+        )
         return None
 
     def count(self, text: str) -> int:
         """Count tokenizer IDs, or estimate from bytes when the tokenizer is unavailable."""
         if not isinstance(text, str):
             raise TypeError("text must be a string")
-        tokenizer = self._available_tokenizer()
+        tokenizer = self.tokenizer
         if tokenizer is None:
             return _estimated_count(text)
         return len(tokenizer.encode(text, add_special_tokens=False).ids)
 
     def truncate(self, text: str, max_tokens: int) -> tuple[str, int, bool]:
-        """Truncate to a tokenizer prefix and return text, count, and change flag."""
+        """Return an original-text prefix, its token count, and whether text changed."""
         if not isinstance(text, str):
             raise TypeError("text must be a string")
         if not isinstance(max_tokens, int) or isinstance(max_tokens, bool) or max_tokens < 1:
             raise ValueError("max_tokens must be a positive integer")
-        tokenizer = self._available_tokenizer()
+        tokenizer = self.tokenizer
         if tokenizer is None:
             token_count = _estimated_count(text)
             if token_count <= max_tokens:
@@ -94,25 +90,41 @@ class QwenTokenTools:
         if token_count <= max_tokens:
             return text, token_count, False
 
-        truncated = tokenizer.decode(encoding.ids[:max_tokens], skip_special_tokens=False)
-        while truncated and self.count(truncated) > max_tokens:
+        # Byte-level tokens can share character offsets. Re-encode the original
+        # prefix to check the budget instead of decoding a partial character.
+        end = encoding.offsets[max_tokens - 1][1]
+        truncated = text[:end]
+        token_count = self.count(truncated)
+        while truncated and token_count > max_tokens:
             truncated = truncated[:-1]
-        return truncated, self.count(truncated), True
+            token_count = self.count(truncated)
+        return truncated, token_count, True
 
 
-@lru_cache(maxsize=4)
 def _load_tokenizer(source: str) -> Any:
-    """Load and cache one tokenizer without importing the optional package eagerly."""
+    """Build an independent tokenizer from cached immutable configuration."""
     try:
         from tokenizers import Tokenizer
     except ImportError as exc:
-        raise ImportError("Qwen token tools require the 'tokenizers' package for exact tokenization") from exc
+        raise ImportError("Install 'reme-ai[qwen-tokenizer]' for exact tokenization") from exc
     try:
-        local_path = Path(source)
-        if local_path.is_dir():
-            return Tokenizer.from_file(str(local_path / "tokenizer.json"))
-        if local_path.is_file():
-            return Tokenizer.from_file(str(local_path))
-        return Tokenizer.from_pretrained(source)
+        return Tokenizer.from_str(_load_tokenizer_json(source))
     except Exception as exc:
         raise RuntimeError(f"Unable to load Qwen tokenizer {source!r}: {exc}") from exc
+
+
+@lru_cache(maxsize=4)
+def _load_tokenizer_json(source: str) -> str:
+    """Cache serialized data, never a mutable tokenizer shared across instances."""
+    from tokenizers import Tokenizer
+
+    local_path = Path(source)
+    if local_path.is_dir():
+        tokenizer = Tokenizer.from_file(str(local_path / "tokenizer.json"))
+    elif local_path.is_file():
+        tokenizer = Tokenizer.from_file(str(local_path))
+    else:
+        tokenizer = Tokenizer.from_pretrained(source)
+    tokenizer.no_truncation()
+    tokenizer.no_padding()
+    return tokenizer.to_str()
