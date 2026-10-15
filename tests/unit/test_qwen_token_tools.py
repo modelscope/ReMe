@@ -1,5 +1,6 @@
 """Qwen tokenizer utility tests without external downloads."""
 
+import sys
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
@@ -20,8 +21,9 @@ class _Tokenizer:
         return SimpleNamespace(ids=list(text), offsets=[(index, index + 1) for index in range(len(text))])
 
 
-def test_injected_tokenizer_counts_and_truncates():
-    """Use an injected tokenizer for exact counting and truncation."""
+def test_custom_tokenizer_without_optional_dependency(monkeypatch):
+    """Custom counting and truncation do not require the optional package."""
+    monkeypatch.setitem(sys.modules, "tokenizers", None)
     tools = QwenTokenTools(tokenizer=_Tokenizer())
 
     assert tools.count("你好 world") == 8
@@ -29,15 +31,87 @@ def test_injected_tokenizer_counts_and_truncates():
     assert tools.truncate("hi", 3) == ("hi", 2, False)
 
 
+@pytest.fixture(name="word_tokenizer")
+def _word_tokenizer():
+    """Build a small tokenizer for loading and isolation regressions."""
+    tokenizers = pytest.importorskip("tokenizers")
+    tokenizer = tokenizers.Tokenizer(
+        tokenizers.models.WordLevel(
+            {"[UNK]": 0, "[PAD]": 1, "one": 2, "two": 3, "three": 4, "four": 5},
+            unk_token="[UNK]",
+        ),
+    )
+    tokenizer.pre_tokenizer = tokenizers.pre_tokenizers.Whitespace()
+    return tokenizer
+
+
+@pytest.mark.parametrize("source_kind", ["native", "wrapped", "file", "directory", "remote"])
+def test_tokenizer_sources_disable_limits_and_isolate_instances(word_tokenizer, tmp_path, monkeypatch, source_kind):
+    """Every source removes saved limits and isolates caller and instance mutations."""
+    tokenizers = pytest.importorskip("tokenizers")
+    tokenizer = word_tokenizer
+    if source_kind == "wrapped":
+        tokenizer = tokenizers.implementations.BaseTokenizer(tokenizer)
+    tokenizer.enable_truncation(max_length=1)
+    tokenizer.enable_padding(length=8, pad_id=1, pad_token="[PAD]")
+    original = tokenizer.to_str()
+    if source_kind in ("native", "wrapped"):
+        kwargs = {"tokenizer": tokenizer}
+    else:
+        path = tmp_path / "tokenizer.json"
+        tokenizer.save(str(path))
+        source = str(path if source_kind == "file" else tmp_path)
+        if source_kind == "remote":
+            source = f"test/{tmp_path.name}"
+            load = Mock(return_value=tokenizer)
+            monkeypatch.setattr(tokenizers.Tokenizer, "from_pretrained", load)
+        kwargs = {"tokenizer_source": source}
+    first, second = QwenTokenTools(**kwargs), QwenTokenTools(**kwargs)
+    text = "one two three four"
+    for tools in (first, second):
+        assert tools.count(text) == 4
+        assert tools.count("") == 0
+        assert tools.truncate(text, 1) == ("one", 1, True)
+        assert tools.tokenizer is not tokenizer
+    assert first.tokenizer is not second.tokenizer
+    assert tokenizer.to_str() == original
+
+    tokenizer.enable_truncation(max_length=2)
+    tokenizer.enable_padding(length=10, pad_id=1, pad_token="[PAD]")
+    first.tokenizer.enable_truncation(max_length=1)
+    first.tokenizer.enable_padding(length=8, pad_id=1, pad_token="[PAD]")
+    assert tokenizer.truncation["max_length"] == 2
+    assert tokenizer.padding["length"] == 10
+    assert second.count(text) == 4
+    assert second.count("") == 0
+    assert second.truncate(text, 1) == ("one", 1, True)
+    if source_kind == "remote":
+        load.assert_called_once_with(source)
+
+
 @pytest.mark.parametrize(
-    "error, reason",
-    [(ImportError, "missing 'tokenizers' package"), (RuntimeError, "load failed")],
+    "failure, reason",
+    [
+        ("missing_dependency", "missing 'tokenizers' package"),
+        ("invalid_json", "load failed"),
+        ("remote", "load failed"),
+    ],
 )
-def test_unavailable_tokenizer_warns_once_and_estimates(monkeypatch, error, reason):
-    """Both failure paths estimate counts and truncation without retrying."""
-    load = Mock(side_effect=error("unavailable"))
-    monkeypatch.setattr(qwen_token_tools, "_load_tokenizer", load)
-    tools = QwenTokenTools()
+def test_unavailable_tokenizer_warns_once_and_estimates(tmp_path, monkeypatch, failure, reason):
+    """Real import, local JSON, and remote failures warn once and fall back."""
+    source = f"test/{tmp_path.name}"
+    if failure == "missing_dependency":
+        monkeypatch.setitem(sys.modules, "tokenizers", None)
+    else:
+        tokenizers = pytest.importorskip("tokenizers")
+        if failure == "invalid_json":
+            path = tmp_path / "tokenizer.json"
+            path.write_text("invalid JSON", encoding="utf-8")
+            source = str(path)
+        else:
+            load = Mock(side_effect=OSError("offline"))
+            monkeypatch.setattr(tokenizers.Tokenizer, "from_pretrained", load)
+    tools = QwenTokenTools(source)
 
     with pytest.warns(RuntimeWarning, match=reason) as caught:
         assert tools.count("你好 world") == estimate_token_count("你好 world")
@@ -50,7 +124,8 @@ def test_unavailable_tokenizer_warns_once_and_estimates(monkeypatch, error, reas
         assert tools.tokenizer is None
     assert len(caught) == 1
     assert "pip install 'reme-ai[qwen-tokenizer]'" in str(caught[0].message)
-    load.assert_called_once_with(tools.tokenizer_source)
+    if failure == "remote":
+        load.assert_called_once_with(source)
 
 
 @pytest.mark.parametrize("failure", [None, RuntimeError])
@@ -128,35 +203,53 @@ def test_normalized_truncation_preserves_original_prefix():
     assert changed is True
 
 
-@pytest.mark.parametrize("source_kind", ["file", "directory", "remote"])
-def test_loading_disables_saved_limits_and_isolates_instances(tmp_path, monkeypatch, source_kind):
-    """Saved limits and mutations of another instance cannot corrupt counts."""
+def test_special_tokens_are_counted_without_automatic_wrapping(byte_tokenizer):
+    """Explicit special tokens count, while the post-processor adds nothing."""
     tokenizers = pytest.importorskip("tokenizers")
-    tokenizer = tokenizers.Tokenizer(
-        tokenizers.models.WordLevel({"[UNK]": 0, "[PAD]": 1, "one": 2, "two": 3, "three": 4, "four": 5}),
+    byte_tokenizer.add_special_tokens([tokenizers.AddedToken("[SPECIAL]", lstrip=True, rstrip=True)])
+    byte_tokenizer.post_processor = tokenizers.processors.TemplateProcessing(
+        single="[SPECIAL] $A [SPECIAL]",
+        special_tokens=[("[SPECIAL]", 256)],
     )
-    tokenizer.pre_tokenizer = tokenizers.pre_tokenizers.Whitespace()
-    tokenizer.enable_truncation(max_length=1)
-    tokenizer.enable_padding(length=8, pad_id=1, pad_token="[PAD]")
-    path = tmp_path / "tokenizer.json"
-    tokenizer.save(str(path))
-    if source_kind == "remote":
-        source = f"test/{tmp_path.name}"
-        load = Mock(return_value=tokenizer)
-        monkeypatch.setattr(tokenizers.Tokenizer, "from_pretrained", load)
-    else:
-        source = str(path if source_kind == "file" else tmp_path)
+    tools = QwenTokenTools(tokenizer=byte_tokenizer)
+    assert tools.count("") == 0
+    assert tools.count("[SPECIAL]abc") == 4
+    assert tools.truncate(" [SPECIAL] abc", 1) == (" [SPECIAL] ", 1, True)
+
+
+@pytest.mark.parametrize("source", ["tokenizer.json", "."])
+def test_local_sources_follow_file_updates_and_current_directory(word_tokenizer, tmp_path, monkeypatch, source):
+    """New instances read updated files and resolve relative paths in the current directory."""
+    tokenizers = pytest.importorskip("tokenizers")
+    monkeypatch.chdir(tmp_path)
+    word_tokenizer.save("tokenizer.json")
     first = QwenTokenTools(source)
-    text = "one two three four"
-    assert first.count(text) == 4
-    assert first.count("") == 0
-    assert first.truncate(text, 1) == ("one", 1, True)
-    first.tokenizer.enable_truncation(max_length=1)
-    first.tokenizer.enable_padding(length=8, pad_id=1, pad_token="[PAD]")
-    second = QwenTokenTools(source)
-    assert second.tokenizer is not first.tokenizer
-    assert second.count(text) == 4
-    assert second.count("") == 0
-    assert second.truncate(text, 1) == ("one", 1, True)
-    if source_kind == "remote":
-        load.assert_called_once_with(source)
+    assert first.count("one two") == 2
+
+    word_tokenizer.normalizer = tokenizers.normalizers.Replace(" ", "")
+    word_tokenizer.save("tokenizer.json")
+    assert QwenTokenTools(source).count("one two") == 1
+    assert first.count("one two") == 2
+
+    other = tmp_path / "other"
+    other.mkdir()
+    monkeypatch.chdir(other)
+    word_tokenizer.normalizer = None
+    word_tokenizer.save("tokenizer.json")
+    assert QwenTokenTools(source).count("one two") == 2
+
+
+def test_invalid_inputs_do_not_load_tokenizer(monkeypatch):
+    """Reject invalid text and token budgets before loading or downloading."""
+    load = Mock(side_effect=AssertionError("unexpected tokenizer load"))
+    monkeypatch.setattr(qwen_token_tools, "_load_tokenizer", load)
+    tools = QwenTokenTools()
+    for text in (None, b"hello"):
+        with pytest.raises(TypeError, match="text must be a string"):
+            tools.count(text)
+        with pytest.raises(TypeError, match="text must be a string"):
+            tools.truncate(text, 1)
+    for budget in (True, 0, -1, 1.5):
+        with pytest.raises(ValueError, match="max_tokens must be a positive integer"):
+            tools.truncate("hello", budget)
+    load.assert_not_called()

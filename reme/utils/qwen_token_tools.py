@@ -24,12 +24,25 @@ class QwenTokenTools:
     downloads tokenizer data only; select the inference model's source when
     model-specific token counts are needed. Truncation preserves a prefix of
     the original string, including when the tokenizer normalizes its input.
+    Injected Hugging Face tokenizers are copied with truncation and padding disabled.
+    Local sources are read on first use for each instance, so new instances see file updates.
     """
 
     def __init__(self, tokenizer_source: str = DEFAULT_TOKENIZER, *, tokenizer: Any | None = None) -> None:
         if not isinstance(tokenizer_source, str) or not tokenizer_source.strip():
             raise ValueError("tokenizer_source must be a non-empty string")
         self.tokenizer_source = tokenizer_source.strip()
+        if tokenizer is not None:
+            try:
+                from tokenizers import Tokenizer
+                from tokenizers.implementations import BaseTokenizer
+            except ImportError:
+                pass  # Custom tokenizer implementations do not require this package.
+            else:
+                if isinstance(tokenizer, (Tokenizer, BaseTokenizer)):
+                    tokenizer = Tokenizer.from_str(tokenizer.to_str())
+                    tokenizer.no_truncation()
+                    tokenizer.no_padding()
         self._tokenizer = tokenizer
         self._tokenizer_lock = Lock()
         self._tokenizer_unavailable = False
@@ -102,29 +115,29 @@ class QwenTokenTools:
 
 
 def _load_tokenizer(source: str) -> Any:
-    """Build an independent tokenizer from cached immutable configuration."""
+    """Read local files afresh; build independent instances from cached remote data."""
     try:
         from tokenizers import Tokenizer
     except ImportError as exc:
         raise ImportError("Install 'reme-ai[qwen-tokenizer]' for exact tokenization") from exc
     try:
-        return Tokenizer.from_str(_load_tokenizer_json(source))
+        local_path = Path(source)
+        if local_path.is_dir():
+            tokenizer = Tokenizer.from_file(str(local_path / "tokenizer.json"))
+        elif local_path.is_file():
+            tokenizer = Tokenizer.from_file(str(local_path))
+        else:
+            tokenizer = Tokenizer.from_str(_load_remote_tokenizer_json(source))
+        tokenizer.no_truncation()
+        tokenizer.no_padding()
+        return tokenizer
     except Exception as exc:
         raise RuntimeError(f"Unable to load Qwen tokenizer {source!r}: {exc}") from exc
 
 
 @lru_cache(maxsize=4)
-def _load_tokenizer_json(source: str) -> str:
-    """Cache serialized data, never a mutable tokenizer shared across instances."""
+def _load_remote_tokenizer_json(source: str) -> str:
+    """Cache remote serialized data, never local files or mutable tokenizer objects."""
     from tokenizers import Tokenizer
 
-    local_path = Path(source)
-    if local_path.is_dir():
-        tokenizer = Tokenizer.from_file(str(local_path / "tokenizer.json"))
-    elif local_path.is_file():
-        tokenizer = Tokenizer.from_file(str(local_path))
-    else:
-        tokenizer = Tokenizer.from_pretrained(source)
-    tokenizer.no_truncation()
-    tokenizer.no_padding()
-    return tokenizer.to_str()
+    return Tokenizer.from_pretrained(source).to_str()
