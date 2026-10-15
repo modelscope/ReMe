@@ -44,7 +44,7 @@ dependencies = [
 as = [
     "agentscope[model-ollama]==2.0.10",
 ]
-classifier-jev = [
+decision = [
     "agentscope[classifier-jev]==2.0.10",
 ]
 web = [
@@ -77,7 +77,7 @@ dev = [
 ]
 full = [
     "reme-ai[core]",
-    "reme-ai[classifier-jev]",
+    "reme-ai[decision]",
     "reme-ai[dev]",
     "reme-ai[image-heif]",
 ]
@@ -97,6 +97,7 @@ include-package-data = true
 [tool.setuptools.package-data]
 "*" = ["py.typed", "**/*.yaml", "**/*.json"]
 "reme.components.tokenizer" = ["stopwords"]
+"reme.steps.compaction" = ["LICENSE.compaction"]
 
 [tool.setuptools.dynamic]
 version = { attr = "reme.__version__" }
