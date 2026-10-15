@@ -1314,11 +1314,38 @@ async def test_reply_ignores_unsubscribe_failure(tmp_path, monkeypatch):
     )
 
     result = await wrapper.reply("answer")
-    await wrapper.close()
 
     assert result["last_message"] == "done"
     assert len(client.requests) == 1
-    assert not wrapper._thread_tool_contexts  # pylint: disable=protected-access
+    # The thread is still loaded, so its tool-context guard must survive.
+    assert "thread-1" in wrapper._thread_tool_contexts  # pylint: disable=protected-access
+
+    await wrapper.close()
+
+
+@pytest.mark.asyncio
+async def test_failed_release_keeps_tool_context_guard_on_resume(tmp_path, monkeypatch):
+    wrapper, _job = _wrapper(tmp_path, auth_mode="oauth")
+    client = _RecordingClient(fail=True)
+
+    class FakeThread:
+        id = "thread-1"
+
+        async def run(self, _inputs, **_kwargs):
+            return _TurnResult(final_response="done")
+
+    monkeypatch.setattr(
+        "reme.components.agent_wrapper.codex_agent_wrapper.AsyncCodex",
+        _fake_codex(client, FakeThread()),
+    )
+
+    result = await wrapper.reply("answer", tool_context_id="ctx-a")
+    assert result["session_id"] == "thread-1"
+    assert len(client.requests) == 1
+
+    with pytest.raises(ValueError, match="cannot change"):
+        await wrapper.reply("answer", session_id="thread-1", tool_context_id="ctx-b")
+    await wrapper.close()
 
 
 @pytest.mark.asyncio
@@ -1455,6 +1482,54 @@ async def test_compact_session_releases_thread(tmp_path, monkeypatch):
     monkeypatch.setattr(wrapper, "_get_codex", get_codex)
 
     await wrapper.compact_session("thread-1")
+
+    _assert_unsubscribed(client)
+    assert not wrapper._thread_tool_contexts  # pylint: disable=protected-access
+
+
+@pytest.mark.asyncio
+async def test_reply_stream_releases_thread_when_turn_start_fails(tmp_path, monkeypatch):
+    wrapper, _job = _wrapper(tmp_path, auth_mode="oauth")
+    client = _RecordingClient()
+
+    class FakeThread:
+        id = "thread-1"
+
+        async def turn(self, _inputs, **_kwargs):
+            raise RuntimeError("turn/start failed")
+
+    monkeypatch.setattr(
+        "reme.components.agent_wrapper.codex_agent_wrapper.AsyncCodex",
+        _fake_codex(client, FakeThread()),
+    )
+
+    with pytest.raises(RuntimeError, match="turn/start failed"):
+        _ = [chunk async for chunk in wrapper.reply_stream("answer")]
+    await wrapper.close()
+
+    _assert_unsubscribed(client)
+    assert not wrapper._thread_tool_contexts  # pylint: disable=protected-access
+
+
+@pytest.mark.asyncio
+async def test_reply_stream_releases_thread_when_turn_start_is_cancelled(tmp_path, monkeypatch):
+    wrapper, _job = _wrapper(tmp_path, auth_mode="oauth")
+    client = _RecordingClient()
+
+    class FakeThread:
+        id = "thread-1"
+
+        async def turn(self, _inputs, **_kwargs):
+            raise asyncio.CancelledError("cancelled during turn/start")
+
+    monkeypatch.setattr(
+        "reme.components.agent_wrapper.codex_agent_wrapper.AsyncCodex",
+        _fake_codex(client, FakeThread()),
+    )
+
+    with pytest.raises(asyncio.CancelledError):
+        _ = [chunk async for chunk in wrapper.reply_stream("answer")]
+    await wrapper.close()
 
     _assert_unsubscribed(client)
     assert not wrapper._thread_tool_contexts  # pylint: disable=protected-access
