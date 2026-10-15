@@ -421,6 +421,43 @@ def test_source_snapshot_preserves_custom_path_rules_and_symlink_checks(tmp_path
         SourceSnapshot.from_directory(tmp_path, excludes=patterns)
 
 
+def test_worker_merges_plugin_defaults_before_validating_config(tmp_path, monkeypatch):
+    from reme.plugin import Plugin, PluginManager
+
+    defaults = {
+        "daily_dir": "notes",
+        "digest_dir": "summaries",
+        "jobs": {"plugin_version": {"backend": "base", "steps": [{"backend": "version_step"}]}},
+    }
+    manager = PluginManager([Plugin(name="example", config=defaults)])
+    monkeypatch.setattr(PluginManager, "discover", classmethod(lambda cls, specs: manager))
+    # _prepare_runtime changes cwd and TMPDIR in the disposable worker process.
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    config = tmp_path / "benchmark.yaml"
+    config.write_text(
+        "digest_dir: custom_digest\njobs:\n  plugin_version:\n    enable_serve: false\n",
+        encoding="utf-8",
+    )
+    case_root, prepared = sandbox_worker._prepare_runtime(
+        {
+            "case_root": str(tmp_path),
+            "workspace_dir": str(tmp_path / "reme_workspace"),
+            "config": str(config),
+            "plugins": ["example"],
+        },
+    )
+
+    assert prepared["daily_dir"] == "notes"
+    assert prepared["digest_dir"] == "custom_digest"
+    job = prepared["jobs"]["plugin_version"]
+    assert job["backend"] == "base"
+    assert job["steps"] == [{"backend": "version_step"}]
+    assert job["enable_serve"] is False
+    layout = json.loads((case_root / "runtime-layout.json").read_text(encoding="utf-8"))
+    assert layout["configured_paths"]["daily_dir"] == "reme_workspace/notes"
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("mode", ["job", "queries"])
 async def test_worker_keeps_startup_error_or_cancellation_when_close_fails(tmp_path, monkeypatch, mode):

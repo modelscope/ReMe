@@ -102,6 +102,7 @@ def _prepare_runtime(request: dict[str, Any]) -> tuple[Path, dict[str, Any]]:
     # Import after setting TMPDIR so ReMe and its subprocesses cannot leave
     # case-specific temporary files outside the disposable case root.
     from reme.config import resolve_app_config
+    from reme.plugin import resolve_plugin_runtime
     from reme.schema import ApplicationConfig
 
     plugins = request.get("plugins") or []
@@ -115,7 +116,10 @@ def _prepare_runtime(request: dict[str, Any]) -> tuple[Path, dict[str, Any]]:
         log_to_file=True,
     )
     app_config["environment"] = dict(os.environ)
-    resolved_config = ApplicationConfig.model_validate(app_config)
+    # Apply plugin defaults before validation materializes schema defaults,
+    # otherwise those defaults would override plugin paths and partial jobs.
+    runtime = resolve_plugin_runtime(app_config)
+    resolved_config = ApplicationConfig.model_validate(runtime.config)
     _write_runtime_layout(case_root, resolved_config)
     # The build checkpoint reads workspace paths from this mapping. Return the
     # validated model's dump so optional config fields (including ``daily_dir``)
