@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1080" viewBox="0 0 1280 1080" role="img" aria-labelledby="title desc">
+<title id="title">Decision-model context compaction</title>
+<desc id="desc">The caller archives original history. Deterministic guards protect messages and unsafe tool pairs. A bounded observation without tool outputs goes to a decision model, which estimates two probabilities per eligible pair. The result is a proposed snapshot with unchanged protected history; the caller checks its own token budget before applying it.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#516784"/></marker></defs>
+<style>text{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#24364b}.title{font-size:31px;font-weight:750}.sub{font-size:17px;fill:#526b84}.heading{font-size:21px;font-weight:700}.body{font-size:17px}.small{font-size:15px;fill:#526b84}.mono{font-size:18px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.tag{font-size:14px;font-weight:700;letter-spacing:1px}.line{fill:none;stroke:#516784;stroke-width:2.5;marker-end:url(#arrow)}.bypass{fill:none;stroke:#7787a0;stroke-width:2;stroke-dasharray:7 6;marker-end:url(#arrow)}</style>
+<rect width="1280" height="1080" rx="20" fill="#f4f7fb"/>
+<text x="40" y="58" class="title">Decision-model context compaction</text>
+<text x="40" y="91" class="sub">Score old tool history for the next action. Return a proposal; the caller owns the original.</text>
+<rect x="40" y="140" width="350" height="210" rx="15" fill="#fff" stroke="#d3ddea" stroke-width="1.5"/>
+<rect x="465" y="140" width="350" height="210" rx="15" fill="#fff" stroke="#d3ddea" stroke-width="1.5"/>
+<rect x="890" y="140" width="350" height="210" rx="15" fill="#fff" stroke="#d3ddea" stroke-width="1.5"/>
+<text x="62" y="173" class="tag">1  ORIGINAL SNAPSHOT</text>
+<text x="62" y="207" class="heading">Caller archives full history</text>
+<text x="62" y="241" class="body">User / assistant / system messages</text>
+<text x="62" y="271" class="body">Tool calls + full tool results</text>
+<text x="62" y="309" class="small">Text, thinking and metadata retained</text>
+<text x="487" y="173" class="tag">2  DETERMINISTIC GUARDS</text>
+<text x="487" y="207" class="heading">Choose eligible pairs</text>
+<text x="487" y="241" class="body">Read-only tool allowlist</text>
+<text x="487" y="270" class="body">Unique IDs + finished + success</text>
+<text x="487" y="302" class="small">Protect first / recent / pinned history</text>
+<text x="912" y="173" class="tag">3  BOUNDED OBSERVATION</text>
+<text x="912" y="207" class="heading">Send a small decision view</text>
+<text x="912" y="242" class="body">Goal + text + tool names / inputs</text>
+<text x="912" y="271" class="body">Result sizes; tool outputs omitted</text>
+<text x="912" y="309" class="small">Thinking is omitted; inputs may shrink</text>
+<path d="M 390 245 H 456" class="line"/>
+<path d="M 815 245 H 881" class="line"/>
+<rect x="420" y="435" width="440" height="185" rx="15" fill="#eaf2ff" stroke="#9db9e6" stroke-width="1.5"/>
+<text x="444" y="469" class="tag">4  DECISION MODEL</text>
+<text x="444" y="505" class="heading">Two binary questions per tool pair</text>
+<text x="444" y="542" class="mono">p_call    Keep call + input?</text>
+<text x="444" y="578" class="mono">p_result  Keep full output verbatim?</text>
+<path d="M 1065 350 V 397 H 640 V 426" class="line"/>
+<path d="M 640 350 V 377 H 20 V 858 H 265 V 902" class="bypass"/>
+<rect x="40" y="425" width="318" height="100" rx="15" fill="#f4f7fb" stroke="#d3ddea" stroke-width="1.5"/>
+<text x="60" y="459" class="small">Protected pairs bypass scoring</text>
+<text x="60" y="490" class="small">Their original blocks stay unchanged.</text>
+<text x="868" y="475" class="small">Same observation in each batch</text>
+<text x="868" y="506" class="small">Bounded concurrency + deadline</text>
+<text x="868" y="537" class="small">Any failed batch → no proposal</text>
+<path d="M 640 620 V 650 H 225 V 683" class="line"/>
+<path d="M 640 650 V 683" class="line"/>
+<path d="M 640 650 H 1055 V 683" class="line"/>
+<rect x="40" y="693" width="370" height="145" rx="15" fill="#e8f6ee" stroke="#99c9ac" stroke-width="1.5"/>
+<rect x="455" y="693" width="370" height="145" rx="15" fill="#fff4df" stroke="#e5c58b" stroke-width="1.5"/>
+<rect x="870" y="693" width="370" height="145" rx="15" fill="#f1edfa" stroke="#c5b8df" stroke-width="1.5"/>
+<text x="62" y="729" class="tag">KEEP</text>
+<text x="62" y="763" class="mono">p_result ≥ threshold</text>
+<text x="62" y="800" class="body">Retain the call and full result.</text>
+<text x="477" y="729" class="tag">DROP_RESULT</text>
+<text x="477" y="763" class="mono">p_call ≥ t and p_result &lt; t</text>
+<text x="477" y="800" class="body">Keep call; shorten long text output.</text>
+<text x="892" y="729" class="tag">DROP_CALL</text>
+<text x="892" y="763" class="body">Both probabilities &lt; threshold</text>
+<text x="892" y="800" class="body">Remove both tool blocks together.</text>
+<path d="M 225 838 V 872 H 640 V 902" class="line"/>
+<path d="M 640 838 V 902" class="line"/>
+<path d="M 1055 838 V 872 H 640" class="line"/>
+<rect x="240" y="912" width="800" height="126" rx="15" fill="#fff" stroke="#9db9e6" stroke-width="1.5"/>
+<text x="264" y="948" class="tag">5  PROPOSED SNAPSHOT + DECISIONS + STATS</text>
+<text x="264" y="981" class="body">Original text / thinking / protected blocks remain intact.</text>
+<text x="264" y="1011" class="small">Caller checks its own model token budget, then applies or rejects the proposal.</text>
+</svg>

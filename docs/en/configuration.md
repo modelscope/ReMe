@@ -209,6 +209,8 @@ terminal with `messages` and any protection or budget options. It uses the same 
 a proposed snapshot; the caller owns archiving and applying it. Request token budgets are estimates with overhead
 headroom, independent of the host model tokenizer.
 
+See [Context compaction with decision models](./context_compaction.md) for the strategy, SVG walkthrough, and live integration cases.
+
 ## Embeddings
 
 Vector retrieval is disabled by default. Credentials alone do not enable it: configure `as_embedding`, `embedding_store`, and connect the store to `file_store`.

@@ -206,6 +206,8 @@ schema 定义问题与答案。接口见 `reme/components/as_decision_model/`。
 `reme compact_context`，传入 `messages` 以及需要的保护和预算选项。返回值是建议的快照，归档和应用由调用方负责。
 请求 token 预算使用预留开销的估算值，与宿主模型的 tokenizer 独立。
 
+完整策略、SVG 图解及真实模型用例见[基于决策模型的上下文压缩](./context_compaction.md)。
+
 ## Embedding 配置
 
 向量检索默认关闭。只设置 `EMBEDDING_API_KEY` 不会自动启用它；还需要同时启用 `as_embedding`、`embedding_store`，并把它连接到 `file_store`：
