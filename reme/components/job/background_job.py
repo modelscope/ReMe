@@ -5,6 +5,7 @@ import contextlib
 import random
 import threading
 import time
+from concurrent.futures import Future
 
 from .base_job import BaseJob
 from ..component_registry import R
@@ -23,7 +24,9 @@ class BackgroundJob(BaseJob):
     supervisor cannot trigger a restart.
 
     On close, the stop_event is set and the task is given up to
-    ``close_timeout`` seconds to exit gracefully; after that it is cancelled.
+    ``close_timeout`` seconds to exit gracefully; after that cancellation is
+    requested on its event loop and close waits for the actual worker to exit.
+    Job bodies must cooperate with cancellation, including in thread-pool mode.
     If a single run survives at least ``attempt_reset_after`` seconds before
     crashing, the backoff attempt counter resets — so a long-stable job that
     eventually crashes restarts quickly rather than at the capped delay.
@@ -50,19 +53,48 @@ class BackgroundJob(BaseJob):
         self.attempt_reset_after: float = attempt_reset_after
         self.use_thread_pool: bool = use_thread_pool
         self._stop_event: asyncio.Event | threading.Event | None = None
-        self._task: asyncio.Task | None = None
+        self._task: asyncio.Future | None = None
+        self._executor_future: Future | None = None
+        self._worker_lock = threading.Lock()
+        self._worker_task: asyncio.Task | None = None
 
     async def _start(self) -> None:
         await super()._start()
         if self.use_thread_pool and self.app_context.thread_pool:
             self._stop_event = threading.Event()
-            self._task = asyncio.get_event_loop().run_in_executor(
-                self.app_context.thread_pool,
-                lambda: asyncio.run(self._run_with_supervisor()),
-            )
+            self._executor_future = self.app_context.thread_pool.submit(self._run_in_thread)
+            self._task = asyncio.wrap_future(self._executor_future)
         else:
             self._stop_event = asyncio.Event()
             self._task = asyncio.create_task(self._run_with_supervisor())
+
+    def _run_in_thread(self) -> None:
+        """Keep executor completion tied to actual event-loop shutdown."""
+        with contextlib.suppress(asyncio.CancelledError):
+            asyncio.run(self._run_thread_task())
+
+    async def _run_thread_task(self) -> None:
+        with self._worker_lock:
+            self._worker_task = asyncio.current_task()
+        try:
+            # close() may have set stop before the worker published its task.
+            if not self._stop_event.is_set():
+                await self._run_with_supervisor()
+        finally:
+            # Keep cancellation from targeting a loop that has already closed.
+            with self._worker_lock:
+                self._worker_task = None
+
+    def _cancel_task(self) -> None:
+        if self._executor_future is None:
+            self._task.cancel()
+            return
+        # Cancel queued work without waiting for another long-running job to free
+        # a worker. If already running, cancel the coroutine on its own loop.
+        self._executor_future.cancel()
+        with self._worker_lock:
+            if self._worker_task is not None:
+                self._worker_task.get_loop().call_soon_threadsafe(self._worker_task.cancel)
 
     async def _close(self) -> None:
         if self._stop_event is not None:
@@ -71,7 +103,7 @@ class BackgroundJob(BaseJob):
         await super()._close()
 
     async def _shutdown_task(self) -> None:
-        """Wait close_timeout for graceful exit, then force-cancel."""
+        """Wait for graceful exit, then request cancellation and await completion."""
         if self._task is None:
             return
         try:
@@ -79,12 +111,13 @@ class BackgroundJob(BaseJob):
             # so a timeout here truly times out instead of cancelling silently.
             await asyncio.wait_for(asyncio.shield(self._task), timeout=self.close_timeout)
         except asyncio.TimeoutError:
-            self._task.cancel()
+            self._cancel_task()
             with contextlib.suppress(BaseException):
-                await self._task
+                await asyncio.shield(self._task)
         except Exception:
             self.logger.exception(f"Background task '{self.name}' raised during close")
         self._task = None
+        self._executor_future = None
 
     def _backoff_delay(self, attempt: int) -> float:
         """Exponential backoff with ±50% jitter, capped at backoff_cap."""

@@ -3,6 +3,8 @@
 # pylint: disable=protected-access,missing-function-docstring,missing-class-docstring,no-self-argument,unused-argument
 
 import asyncio
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -333,6 +335,74 @@ def test_shutdown_task_cancels_on_timeout():
         job._task = asyncio.create_task(hang_forever())
         await job._shutdown_task()
         assert job._task is None
+
+    asyncio.run(run())
+
+
+def test_thread_pool_shutdown_waits_for_worker_cleanup():
+    async def run():
+        started = threading.Event()
+        events = []
+
+        class WaitingJob(BackgroundJob):
+            async def __call__(self, **kwargs):
+                started.set()
+                try:
+                    # Bounded fallback ensures a regression cannot hang pytest.
+                    await asyncio.sleep(2)
+                except asyncio.CancelledError:
+                    events.append("cancelled")
+                    raise
+                finally:
+                    await asyncio.sleep(0.02)
+                    events.append("cleaned")
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            job = WaitingJob(app_context=SimpleNamespace(thread_pool=pool), use_thread_pool=True, close_timeout=0.01)
+            await job.start()
+            assert await asyncio.to_thread(started.wait, 1)
+            executor_future = job._executor_future
+            await asyncio.wait_for(job.close(), 1)
+            assert events == ["cancelled", "cleaned"]
+            assert executor_future.done()
+            assert job._task is None
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("queued", [True, False], ids=["queued", "starting"])
+def test_thread_pool_shutdown_before_coroutine_starts(queued):
+    async def run():
+        entered = threading.Event()
+        release = threading.Event()
+
+        class DelayedJob(BackgroundJob):
+            def _run_in_thread(self):
+                entered.set()
+                release.wait(2)
+                super()._run_in_thread()
+
+            def _cancel_task(self):
+                super()._cancel_task()
+                release.set()
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            if queued:
+                pool.submit(release.wait, 2)
+            job = DelayedJob(app_context=SimpleNamespace(thread_pool=pool), use_thread_pool=True, close_timeout=0.01)
+            body = AsyncMock()
+            job._run_with_supervisor = body
+            try:
+                await job.start()
+                if not queued:
+                    assert await asyncio.to_thread(entered.wait, 1)
+                executor_future = job._executor_future
+                await asyncio.wait_for(job.close(), 1)
+                assert executor_future.done()
+                assert executor_future.cancelled() == queued
+                body.assert_not_awaited()
+            finally:
+                release.set()
 
     asyncio.run(run())
 
