@@ -25,15 +25,17 @@ def _render_value(value) -> str:
     """Render one frontmatter key or value on a single answer line.
 
     ``frontmatter_read`` is served straight to the LLM, so the answer has
-    to carry the frontmatter itself. Collections keep their JSON shape so
-    list boundaries, empty collections, and nested structure stay visible;
-    ``default=str`` covers YAML-only types such as dates, and skipping key
-    sort keeps mixed-type mapping keys loadable. Bare strings are the one
-    exception — quoting every scalar would drown the answer in noise — but
-    their line breaks are escaped so the one-key-per-line layout survives.
+    to carry the frontmatter itself. ``json.dumps`` (with ``default=str``
+    for YAML-only types such as dates, and ``ensure_ascii=False`` for
+    non-ASCII) preserves the structural distinction between a literal
+    ``"\\n"`` two-character sequence and an actual newline, between the
+    string ``"null"`` and YAML ``null``, and between mixed mapping key
+    types (an int ``1`` and a string ``"1"`` round-trip with their
+    JSON-form distinction). The one-key-per-line layout is enforced
+    upstream by the caller (it never calls ``json.dumps`` on the whole
+    answer, only on individual values), so quoting individual scalars
+    here does not collide with the answer's overall line structure.
     """
-    if isinstance(value, str):
-        return value.replace("\r", "\\r").replace("\n", "\\n")
     try:
         return json.dumps(value, ensure_ascii=False, default=str)
     except (TypeError, ValueError, RecursionError):
