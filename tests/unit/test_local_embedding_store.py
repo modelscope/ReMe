@@ -1075,8 +1075,8 @@ def test_provider_wide_credentials_errors_are_not_split_into_per_item_requests()
     run(go())
 
 
-def test_provider_wide_server_errors_are_retried_without_splitting(monkeypatch):
-    """A 500 is transient, so it is retried with the usual backoff and never split per item."""
+def test_provider_wide_server_errors_are_not_retried_without_splitting(monkeypatch):
+    """A 500 is left to the layers that own retries, so this store asks exactly once."""
 
     async def go():
         sleeps = []
@@ -1090,8 +1090,10 @@ def test_provider_wide_server_errors_are_retried_without_splitting(monkeypatch):
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
         assert await store._call_with_retry([f"item{i}" for i in range(10)]) is None
-        assert provider.batch_sizes == [10, 10, 10]
-        assert sleeps == [1.0, 2.0]
+        # One request only: the wrapper and the SDK already retry a 5xx, and retrying here
+        # as well multiplied their attempts (12 -> 36 in the reported reproduction).
+        assert provider.batch_sizes == [10]
+        assert sleeps == []
         assert store.is_healthy is False
 
     run(go())
@@ -1301,7 +1303,12 @@ def test_http_status_ignores_a_string_code():
 
 
 def test_google_genai_service_failures_are_not_split_into_per_item_requests(monkeypatch):
-    """A Gemini 401 / 429 / 503 describes the service, so the batch is never split per item."""
+    """A Gemini 401 / 429 / 503 describes the service, so the batch is never split per item.
+
+    A 503 is answered once: the wrapper and the SDK own the retry for a 5xx, and retrying
+    here as well multiplied their attempts. A 429 keeps its retry because the rate-limit
+    branch above this classifier is the one place that reacts to it.
+    """
 
     async def go():
         sleeps = []
@@ -1313,7 +1320,7 @@ def test_google_genai_service_failures_are_not_split_into_per_item_requests(monk
 
         for error, expected_batches in (
             (GenAiClientError(401), [10]),
-            (GenAiServerError(503), [10, 10, 10]),
+            (GenAiServerError(503), [10]),
             (GenAiClientError(429), [10, 10, 10]),
         ):
             sleeps.clear()
@@ -1332,7 +1339,11 @@ def test_google_genai_service_failures_are_not_split_into_per_item_requests(monk
 
 
 def test_dashscope_runtime_errors_are_not_split_into_per_item_requests(monkeypatch):
-    """A DashScope failure arrives as a plain RuntimeError; the status lives in its message."""
+    """A DashScope failure arrives as a plain RuntimeError; the status lives in its message.
+
+    As with the Gemini shapes, a 503 is answered once (the lower layers own that retry) and
+    a 429 keeps the retry from the rate-limit branch.
+    """
 
     async def go():
         sleeps = []
@@ -1342,7 +1353,7 @@ def test_dashscope_runtime_errors_are_not_split_into_per_item_requests(monkeypat
 
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
-        for status, expected_batches in ((401, [10]), (503, [10, 10, 10]), (429, [10, 10, 10])):
+        for status, expected_batches in ((401, [10]), (503, [10]), (429, [10, 10, 10])):
             sleeps.clear()
             provider = AlwaysProviderWideFailureAsEmbedding(DashScopeRuntimeError.for_status(status))
             store = LocalEmbeddingStore(

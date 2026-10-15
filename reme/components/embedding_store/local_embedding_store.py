@@ -330,13 +330,17 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
                     return None
                 if self._is_provider_wide_failure(error):
                     # Credentials, permissions and server outages describe the endpoint, not any
-                    # single item: isolation cannot fix them, so retry the transient ones with the
-                    # usual backoff and give up on the rest instead of multiplying the requests.
-                    if self._is_transient_provider_failure(error) and attempt < self.max_retries - 1:
-                        delay = 2**attempt
-                        self.logger.warning(f"Embedding provider error; retrying in {delay:.1f}s")
-                        await asyncio.sleep(delay)
-                        continue
+                    # single item: isolation cannot fix them, so give up on the whole batch
+                    # instead of multiplying the rejected requests.
+                    #
+                    # A 5xx is deliberately *not* retried here. The embedding wrapper and the
+                    # provider SDK already retry transient server errors, and every extra layer
+                    # that retries multiplies the attempts and the waiting time of the layers
+                    # below it -- a batch the SDK answered after 12 attempts became 36 once this
+                    # store retried on top of it. Retry ownership therefore stays with those
+                    # layers: a caller that wants a longer budget configures it there instead of
+                    # stacking another silent loop here. Transport failures keep their retry
+                    # above because they describe a connection that no lower layer has reported.
                     self.logger.exception("Embedding request failed: provider-wide error, not splitting")
                     stop()
                     break
@@ -490,14 +494,6 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
         if isinstance(body, dict):
             parts.append(str(body))
         return " ".join(parts).lower()
-
-    @staticmethod
-    def _is_transient_provider_failure(error: Exception) -> bool:
-        """Return whether a provider-wide failure is worth retrying with the usual backoff."""
-        status = LocalEmbeddingStore._http_status(error)
-        if status is not None:
-            return 500 <= status < 600
-        return type(error).__name__ == "InternalServerError"
 
     @staticmethod
     def _error_code(error: Exception) -> str | None:
