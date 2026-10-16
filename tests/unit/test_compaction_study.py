@@ -2,11 +2,13 @@
 
 import hashlib
 import json
+from argparse import Namespace
 
 import pytest
 
 from benchmark.compaction.cases import event_units, write
 from benchmark.compaction.suite_native import validate_base
+from benchmark.compaction.suite_fusion import prepare
 from benchmark.compaction.suite import context, define, exam, grade
 from benchmark.compaction.suite_run import ARMS, load_cases, metrics
 
@@ -149,3 +151,68 @@ def test_native_rejects_incompatible_or_duplicate_base_panels(tmp_path):
     write(tmp_path / "protocol.json", protocol)
     with pytest.raises(ValueError, match="matching fourteen-task"):
         validate_base(tmp_path, corpus, cases)
+
+
+def test_hermes_fusion_reuses_summary_and_verified_jev_prefix(tmp_path, monkeypatch):
+    """Appending evidence cannot rewrite the frozen native summary or rerank units."""
+    case = {
+        "messages": [{"role": "system", "content": "system"}, {"role": "user", "content": "task"}],
+        "exam": "held-out",
+        "gold": {"answer": 42},
+    }
+    units = [{"id": "u", "file": "source", "text": "evidence", "spans": []}]
+    base = []
+    native = []
+    for i in range(3):
+        for arm in ARMS:
+            base.append(
+                {
+                    "case": "example",
+                    "arm": arm,
+                    "repeat": i,
+                    "summary": "S",
+                    "selected": ["u"] if arm.startswith("fusion") else [],
+                    "input_cap": 1000,
+                    "trials": [{"usage": {"prompt_tokens": 200}}],
+                },
+            )
+        native.append(
+            {
+                "case": "example",
+                "arm": "hermes_summary",
+                "repeat": i,
+                "summary": f"frozen H {i}",
+                "valid": True,
+            },
+        )
+    evaluation = tmp_path / "evaluation"
+    generation = tmp_path / "native" / "example" / "generation"
+    source = evaluation / "example" / "source.json"
+    source.parent.mkdir(parents=True)
+    generation.mkdir(parents=True)
+    write(source, {**case, "units": units})
+    for i in range(3):
+        write(source.parent / f"paired.c{i}.decision0.response.json", {"scores": {"u": 0.9}})
+    write(generation / "validation.json", {"source_sha256": hashlib.sha256(source.read_bytes()).hexdigest()})
+    write(generation / "summaries.json", [{"repeat": i, "summary": f"frozen H {i}", "valid": True} for i in range(3)])
+    combined = tmp_path / "combined"
+    combined.mkdir()
+    write(combined / "results.json", base + native)
+    monkeypatch.setattr("benchmark.compaction.suite_fusion.validate_base", lambda *_: base)
+    args = Namespace(
+        evaluation=evaluation,
+        native=tmp_path / "native",
+        combined=combined,
+        corpus=tmp_path / "corpus.json",
+        native_evaluation=None,
+    )
+    reused, prepared = prepare(args, {"example": case})
+    assert reused == base + native and len(prepared) == 15
+    for row in prepared:
+        assert row["summary"] == f"frozen H {row['repeat']}"
+        assert row["selected"] == ["u"] and row["actual_n"] == 1
+        assert row["context"][-1]["content"] == "held-out"
+        assert "evidence" in row["context"][-2]["content"]
+    write(source.parent / "paired.c0.decision0.response.json", {"scores": {"wrong": 0.9}})
+    with pytest.raises(ValueError, match="every unit needs a score"):
+        prepare(args, {"example": case})

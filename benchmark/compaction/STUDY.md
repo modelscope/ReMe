@@ -95,3 +95,22 @@ Unadapted native generation and length-calibration records remain outside the re
 included its long control prefix and exceeded Full input on 40/42 contexts; it is retained as an integration preflight,
 not silently treated as successful compression. The explicit body carrier and word-budget adapter above are fixed
 before their new scored answers. No expected answer, cohort, Jev ranking or existing S is changed.
+
+
+## Current comparison: two frozen summary mechanisms
+
+The current experiment is one 13-arm panel: Full; S + Jev Top 0–5; H + Jev Top 0–5. Top 0 means summary only.
+H is the forced Hermes small-window adapter defined above. The extension reuses every original S/H summary, ranking,
+selected unit and scored answer; no new summarization, Jev request or trajectory collection occurs. It adds 210 contexts
+and 420 answers, for 546 contexts and 1,092 answers overall. All new inputs were frozen before answering.
+S/H use identical selected units per task/generation/N, restored to source order. No answer-based reranking is allowed.
+
+The extension keeps the existing per-task ceilings. Strict shrinkage versus Full is reported separately, without
+filtering or removing conditions: Top 3–5 each shorten 9/12 primary contexts in both mechanisms. The H fusion arms
+shorten 172/210 contexts (51/60 primary, 121/150 controls). Summary-only H still shortens all 42/42.
+
+For costs, each independent method includes one summary generation when applicable, one complete Jev ranking when
+N > 0, and one downstream answer. Recorded retry usage is included. One ranking is shared across the Top-N sweep and
+mechanisms in the actual experiment; its standalone-method cost is neither multiplied by N nor divided by sweep size.
+The two answer repeats do not amortize compression overhead. Report provider input/output tokens separately; do not
+claim currency or total savings without prices, cache billing and an explicit continuation horizon.

@@ -117,27 +117,22 @@ Only model requests run externally; fixture tool calls are not executed. These c
 success. Evaluate real trajectories against recency and rule-based previews, measuring recovery, continuation quality,
 latency and total cost alongside token reduction. ReMe does not automatically summarize or write persistent memory.
 
-## Fixed summary + selected original evidence
+## Jev across two summary strategies
 
-The experiment uses **14 fixture queries with predefined answers**, collected through Hermes: four source-length-qualified
-primary tasks and ten short/query-only controls. Rule scoring checks exact JSON fields; no LLM judge creates or grades gold.
+One 13-method experiment compares Full context with a generic summary S and a forced Hermes small-window summary H,
+each plus Jev Top 0–5. Top 0 means summary only. Every condition preserves its frozen summary and shares the same
+Jev-selected originals across mechanisms.
 
-![Exact-field score and downstream input for four primary tasks](../figure/compaction-topn-results.svg)
+![Quality, downstream input and compression overhead](../figure/compaction-topn-results.svg)
 
-Across the four primary tasks, Full context reaches 100%, S reaches 82.0%, and S + Top 3 reaches **99.5% with 19.3% fewer
-input tokens** (3,241 versus 4,014). Top 4 and Top 5 score 98.1% and 97.4%, so more retained text is not automatically better.
-Each generation freezes S and the Jev ranking before answers; all five fusion methods keep byte-identical S.
+On four primary task templates, S improves from **82.0% to 99.5%** at Top 3; H improves from **79.4% to 97.9%**.
+Their mean answer inputs are **3,241 / 3,193 tokens**, versus Full's **4,014 / 100%**. The figure separates downstream
+input from summary/ranking overhead; fewer answer tokens do not establish lower total monetary cost.
 
-The **Hermes small-window adapter** scores 79.4% at 2,432 input tokens. It calls the real native summary generator with
-explicit small-window budget/word constraints and a body-only carrier; this is not the unchanged automatic compressor.
-All 42 native contexts fit their budgets and use strictly fewer actual input tokens than Full, with no original fallback.
+The panel has 14 predefined query/answer templates, 546 contexts and 1,092 direct-Qwen answers. Ten short/query-only
+controls are reported separately. H uses an explicit native-generator budget adapter, not Hermes' default automatic
+compressor. All H-only contexts shorten Full; at Top 3–5 only 9/12 primary contexts per method do so, with all cases
+retained in scoring. This is an incremental, unequal-length comparison without agent continuation.
 
-<!-- Payment has 10 units (maximum Top 10). Other tasks have different counts; actual N is min(N, available units). -->
-Top N counts complete source units and saturates at each task's available count. The original payment has ten units,
-so its maximum is Top 10; the sweep tests Top 1–5. Summary/body allowances and complete-input ceilings are task-specific;
-this is an incremental-evidence curve, not an equal-length comparison or proof that every Full exceeds its ceiling.
-
-The panel has 336 contexts and 672 answers, with the controls reported separately. Hermes collects source trajectories;
-answering calls Qwen directly without tool continuation or recovery. These few synthetic tasks do not establish general
-superiority or statistical equivalence. The hybrid and native adapter remain benchmark-only.
-See the [exact queries, answers and settings](https://github.com/jinliyl/ReMe/blob/11317634e5e255a7c7b13492f048f8ca0c90ab3a/benchmark/compaction/STUDY.md) and [results, controls and audit](https://github.com/jinliyl/ReMe/blob/11317634e5e255a7c7b13492f048f8ca0c90ab3a/benchmark/compaction/RESULTS.md).
+<!-- Payment has 10 units (maximum Top 10); actual N is min(N, available units). -->
+See the [query/answer protocol](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/STUDY.md) and [complete results and token accounting](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md).

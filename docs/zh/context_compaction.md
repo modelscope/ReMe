@@ -108,25 +108,20 @@ REME_RUN_DECISION_INTEGRATION=1 pytest tests/integration/test_decision_compactio
 真实 trajectory 评测应对比近期保留和纯规则预览，同时测量恢复次数、继续执行的质量、时延、总成本和 token 节省。
 ReMe 不会自动生成摘要或写入长期记忆。
 
-## 固定摘要与增量原文实验
+## 两种摘要机制下的 Jev 增益
 
-实验固定 **14 个有预设答案的 fixture query**，通过 Hermes 采集轨迹：4 个按来源长度筛出的主实验任务，
-以及 10 个短任务或 query-only 对照。使用确定性 JSON 字段规则评分，不用 LLM 生成标准答案或担任 judge。
+只保留一个 13 组实验：Full context，以及普通摘要 S、Hermes 小窗口摘要 H 各自追加 Jev Top 0～5。
+Top 0 表示纯摘要；每轮摘要逐字固定，两种机制使用完全相同的 Jev 排名与原文块。
 
-![Exact-field score and downstream input for four primary tasks](../figure/compaction-topn-results.svg)
+![Quality, downstream input and compression overhead](../figure/compaction-topn-results.svg)
 
-4 个主实验任务中，Full context 为 100%，S 为 82.0%，S + Top 3 达到 **99.5%**，平均输入从 4014 降至
-3241 tokens，减少 **19.3%**。Top 4、Top 5 分别为 98.1%、97.4%，追加更多原文没有继续提分。
-每轮在评分前固定 S 和 Jev 排名，五种融合始终保留逐字相同的 S。
+4 个主任务中，Top 3 将 S 从 **82.0% 提升至 99.5%**，将 H 从 **79.4% 提升至 97.9%**。
+平均回答输入分别为 **3241 / 3193 tokens**，Full 为 **4014 tokens / 100%**。
+图中分别展示效果、回答输入和摘要／排序开销；回答输入减少不等于总费用降低。
 
-新增的 **Hermes 小窗口摘要适配器** 得分为 79.4%，平均输入 2432 tokens。它实际调用原生摘要生成器，
-但显式增加小窗口预算与字数约束，并使用摘要正文统一封装；不是默认自动压缩器。
-42/42 个上下文均满足预算，且实际 API 输入严格短于对应 Full，没有用原文回退充当压缩成功。
+共 14 个预设 query/answer 模板、546 个上下文、1092 次直接 Qwen 回答；10 个短任务对照单独报告。
+H 是显式调整预算的原生生成器适配方案，不是 Hermes 默认自动压缩器。纯 H 的 42 个上下文全部短于 Full；
+Top 3～5 每组主任务只有 9/12 个上下文实现缩短，全部样例均保留评分。这是非等长的增量比较，未继续运行 agent。
 
-<!-- 支付轨迹有 10 个证据块，最多 Top 10；其他任务数量不同，实际 N 为 min(N, 可用证据块数)。 -->
-Top N 按完整证据块计数，超过可用数量时保留全部。原支付轨迹共有 10 块，最多 Top 10；本次测试 Top 1～5。
-摘要正文预算和完整输入上限按任务计算；这是逐步追加证据的曲线，不是等长比较，也不代表所有 Full 都超过上限。
-
-共 336 个上下文、672 次回答，短任务对照单独报告。Hermes 负责采集，评分时直接调用 Qwen，没有继续工具循环或
-恢复原文。少量合成任务不能证明通用优势或统计等价；融合和原生摘要适配器均仅用于 benchmark。
-详见[完整 query、answer 与实验设定](https://github.com/jinliyl/ReMe/blob/11317634e5e255a7c7b13492f048f8ca0c90ab3a/benchmark/compaction/STUDY.md)和[结果、对照与审计](https://github.com/jinliyl/ReMe/blob/11317634e5e255a7c7b13492f048f8ca0c90ab3a/benchmark/compaction/RESULTS.md)。
+<!-- 支付轨迹有 10 个证据块，最多 Top 10；实际 N 为 min(N, 可用证据块数)。 -->
+详见[query、answer 与实验设定](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/STUDY.md)及[完整结果与 token 开销](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md)。

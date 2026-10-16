@@ -1,97 +1,105 @@
-# Fixed-summary compaction on fourteen fixture tasks
+# Jev across two summary strategies
 
-2026-10-16 · Qwen `qwen3.8-max` · Jev `jev-1.13.0` · **14 distinct queries with predefined answers**.
-Four source-length-qualified tasks form the primary cohort; ten short/query-only controls are reported separately.
-Cohorts were fixed before collection, with no accuracy-based task filtering.
+2026-10-16 · Qwen `qwen3.8-max` · Jev `jev-1.13.0`.
 
-## Primary cohort: four tasks
+One **13-method experiment**: Full context, generic summary **S + Top 0–5**, and forced Hermes small-window summary
+**H + Top 0–5**. Top 0 means summary only. Both curves share the same original evidence and frozen Jev rankings;
+each summary remains byte-identical across its six conditions.
 
-| Method | Mean input tokens | Fact score | Valid contexts |
-| --- | ---: | ---: | --- |
-| Full context | 4,014 | 100.0% | 12/12 |
-| S | 2,480 | 82.0% | 12/12 |
-| Hermes small-window adapter | 2,432 | 79.4% | 12/12 |
-| S + Jev Top 1 | 2,753 | 83.0% | 12/12 |
-| S + Jev Top 2 | 2,974 | 94.5% | 12/12 |
-| S + Jev Top 3 | 3,241 | 99.5% | 12/12 |
-| S + Jev Top 4 | 3,496 | 98.1% | 12/12 |
-| S + Jev Top 5 | 3,660 | 97.4% | 12/12 |
+## Four primary tasks
 
-Input tokens are actual downstream API usage, including the original system/task and follow-up. Fact score averages
-strict JSON field checks within each answer, then generations and tasks equally; invalid conditions score zero.
-Full context reaches 100%; S + Top 3 reaches **99.5% with 19.3% less downstream input** (3,241 versus 4,014 tokens).
-Top 4 and Top 5 do not improve this point estimate. No equivalence test or general optimal-N claim is made.
+| Method | Fact score | Answer input | Summary in / out | Jev in / out |
+| --- | ---: | ---: | ---: | ---: |
+| Full context | 100.0% | 4,014 | 0 / 0 | 0 / 0 |
+| S | 82.0% | 2,480 | 5,379 / 200 | 0 / 0 |
+| S + Jev Top 1 | 83.0% | 2,753 | 5,379 / 200 | 4,162 / 344 |
+| S + Jev Top 2 | 94.5% | 2,974 | 5,379 / 200 | 4,162 / 344 |
+| S + Jev Top 3 | 99.5% | 3,241 | 5,379 / 200 | 4,162 / 344 |
+| S + Jev Top 4 | 98.1% | 3,496 | 5,379 / 200 | 4,162 / 344 |
+| S + Jev Top 5 | 97.4% | 3,660 | 5,379 / 200 | 4,162 / 344 |
+| H (Hermes small-window) | 79.4% | 2,432 | 3,120 / 152 | 0 / 0 |
+| H + Jev Top 1 | 85.3% | 2,705 | 3,120 / 152 | 4,162 / 344 |
+| H + Jev Top 2 | 92.9% | 2,927 | 3,120 / 152 | 4,162 / 344 |
+| H + Jev Top 3 | 97.9% | 3,193 | 3,120 / 152 | 4,162 / 344 |
+| H + Jev Top 4 | 96.9% | 3,448 | 3,120 / 152 | 4,162 / 344 |
+| H + Jev Top 5 | 96.9% | 3,613 | 3,120 / 152 | 4,162 / 344 |
 
-![Primary-cohort input and fact score](../../docs/figure/compaction-topn-results.svg)
+![Quality, downstream input and compression overhead](../../docs/figure/compaction-topn-results.svg)
 
-## What was tested
+Both summary mechanisms benefit on this panel: S rises from **82.0% to 99.5%** at Top 3; H rises from **79.4% to 97.9%**.
+Mean downstream inputs at Top 3 are **3,241 / 3,193**, versus Full's **4,014**: reductions of **19.3% / 20.4%**.
+Top 4–5 do not improve these point estimates. This is an exploratory result on four synthetic task templates,
+not a general optimal-N claim, equivalence test or proof that Jev beats other equal-budget selectors.
 
-The [full query/answer table and protocol](./STUDY.md) define the oracle before collection. The four primary tasks are
-payment retry investigation, checkout 504 analysis, server-error localization and a build-output token lookup.
-The ten controls cover shorter configuration, code, dependency, notes, version and file-generation questions.
-All fourteen sources are synthetic fixtures: one existing payment trajectory plus thirteen genuine Hermes executions
-over explicitly read-only adaptations of upstream tasks. Long-file views are deterministic original excerpts, not
-added noise. These are not the maintainers' private production transcripts.
+## Token and cost accounting
 
-Each task has three frozen summary/ranking pairs and two answers per method: **336 contexts and 672 answers** across
-eight methods. S summarizes every source unit once. Each S + Top N preserves that S byte-for-byte and adds complete
-original units, ranked without a threshold and restored to source order. Actual N saturates at the available unit count.
-The original payment source has ten units, so its maximum is Top 10; the sweep tests Top 1–5.
+All table values are mean provider tokens. Answer input includes the original system/task, summary/evidence and held-out
+question. Summary and Jev columns are **one-time overhead per standalone condition**, including recorded length retries.
+One frozen Jev ranking serves every N and either summary mechanism: Top 1–5 therefore have the same ranking cost;
+it is neither multiplied by N nor divided by the number of sweep conditions. Summary-only and Full incur no Jev cost.
+The two scoring repeats estimate one downstream answer; overhead is not amortized across those evaluation repeats.
 
-S's evidence allowance is 20% of rendered-evidence tokens, clamped to 64–256 local Qwen tokens. A per-task complete-input
-ceiling is calculated from protected prompts, the summary allowance, the five largest whole units and reserve, before
-scored answers. This permits the incremental sweep; **it is not an equal-length S-versus-fusion comparison or a claim
-that every Full input exceeds its ceiling**. All actual inputs are checked. Short cases may gain no token savings.
+These are token counts, **not currency**: model prices and cached-token discounts are not applied. Compression increases
+one-off provider work here; lower downstream input alone does not demonstrate lower total cost. Repeated future turns
+may amortize overhead, but that has not been measured.
 
-The added **Hermes small-window adapter** calls the real native generator, with its legacy template, an overridden
-64–256-token body budget and an appended total word limit. It retains native redaction/provenance checks and strips
-only the native control prefix before the common summary carrier. It bypasses automatic triggering and full-compressor
-head/tail selection: **this is a forced simulation, not the unchanged default Hermes compressor**. All **42/42** native
-contexts fit their body/input budgets and use fewer actual API input tokens than the corresponding Full context.
-No original-history fallback is accepted.
+## Setup and boundaries
 
-Hermes collects the trajectories; answering calls Qwen directly. Gold and follow-up questions never enter collection,
-summary or decision requests. The final collection report is excluded from every history. There is no tool continuation,
-retrieval, LLM judge or generated answer key. Exact string/type compliance is part of this metric; it does not by itself
-prove semantic information loss or task-completion differences. The native and S methods have the same maximum body
-allowance, but their actual lengths differ. Four primary templates are too few to establish general superiority.
+[Queries, fixed answers and scoring rules](./STUDY.md) · [Reproduction commands](./README.md).
+
+The panel contains **14 task templates**, one existing payment trajectory and thirteen real read-only Hermes executions
+over synthetic upstream fixtures. Four primary tasks were selected by source length before collection; ten short/query-only
+controls remain separate. Three summary/ranking pairs and two answers per condition give **546 contexts / 1,092 answers**.
+The extension reused all 42 H summaries, rankings and 672 previous answers; it added only 420 answering calls.
+No new summary or Jev calls were needed. All 1,092 grades were replayed against captured requests/responses.
+
+Scoring uses predefined, recursive type-strict JSON field rules, with no LLM judge. Questions/gold/final collection reports
+are excluded from summary and decision inputs. Answering calls Qwen directly, without Hermes tool continuation or recovery.
+S and H share a 64–256-token maximum summary-body allowance, but use different prompts and actual lengths.
+H calls Hermes' real legacy generator through an explicit budget/word-limit adapter; it is **not the default automatic
+compressor**. All 42 H-only contexts strictly shorten Full, without original-history fallback.
+
+Top N adds complete source units without truncation, saturating at the available count. The payment source has ten units
+(maximum Top 10); this experiment sweeps Top 1–5. Existing per-task input ceilings are preserved, not tuned after answers.
+The comparison is incremental, **not equal-length**. All conditions fit their ceilings, but only **9/12 primary contexts
+per method at Top 3–5** are shorter than their paired Full. Across the new H fusion arms, 172/210 contexts shorten Full;
+the other 38 comprise 9 primary and 29 control contexts. All remain scored. Average savings do not imply per-case savings.
 
 <details>
 <summary>Ten short/query-only controls</summary>
 
-| Method | Mean input tokens | Fact score | Valid contexts |
-| --- | ---: | ---: | --- |
-| Full context | 2,727 | 100.0% | 30/30 |
-| S | 2,315 | 67.1% | 30/30 |
-| Hermes small-window adapter | 2,308 | 73.2% | 30/30 |
-| S + Jev Top 1 | 2,493 | 84.7% | 30/30 |
-| S + Jev Top 2 | 2,573 | 87.5% | 30/30 |
-| S + Jev Top 3 | 2,687 | 92.9% | 30/30 |
-| S + Jev Top 4 | 2,722 | 92.9% | 30/30 |
-| S + Jev Top 5 | 2,722 | 92.5% | 30/30 |
+| Method | Fact score | Answer input | Summary in / out | Jev in / out |
+| --- | ---: | ---: | ---: | ---: |
+| Full context | 100.0% | 2,727 | 0 / 0 | 0 / 0 |
+| S | 67.1% | 2,315 | 1,099 / 74 | 0 / 0 |
+| S + Jev Top 1 | 84.7% | 2,493 | 1,099 / 74 | 929 / 50 |
+| S + Jev Top 2 | 87.5% | 2,573 | 1,099 / 74 | 929 / 50 |
+| S + Jev Top 3 | 92.9% | 2,687 | 1,099 / 74 | 929 / 50 |
+| S + Jev Top 4 | 92.9% | 2,722 | 1,099 / 74 | 929 / 50 |
+| S + Jev Top 5 | 92.5% | 2,722 | 1,099 / 74 | 929 / 50 |
+| H (Hermes small-window) | 73.2% | 2,308 | 1,944 / 69 | 0 / 0 |
+| H + Jev Top 1 | 80.1% | 2,486 | 1,944 / 69 | 929 / 50 |
+| H + Jev Top 2 | 92.5% | 2,566 | 1,944 / 69 | 929 / 50 |
+| H + Jev Top 3 | 99.2% | 2,680 | 1,944 / 69 | 929 / 50 |
+| H + Jev Top 4 | 99.2% | 2,715 | 1,944 / 69 | 929 / 50 |
+| H + Jev Top 5 | 98.8% | 2,715 | 1,944 / 69 | 929 / 50 |
 
-All controls remain in their separate denominator. They are not presented as ten additional long-context tasks.
+These controls are not ten additional long-context tasks. Their small source-unit counts can make Top N saturate.
 
 </details>
 
-## Audit and reproducibility
+<details>
+<summary>Audit and artifact locations</summary>
 
-See [commands](./README.md). The audit replayed all **672** grades, reconstructed original source spans, verified source
-hashes and actual initial system prompts, checked frozen S and strict nested Top-N sets, protected prompts, question/gold
-isolation, actual token ceilings, native strict shrinkage and configured-key exclusion. All 336 contexts are valid.
+The audit verifies source hashes, frozen S/H, identical nested Top-N originals, exact captured inputs, all 1,092 grades,
+actual token ceilings, unchanged prior results and configured-key exclusion. All 546 conditions are valid.
+Prior answer-format amendments and native calibration disclosures are retained in [the protocol](./STUDY.md).
 
-The format preflight exposed two underspecified answer shapes: payment counts as arrays and note text with bullet
-markers. Those two follow-ups were clarified without changing gold or graders, and every seven-arm condition on both
-tasks was re-answered using the same S/rankings. Their 84 initial answers remain archived and excluded; all 504 answers
-from the other twelve tasks remain included. The native adapter adds 84 fresh answers. Unadapted native/length-only
-calibration attempts are also retained; they are not silently counted as successful compression.
+Artifacts under `/Users/yuli/workspace/trajectory-runs/` remain outside Git:
+`hermes-fixture14-20261016/` (corpus), `compaction-fixture14-20261016-v2/` (S/rankings),
+`compaction-fixture14-hermes-adapted-20261016/` (H), `compaction-fixture14-final-20261016/` (original eight arms),
+and `compaction-fixture14-dual-summary-20261016/` (current 13-arm results, usage and audit).
+The extension used **1,170,946 input / 19,990 output Qwen tokens** for its 420 answers, with zero new Jev/summary calls.
+Historical collection, calibration and complete monetary billing are not included in this incremental usage figure.
 
-Formal recorded usage: **757 Qwen calls** (672 answers, 42 S calls, 43 native calls including one length retry),
-2,027,184 input / 40,099 output tokens; **54 Jev calls**, 77,799 input / 5,634 output tokens. This excludes Hermes
-collection and preflights, including interrupted calibration attempts. No complete monetary-cost claim is made.
-Downstream input reduction is not total pipeline savings or a prompt-cache measurement.
-
-Artifacts remain outside the repository: `hermes-fixture14-20261016/` holds the frozen corpus and actual Hermes sessions;
-`compaction-fixture14-20261016-v2/` holds the seven-arm records; `compaction-fixture14-hermes-adapted-20261016/` holds native
-generation; `compaction-fixture14-final-20261016/` holds the combined results and `audit.json`. This is a development panel,
-including a previously used payment task, not independent held-out confirmation. Production `compact_context` is unchanged.
+</details>

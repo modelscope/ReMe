@@ -65,11 +65,14 @@ def load_cases(corpus_path):
     return manifest, result
 
 
-def metrics(rows, ids, repeats, include_native=False):
+def metrics(rows, ids, repeats, include_native=False, include_native_fusion=False):
     """Equal task weights; invalid planned contexts remain zero instead of disappearing."""
     table = []
     arms = ARMS[:2] + ["hermes_summary"] + ARMS[2:] if include_native else ARMS
     labels = LABELS[:2] + ["Hermes small-window adapter"] + LABELS[2:] if include_native else LABELS
+    if include_native_fusion:
+        arms = ARMS + ["hermes_summary"] + [f"hermes_top{n}" for n in range(1, 6)]
+        labels = LABELS + ["H (Hermes small-window)"] + [f"H + Jev Top {n}" for n in range(1, 6)]
     for arm, label in zip(arms, labels):
         task_facts = []
         task_exact = []
@@ -108,13 +111,13 @@ def metrics(rows, ids, repeats, include_native=False):
     return table
 
 
-def report(output, rows, cases, repeats, include_native=False):
-    """Keep primary and short/query-only controls separate in compact seven-row tables."""
+def report(output, rows, cases, repeats, include_native=False, include_native_fusion=False):
+    """Keep primary and short/query-only controls in separate tables."""
     result = {}
     lines = ["# Fourteen-task fixed-summary study", ""]
     for cohort in ("primary", "controls"):
         ids = [k for k, c in cases.items() if (c["control_reason"] is None) == (cohort == "primary")]
-        result[cohort] = metrics(rows, ids, repeats, include_native)
+        result[cohort] = metrics(rows, ids, repeats, include_native, include_native_fusion)
         lines += [
             f"## {cohort.title()} ({len(ids)} tasks)",
             "",
@@ -128,7 +131,7 @@ def report(output, rows, cases, repeats, include_native=False):
                 f"{r['valid_contexts']}/{r['planned_contexts']} |",
             )
         lines += [""]
-    result["per_task"] = {k: metrics(rows, [k], repeats, include_native) for k in cases}
+    result["per_task"] = {k: metrics(rows, [k], repeats, include_native, include_native_fusion) for k in cases}
     write(output / "aggregate.json", result)
     (output / "REPORT.md").write_text("\n".join(lines) + "\n")
 
