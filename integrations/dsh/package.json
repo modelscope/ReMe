@@ -1,6 +1,6 @@
 {
   "name": "@agentscope-ai/reme-dsh-plugin",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "ReMe memory and context integration for DeepSeek Harness",
   "type": "module",
   "main": "./dist/index.js",
