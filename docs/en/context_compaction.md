@@ -119,7 +119,7 @@ latency and total cost alongside token reduction. ReMe does not automatically su
 
 ## Compaction strategy comparison
 
-The [benchmark protocol and results](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md) use **30 distinct HotpotQA validation questions** with human gold answers
+The [benchmark protocol and results](https://github.com/jinliyl/ReMe/blob/a013411457667ee062902252d43910bf8c87dc17/benchmark/compaction/RESULTS.md) use **30 distinct HotpotQA validation questions** with human gold answers
 and sentence-level supporting facts: 15 bridge and 15 comparison questions, with no article shared between questions.
 Hermes actually reads ten articles per question, producing 30 complete trajectories and 300 tool calls. Gold answers
 and support labels stay outside the tool workspace and are used only for deterministic scoring. The final assistant

@@ -110,7 +110,7 @@ ReMe 不会自动生成摘要或写入长期记忆。
 
 ## 压缩策略对比
 
-[Benchmark 方案与结果](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md)使用 HotpotQA 公开验证集中的 **30 道不同题目**，均有人工标准答案和句子级支持证据。
+[Benchmark 方案与结果](https://github.com/jinliyl/ReMe/blob/a013411457667ee062902252d43910bf8c87dc17/benchmark/compaction/RESULTS.md)使用 HotpotQA 公开验证集中的 **30 道不同题目**，均有人工标准答案和句子级支持证据。
 固定抽取 15 道桥接推理、15 道比较问题，题目之间的证据文章不重叠，不再使用标识符变体。
 Hermes 实际读取每题的十篇文章，形成 30 条完整 trajectory、300 次工具调用。
 标准答案和证据标签放在工具工作区之外，只供确定性评分；最终助手答案不进入待压缩历史。
