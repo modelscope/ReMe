@@ -117,34 +117,22 @@ Only model requests run externally; fixture tool calls are not executed. These c
 success. Evaluate real trajectories against recency and rule-based previews, measuring recovery, continuation quality,
 latency and total cost alongside token reduction. ReMe does not automatically summarize or write persistent memory.
 
-## Compaction strategy comparison
+## Fixed summary + selected original evidence
 
-The [benchmark protocol and results](https://github.com/jinliyl/ReMe/blob/a013411457667ee062902252d43910bf8c87dc17/benchmark/compaction/RESULTS.md) use **30 distinct HotpotQA validation questions** with human gold answers
-and sentence-level supporting facts: 15 bridge and 15 comparison questions, with no article shared between questions.
-Hermes actually reads ten articles per question, producing 30 complete trajectories and 300 tool calls. Gold answers
-and support labels stay outside the tool workspace and are used only for deterministic scoring. The final assistant
-answer is excluded from the history to be compressed.
+The payment experiment freezes one summary **S**, then appends Jev-ranked original blocks without rewriting it.
+Five summary/ranking pairs and three answers per method compare Full context, S and S + Top 1–5 (105 answers).
 
-All compressed methods share a **3,600-token complete input ceiling**, including original system/task, evidence,
-evaluation question and framing. Full context keeps public API message fields as an explicitly over-budget reference;
-Hermes DB snapshots and internal reasoning fields never enter model inputs. Fusion retains Jev-selected original
-evidence within 40% of available space, then summarizes remaining evidence using all unused capacity.
+![Input tokens and fact retention for a fixed summary plus Top N](../figure/compaction-topn-results.svg)
 
-| Method | Input tokens | Reduction | Answer EM |
-| --- | ---: | ---: | ---: |
-| Full context | 5,482 | 0.0% | 61.7% |
-| Jev | 2,606 | 52.5% | 51.7% |
-| Summary | 2,686 | 51.0% | 61.7% |
-| Jev + Summary | 3,043 | 44.5% | 60.0% |
+S + Top 4 reaches **100% on ten exact facts**, matching Full context with **25.2% fewer downstream input tokens**
+(3,529 versus 4,715). S alone reaches 73.3%; Top 2 reaches 86.0% and Top 3 reaches 94.0%. Top 5 adds tokens without
+improving the score. All methods pass the six executable repair tests.
 
-Every method has 60/60 valid contexts and 120 answers. Actual compressed inputs use 2,392–3,447 tokens, all below
-the ceiling. Fusion reduces downstream input by 44.5% and trails Full context by 1.7 percentage points in answer EM.
-However, Summary also reaches 61.7% with less input; **superiority over both compressed baselines is not established**.
-Supporting-fact F1 is 83.0% / 67.2% / 75.5% / 80.0% for Full / Jev / Summary / Fusion. These point estimates do not
-establish statistical equivalence, and downstream reduction excludes compression overhead.
+<!-- The original payment trajectory has 10 evidence units: Top 10 is the maximum; only Top 1–5 were evaluated. -->
+There are **10 evidence units, so Top 10 is the maximum**; this sweep tests Top 1–5. S uses a 3,200-token generation
+allowance; the extended answering sweep has a 3,800-token total-input ceiling. S remains byte-identical in every fusion;
+adding originals intentionally increases input length. Actual compressed inputs stay within the ceiling.
 
-The primary metric is official answer Exact Match. Answer F1, supporting-fact and joint metrics are reported separately;
-the primary metric does not change after observing results. Two compression generations and two answers per condition
-produce 240 contexts and 480 answers. Budget overruns and generation failures score zero. Evaluation calls Qwen directly;
-Hermes does not continue its agent loop and discarded evidence cannot be retrieved. Fusion remains experimental and
-does not change the production `compact_context` contract above.
+This is one synthetic task collected by Hermes, evaluated by calling Qwen directly. Repeated measurements do not
+establish general task performance or superiority over pure Jev. The hybrid is benchmark-only; the production contract
+above is unchanged. See the [protocol, scoring and complete results](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md).

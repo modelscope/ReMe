@@ -1,4 +1,4 @@
-"""Gold scoring, leakage boundaries and complete-input budgeting without provider calls."""
+"""Frozen-summary incrementality, original evidence and deterministic payment scoring."""
 
 import asyncio
 from copy import deepcopy
@@ -7,234 +7,199 @@ from types import SimpleNamespace
 
 import pytest
 
-from benchmark.compaction.cases import choose, evaluate, event_units, fixture, normalize, render
-from benchmark.compaction.run import Experiment, aggregate, compose, decision_input, messages, select
+from benchmark.compaction.cases import GOLD, evaluate, event_units, exact_match, load_case, render, write
+from benchmark.compaction.repair_check import repair_checks
+from benchmark.compaction.run import Experiment, aggregate, answer, compose, decision_input, frozen_inputs, messages
+from benchmark.compaction.run import prepare, top_n
 
 
 class CharacterTokenizer:
-    """Use character counts to exercise exact budget boundaries deterministically."""
+    """Count characters so budget boundaries require no external tokenizer assets."""
 
     @staticmethod
     def encode(text, **_kwargs):
-        """Expose the tokenizer count interface without external assets."""
+        """Match the tokenizer's small counting interface."""
         return SimpleNamespace(ids=list(text))
 
 
-def example():
-    """Provide two-hop gold independently of the prediction under test."""
-    return {"gold": {"answer": "The Nile", "supporting_facts": [["Egypt", 0], ["Nile", 2]]}}
+def experiment(tmp_path, cap=10000):
+    """Use real packing with no live model clients."""
+    return Experiment(None, None, tmp_path, CharacterTokenizer(), asyncio.Semaphore(1), "mock", cap)
 
 
-def test_official_answer_normalization_and_boolean_answers():
-    """Normalize punctuation/articles while preserving categorical yes/no semantics."""
-    case = example()
-    assert normalize("  The NILE! ") == "nile"
-    check = evaluate(case, {"answer": "Nile", "supporting_facts": [["Nile", 2], ["Egypt", 0]]})
-    assert check["metrics"]["answer_em"] == check["metrics"]["joint_em"] == 1
-    case["gold"]["answer"] = "yes"
-    assert evaluate(case, {"answer": "yes indeed"})["metrics"]["answer_f1"] == 0
-    assert evaluate(case, {"answer": "no"})["metrics"]["answer_f1"] == 0
-
-
-def test_partial_answers_and_missing_support_do_not_receive_joint_credit():
-    """Exact answer and complete supporting facts are separate requirements."""
-    case = example()
-    case["gold"]["answer"] = "Lake Victoria"
-    result = evaluate(case, {"answer": "Victoria", "supporting_facts": [["Egypt", 0]]})["metrics"]
-    assert result["answer_em"] == 0 and result["answer_f1"] == pytest.approx(2 / 3)
-    assert result["support_f1"] == pytest.approx(2 / 3) and result["joint_em"] == 0
-
-
-@pytest.mark.parametrize("index", [True, 2.0, "2"])
-def test_supporting_sentence_ids_require_integers(index):
-    """Python equality must not silently give booleans/floats the identity of an integer ID."""
-    result = evaluate(example(), {"answer": "Nile", "supporting_facts": [["Egypt", 0], ["Nile", index]]})
-    assert result["metrics"]["answer_em"] == 1 and result["metrics"]["support_em"] == 0
-    assert result["metrics"]["joint_em"] == 0
-
-
-def test_duplicate_supports_are_sets_and_invalid_predictions_score_zero():
-    """Duplicate citations cannot inflate recall; malformed answers remain failures."""
-    case = example()
-    assert evaluate(case, [])["metrics"]["answer_em"] == 0
-    result = evaluate(case, {"answer": "Nile", "supporting_facts": [["Egypt", 0], ["Egypt", 0], ["Nile", 2]]})
-    assert result["metrics"]["joint_em"] == 1
-
-
-def test_fixture_exposes_articles_and_question_without_gold():
-    """Gold labels exist before collection but cannot enter the agent's file workspace."""
-    row = {
-        "question": "Which river?",
-        "answer": "HIDDEN_GOLD",
-        "supporting_facts": [["Nile", 2]],
-        "context": [["Nile", ["It crosses Egypt."]]],
+def fixture():
+    """Keep the oracle/exam separate from the task and evidence sent to compressors."""
+    case = {
+        "messages": [{"role": "system", "content": "system"}, {"role": "user", "content": "task"}],
+        "exam": "PRIVATE_EXAM",
+        "gold": {"value": "PRIVATE_GOLD"},
     }
-    prompt, files = fixture(row)
-    assert "HIDDEN_GOLD" not in prompt + json.dumps(files)
-    assert "supporting_facts" not in json.dumps(files)
-    assert "sentence 0: It crosses Egypt." in files["article-00.txt"]
+    units = [
+        {"id": str(i), "file": "file.txt", "text": f"source-{i}", "spans": [{"start": i, "end": i + 1}]}
+        for i in range(3)
+    ]
+    return case, units
 
 
-def test_sampling_is_frozen_balanced_and_article_disjoint():
-    """Selection depends on the corpus/seed and structural eligibility, never model outcomes."""
-    rows = []
-    for i in range(10):
-        title = f"article-{i}"
-        rows.append(
-            {
-                "_id": str(i),
-                "question": "question",
-                "answer": "gold",
-                "type": "bridge" if i % 2 else "comparison",
-                "supporting_facts": [[title, 0]],
-                "context": [[f"article-{i}-{j}" if j else title, ["x" * 650]] for j in range(10)],
-            },
-        )
-    before = deepcopy(rows)
-    picked = choose(rows, count=4)
-    assert picked == choose(list(reversed(rows)), count=4)
-    assert sum(r["type"] == "bridge" for r in picked) == 2
-    titles = [title for r in picked for title, _ in r["context"]]
-    assert len(titles) == len(set(titles)) == 40 and rows == before
+def test_top_n_is_strict_nested_score_prefix_with_source_order():
+    """Retain even low-ranked evidence; do not threshold, skip or reorder it."""
+    _, units = fixture()
+    scores = {"0": 0.01, "1": 0.8, "2": 0.9}
+    assert top_n(units, scores, 1) == units[2:]
+    assert top_n(units, scores, 2) == units[1:]
+    assert top_n(units, scores, 3) == units
+    assert top_n(units, dict.fromkeys(scores, 0.1), 1) == units[:1]
     with pytest.raises(ValueError):
-        choose(rows, count=3)
+        top_n(units, scores, 4)
 
 
-def test_sentence_units_reconstruct_every_original_character():
-    """Grouping retains article title, original sentence IDs and exact source ranges."""
-    text = "1|title: River\n2|sentence 0: Fact A.\n3|sentence 1: Fact B.\n"
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), True, -0.1, 1.1])
+def test_invalid_rankings_never_become_top_n(value):
+    """Malformed probabilities must not silently determine retained evidence."""
+    _, units = fixture()
+    with pytest.raises(ValueError):
+        top_n(units, {"0": value, "1": 0.5, "2": 0.5}, 1)
+
+
+def test_fusion_keeps_the_exact_same_summary_and_all_original_blocks(tmp_path):
+    """Every N adds evidence while preserving S, protected prompts and evaluation question."""
+    case, units = fixture()
+    before = deepcopy((case, units))
+    exp = experiment(tmp_path)
+    rows = prepare(exp, case, units, ["Fixed summary."], [{"0": 0.1, "1": 0.8, "2": 0.9}], 3)
+    baseline = json.loads((tmp_path / "c0.summary.context.json").read_text())["messages"]
+    for row in rows[2:]:
+        context = json.loads((tmp_path / f"c0.{row['arm']}.context.json").read_text())["messages"]
+        assert row["summary"] == "Fixed summary."
+        assert context[2]["content"].startswith(baseline[2]["content"])
+        assert context[:2] == baseline[:2] and context[-1] == baseline[-1]
+        chosen = [u for u in units if u["id"] in row["selected"]]
+        assert context == messages(case, compose("Fixed summary.", render(chosen)))
+    assert (case, units) == before
+
+
+def test_over_budget_fusion_is_recorded_without_shrinking_s_or_skipping_raw(tmp_path):
+    """Budget pressure cannot invalidate the incremental comparison by changing S."""
+    case, units = fixture()
+    exp = experiment(tmp_path, cap=1)
+    rows = prepare(exp, case, units, ["Fixed S"], [{"0": 0.9, "1": 0.8, "2": 0.7}], 3)
+    assert all(not row["within_budget"] for row in rows[1:])
+    assert rows[-1]["selected"] == ["0", "1", "2"] and rows[-1]["summary"] == "Fixed S"
+    asyncio.run(answer(exp, rows[-1], case, 1))
+    assert not rows[-1]["valid"] and rows[-1]["trials"] == []
+
+
+def test_actual_api_usage_overrun_invalidates_the_entire_condition(tmp_path):
+    """A local estimate cannot substitute for checking actual downstream usage."""
+
+    class FakeExperiment(Experiment):
+        """Only mock the provider boundary."""
+
+        async def ask(self, _label, _context, *, summary=False):
+            """Return a complete answer whose provider reports too many input tokens."""
+            return "{}", {"prompt_tokens": self.cap + 1}
+
+    case, units = fixture()
+    exp = FakeExperiment(None, None, tmp_path, CharacterTokenizer(), asyncio.Semaphore(1), "mock", 10000)
+    row = prepare(exp, case, units, ["S"], [{"0": 0.1, "1": 0.2, "2": 0.3}], 1)[1]
+    asyncio.run(answer(exp, row, case, 1))
+    assert not row["valid"] and row["trials"] == []
+
+
+def test_grouping_preserves_every_source_character_and_correlated_events():
+    """Evidence grouping uses source correlations, never expected payment identifiers."""
+    text = "".join(f"healthcheck {i}\n" for i in range(100))
+    text += "event request_id=trace-a step=1\nevent request_id=trace-a step=2\n"
     history = [
-        {"role": "assistant", "tool_calls": [{"id": "c", "function": {"arguments": '{"path":"a.txt"}'}}]},
+        {"role": "assistant", "tool_calls": [{"id": "c", "function": {"arguments": '{"path":"log"}'}}]},
         {"role": "tool", "tool_call_id": "c", "content": json.dumps({"content": text})},
     ]
-    before = deepcopy(history)
     units = event_units(history)
-    assert "".join(u["text"] for u in units) == text
-    assert all(u["title"] == "River" for u in units)
-    assert all(text[s["start"] : s["end"]] == s["text"] for u in units for s in u["spans"])
-    assert history == before
-    assert "sentence 1" in render(units)
+    spans = sorted([s for u in units for s in u["spans"]], key=lambda s: s["start"])
+    assert "".join(s["text"] for s in spans) == text
+    assert all(text[s["start"] : s["end"]] == s["text"] for s in spans)
+    assert any("step=1" in u["text"] and "step=2" in u["text"] for u in units)
 
 
-def test_ranked_selection_restores_source_order_and_keeps_whole_units():
-    """Higher ranking determines retention but cannot rearrange or truncate source text."""
-    units = [{"id": str(i), "file": "x", "spans": [{"start": i, "end": i + 1}], "text": "abc"} for i in range(3)]
-    limit = len(render([units[0], units[2]]))
-    assert select(units, {"0": 0.8, "1": 0.1, "2": 0.9}, lambda raw: len(raw) <= limit) == [units[0], units[2]]
+def test_compressors_see_task_and_source_but_no_exam_or_gold(tmp_path):
+    """Usefulness scoring and summary generation cannot consult the follow-up oracle."""
+    captured = []
+
+    class FakeExperiment(Experiment):
+        """Capture the real summary request without network calls."""
+
+        async def ask(self, _label, context, *, summary=False):
+            """Return a bounded summary."""
+            captured.append(context)
+            return "S", {"prompt_tokens": 10}
+
+    case, units = fixture()
+    state, _ = decision_input(case["messages"][1]["content"], units)
+    exp = FakeExperiment(None, None, tmp_path, CharacterTokenizer(), asyncio.Semaphore(1), "mock", 10000)
+    asyncio.run(exp.summarize("summary", "task", units, 100))
+    assert "PRIVATE_" not in json.dumps([state, captured])
+    supplied = json.loads(captured[0][1]["content"])
+    assert supplied["remaining_evidence"] == units and supplied["retained_evidence"] == []
 
 
-def test_complete_input_ceiling_includes_protected_context_and_exam(tmp_path):
-    """The last byte of available capacity is shared by all three compressed methods."""
-    case = {
-        "messages": [{"role": "system", "content": "S" * 100}, {"role": "user", "content": "task"}],
-        "exam": "E" * 100,
-    }
-    exp = Experiment(None, None, tmp_path, CharacterTokenizer(), asyncio.Semaphore(1), "mock", 10000)
-    payload = compose("summary", "evidence")
-    exp.cap = exp.input_tokens(messages(case, payload)) + 64
-    assert exp.fits(case, payload) and not exp.fits(case, payload + "x")
-    assert messages(case) == [*case["messages"], {"role": "user", "content": case["exam"]}]
+def test_frozen_replay_requires_every_generation_and_unchanged_evidence(tmp_path):
+    """Do not select successful summaries or silently mix different trajectories."""
+    case, units = fixture()
+    write(tmp_path / "source.json", {**case, "units": units})
+    write(tmp_path / "results.json", [{"arm": "summary", "repeat": 0, "summary": "S"}])
+    (tmp_path / "provenance").mkdir()
+    write(tmp_path / "provenance/paired.c0.decision0.response.json", {"scores": {"0": 0.2, "1": 0.8, "2": 0.9}})
+    assert frozen_inputs(tmp_path, case, units, 1)[0] == ["S"]
+    with pytest.raises(ValueError):
+        frozen_inputs(tmp_path, case, units, 2)
+    with pytest.raises(ValueError):
+        frozen_inputs(tmp_path, {**case, "gold": {}}, units, 1)
 
 
-def test_decision_inputs_contain_source_title_but_no_gold_or_exam():
-    """Citation identity is visible to selection without exposing scoring labels."""
-    state, questions = decision_input("task", [{"id": "u", "file": "log", "title": "River", "text": "event"}])
-    assert set(state) == {"task", "evidence_units"}
-    assert state["evidence_units"][0]["title"] == "River"
-    assert "continue the task" in questions["u"]["instructions"]
-    assert "gold" not in json.dumps(state) and "exam" not in json.dumps(state)
+def test_wrong_trajectory_cannot_be_scored_against_the_frozen_payment_oracle(tmp_path):
+    """The known gold is specific to a pinned original source, not arbitrary input data."""
+    path = tmp_path / "trajectory.json"
+    path.write_text('{"messages": []}')
+    with pytest.raises(ValueError, match="unchanged original"):
+        load_case(path)
 
 
-def test_failed_conditions_stay_in_denominator():
-    """Model/budget failures cannot disappear when computing accuracy."""
+def test_grading_is_type_strict_and_failures_stay_in_denominator():
+    """Boolean/integer equality and omitted failed conditions cannot inflate results."""
+    assert not exact_match(True, 1) and not exact_match([True], [1])
+    result = evaluate({"gold": GOLD}, {"facts": {**GOLD, "max_attempts": True}})
+    assert sum(result["facts"].values()) == 9
     rows = [
-        {"case": "x", "arm": "summary", "valid": False, "trials": []},
+        {"arm": "summary", "valid": False, "trials": []},
         {
-            "case": "x",
             "arm": "summary",
             "valid": True,
             "trials": [
                 {
-                    "checks": {"facts": {"a": 1}, "task": {"b": 1}, "metrics": {"answer_em": 1}},
+                    "checks": {"facts": {"x": True}, "task": {"x": True}},
                     "usage": {"prompt_tokens": 100},
                 },
             ],
         },
     ]
-    row = next(r for r in aggregate(rows) if r["arm"] == "summary")
-    assert row["valid"] == 1 and row["attempted"] == 2
-    assert row["answer_em"] == row["facts"] == row["task"] == 0.5
+    assert aggregate(rows)[0]["facts"] == aggregate(rows)[0]["task"] == 0.5
 
 
-def test_fusion_summary_sees_both_evidence_partitions_without_gold(tmp_path):
-    """Exercise real packing and composition while mocking only provider boundaries."""
-    captured = []
-
-    class FakeExperiment(Experiment):
-        """Expose the summary's actual request and reject no valid input."""
-
-        async def scores(self, _label, _task, _units):
-            """Keep just the first source group verbatim."""
-            return {"u1": 0.9, "u2": 0.1}, []
-
-        async def ask(self, _label, context, *, summary=False):
-            """Return finite deterministic summary/answer responses."""
-            captured.append((summary, context))
-            return ("Complementary summary." if summary else '{"answer":"Nile","supporting_facts":[]}'), {
-                "prompt_tokens": 900,
-            }
-
-    case = {
-        **example(),
-        "messages": [
-            {"role": "system", "content": "system"},
-            {"role": "user", "content": "task"},
-        ],
-        "exam": "HIDDEN_EXAM",
-    }
-    units = [
-        {"id": f"u{i}", "file": "article", "text": f"event-{i}", "spans": [{"start": i, "end": i + 1}]} for i in (1, 2)
-    ]
-    row = {"case": "case", "repeat": 0, "arm": "fusion"}
-    exp = FakeExperiment(None, None, tmp_path, CharacterTokenizer(), asyncio.Semaphore(1), "mock", 1000)
-    asyncio.run(exp.condition(row, case, units, 1))
-    assert row["valid"] and row["selected"] == ["u1"]
-    requests = [context for summary, context in captured if summary]
-    supplied = json.loads(requests[0][1]["content"])
-    assert supplied["retained_evidence"] == units[:1] and supplied["remaining_evidence"] == units[1:]
-    assert "HIDDEN_" not in json.dumps(requests) and "gold" not in json.dumps(supplied)
-
-
-def test_corpus_projection_removes_hermes_db_metadata_and_verifies_hashes(tmp_path):
-    """Only real chat fields may affect model inputs; immutable raw session exports stay intact."""
-    import hashlib
-
-    from benchmark.compaction.cases import dataset, write
-
-    root = tmp_path / "task"
-    root.mkdir()
-    source = {
-        "messages": [
-            {"role": "system", "content": "system"},
-            {"role": "user", "content": "question", "_db_row_snapshot": {"content": "INTERNAL_COPY"}},
-            {"role": "assistant", "content": "final answer", "reasoning": "PRIVATE_INTERNAL"},
-        ],
-    }
-    write(root / "trajectory.full.json", source)
-    before = (root / "trajectory.full.json").read_bytes()
-    write(root / "collection.json", {"completed": True, "trajectory_sha256": hashlib.sha256(before).hexdigest()})
-    write(tmp_path / "collection-status.json", {"completed": 1, "failed": []})
-    write(
-        tmp_path / "corpus.json",
-        {"questions": [{"_id": "task", "type": "bridge", "answer": "gold", "supporting_facts": [["A", 0]]}]},
+def test_repair_behavior_checks_detect_unstable_keys_and_reject_unbounded_code():
+    """Correct-looking plans do not substitute for six executable fake-client checks."""
+    source = """def charge_with_retry(client, invoice, attempts=3):
+    key = str(uuid.uuid4())
+    for i in range(attempts):
+        try:
+            return client.charge(invoice, idempotency_key=key)
+        except TimeoutError:
+            if i == attempts - 1:
+                raise
+"""
+    assert all(repair_checks(source).values())
+    buggy = source.replace("    key = str(uuid.uuid4())\n", "").replace(
+        "    for i in range(attempts):\n",
+        "    for i in range(attempts):\n        key = str(uuid.uuid4())\n",
     )
-    result = dataset(tmp_path / "corpus.json")
-    assert result["task"]["messages"] == [
-        {"role": "system", "content": "system"},
-        {"role": "user", "content": "question"},
-    ]
-    assert "INTERNAL_COPY" not in json.dumps(result) and "PRIVATE_INTERNAL" not in json.dumps(result)
-    assert (root / "trajectory.full.json").read_bytes() == before
-    (root / "trajectory.full.json").write_text("{}")
-    with pytest.raises(ValueError, match="modified"):
-        dataset(tmp_path / "corpus.json")
+    assert not repair_checks(buggy)["timeout_then_success"]
+    assert not any(repair_checks("while True: pass").values())

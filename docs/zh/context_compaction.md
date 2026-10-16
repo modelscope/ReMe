@@ -108,30 +108,21 @@ REME_RUN_DECISION_INTEGRATION=1 pytest tests/integration/test_decision_compactio
 真实 trajectory 评测应对比近期保留和纯规则预览，同时测量恢复次数、继续执行的质量、时延、总成本和 token 节省。
 ReMe 不会自动生成摘要或写入长期记忆。
 
-## 压缩策略对比
+## 固定摘要与增量原文实验
 
-[Benchmark 方案与结果](https://github.com/jinliyl/ReMe/blob/a013411457667ee062902252d43910bf8c87dc17/benchmark/compaction/RESULTS.md)使用 HotpotQA 公开验证集中的 **30 道不同题目**，均有人工标准答案和句子级支持证据。
-固定抽取 15 道桥接推理、15 道比较问题，题目之间的证据文章不重叠，不再使用标识符变体。
-Hermes 实际读取每题的十篇文章，形成 30 条完整 trajectory、300 次工具调用。
-标准答案和证据标签放在工具工作区之外，只供确定性评分；最终助手答案不进入待压缩历史。
+支付实验先固定一份摘要 **S**，再追加 Jev 排名前 N 的完整原文，不重写或缩短摘要。
+5 份摘要及对应排名，每种方式回答 3 次，对比 Full context、S、S + Top 1～5，共 105 次回答。
 
-三个压缩组统一使用 **3600-token 完整输入上限**，包含原始 system、任务、证据、评测提示和消息封装。
-Full context 保留公开 API 消息字段，作为允许超限的参考。Hermes 数据库快照和内部推理字段不进入模型输入。
-融合先用最多 40% 的可用空间保留 Jev 筛选的原文，再用全部剩余空间总结其余证据。
+![Input tokens and fact retention for a fixed summary plus Top N](../figure/compaction-topn-results.svg)
 
-| Method | Input tokens | Reduction | Answer EM |
-| --- | ---: | ---: | ---: |
-| Full context | 5,482 | 0.0% | 61.7% |
-| Jev | 2,606 | 52.5% | 51.7% |
-| Summary | 2,686 | 51.0% | 61.7% |
-| Jev + Summary | 3,043 | 44.5% | 60.0% |
+S + Top 4 的十项事实正确率达到 **100%**，与 Full context 相同，后续输入从 4715 降至 3529 tokens，
+减少 **25.2%**。纯摘要为 73.3%，Top 2 为 86.0%，Top 3 为 94.0%；Top 5 增加 token，没有继续提分。
+所有方式均通过六项可执行修复测试，当前差异体现在事实保留率。
 
-每组 60/60 个有效上下文、120 次回答；实际压缩输入为 2392–3447 tokens，全部低于上限。
-融合比全量少用 44.5% 的后续输入，答案 EM 相差 1.7 个百分点；但纯摘要同样达到 61.7%，输入更少，
-**尚未验证“融合优于两个单独方案”**。支持证据 F1 分别为全量 83.0%、Jev 67.2%、摘要 75.5%、融合 80.0%。
-这些是点估计，不代表统计等价；表中节省不包含压缩本身的额外消耗。
+<!-- 原支付轨迹共有 10 个证据块，最多 Top 10；本次只测试 Top 1～5。 -->
+原轨迹共有 **10 个证据块，最多 Top 10**；本次测试 Top 1～5。摘要按 3200-token 完整输入额度生成，
+扩展实验的回答输入上限为 3800 tokens。所有融合保留逐字相同的 S，追加原文会增加输入长度，实际压缩输入均未超限。
 
-主要指标为官方答案 Exact Match；答案 F1、支持证据及联合得分单独报告，不根据结果切换主要指标。
-每题每组生成两次、每个上下文回答两次，共 240 个上下文和 480 次回答。预算超限或生成失败计为失败。
-评测直接调用 Qwen，没有运行 Hermes 代理继续执行，也不允许恢复被丢弃的原文。
-该融合策略仅在实验脚本实现，未改变上述 `compact_context` 生产契约。
+这是 Hermes 采集的一个合成任务，评测直接调用 Qwen，没有继续运行 Hermes 代理；重复测量不能证明通用任务表现，
+也未证明融合优于纯 Jev。融合仅在 benchmark 中实现，上述生产压缩契约保持不变。
+详见 [Benchmark 方案、评分与完整结果](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md)。

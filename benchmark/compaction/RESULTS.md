@@ -1,109 +1,63 @@
-# Gold-labelled context compaction results
+# Fixed summary + selected original evidence
 
-2026-10-16 · `qwen3.8-max` · Jev `jev-1.13.0` · compressed-input ceiling: **3,600 tokens**.
-**30 distinct public HotpotQA questions with human gold**, collected through Hermes Agent.
+2026-10-16 · Qwen `qwen3.8-max` · Jev `jev-1.13.0` · one original Hermes-collected synthetic payment trajectory.
 
-| Method | Input tokens | Reduction | Answer EM |
-| --- | ---: | ---: | ---: |
-| Full context | 5,482 | 0.0% | 61.7% |
-| Jev | 2,606 | 52.5% | 51.7% |
-| Summary | 2,686 | 51.0% | 61.7% |
-| Jev + Summary | 3,043 | 44.5% | 60.0% |
+| Method | Input tokens | Fact accuracy |
+| --- | ---: | ---: |
+| Full context | 4,715 | 100.0% |
+| S | 2,937 | 73.3% |
+| S + Jev Top 1 | 3,134 | 72.7% |
+| S + Jev Top 2 | 3,247 | 86.0% |
+| S + Jev Top 3 | 3,360 | 94.0% |
+| S + Jev Top 4 | 3,529 | 100.0% |
+| S + Jev Top 5 | 3,585 | 100.0% |
 
-Input tokens are mean actual downstream API usage, including system/task, evidence and the evaluation question.
-All methods have 60/60 valid contexts and 120 answers. The independent sample count is 30 questions, not 480 answers.
-Full context uses 5,058–6,341 tokens and is an explicitly over-budget reference. Every compressed request is within
-the ceiling: actual inputs range from 2,392 to 3,447 tokens. Upper bounds do not force equal actual input lengths.
+Input tokens are mean actual downstream API usage, including the original system/task and follow-up.
+Every method has five valid contexts and 15 answers. All answers pass all six executable repair checks; the table
+therefore measures differences in fact retention, not a demonstrated difference in repair success.
 
-**The predeclared hypothesis is not met.** Fusion is 1.7 percentage points below Full context and reduces downstream
-input by 44.5%, but does not beat Summary: their answer EMs are 60.0% and 61.7%. Summary matches Full context in aggregate
-answer EM with less input than fusion. Jev trails both. Close point estimates are not statistical equivalence or
-proof of general task performance. Full context is a reference, not a guaranteed per-question oracle.
+**Top 4 matches Full context on the ten checked facts while reducing downstream input by 25.2%.** Adding Top 5
+uses more tokens without improving this score. Top 1 does not improve S; Top 2 and Top 3 improve it by 12.7 and
+20.7 percentage points. These observations are specific to this task, not statistical equivalence or general superiority.
 
-## Data and protocol
+![Frozen summary plus ranked original evidence](../../docs/figure/compaction-topn-results.svg)
 
-Source: [HotpotQA](https://hotpotqa.github.io/),
-[author-maintained validation split](https://huggingface.co/datasets/hotpotqa/hotpot_qa/tree/1908d6afbbead072334abe2965f91bd2709910ab/distractor).
-The source contains 7,405 original validation questions, with human answers and supporting sentence annotations,
-under CC BY-SA 4.0. This is newly collected Hermes execution over public QA tasks, not the Hermes maintainers' private
-session corpus and not an official full-dataset leaderboard evaluation.
+## What is fixed
 
-Before model calls, select 15 bridge and 15 comparison questions by SHA-256 order with seed `20261016`.
-Structural eligibility requires ten distinct articles per question, 6,000–32,000 original evidence characters,
-valid support references and no article shared between selected questions. The 30 questions use 300 distinct articles.
-No identifier substitution, generated gold, score-based task filtering or synthetic noise is used. The filtered subset
-is not a representative random sample of the full validation split.
+The [protocol and runnable commands](./README.md) keep one byte-identical summary S and one Jev ranking per generation.
+S summarizes all original evidence under a 3,200-token complete-input allowance; fusion appends original blocks without
+rewriting S. The extended sweep raises the final complete-input ceiling from 3,600 to **3,800 tokens** before new answer
+calls, solely to accommodate Top 5 with its full evidence and budgeting reserve. All compressed API inputs are within
+this ceiling (2,924–3,602 tokens). More originals intentionally cost more tokens; lengths are not forced equal.
 
-Hermes commit `30463589eb54fa0f48724594cc0e98e6b995729b` reads all ten article files per question with actual `read_file`
-calls: 30 completed trajectories and 300 paired tool calls/results. Every article is read without truncation and
-fixture hashes remain unchanged. The actual initial system prompt is retained and matches captured wire requests.
-Gold answers and support labels are outside the tool workspace. Final assistant answers are excluded from evaluation.
-Only public chat fields are passed to the answering model; Hermes database snapshots and internal reasoning metadata
-are stripped. Source transcripts, sessions and raw wire bodies remain archived unchanged.
+The source has **10 evidence units, so the maximum is Top 10**. This sweep tests Top 1–5. In the first ranking, Top 3
+contains the incident log, retry implementation and payment policy; Top 4 adds `expected_cases.json`, restoring the exact
+regression attempt counts that S + Top 3 sometimes loses. Top 5 also retains the README.
 
-The four methods share the same original system/task and evaluation question. Full context retains the original
-public chat history; compressed methods replace tool history with an evidence bundle. Jev ranks whole original
-sentence groups using task usefulness and a 0.5 threshold. Summary summarizes all source evidence. Fusion first retains
-Jev-selected originals within 40% of available evidence space, then summarizes the remaining evidence using all unused
-capacity; the summarizer also sees retained originals to avoid repetition. Allocation is frozen from earlier synthetic
-development, with no HotpotQA answer-based tuning.
+There are five frozen summary/ranking pairs and three answers per method: **35 contexts, 105 answers**. Full context,
+S and Top 1–2 reuse all 60 answers from the immediately preceding paired run. Top 3–5 add 45 new answers. All five pairs
+are retained; no prediction-based filtering, new summaries or new Jev scores enter the extension.
 
-The 3,600-token ceiling covers the complete answering request. Budgeting uses a local Qwen tokenizer on serialized
-public messages with estimated framing and a 64-token reserve. Actual API usage is checked independently; overruns
-score zero. Summary length retries are limited to three and cannot consult evaluation answers. All 240 contexts and
-480 answers are generated in this complete run: two compression generations per question/method, two answers per
-context, temperature zero, thinking disabled. No baseline answers are reused and no task is removed after scoring.
+## Gold, audit and scope
 
-## Scoring and interpretation
+The original fixture predates these evaluations. Its oracle contains ten facts: incident, invoice and charge IDs,
+amount, ordered idempotency keys, first-attempt commit state, retry limit, non-retryable HTTP codes, original key-generation
+line and named regression-test attempt counts. Matching is type-strict and nested; HTTP-code order is ignored. The six
+restricted executable checks cover success, timeout retry with a stable key, HTTP 402/422 propagation, three-attempt
+exhaustion and independent keys for separate payments. No LLM judge or generated answer key is used.
 
-The primary metric is the [official answer Exact Match](https://github.com/hotpotqa/hotpot/blob/master/hotpot_evaluate_v1.py),
-using case, ASCII punctuation, article and whitespace normalization. Answer F1 and supporting/joint metrics are
-secondary. Supporting facts use exact original titles and zero-based sentence IDs. Malformed citation types receive
-no support credit. No LLM creates gold or judges correctness. Repeated answers are averaged within each question,
-then questions receive equal weight. Failed conditions stay in the denominator with zero scores.
+The source has 11 messages, six tool calls and six complete results, including the actual system prompt. Its final
+assistant report is excluded from compression. No synthetic noise or identifier substitutions are added. Source SHA-256:
+`0f37e6510ffafd920d088452d8719026b00fd4e74f87f7dd1a42a85c8287e6f1`.
 
-Secondary metrics, in **Full / Jev / Summary / Fusion** order:
+The audit replayed all 105 grades, verified exact retained originals and nested Top-N sets, byte-identical summaries,
+protected prompts, original source hash, actual input ceilings and unchanged reused request/response records. No configured
+API keys were found. The 45 new Qwen calls use 157,092 input and 9,316 output tokens; existing answers and compression
+have additional usage. Downstream input reduction is not a claim about total pipeline cost.
 
-- Answer F1: **72.5% / 60.8% / 77.0% / 71.4%**.
-- Supporting-fact F1: **83.0% / 67.2% / 75.5% / 80.0%**.
-- Joint EM (answer and exact supporting set): **31.7% / 25.8% / 33.3% / 32.5%**.
-
-Fusion retains supporting facts better than Summary by this secondary F1, but this does not replace the primary
-answer metric or establish superiority. Paired question-level answer EM versus Jev: 5 improvements, 23 ties,
-2 regressions; versus Summary: 1 improvement, 26 ties, 3 regressions. Fusion is close to Full context on average,
-but differs on individual questions: 4 improvements, 23 ties, 3 regressions.
-
-EM is sensitive to answer phrasing. For example, Full context returns `National Football Conference (NFC) West division`
-where gold is `National Football Conference (NFC) West`, and gives a full explanation where gold is
-`drawing the name out of a hat`; these fail exact matching despite substantial semantic overlap. Another full-context
-answer names `Graduation` where the annotated answer is `My Beautiful Dark Twisted Fantasy`. Original predictions are
-not rewritten, aliases are not added after scoring, and all six metrics remain available in `aggregate.json`.
-
-Public QA questions may be in model training. Supporting-fact metrics inspect grounding but do not eliminate this
-limitation. **Hermes collects the history; evaluation calls Qwen directly**, without continuing Hermes' agent loop,
-executing tools or recovering discarded evidence. These results do not measure complete agent-task success.
-
-## Reproduction and audit
-
-See [commands and implementation](./README.md). Corpus IDs, human gold, source hashes, sampler settings and collector
-code are frozen in `corpus.json` before collection. Evaluation settings, all source cases and code are frozen before
-scored answering. Source dataset SHA-256:
-`c20b638ca82b21d04fe12e14ff417ad05153d4d215a65de54497fca4e972f7c6`.
-
-All 480 predictions were replayed against the independently downloaded official evaluator: answer, supporting-fact
-and joint metrics match, with no malformed predictions. The audit also reconstructed every source character range,
-verified selected originals and their probabilities, checked source/fixture hashes and protected prompts, confirmed
-public-field projection and that no exam/gold labels entered compressors, and checked actual input ceilings.
-No configured API keys were found in collection or evaluation artifacts.
-
-The formal evaluation records 600 Qwen calls (480 answers, 120 summaries): 2,729,978 input / 63,796 output tokens;
-836 Jev calls: 1,520,496 input / 166,300 output tokens. These counts exclude Hermes collection and an interrupted
-instrumentation preflight. Downstream token reduction is not total pipeline savings; no total monetary cost was computed.
-The preflight was stopped after discovering internal DB snapshots in exported messages; its 87 completed contexts
-are retained but excluded. The public-field projection was fixed, then all four methods on all 30 questions were rerun.
-No question or prediction was selected based on its score.
-
-Artifacts remain outside the repo: `hermes-hotpot30-20261016/` contains the corpus and real Hermes sessions;
-`compaction-hotpot30-20261016-v2/` contains protocol, exact requests/responses, contexts, results, usage and independent
-`audit.json`. Earlier synthetic pilots are superseded; their code remains in Git history and raw artifacts were retained.
-The hybrid strategy is benchmark-only; production `compact_context` is unchanged.
+Artifacts stay outside the repository under `trajectory-runs/payment-fixed-summary-topn1to5-20261016/results/`:
+`protocol.json`, frozen contexts/selections, exact requests/responses, per-answer results and `audit.json`.
+One synthetic task with repeated measurements is not 35 independent tasks. This is direct Qwen evaluation, not Hermes
+continuing its agent loop. The earlier length-matched diagnostic also found pure Jev reaching 100% with about 3,251
+input tokens on this task, so **this sweep does not establish fusion superiority over pure Jev**. Production
+`compact_context` retains its conservative preview/recovery contract; this hybrid remains benchmark-only.
