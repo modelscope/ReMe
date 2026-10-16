@@ -27,7 +27,6 @@ The Qwen alias is what the requests and captured answering responses identify; a
 was not supplied. Service-side updates and nondeterminism can change new-run results even at temperature zero.
 Use the same `LLM_BASE_URL` service for the closest rerun; this endpoint and API keys are supplied privately in `.env`.
 The endpoint was verified as the public China (Beijing) DashScope endpoint; API keys remain private.
-The chart uses the published USD list-price schedule below rather than an account invoice.
 
 ## Runtime dependencies
 
@@ -110,27 +109,14 @@ The retained pre-amendment payment `budget.json` says 4,459; its final question 
 Every condition fits its recorded ceiling. All 42 H-only contexts shorten Full; at Top 3–5, each mechanism shortens only
 9/12 primary contexts per method. All cases remain scored; mean savings do not imply every case saves tokens.
 
-## Scoring and costs
+## Scoring
 
 Each answer returns `{"facts": {...}}`. Field checks require exact recursive types/values, with only payment HTTP-code
 order ignored. Missing/malformed/failed planned conditions receive zero. Average fields within answers, answers within
 generations, generations within tasks, then tasks equally. Report primary/control cohorts separately.
 
-Answer input includes system/task, compressed history and exam. Standalone-method overhead includes one summary and,
-for N > 0, one whole Jev ranking, including recorded retries. Ranking cost is identical across N and both mechanisms;
-do not multiply by N or divide by sweep size. Evaluation repeats do not amortize overhead. Report input/output tokens
-by model. Compaction fees use [pricing.json](./pricing.json), checked 2026-10-16: Qwen `qwen3.8-max` China (Beijing)
-input **$1.65/M**, output **$4.951/M** ([official rate](https://www.alibabacloud.com/help/en/model-studio/qwen3-8-max));
-Jev `jev-1.13.0` input **$0.042/M**, output free ([official rate](https://docs.typesafe.ai/models)).
-
-`compaction_usd = (summary_input * 1.65 + summary_output * 4.951 + jev_input * 0.042) / 1e6`.
-At Top 0 charge only summary generation; Top 1–5 each add one identical complete Jev ranking. Mean usage is averaged
-across the same tasks/generations, and fees are computed from unrounded usage. Recorded summary/ranking retries are
-included. **Downstream answering, collection and calibration are excluded.** Full is excluded from panel C and has
-“—” in the cost table; it remains the quality/input reference in A/B. Scoring repeats do not amortize preprocessing.
-These are uncached list-price estimates: summary cache hits are charged at the regular input rate for comparison.
-No free quotas, promotions, taxes or account-specific adjustments are applied. Prices are a dated snapshot, not an
-invoice. This scope measures summary + Jev compaction overhead, not total execution cost or monetary savings.
+Answer input is the answering API's actual `prompt_tokens`, including system/task messages, compressed history and
+the follow-up question. Summary-generation and Jev-ranking requests are separate and are not added to this metric.
 
 ## Reproduction levels and artifact availability
 

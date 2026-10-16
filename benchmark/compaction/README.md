@@ -71,7 +71,3 @@ See [the exact simulation settings and preflight disclosures](./STUDY.md#hermes-
 For the recorded format amendment, native summaries used the pre-amendment source files: pass
 `--native-evaluation /path/to/pre-amendment/evaluation` when extending that run. The extension verifies its source hash
 and permits only the held-out `exam` field to differ; the summary generator never receives that field.
-
-`costs.json` reports standalone summary/ranking input and output overhead separately from answer usage, including
-recorded retries. Panel C converts summary + Jev compaction usage to estimated USD with the dated rates in
-[pricing.json](./pricing.json); cache discounts, downstream answering and trajectory collection are excluded. Full appears in A/B only. See [the formula](./SETTINGS.md#scoring-and-costs).

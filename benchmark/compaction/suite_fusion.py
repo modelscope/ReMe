@@ -7,7 +7,6 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
-import statistics
 
 from dotenv import dotenv_values
 from openai import AsyncOpenAI
@@ -17,58 +16,6 @@ from benchmark.compaction.run import Experiment, compose, messages, top_n
 from benchmark.compaction.suite import grade
 from benchmark.compaction.suite_native import validate_base
 from benchmark.compaction.suite_run import ARMS, load_cases, report
-
-
-def costs(args, rows, cases):
-    """Standalone one-answer costs, including one summary/ranking and all recorded retries."""
-    result = {}
-    for cohort in ("primary", "controls"):
-        ids = {k for k, c in cases.items() if (c["control_reason"] is None) == (cohort == "primary")}
-        table = []
-        for arm in ARMS + ["hermes_summary"] + [f"hermes_top{n}" for n in range(1, 6)]:
-            entries = []
-            for row in rows:
-                if row["case"] not in ids or row["arm"] != arm:
-                    continue
-                key, i = row["case"], row["repeat"]
-                summary = []
-                if arm.startswith("hermes"):
-                    paths = (args.native / key / "generation").glob(f"c{i}.a*.summary.response.json")
-                    summary = [json.loads(p.read_text())["usage"] for p in paths]
-                elif arm != "full":
-                    paths = (args.evaluation / key).glob(f"paired.c{i}.summary*.response.json")
-                    summary = [json.loads(p.read_text())["usage"] for p in paths]
-                decision = []
-                if arm.startswith(("fusion", "hermes_top")):
-                    paths = (args.evaluation / key).glob(f"paired.c{i}.decision*.response.json")
-                    decision = [json.loads(p.read_text())["usage"] for p in paths]
-                entries.append(
-                    {
-                        "summary_input": sum(u["prompt_tokens"] for u in summary),
-                        "summary_output": sum(u["completion_tokens"] for u in summary),
-                        "jev_input": sum(u["input_tokens"] for u in decision),
-                        "jev_output": sum(u["output_tokens"] for u in decision),
-                        "answer_input": (
-                            statistics.mean(t["usage"]["prompt_tokens"] for t in row["trials"])
-                            if row["trials"]
-                            else None
-                        ),
-                        "answer_output": (
-                            statistics.mean(t["usage"]["completion_tokens"] for t in row["trials"])
-                            if row["trials"]
-                            else None
-                        ),
-                    },
-                )
-            table.append(
-                {
-                    "arm": arm,
-                    **{k: statistics.mean(e[k] for e in entries if e[k] is not None) for k in entries[0]},
-                },
-            )
-        result[cohort] = table
-    write(args.output / "costs.json", result)
-    return result
 
 
 def prepare(args, cases):
@@ -216,7 +163,6 @@ async def run(args):
     finally:
         await client.close()
     load_cases(args.corpus)
-    costs(args, rows, cases)
     for path in output.rglob("*.json"):
         if values["LLM_API_KEY"].encode() in path.read_bytes():
             raise ValueError("Configured API key in artifacts")

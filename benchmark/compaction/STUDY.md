@@ -58,7 +58,7 @@ no task is selected because a method wins. Coverage, pairing and collection fail
 - Summary allowance: 64–256 local Qwen tokens, equal to 20% of rendered evidence tokens clamped to those limits. The allowance is frozen from source length.
 - Before answering, calculate a per-task complete-input ceiling that fits the protected prompts, the frozen summary allowance, and the five largest whole units, plus a 64-token reserve and 32 extra framing tokens; the ceiling is enlarged before answers if needed to fit serialized S.
   This size-only ceiling permits the entire N sweep without changing S or truncating evidence; actual lengths are reported rather than forced equal.
-- Report Full-to-fusion input reduction. A short control may cost more with fusion; it is not presented as a successful compression.
+- Report Full-to-fusion input reduction. A short control may use more input tokens with fusion; it is not presented as a successful compression.
 - Save protocol, source hashes, code snapshots, requests/responses, nested selections and per-field grades outside the repository. No archive recovery.
 - The original payment-only table remains a development result; this new task panel is not an independent held-out confirmation because the payment task was already used.
 
@@ -110,11 +110,3 @@ S/H use identical selected units per task/generation/N, restored to source order
 The extension keeps the existing per-task ceilings. Strict shrinkage versus Full is reported separately, without
 filtering or removing conditions: Top 3–5 each shorten 9/12 primary contexts in both mechanisms. The H fusion arms
 shorten 172/210 contexts (51/60 primary, 121/150 controls). Summary-only H still shortens all 42/42.
-
-For compaction costs, each independent method includes one summary generation and one complete Jev ranking when
-N > 0. Downstream answering is excluded. Recorded retry usage is included. One ranking is shared across the Top-N sweep and
-mechanisms in the actual experiment; its standalone-method cost is neither multiplied by N nor divided by sweep size.
-The two answer repeats do not amortize compression overhead. Report provider input/output tokens separately.
-Panel C estimates summary + Jev compaction fees from the dated public USD rates in [pricing.json](./pricing.json),
-using uncached input pricing and excluding downstream answering and trajectory collection. Full appears in A/B only. [Settings](./SETTINGS.md#scoring-and-costs) define
-the formula and exclusions; this is not an account invoice or a claim of total pipeline savings.

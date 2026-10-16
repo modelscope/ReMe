@@ -115,7 +115,7 @@ REME_RUN_DECISION_INTEGRATION=1 pytest tests/integration/test_decision_compactio
 
 Only model requests run externally; fixture tool calls are not executed. These cases test behavior, not general task
 success. Evaluate real trajectories against recency and rule-based previews, measuring recovery, continuation quality,
-latency and total cost alongside token reduction. ReMe does not automatically summarize or write persistent memory.
+latency alongside token reduction. ReMe does not automatically summarize or write persistent memory.
 
 ## Jev across two summary strategies
 
@@ -123,8 +123,8 @@ latency and total cost alongside token reduction. ReMe does not automatically su
 
 Summaries shorten history but can omit exact identifiers, configuration values or log details needed for a later answer.
 This experiment asks: **can a few Jev-selected original evidence blocks recover information missing from a fixed summary,
-and does that benefit occur with both a generic summary and a Hermes summary?** Answer input and total fees show the
-tradeoff between retained information, context length and compaction cost.
+and does that benefit occur with both a generic summary and a Hermes summary?** Exact-field score and Qwen answer input show the
+tradeoff between retained information and context length.
 
 ### Experimental setup
 
@@ -143,7 +143,7 @@ This is a gold-answer **information-retention evaluation**, without resuming Her
 
 ### Reading the figure and conclusions
 
-![Answer quality, downstream input and compaction cost across two summary strategies](../figure/compaction-topn-results.svg)
+![Answer quality and downstream input across two summary strategies](../figure/compaction-topn-results.svg)
 
 - **A: selected originals help both summary mechanisms on this panel.** Full scores 100%; Top 3 improves S from
   **82.0% to 99.5%**, and H from **79.4% to 97.9%**. This supports supplementing these summaries with original evidence;
@@ -151,18 +151,11 @@ This is a gold-answer **information-retention evaluation**, without resuming Her
 - **B: higher retention consumes more context than summary alone.** Top 3 uses **3,241 / 3,193** mean answer-input tokens
   for S/H, versus Full's **4,014**, reductions of **19.3% / 20.4%**. Both exceed their summary-only input. Top 4–5 do not
   improve the scores: more original text does not guarantee better answers.
-- **C: compare compaction fees only.** Top 0 pays for Qwen summary generation: **$0.009864 / $0.005902** for S/H.
-  Top 1–5 each pay for summary generation plus one complete Jev ranking: **$0.010039 / $0.006077**.
-  Jev adds **$0.000175**, about **1.8% / 3.0%** of S/H summary fees. The curve plateaus because Jev scores all evidence
-  once before selecting Top N. **C excludes downstream answering and omits Full; Full remains the reference in A/B.**
-  Fees use public USD list prices dated 2026-10-16, excluding cache discounts, free quotas and account offers.
-  This is neither an invoice nor evidence of end-to-end savings.
 
 **Scope:** the primary result covers four synthetic task templates; ten controls are separate. All 42 H-only contexts
 shorten Full, but Top 3–5 shorten only **9/12 primary contexts per method**, with every case still scored. Strict field scoring includes format compliance; semantically equivalent wording can still lose credit.
 The result shows an information/length tradeoff. Without equal-length longer-summary or alternative-selector controls,
-the entire gain cannot be attributed to Jev ranking itself. Future-turn cost amortization and agent continuation success
-remain unmeasured.
+the entire gain cannot be attributed to Jev ranking itself. Agent continuation success remains unmeasured.
 
 <!-- Payment has 10 units (maximum Top 10); actual N is min(N, available units). -->
 [Full settings and reproduction](https://github.com/jinliyl/ReMe/blob/7686be7baaddd4094b454c30c8fca61f5429df98/benchmark/compaction/SETTINGS.md) · [Queries, answers and scoring](https://github.com/jinliyl/ReMe/blob/7686be7baaddd4094b454c30c8fca61f5429df98/benchmark/compaction/STUDY.md) · [All 13 methods and short-task controls](https://github.com/jinliyl/ReMe/blob/7686be7baaddd4094b454c30c8fca61f5429df98/benchmark/compaction/RESULTS.md)

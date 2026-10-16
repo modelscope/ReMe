@@ -90,7 +90,7 @@ response = await step(
 | `evidence_chars` | `2000` | 每个输入、结果预览或近期文本的字符上限 |
 | `preview_chars` | `300` | 建议结果保留的头尾片段字符上限，不含恢复标记 |
 | `max_state_tokens` | `25000` | 决策状态的估算上限 |
-| `max_request_tokens` | `30000` | 状态和问题的估算上限，含 256 token 开销预留 |
+| `max_request_tokens` | `30000` | 状态和问题的估算上限，含 256 token 额外预留 |
 | `max_output_tokens` | `null` | 可选的宿主计数预算 |
 | `max_concurrency` | `4` | 最大并发请求数 |
 | `total_timeout_seconds` | `30` | 包含排队的总体请求超时 |
@@ -105,7 +105,7 @@ REME_RUN_DECISION_INTEGRATION=1 pytest tests/integration/test_decision_compactio
 ```
 
 只有模型请求调用外部服务，历史中的工具不会执行。这些用例验证行为，不证明通用任务成功率。
-真实 trajectory 评测应对比近期保留和纯规则预览，同时测量恢复次数、继续执行的质量、时延、总成本和 token 节省。
+真实 trajectory 评测应对比近期保留和纯规则预览，同时测量恢复次数、继续执行的质量、时延和 token 节省。
 ReMe 不会自动生成摘要或写入长期记忆。
 
 ## 两种摘要机制下的 Jev 增益
@@ -114,7 +114,7 @@ ReMe 不会自动生成摘要或写入长期记忆。
 
 摘要可以缩短历史，但可能丢失后续回答需要的精确标识符、配置值或日志细节。本实验考察：**在摘要保持不变的基础上，
 追加 Jev 选出的少量原文，能否补回这些信息？这一增益能否同时出现在普通摘要和 Hermes 摘要中？**
-同时报告回答输入量和压缩费用，观察信息保留、上下文长度与开销之间的取舍。
+同时报告字段正确率和 Qwen 回答输入量，观察信息保留与上下文长度之间的取舍。
 
 ### 实验设置
 
@@ -133,22 +133,17 @@ Jev 先依据原任务给全部证据块打分，再选择 Top N；N 只影响�
 
 ### 读图与结论
 
-![Answer quality, downstream input and compaction cost across two summary strategies](../figure/compaction-topn-results.svg)
+![Answer quality and downstream input across two summary strategies](../figure/compaction-topn-results.svg)
 
 - **A：两种摘要都能从追加原文中获益。** Full 的字段正确率为 100%；Top 3 将 S 从 **82.0% 提升至 99.5%**，
   将 H 从 **79.4% 提升至 97.9%**。这支持“摘要 + 关键原文”在本组任务中补充摘要遗漏的信息，尚不能证明通用优势或与 Full 统计等价。
 - **B：以更多上下文换取更高的信息保留率。** Top 3 的平均回答输入为 S **3241**、H **3193 tokens**，
   相比 Full 的 **4014 tokens** 分别减少 **19.3%／20.4%**，但都高于各自纯摘要。Top 4～5 未继续提分，更多原文不保证效果更好。
-- **C：只比较压缩本身的费用。** Top 0 只计 Qwen 生成摘要的费用：S／H 约 **$0.009864／$0.005902**；
-  Top 1～5 均为“摘要 + 一次完整 Jev 排名”，约 **$0.010039／$0.006077**。Jev 额外增加约 **$0.000175**，
-  即摘要费的 **1.8%／3.0%**。Jev 先给全部证据打分，再取 Top N，因此 Top 1～5 的压缩费用相同，曲线呈平台。
-  **C 不计压缩后的回答费用，也不展示 Full；Full 仅在 A/B 作为效果和输入量参考。**
-  费用按 2026-10-16 的公开 USD 标价估算，未计缓存折扣、免费额度或账户优惠；不代表实际账单或端到端费用节省。
 
 **结果边界：** 主结论来自 4 个合成任务模板；10 个短任务对照不混入主图。纯 H 的 42 个上下文均短于 Full，
 但 Top 3～5 每种方法仅有 **9/12 个主任务上下文**实际缩短，全部样例均保留评分。严格字段评分包含格式要求，语义相同但格式不同也可能失分。
 当前结果展示了信息保留与长度的取舍；尚未加入等长度的更长摘要或其他选择器对照，不能将全部增益归因于 Jev 排序本身。
-多轮摊销后的费用收益和 agent 继续执行的成功率均未验证。
+agent 继续执行的成功率尚未验证。
 
 <!-- 支付轨迹有 10 个证据块，最多 Top 10；实际 N 为 min(N, 可用证据块数)。 -->
 [完整实验设置与复现步骤](https://github.com/jinliyl/ReMe/blob/7686be7baaddd4094b454c30c8fca61f5429df98/benchmark/compaction/SETTINGS.md) · [query、answer 与评分规则](https://github.com/jinliyl/ReMe/blob/7686be7baaddd4094b454c30c8fca61f5429df98/benchmark/compaction/STUDY.md) · [13 组完整结果及短任务对照](https://github.com/jinliyl/ReMe/blob/7686be7baaddd4094b454c30c8fca61f5429df98/benchmark/compaction/RESULTS.md)
