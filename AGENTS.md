@@ -79,7 +79,7 @@ existing async and typing patterns unless the task explicitly requires a new con
 
 - CLI syntax is `reme ACTION key=value ...`; leading `-` or `--` on arguments is accepted.
 - Nested overrides use dot notation. Values support null, booleans, numbers, JSON collections, and quoted JSON strings;
-  leading-zero numeric-looking values remain strings.
+  leading-zero numeric-looking values, `nan`, and `inf` remain strings.
 - `config=<name-or-path>` loads a discovered config name or a `.yaml`, `.yml`, or `.json` file. With no explicit config
   path, `default` is loaded when available.
 - Config files expand `${VAR}` and `${VAR:-default}` recursively. An undefined variable without a default is an error.

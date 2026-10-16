@@ -47,7 +47,7 @@ reme start --service.port=8181 --service.web_enabled=false
 - JSON 引号字符串；
 - 普通字符串。
 
-类似 `007` 的前导零字符串不会被转换成数字。需要保留 `true`、`false` 等字面字符串时，使用 JSON 引号：`value='"true"'`。
+类似 `007` 的前导零字符串以及 `nan`、`inf`、`Infinity` 不会被转换成数字。需要保留 `true`、`false` 等字面字符串时，使用 JSON 引号：`value='"true"'`。
 
 ## 环境变量
 
