@@ -119,25 +119,48 @@ latency and total cost alongside token reduction. ReMe does not automatically su
 
 ## Jev across two summary strategies
 
-One 13-method experiment compares Full context with a generic summary S and Hermes compaction summary H
-(small-budget setting), each plus Jev Top 0–5. Top 0 means summary only. Every condition preserves its frozen summary and shares the same
-Jev-selected originals across mechanisms.
+### Background
 
-![Quality, downstream input and compression overhead](../figure/compaction-topn-results.svg)
+Summaries shorten history but can omit exact identifiers, configuration values or log details needed for a later answer.
+This experiment asks: **can a few Jev-selected original evidence blocks recover information missing from a fixed summary,
+and does that benefit occur with both a generic summary and a Hermes summary?** Answer input and total fees show the
+tradeoff between retained information, context length and cost.
 
-On four primary task templates, S improves from **82.0% to 99.5%** at Top 3; H improves from **79.4% to 97.9%**.
-Their mean answer inputs are **3,241 / 3,193 tokens**, versus Full's **4,014 / 100%**. Panel C shows **total fees for one compression plus one Qwen answer**:
-summary generation + Jev ranking + downstream input/output. S increases **$0.014293 → $0.016429** from Top 0 to 5;
-H increases **$0.010245 → $0.012388**. Full costs **$0.006992** for its answer.
-Jev's fee stays flat after Top 1; additional retained evidence increases Qwen's input fee. These are uncached,
-dated public-list-price estimates, not invoices or evidence of one-answer savings.
+### Experimental setup
 
-The panel has 14 predefined query/answer templates, 546 contexts and 1,092 direct-Qwen answers. Ten short/query-only
-controls are reported separately. H reuses Hermes' compaction summary-generation pipeline with a smaller budget
-and length constraints. The experiment invokes summary generation directly, bypassing automatic triggering and head/tail
-selection. All H-only contexts shorten Full; at Top 3–5 only 9/12 primary contexts per method do so, with all cases retained
-in scoring. This is an incremental, unequal-length comparison without agent continuation.
+| Item | Recorded setting |
+| --- | --- |
+| Data | 14 synthetic task templates with predefined queries/answers: one existing payment trajectory and 13 actual read-only Hermes executions. Four primary tasks were selected by source length before collection: payment retries, checkout 504, server-error localization and build-log token lookup. Ten short/query-only controls are reported separately. |
+| Framework and models | Hermes Agent `AIAgent`, pinned to `30463589eb54`; **`qwen3.8-max`** for collection, both summary mechanisms and answering. **`jev-1.13.0`** through AgentScope **2.0.10** ranks evidence. Hermes collects trajectories; evaluation calls Qwen directly. |
+| Summary mechanisms | **S** uses a generic handoff-summary prompt. **H** is Hermes compaction summary under a small-budget setting: its `legacy` generation pipeline with adjusted budget/length constraints. Summary generation is invoked directly, bypassing automatic triggering and head/tail selection. |
+| 13 methods | **Full context** retains all pre-evaluation history. **S + Top 0–5** and **H + Top 0–5** each contribute six methods. Top 0 is summary only; Top N appends N whole evidence blocks. Both curves share identical Jev selections; each generation freezes S/H byte-for-byte. |
+| Budget | Forced small-budget simulation: summary-body allowance **64–256 tokens**, derived from evidence length; complete answer-input ceilings are task-specific. Larger N retains more evidence, so lengths differ. Full is an uncompressed reference; it need not exceed every case ceiling. |
+| Evaluation | Summarization/ranking receives the original task and evidence, never the held-out questions or gold. Final collection reports are excluded. Answers return JSON and are scored with predefined type-strict field rules, **without an LLM judge**. Average within tasks, then weight tasks equally. |
+| Repeats and size | Three summary/ranking generations per task, two answers per context: **546 contexts / 1,092 answers**. The figure shows four primary tasks, 24 answers per method; repeated answers are not additional tasks. Summary/answer temperature is 0, with thinking disabled. |
+
+Jev scores all available evidence against the original task once; N changes the number retained, not ranking-call count.
+This is a gold-answer **information-retention evaluation**, without resuming Hermes' tool loop to complete the task.
+
+### Reading the figure and conclusions
+
+![Answer quality, downstream input and total cost across two summary strategies](../figure/compaction-topn-results.svg)
+
+- **A: selected originals help both summary mechanisms on this panel.** Full scores 100%; Top 3 improves S from
+  **82.0% to 99.5%**, and H from **79.4% to 97.9%**. This supports supplementing these summaries with original evidence;
+  it does not establish general superiority or statistical equivalence to Full.
+- **B: higher retention consumes more context than summary alone.** Top 3 uses **3,241 / 3,193** mean answer-input tokens
+  for S/H, versus Full's **4,014**, reductions of **19.3% / 20.4%**. Both exceed their summary-only input. Top 4–5 do not
+  improve the scores: more original text does not guarantee better answers.
+- **C: there is no total-cost saving over a single post-compression answer here.** Fees include **summary generation +
+  one Jev ranking + one Qwen answer, input and output**. At Top 3, S/H cost about **$0.015738 / $0.011697**, versus Full's
+  **$0.006992**. Ranking fees are identical at Top 1–5; reading additional evidence increases Qwen's fee. These are
+  public USD list-price estimates dated 2026-10-16, excluding cache discounts, free quotas and account offers, not invoices.
+
+**Scope:** the primary result covers four synthetic task templates; ten controls are separate. All 42 H-only contexts
+shorten Full, but Top 3–5 shorten only **9/12 primary contexts per method**, with every case still scored. Strict field scoring includes format compliance; semantically equivalent wording can still lose credit.
+The result shows an information/length tradeoff. Without equal-length longer-summary or alternative-selector controls,
+the entire gain cannot be attributed to Jev ranking itself. Future-turn cost amortization and agent continuation success
+remain unmeasured.
 
 <!-- Payment has 10 units (maximum Top 10); actual N is min(N, available units). -->
-See [models, framework versions, parameters and reproduction steps](https://github.com/jinliyl/ReMe/blob/8f796715ab107550a78d462f72f9e1b934ef7daa/benchmark/compaction/SETTINGS.md),
-the [query/answer protocol](https://github.com/jinliyl/ReMe/blob/8f796715ab107550a78d462f72f9e1b934ef7daa/benchmark/compaction/STUDY.md) and [complete results and token accounting](https://github.com/jinliyl/ReMe/blob/8f796715ab107550a78d462f72f9e1b934ef7daa/benchmark/compaction/RESULTS.md).
+[Full settings and reproduction](https://github.com/jinliyl/ReMe/blob/8f796715ab107550a78d462f72f9e1b934ef7daa/benchmark/compaction/SETTINGS.md) · [Queries, answers and scoring](https://github.com/jinliyl/ReMe/blob/8f796715ab107550a78d462f72f9e1b934ef7daa/benchmark/compaction/STUDY.md) · [All 13 methods and short-task controls](https://github.com/jinliyl/ReMe/blob/8f796715ab107550a78d462f72f9e1b934ef7daa/benchmark/compaction/RESULTS.md)
