@@ -127,7 +127,8 @@ Jev-selected originals across mechanisms.
 
 On four primary task templates, S improves from **82.0% to 99.5%** at Top 3; H improves from **79.4% to 97.9%**.
 Their mean answer inputs are **3,241 / 3,193 tokens**, versus Full's **4,014 / 100%**. The figure separates downstream
-input from summary/ranking overhead; fewer answer tokens do not establish lower total monetary cost.
+input from Jev ranking overhead; summary-generation usage is in the results table. Top 0 has no Jev call; Top 1–5 share
+one complete ranking and have identical Jev overhead. Fewer answer tokens do not establish lower total monetary cost.
 
 The panel has 14 predefined query/answer templates, 546 contexts and 1,092 direct-Qwen answers. Ten short/query-only
 controls are reported separately. H reuses Hermes' compaction summary-generation pipeline with a smaller budget
@@ -136,5 +137,5 @@ selection. All H-only contexts shorten Full; at Top 3–5 only 9/12 primary cont
 in scoring. This is an incremental, unequal-length comparison without agent continuation.
 
 <!-- Payment has 10 units (maximum Top 10); actual N is min(N, available units). -->
-See [models, framework versions, parameters and reproduction steps](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/SETTINGS.md),
-the [query/answer protocol](https://github.com/jinliyl/ReMe/blob/d2638b166f6daeec6f3e842750313526617786a1/benchmark/compaction/STUDY.md) and [complete results and token accounting](https://github.com/jinliyl/ReMe/blob/d2638b166f6daeec6f3e842750313526617786a1/benchmark/compaction/RESULTS.md).
+See [models, framework versions, parameters and reproduction steps](https://github.com/jinliyl/ReMe/blob/65ef7358417d21746cf9f95aaf9005aa521c5688/benchmark/compaction/SETTINGS.md),
+the [query/answer protocol](https://github.com/jinliyl/ReMe/blob/65ef7358417d21746cf9f95aaf9005aa521c5688/benchmark/compaction/STUDY.md) and [complete results and token accounting](https://github.com/jinliyl/ReMe/blob/65ef7358417d21746cf9f95aaf9005aa521c5688/benchmark/compaction/RESULTS.md).

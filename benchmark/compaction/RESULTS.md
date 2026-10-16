@@ -24,12 +24,16 @@ each summary remains byte-identical across its six conditions.
 | H + Jev Top 4 | 96.9% | 3,448 | 3,120 / 152 | 4,162 / 344 |
 | H + Jev Top 5 | 96.9% | 3,613 | 3,120 / 152 | 4,162 / 344 |
 
-![Quality, downstream input and compression overhead](../../docs/figure/compaction-topn-results.svg)
+![Quality, downstream input and Jev overhead by Top N](../../docs/figure/compaction-topn-results.svg)
 
 Both summary mechanisms benefit on this panel: S rises from **82.0% to 99.5%** at Top 3; H rises from **79.4% to 97.9%**.
 Mean downstream inputs at Top 3 are **3,241 / 3,193**, versus Full's **4,014**: reductions of **19.3% / 20.4%**.
 Top 4–5 do not improve these point estimates. This is an exploratory result on four synthetic task templates,
 not a general optimal-N claim, equivalence test or proof that Jev beats other equal-budget selectors.
+
+Panel C plots Jev overhead against Top N: zero at Top 0, then the same **4,162 input + 344 output tokens**
+(4,506 total) at Top 1–5 for either summary mechanism. Ranking scores every available unit once, irrespective of how
+many units are subsequently retained. Summary-generation usage remains in the table.
 
 ## Token and cost accounting
 

@@ -117,7 +117,8 @@ Top 0 表示纯摘要；每轮摘要逐字固定，两种机制使用完全相�
 
 4 个主任务中，Top 3 将 S 从 **82.0% 提升至 99.5%**，将 H 从 **79.4% 提升至 97.9%**。
 平均回答输入分别为 **3241 / 3193 tokens**，Full 为 **4014 tokens / 100%**。
-图中分别展示效果、回答输入和摘要／排序开销；回答输入减少不等于总费用降低。
+图中分别展示效果、回答输入和 Jev 排序开销；摘要生成用量见结果表。Top 0 不调用 Jev，Top 1～5 共用完整排名，
+因此 Jev 开销相同。回答输入减少不等于总费用降低。
 
 共 14 个预设 query/answer 模板、546 个上下文、1092 次直接 Qwen 回答；10 个短任务对照单独报告。
 H 复用 Hermes 的上下文压缩摘要生成流程，并采用小预算与长度约束；实验直接生成摘要，不经过自动触发和首尾窗口选择。
@@ -125,5 +126,5 @@ H 复用 Hermes 的上下文压缩摘要生成流程，并采用小预算与长�
 Top 3～5 每组主任务只有 9/12 个上下文实现缩短，全部样例均保留评分。这是非等长的增量比较，未继续运行 agent。
 
 <!-- 支付轨迹有 10 个证据块，最多 Top 10；实际 N 为 min(N, 可用证据块数)。 -->
-模型、框架版本、参数和复现步骤见[实验设置](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/SETTINGS.md)。
-详见[query、answer 与实验设定](https://github.com/jinliyl/ReMe/blob/d2638b166f6daeec6f3e842750313526617786a1/benchmark/compaction/STUDY.md)及[完整结果与 token 开销](https://github.com/jinliyl/ReMe/blob/d2638b166f6daeec6f3e842750313526617786a1/benchmark/compaction/RESULTS.md)。
+模型、框架版本、参数和复现步骤见[实验设置](https://github.com/jinliyl/ReMe/blob/65ef7358417d21746cf9f95aaf9005aa521c5688/benchmark/compaction/SETTINGS.md)。
+详见[query、answer 与实验设定](https://github.com/jinliyl/ReMe/blob/65ef7358417d21746cf9f95aaf9005aa521c5688/benchmark/compaction/STUDY.md)及[完整结果与 token 开销](https://github.com/jinliyl/ReMe/blob/65ef7358417d21746cf9f95aaf9005aa521c5688/benchmark/compaction/RESULTS.md)。
