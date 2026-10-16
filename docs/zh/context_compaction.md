@@ -124,4 +124,4 @@ H 是显式调整预算的原生生成器适配方案，不是 Hermes 默认自�
 Top 3～5 每组主任务只有 9/12 个上下文实现缩短，全部样例均保留评分。这是非等长的增量比较，未继续运行 agent。
 
 <!-- 支付轨迹有 10 个证据块，最多 Top 10；实际 N 为 min(N, 可用证据块数)。 -->
-详见[query、answer 与实验设定](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/STUDY.md)及[完整结果与 token 开销](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md)。
+详见[query、answer 与实验设定](https://github.com/jinliyl/ReMe/blob/d2638b166f6daeec6f3e842750313526617786a1/benchmark/compaction/STUDY.md)及[完整结果与 token 开销](https://github.com/jinliyl/ReMe/blob/d2638b166f6daeec6f3e842750313526617786a1/benchmark/compaction/RESULTS.md)。

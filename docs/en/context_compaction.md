@@ -135,4 +135,4 @@ compressor. All H-only contexts shorten Full; at Top 3–5 only 9/12 primary con
 retained in scoring. This is an incremental, unequal-length comparison without agent continuation.
 
 <!-- Payment has 10 units (maximum Top 10); actual N is min(N, available units). -->
-See the [query/answer protocol](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/STUDY.md) and [complete results and token accounting](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md).
+See the [query/answer protocol](https://github.com/jinliyl/ReMe/blob/d2638b166f6daeec6f3e842750313526617786a1/benchmark/compaction/STUDY.md) and [complete results and token accounting](https://github.com/jinliyl/ReMe/blob/d2638b166f6daeec6f3e842750313526617786a1/benchmark/compaction/RESULTS.md).
