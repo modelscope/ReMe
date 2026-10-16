@@ -111,7 +111,7 @@ ReMe 不会自动生成摘要或写入长期记忆。
 
 ## 分块压缩实验
 
-[Benchmark 评测方案与结果](https://github.com/agentscope-ai/ReMe/blob/main/benchmark/compaction/RESULTS.md)
+[Benchmark 评测方案与结果](https://github.com/jinliyl/ReMe/blob/cf5587681070735db6b49fe90f93c752a17935eb/benchmark/compaction/RESULTS.md)
 记录了 2026-10-15 的本地对照实验：以 Hermes 采集的合成支付 trajectory 及其长日志增噪变体，比较完整证据、
 Jev 分块筛选、首尾截取和普通 Qwen 摘要。证据预算为 600 / 1000 token，所有组保持相同的 system、user 和评测提示。
 分块排序只在实验脚本中实现；上述 `compact_context` 的配对判断与低概率预览策略保持不变。

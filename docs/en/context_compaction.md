@@ -120,7 +120,7 @@ latency and total cost alongside token reduction. ReMe does not automatically su
 
 ## Span-selection experiment
 
-The [benchmark protocol and results (Chinese)](https://github.com/agentscope-ai/ReMe/blob/main/benchmark/compaction/RESULTS.md)
+The [benchmark protocol and results (Chinese)](https://github.com/jinliyl/ReMe/blob/cf5587681070735db6b49fe90f93c752a17935eb/benchmark/compaction/RESULTS.md)
 describe a local run on October 15, 2026, using a synthetic Hermes payment trajectory and a controlled long-log
 augmentation. It compares full evidence, Jev span selection, head/tail clipping and ordinary Qwen summaries under
 600/1000 evidence-token allowances, with identical system/user instructions and evaluation prompts.
