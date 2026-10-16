@@ -307,6 +307,8 @@ class CodexAgentWrapper(BaseAgentWrapper):
         fork_session = bool(kwargs.get("fork_session", False))
         if fork_session and not thread_id:
             raise ValueError("fork_session=True requires resume or session_id")
+        if self._release_threads and self._thread_tool_contexts:
+            await self._prune_thread_tool_contexts(codex)
         requested_tool_context = json.dumps(
             {
                 "tool_context_id": str(kwargs.get("tool_context_id") or ""),
@@ -405,8 +407,32 @@ class CodexAgentWrapper(BaseAgentWrapper):
                     self._mcp_snapshot_path.unlink(missing_ok=True)
                     self._mcp_snapshot_path = None
 
+    async def _prune_thread_tool_contexts(self, codex: AsyncCodex) -> None:
+        """Forget tool constraints only after the server confirms a thread is unloaded."""
+        try:
+            from openai_codex.generated.v2_all import ThreadLoadedListResponse
+
+            loaded_ids: set[str] = set()
+            cursor = None
+            while True:
+                page = await codex._client.request(  # pylint: disable=protected-access
+                    "thread/loaded/list",
+                    {"cursor": cursor},
+                    response_model=ThreadLoadedListResponse,
+                )
+                loaded_ids.update(page.data)
+                cursor = page.next_cursor
+                if not cursor:
+                    break
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            self.logger.warning(f"Failed to list loaded Codex threads: {exc}")
+            return
+        self._thread_tool_contexts = {
+            thread_id: context for thread_id, context in self._thread_tool_contexts.items() if thread_id in loaded_ids
+        }
+
     async def _release_thread(self, codex: AsyncCodex, thread_id: str) -> None:
-        """Unload a finished thread from the app-server so its MCP children exit."""
+        """Unsubscribe so the app-server can unload the thread once it is idle."""
         try:
             from openai_codex.generated.v2_all import ThreadUnsubscribeResponse
 
@@ -419,10 +445,9 @@ class CodexAgentWrapper(BaseAgentWrapper):
             )
         except Exception as exc:  # pylint: disable=broad-exception-caught
             self.logger.warning(f"Failed to unsubscribe Codex thread {thread_id}: {exc}")
-            return
-        # The thread is still loaded when unsubscribe fails; keep its tool
-        # context so a later resume cannot silently bypass changed constraints.
-        self._thread_tool_contexts.pop(thread_id, None)
+        # Unsubscribe is not an unload acknowledgement. In particular, a
+        # cancelled turn can still be running with its original MCP constraints.
+        # Keep the guard until thread/loaded/list confirms the thread is gone.
 
     @staticmethod
     def _serialize(value: Any) -> Any:
