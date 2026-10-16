@@ -125,4 +125,4 @@ S + Top 4 的十项事实正确率达到 **100%**，与 Full context 相同，�
 
 这是 Hermes 采集的一个合成任务，评测直接调用 Qwen，没有继续运行 Hermes 代理；重复测量不能证明通用任务表现，
 也未证明融合优于纯 Jev。融合仅在 benchmark 中实现，上述生产压缩契约保持不变。
-详见 [Benchmark 方案、评分与完整结果](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md)。
+详见 [Benchmark 方案、评分与完整结果](https://github.com/jinliyl/ReMe/blob/26a83c1904d5c8312ed8e8cb5ffa21500b6e50e6/benchmark/compaction/RESULTS.md)。

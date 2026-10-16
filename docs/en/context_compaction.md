@@ -135,4 +135,4 @@ adding originals intentionally increases input length. Actual compressed inputs 
 
 This is one synthetic task collected by Hermes, evaluated by calling Qwen directly. Repeated measurements do not
 establish general task performance or superiority over pure Jev. The hybrid is benchmark-only; the production contract
-above is unchanged. See the [protocol, scoring and complete results](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md).
+above is unchanged. See the [protocol, scoring and complete results](https://github.com/jinliyl/ReMe/blob/26a83c1904d5c8312ed8e8cb5ffa21500b6e50e6/benchmark/compaction/RESULTS.md).
