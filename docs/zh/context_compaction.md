@@ -129,4 +129,4 @@ Top N 按完整证据块计数，超过可用数量时保留全部。原支付�
 
 共 336 个上下文、672 次回答，短任务对照单独报告。Hermes 负责采集，评分时直接调用 Qwen，没有继续工具循环或
 恢复原文。少量合成任务不能证明通用优势或统计等价；融合和原生摘要适配器均仅用于 benchmark。
-详见[完整 query、answer 与实验设定](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/STUDY.md)和[结果、对照与审计](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md)。
+详见[完整 query、answer 与实验设定](https://github.com/jinliyl/ReMe/blob/11317634e5e255a7c7b13492f048f8ca0c90ab3a/benchmark/compaction/STUDY.md)和[结果、对照与审计](https://github.com/jinliyl/ReMe/blob/11317634e5e255a7c7b13492f048f8ca0c90ab3a/benchmark/compaction/RESULTS.md)。

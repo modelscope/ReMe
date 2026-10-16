@@ -140,4 +140,4 @@ this is an incremental-evidence curve, not an equal-length comparison or proof t
 The panel has 336 contexts and 672 answers, with the controls reported separately. Hermes collects source trajectories;
 answering calls Qwen directly without tool continuation or recovery. These few synthetic tasks do not establish general
 superiority or statistical equivalence. The hybrid and native adapter remain benchmark-only.
-See the [exact queries, answers and settings](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/STUDY.md) and [results, controls and audit](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md).
+See the [exact queries, answers and settings](https://github.com/jinliyl/ReMe/blob/11317634e5e255a7c7b13492f048f8ca0c90ab3a/benchmark/compaction/STUDY.md) and [results, controls and audit](https://github.com/jinliyl/ReMe/blob/11317634e5e255a7c7b13492f048f8ca0c90ab3a/benchmark/compaction/RESULTS.md).
