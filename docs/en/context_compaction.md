@@ -158,4 +158,4 @@ The result shows an information/length tradeoff. Without equal-length longer-sum
 the entire gain cannot be attributed to Jev ranking itself. Agent continuation success remains unmeasured.
 
 <!-- Payment has 10 units (maximum Top 10); actual N is min(N, available units). -->
-[Full settings and reproduction](https://github.com/jinliyl/ReMe/blob/9cc6dad5a7b0f9d6ec08b84268c8e1a2faf97ecd/benchmark/compaction/SETTINGS.md) · [Queries, answers and scoring](https://github.com/jinliyl/ReMe/blob/9cc6dad5a7b0f9d6ec08b84268c8e1a2faf97ecd/benchmark/compaction/STUDY.md) · [All 13 methods and short-task controls](https://github.com/jinliyl/ReMe/blob/9cc6dad5a7b0f9d6ec08b84268c8e1a2faf97ecd/benchmark/compaction/RESULTS.md)
+[Full settings and reproduction](https://github.com/jinliyl/ReMe/blob/3d31c660a00977f07c40cebf712fc08eab43111a/benchmark/compaction/SETTINGS.md) · [Queries, answers and scoring](https://github.com/jinliyl/ReMe/blob/3d31c660a00977f07c40cebf712fc08eab43111a/benchmark/compaction/STUDY.md) · [All 13 methods and short-task controls](https://github.com/jinliyl/ReMe/blob/3d31c660a00977f07c40cebf712fc08eab43111a/benchmark/compaction/RESULTS.md)
