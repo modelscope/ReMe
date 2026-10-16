@@ -1,12 +1,14 @@
 """Regression tests for LocalEmbeddingStore dimension and vector space handling."""
 
-# pylint: disable=protected-access
+# pylint: disable=protected-access,too-many-lines
 
 import asyncio
 import json
 from types import SimpleNamespace
 
+import httpx
 import numpy as np
+import openai
 
 from reme.components.as_embedding import DashScopeAsEmbedding, OllamaAsEmbedding, OpenAIAsEmbedding
 from reme.components.embedding_store.base_embedding_store import BaseEmbeddingStore
@@ -266,6 +268,15 @@ class APITimeoutError(APIConnectionError):
     """OpenAI SDK timeout, a subclass of APIConnectionError."""
 
 
+class _RetryingPolicyModel:
+    """Stand-in for AgentScope's OpenAI embedding model: it retries transport errors."""
+
+    @classmethod
+    def _get_retryable_exceptions(cls):
+        """Mirror the OpenAI policy the real wrapper consults."""
+        return (APIConnectionError,)
+
+
 class AlwaysProviderWideFailureAsEmbedding:
     """Always fail with the same provider-wide error, recording every requested batch size."""
 
@@ -274,6 +285,9 @@ class AlwaysProviderWideFailureAsEmbedding:
     def __init__(self, error: Exception):
         self.error = error
         self.batch_sizes: list[int] = []
+        # This double stands for an error raised by the SDK beneath an OpenAI-style model, so it
+        # advertises the same lower-layer retry policy: the store must not add a third loop.
+        self.model = _RetryingPolicyModel()
 
     async def __call__(self, texts: list[str], **_kwargs):
         self.batch_sizes.append(len(texts))
@@ -299,6 +313,108 @@ class TransientThenSuccessAsEmbedding:
         if len(self.batch_sizes) <= self.failures:
             raise self.error
         return [[1.0, 0.0] for _ in texts]
+
+
+_REAL_OPENAI_ASYNC_CLIENT = openai.AsyncClient
+_OFFLINE_OPENAI_BASE_URL = "http://127.0.0.1:9/v1"
+
+
+class CountingOpenAIWrapper(OpenAIAsEmbedding):
+    """Real OpenAI wrapper that records how often the store asked it for embeddings."""
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.calls = 0
+
+    async def __call__(self, inputs, **kwargs):
+        self.calls += 1
+        return await super().__call__(inputs, **kwargs)
+
+
+class OfflineOpenAIEndpoint:
+    """Real openai.AsyncClient wired to an offline httpx transport that counts provider attempts.
+
+    Gives the wrapper-and-SDK layers their real code path, so a regression test can assert how
+    many attempts the provider would see instead of trusting the store's own loop.
+    """
+
+    def __init__(self, handler, sdk_max_retries: int = 2) -> None:
+        self.requests = 0
+        self.handler = handler
+        self.client = _REAL_OPENAI_ASYNC_CLIENT(
+            api_key="test-key",
+            base_url=_OFFLINE_OPENAI_BASE_URL,
+            http_client=httpx.AsyncClient(transport=httpx.MockTransport(self._handle)),
+            max_retries=sdk_max_retries,
+        )
+
+    def _handle(self, request):
+        self.requests += 1
+        return self.handler(request)
+
+    def install(self, monkeypatch) -> "OfflineOpenAIEndpoint":
+        """Route every openai.AsyncClient built during this test to the offline client."""
+        monkeypatch.setattr(openai, "AsyncClient", lambda **kwargs: self.client)
+        return self
+
+
+def offline_openai_endpoint(handler) -> OfflineOpenAIEndpoint:
+    """Build an offline endpoint whose transport follows ``handler``."""
+    return OfflineOpenAIEndpoint(handler)
+
+
+def openai_wrapper(name: str) -> CountingOpenAIWrapper:
+    """Build a real OpenAI embedding wrapper pointed at the offline endpoint."""
+    return CountingOpenAIWrapper(
+        name=name,
+        model="text-embedding-v4",
+        backend="openai",
+        dimensions=2,
+        credential={"base_url": _OFFLINE_OPENAI_BASE_URL, "api_key": "test-key"},
+        retry_delay=0,
+        pass_dimensions=False,
+    )
+
+
+def embedding_payload(request) -> httpx.Response:
+    """Answer an embeddings request the way the provider would."""
+    body = json.loads(request.content.decode("utf-8"))
+    inputs = body["input"]
+    if isinstance(inputs, str):
+        inputs = [inputs]
+    return httpx.Response(
+        200,
+        json={
+            "object": "list",
+            "data": [
+                {"object": "embedding", "index": position, "embedding": [0.0, 1.0]} for position in range(len(inputs))
+            ],
+            "model": body.get("model", "text-embedding-v4"),
+            "usage": {"prompt_tokens": len(inputs), "total_tokens": len(inputs)},
+        },
+    )
+
+
+def context_length_rejection() -> httpx.Response:
+    """Answer a batch the way an OpenAI-compatible provider reports an over-long input."""
+    return httpx.Response(
+        400,
+        json={
+            "error": {
+                "message": (
+                    "This model's maximum context length is 8191 tokens. " "Please reduce the length of the input."
+                ),
+                "type": "invalid_request_error",
+                "param": None,
+                "code": "context_length_exceeded",
+            },
+        },
+    )
+
+
+def read_timeout(request) -> httpx.Response:
+    """Fail one attempt the way a read timeout reaches the SDK."""
+    raise httpx.ReadTimeout("simulated read timeout", request=request)
 
 
 class BadNodeEmbeddingStore(BaseEmbeddingStore):
@@ -1020,38 +1136,37 @@ def test_exhausted_quota_retries_still_do_not_split_the_batch(monkeypatch):
     run(go())
 
 
-def test_per_item_fallback_keeps_a_transiently_failed_vector(monkeypatch):
-    """A 429 / connection error / timeout on one isolated item must not lose its vector."""
+def test_per_item_fallback_keeps_a_rate_limited_vector(monkeypatch):
+    """A 429 on one isolated item still gets the store's backoff and keeps its vector.
+
+    Rate limiting is the failure class the store still owns: no lower layer reports it as a
+    provider-wide error worth its own budget, so the retry lives here. Connection errors and
+    timeouts are left to the wrapper and the SDK instead; see the transport tests above.
+    """
 
     async def go():
-        transients = (
-            RateLimitError("Requests are too frequent"),
-            ConnectionError("connection reset"),
-            TimeoutError("request timed out"),
-        )
         sleeps = []
 
         async def fake_sleep(delay):
             sleeps.append(delay)
 
-        for transient in transients:
-            sleeps.clear()
+        provider = PerItemLimitThenTransientErrorAsEmbedding(
+            RateLimitError("Requests are too frequent"),
+        )
+        store = LocalEmbeddingStore(
+            name="t_local_embedding_fallback_rate_limit",
+            max_retries=3,
+            enable_cache=False,
+        )
+        store.as_embedding = provider
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
-            provider = PerItemLimitThenTransientErrorAsEmbedding(transient)
-            store = LocalEmbeddingStore(
-                name="t_local_embedding_fallback_transient",
-                max_retries=3,
-                enable_cache=False,
-            )
-            store.as_embedding = provider
-            monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+        results = await store._call_with_retry(["ok", "x" * 64, "also ok"])
 
-            results = await store._call_with_retry(["ok", "x" * 64, "also ok"])
-
-            assert results == [[1.0, 0.0], None, [1.0, 0.0]]
-            assert provider.batch_sizes == [3, 1, 1, 1, 1]
-            assert provider.transient_failures == 1
-            assert sleeps == [1.0]
+        assert results == [[1.0, 0.0], None, [1.0, 0.0]]
+        assert provider.batch_sizes == [3, 1, 1, 1, 1]
+        assert provider.transient_failures == 1
+        assert sleeps == [1.0]
 
     run(go())
 
@@ -1093,14 +1208,18 @@ def test_provider_wide_server_errors_are_not_retried_without_splitting(monkeypat
         # One request only: the wrapper and the SDK already retry a 5xx, and retrying here
         # as well multiplied their attempts (12 -> 36 in the reported reproduction).
         assert provider.batch_sizes == [10]
-        assert sleeps == []
+        assert not sleeps
         assert store.is_healthy is False
 
     run(go())
 
 
-def test_sdk_transport_errors_are_retried_without_splitting(monkeypatch):
-    """SDK connection/timeout errors are provider-wide: retry the batch, never split it."""
+def test_sdk_transport_errors_are_provider_wide_and_not_retried_here(monkeypatch):
+    """SDK connection/timeout errors are provider-wide: never split, and not retried here.
+
+    The wrapper and the SDK already retry a transport failure, so the store answers once and
+    leaves the retry budget to those layers instead of multiplying their attempts.
+    """
 
     async def go():
         sleeps = []
@@ -1117,14 +1236,24 @@ def test_sdk_transport_errors_are_retried_without_splitting(monkeypatch):
             store.as_embedding = provider
 
             assert await store._call_with_retry([f"item{i}" for i in range(10)]) is None
-            assert provider.batch_sizes == [10, 10, 10]
-            assert sleeps == [1.0, 2.0]
+            # One request only: the wrapper and the SDK already retry a transport failure
+            # (4 wrapper attempts, each retried by the SDK), so another loop here only
+            # multiplies them -- a persistent timeout used to cost 36 attempts instead of 12.
+            assert provider.batch_sizes == [10]
+            assert not sleeps
+            assert store.is_healthy is False
 
     run(go())
 
 
-def test_sdk_transport_error_recovers_without_losing_the_batch(monkeypatch):
-    """One SDK transport failure retries the original batch and keeps every vector."""
+def test_a_provider_without_a_retry_policy_keeps_the_store_backoff(monkeypatch):
+    """A provider with no lower-layer retry policy still gets the store's backoff.
+
+    This fake exposes no ``model`` with a retry policy, which is the same position Ollama is
+    in: its embedding model inherits an empty retryable tuple and its SDK turns a connection
+    error into a plain ``ConnectionError`` without retrying. The store's retry is therefore the
+    only layer that can keep that vector.
+    """
 
     async def go():
         sleeps = []
@@ -1132,44 +1261,122 @@ def test_sdk_transport_error_recovers_without_losing_the_batch(monkeypatch):
         async def fake_sleep(delay):
             sleeps.append(delay)
 
-        provider = TransientThenSuccessAsEmbedding(APITimeoutError("timed out"))
-        store = LocalEmbeddingStore(name="t_local_embedding_sdk_recover", max_retries=3)
-        store.as_embedding = provider
-        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+        for transient in (
+            APIConnectionError("connection reset"),
+            ConnectionError("connection reset"),
+            TimeoutError("request timed out"),
+        ):
+            sleeps.clear()
 
-        results = await store._call_with_retry([f"item{i}" for i in range(10)])
+            provider = PerItemLimitThenTransientErrorAsEmbedding(transient)
+            store = LocalEmbeddingStore(
+                name="t_local_embedding_sdk_isolated",
+                max_retries=3,
+                enable_cache=False,
+            )
+            store.as_embedding = provider
+            monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
-        assert results == [[1.0, 0.0]] * 10
-        assert provider.batch_sizes == [10, 10]
-        assert sleeps == [1.0]
+            results = await store._call_with_retry(["ok", "x" * 64, "also ok"])
+
+            assert results == [[1.0, 0.0], None, [1.0, 0.0]]
+            assert provider.batch_sizes == [3, 1, 1, 1, 1]
+            assert sleeps == [1.0]
 
     run(go())
 
 
-def test_isolated_item_retries_an_sdk_transport_error(monkeypatch):
-    """After a context-length rejection, one isolated item still retries an SDK transport error."""
+def test_a_persistent_transport_error_is_not_multiplied_by_the_store(monkeypatch):
+    """A timeout is asked once: the wrapper and the SDK own the retry budget.
+
+    The provider sees the 4 wrapper attempts x 3 SDK attempts those layers make, while the
+    store's max_retries=3 no longer multiplies them -- a persistent timeout used to cost 36
+    provider attempts instead of 12.
+    """
 
     async def go():
-        sleeps = []
-
-        async def fake_sleep(delay):
-            sleeps.append(delay)
-
-        provider = PerItemLimitThenTransientErrorAsEmbedding(APIConnectionError("connection reset"))
+        endpoint = offline_openai_endpoint(read_timeout).install(monkeypatch)
+        provider = openai_wrapper("t_openai_transport_budget")
         store = LocalEmbeddingStore(
-            name="t_local_embedding_sdk_isolated",
+            name="t_local_embedding_sdk_transport_budget",
             max_retries=3,
             enable_cache=False,
         )
         store.as_embedding = provider
-        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+        assert await store._call_with_retry([f"item{i}" for i in range(3)]) is None
+        assert provider.calls == 1
+        assert endpoint.requests == 12
+        assert store.is_healthy is False
+
+    run(go())
+
+
+def test_a_transient_transport_error_still_recovers_through_the_sdk(monkeypatch):
+    """One timeout is answered by the SDK's own retry: the batch survives and never splits."""
+
+    async def go():
+        state = {"timeouts": 1}
+
+        def handler(request):
+            if state["timeouts"] > 0:
+                state["timeouts"] -= 1
+                return read_timeout(request)
+            return embedding_payload(request)
+
+        endpoint = offline_openai_endpoint(handler).install(monkeypatch)
+        provider = openai_wrapper("t_openai_transport_recover")
+        store = LocalEmbeddingStore(
+            name="t_local_embedding_sdk_transport_recover",
+            max_retries=3,
+            enable_cache=False,
+        )
+        store.as_embedding = provider
+
+        results = await store._call_with_retry([f"item{i}" for i in range(3)])
+
+        assert results == [[0.0, 1.0]] * 3
+        assert provider.calls == 1
+        assert endpoint.requests == 2
+
+    run(go())
+
+
+def test_an_isolated_item_still_recovers_through_the_sdk(monkeypatch):
+    """After a context-length rejection, a timeout on one remaining item is still recovered.
+
+    The store asks the wrapper once per item; the retry that saves that item belongs to the SDK.
+    """
+
+    async def go():
+        state = {"timeout_pending": True}
+
+        def handler(request):
+            body = json.loads(request.content.decode("utf-8"))
+            inputs = body["input"]
+            if isinstance(inputs, str):
+                inputs = [inputs]
+            if any(len(item) > 32 for item in inputs):
+                return context_length_rejection()
+            if len(inputs) == 1 and state["timeout_pending"]:
+                state["timeout_pending"] = False
+                return read_timeout(request)
+            return embedding_payload(request)
+
+        endpoint = offline_openai_endpoint(handler).install(monkeypatch)
+        provider = openai_wrapper("t_openai_transport_isolated")
+        store = LocalEmbeddingStore(
+            name="t_local_embedding_sdk_transport_isolated",
+            max_retries=3,
+            enable_cache=False,
+        )
+        store.as_embedding = provider
 
         results = await store._call_with_retry(["ok", "x" * 64, "also ok"])
 
-        assert results == [[1.0, 0.0], None, [1.0, 0.0]]
-        assert provider.batch_sizes == [3, 1, 1, 1, 1]
-        assert provider.transient_failures == 1
-        assert sleeps == [1.0]
+        assert results == [[0.0, 1.0], None, [0.0, 1.0]]
+        assert provider.calls == 4
+        assert endpoint.requests == 5
 
     run(go())
 
@@ -1633,3 +1840,92 @@ def test_input_dependent_classifier_accepts_a_413_only_with_an_input_signal():
     assert store._is_input_dependent_failure(RequestBodyTooLargeError("request entity too large")) is False
     assert store._is_input_dependent_failure(ContextLengthError("too long")) is True
     assert store._is_input_dependent_failure(GenAiClientError(400)) is False
+
+
+class _NoRetryPolicyModel:
+    """Stand-in for AgentScope's Ollama embedding model: an empty retryable tuple."""
+
+    @classmethod
+    def _get_retryable_exceptions(cls):
+        """Mirror the inherited empty policy."""
+        return ()
+
+
+class OllamaLikeTransientProvider(TransientThenSuccessAsEmbedding):
+    """An Ollama-shaped provider: the bound model declares no retry policy."""
+
+    def __init__(self, error: Exception, failures: int = 1):
+        super().__init__(error, failures)
+        self.model = _NoRetryPolicyModel()
+
+
+def test_a_provider_with_an_empty_retry_policy_recovers_a_connection_error(monkeypatch):
+    """The store is the retry owner when the model below declares no policy.
+
+    Ollama's embedding model inherits an empty retryable tuple and its SDK converts
+    ``httpx.ConnectError`` into a plain ``ConnectionError`` without retrying, so leaving the
+    retry to the lower layers would turn one dropped connection into a lost vector. The base
+    implementation answered that case with two requests; so must this one.
+    """
+
+    async def go():
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+        provider = OllamaLikeTransientProvider(ConnectionError("connection reset"))
+        store = LocalEmbeddingStore(
+            name="t_local_embedding_empty_retry_policy",
+            max_retries=3,
+            enable_cache=False,
+        )
+        store.as_embedding = provider
+
+        results = await store._call_with_retry(["a", "b", "c"])
+
+        assert results == [[1.0, 0.0]] * 3
+        assert provider.batch_sizes == [3, 3]
+        assert sleeps == [1.0]
+
+    run(go())
+
+
+def test_an_isolated_item_does_not_multiply_sdk_transport_retries(monkeypatch):
+    """Isolating an item must not add a third retry loop over the SDK's budget.
+
+    A rejected batch costs one request; the first isolated item then hits a persistent timeout,
+    which the wrapper and the SDK already try 12 times. The store must stop there (13 requests
+    in total) instead of asking that item three more times (37), and the failure is provider
+    wide, so the remaining items are left unanswered rather than probed one by one.
+    """
+
+    async def go():
+        def handler(request):
+            body = json.loads(request.content.decode("utf-8"))
+            inputs = body["input"]
+            if isinstance(inputs, str):
+                inputs = [inputs]
+            if any(len(item) > 32 for item in inputs):
+                return context_length_rejection()
+            return read_timeout(request)
+
+        endpoint = offline_openai_endpoint(handler).install(monkeypatch)
+        provider = openai_wrapper("t_openai_transport_isolated_budget")
+        store = LocalEmbeddingStore(
+            name="t_local_embedding_sdk_isolated_budget",
+            max_retries=3,
+            enable_cache=False,
+        )
+        store.as_embedding = provider
+
+        results = await store._call_with_retry(["ok", "x" * 64, "also ok"])
+
+        assert results == [None, None, None]
+        assert provider.calls == 2
+        assert endpoint.requests == 13
+        assert store.is_healthy is False
+
+    run(go())

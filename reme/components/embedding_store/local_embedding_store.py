@@ -273,6 +273,16 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
     ) -> list[list[float] | None] | None:
         """Answer a batch, retrying transient failures and isolating input ones.
 
+        Transport failures are provider-wide: no individual input can explain them, so the
+        request is never split per item. Which layer retries them depends on the provider, not
+        on where the request came from: when the embedding model below already retries the
+        transport exceptions it raises (AgentScope's OpenAI model does, and the OpenAI SDK
+        retries each of those attempts), the store answers once and leaves that budget there.
+        A provider whose model has no retry policy -- Ollama inherits an empty retryable tuple
+        and its SDK turns ``httpx.ConnectError`` into a plain ``ConnectionError`` -- gets the
+        store's backoff instead, because otherwise a single dropped connection would cost the
+        vector.
+
         ``terminal_failure`` is an optional out-parameter. When the caller passes a list,
         it is set to ``[True]`` if this call gave up on a failure that no remaining item
         can explain (a provider-wide error, exhausted quota, or exhausted transient
@@ -293,13 +303,30 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
                 if result and len(result) == len(texts):
                     return result
             except Exception as error:
-                if self._is_transient_transport_failure(error):
+                if self._is_transport_failure(error):
                     # A connection failure or a timeout describes the endpoint, not any single
-                    # item: retry the very same request with the usual backoff instead of
-                    # fanning out into per-item requests that would fail the same way.
+                    # item, so this request is never split per item. Whether the store retries
+                    # it is a property of the provider: when the model below has its own retry
+                    # policy, that layer (and the SDK under it) already answers the failure --
+                    # a batch they answer after 12 attempts used to reach the provider 36 times
+                    # with this store retrying on top of them, and an isolated item used to
+                    # multiply the same budget a third time.
+                    if self._provider_owns_transport_retry():
+                        self.logger.exception(
+                            "Embedding request failed: transport error owned by the provider, not splitting",
+                        )
+                        self.is_healthy = False
+                        stop()
+                        break
                     if attempt < self.max_retries - 1:
                         await asyncio.sleep(2**attempt)
-                    continue
+                        continue
+                    self.logger.exception(
+                        "Embedding request failed: transport error after exhausting retries",
+                    )
+                    self.is_healthy = False
+                    stop()
+                    break
                 if self._is_rate_limited(error):
                     if attempt < self.max_retries - 1:
                         delay = 2**attempt
@@ -339,8 +366,8 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
                     # below it -- a batch the SDK answered after 12 attempts became 36 once this
                     # store retried on top of it. Retry ownership therefore stays with those
                     # layers: a caller that wants a longer budget configures it there instead of
-                    # stacking another silent loop here. Transport failures keep their retry
-                    # above because they describe a connection that no lower layer has reported.
+                    # stacking another silent loop here. A transport failure is left to them for
+                    # the same reason; it only skips the per-item split.
                     self.logger.exception("Embedding request failed: provider-wide error, not splitting")
                     stop()
                     break
@@ -378,16 +405,21 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
         Provider-side request errors, such as a per-item context-length limit, reject the
         whole batch and would otherwise cost every vector in it. Isolating each item bounds
         the damage to the item that actually failed and keeps the remaining vectors usable.
-        Each single-item request goes back through ``_call_with_retry`` so a transient
-        failure (429, connection error, timeout) still gets the existing backoff and retry
-        policy instead of losing the vector; a one-item request never splits again.
+        Each single-item request goes back through ``_call_with_retry`` so that a rate limit and
+        a transient transport failure still get the retries that layer owns instead of losing
+        the vector; a provider-wide failure ends the work for the whole batch rather than being
+        asked for every remaining item, and a one-item request never splits again.
         When the loop stops on a provider-wide failure, ``terminal_failure`` is set for the
         caller so the vectors recovered before it are not read as a healthy provider.
         """
         results: list[list[float] | None] = []
         for index, text in enumerate(texts):
             terminal: list[bool] = []
-            single = await self._call_with_retry([text], terminal_failure=terminal, **kwargs)
+            single = await self._call_with_retry(
+                [text],
+                terminal_failure=terminal,
+                **kwargs,
+            )
             if single:
                 results.append(single[0])
                 continue
@@ -410,16 +442,47 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
         return results
 
     @staticmethod
-    def _is_transient_transport_failure(error: Exception) -> bool:
-        """Return whether an error is a transient transport failure worth retrying.
+    def _is_transport_failure(error: Exception) -> bool:
+        """Return whether an error describes a transport failure rather than a rejected input.
 
         Covers the built-in socket errors as well as the provider/httpx exceptions that describe
         a connection failure or a timeout. Transport failures are provider-wide: no individual
-        input can be blamed, so the same request is retried and never split per item.
+        input can be blamed, so the request is never split per item. Who retries them is decided
+        per provider by ``_provider_owns_transport_retry`` rather than per call site.
         """
         if isinstance(error, (TimeoutError, ConnectionError, OSError)):
             return True
         return any(cls.__name__ in _TRANSPORT_FAILURE_TYPES for cls in type(error).__mro__)
+
+    def _provider_owns_transport_retry(self) -> bool:
+        """Return whether the embedding model below already retries transport failures.
+
+        AgentScope's OpenAI embedding model retries every exception its
+        ``_get_retryable_exceptions()`` returns (connection errors and timeouts included), and
+        the OpenAI SDK retries each of those attempts, so a store retry would be a third loop
+        over the same failure. Ollama's embedding model inherits the empty tuple and its SDK
+        converts ``httpx.ConnectError`` into a plain ``ConnectionError`` without retrying, so
+        there the store is the only layer that can recover a dropped connection.
+
+        A model that exposes neither signal -- the test doubles, and any custom provider -- is
+        treated as having no lower-layer policy, so the store keeps its own retry rather than
+        silently dropping a vector.
+        """
+        model = getattr(self.as_embedding, "model", None)
+        if model is None:
+            return False
+        retryable = getattr(model, "_get_retryable_exceptions", None)
+        if callable(retryable):
+            try:
+                if tuple(retryable()):  # pylint: disable=not-callable
+                    return True
+            except Exception:  # pragma: no cover - defensive: a broken policy is a no
+                pass
+        for owner in (model, getattr(model, "client", None)):
+            max_retries = getattr(owner, "max_retries", None)
+            if isinstance(max_retries, int) and max_retries > 0:
+                return True
+        return False
 
     @staticmethod
     def _http_status(error: Exception) -> int | None:
