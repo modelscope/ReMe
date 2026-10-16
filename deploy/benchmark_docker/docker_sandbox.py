@@ -693,7 +693,16 @@ class DockerReMeSandbox:
         serialized: list[dict[str, Any]] = []
         query_ids: list[str] = []
         for query in queries:
-            value = asdict(query) if isinstance(query, EvaluationQuery) else dict(query)
+            value = (
+                {
+                    "query_id": query.query_id,
+                    "question": query.question,
+                    "answer_arguments": query.answer_arguments,
+                    "answer_job": query.answer_job,
+                }
+                if isinstance(query, EvaluationQuery)
+                else dict(query)
+            )
             query_id = value.get("query_id")
             if not isinstance(query_id, str):
                 raise ValueError("every evaluation query requires a string query_id")
@@ -916,7 +925,7 @@ class DockerReMeSandbox:
         The copy is made through a validated archive, so each sandbox receives
         an independent filesystem tree and can run queries in parallel.
         """
-        archive = _archive_workspace(source)
+        archive = await asyncio.to_thread(_archive_workspace, source)
         async with self._operation_lock:
             assert self.backend is not None, "sandbox is not initialized"
             if clear:
