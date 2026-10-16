@@ -120,6 +120,8 @@ Jev 分块筛选、首尾截取和普通 Qwen 摘要。证据预算为 600 / 100
 长日志 Jev 总输入从 8617 降至 3557 token，减少 58.7%；压缩耗时约 0.8 秒，摘要约 16.5 秒。
 所有组的候选修复代码均通过六项行为测试，未区分出修复效果差异。
 
+![Long-log compaction: input tokens, fact accuracy and compaction time](../figure/decision-compaction-benchmark.svg)
+
 这项实验显示了输入压缩和较短的压缩耗时，尚未证明稳定优于普通摘要。它只有一个任务及其合成变体，
 每个上下文回答两次；预算使用本地 tokenizer 代理，总输入使用 API usage，未计算总费用或测试原文恢复。
 具体评分方法、完整结果、遗漏分析与复现命令均见 Benchmark 文档。

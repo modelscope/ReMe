@@ -131,6 +131,8 @@ versus 90% on the long-log variant. Jev reduced the long-log request from 8617 t
 about 0.8 seconds of compaction versus 16.5 seconds for summarization. Every arm passed all six function-level repair
 tests, so those tests did not distinguish repair quality.
 
+![Long-log compaction: input tokens, fact accuracy and compaction time](../figure/decision-compaction-benchmark.svg)
+
 This run demonstrates input reduction and lower observed compaction latency, without establishing consistent quality
 improvements over summarization. It uses one task and its synthetic variant, with two answers per context. Budgets use
 a local tokenizer proxy, input usage comes from the API, and total billing cost and archive recovery were not tested.

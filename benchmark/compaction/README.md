@@ -83,3 +83,16 @@ repair test, not a full agent task benchmark. Each context is answered twice; ea
 Reports include evidence and actual input tokens, factual accuracy, repair pass rates, compaction latency, usage,
 full requests/responses and source offsets. Compression savings alone do not establish lower total cost or better
 quality. The experiment may fail to show a Jev advantage; report that outcome without changing the frozen budgets.
+
+
+To render the English comparison chart from the saved 2026-10-15 results, install optional `matplotlib` in your
+plotting environment and run from the repository root (no provider calls):
+
+```bash
+python -m benchmark.compaction.plot_results \
+  --results /path/outside/repository/span-experiment/results.json \
+  --output docs/figure/decision-compaction-benchmark.svg
+```
+
+The chart shows the controlled long-log variant at the 1000-token evidence allowance, including all four arms.
+Axes start at zero; timings that were not measured are labeled explicitly. All plotted values come from `results.json`.

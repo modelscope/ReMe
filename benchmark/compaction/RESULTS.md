@@ -86,6 +86,8 @@
 | 长日志变体 | 首尾截取 | 1000 | 996 | 3593 | 60% | 100% | — |
 | 长日志变体 | 普通摘要 | 1000 | 877 | 3474 | 90% | 100% | 16.49 |
 
+![Long-log compaction: input tokens, fact accuracy and compaction time](../../docs/figure/decision-compaction-benchmark.svg)
+
 长日志 1000 token 预算下，Jev 总输入从 8617 降至 3557，减少 **58.7%**；普通摘要降至 3474，减少 **59.7%**。
 原始样本的同档预算下，Jev 保留全部事实，但长日志中的两档预算均落后于摘要。
 Jev 本轮压缩耗时约 0.8 秒，摘要为 9.5—17.1 秒；首尾截取的耗时未单独测量。
