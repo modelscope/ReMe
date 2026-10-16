@@ -137,3 +137,22 @@ This run demonstrates input reduction and lower observed compaction latency, wit
 improvements over summarization. It uses one task and its synthetic variant, with two answers per context. Budgets use
 a local tokenizer proxy, input usage comes from the API, and total billing cost and archive recovery were not tested.
 See the benchmark for scoring, complete results, omission analysis and reproduction commands.
+
+
+## Summary plus incremental evidence
+
+The [multi-arm protocol and results (Chinese)](https://github.com/jinliyl/ReMe/blob/ba57fc5cdb80f3eb8b53ea12588254f3212a2c6f/benchmark/compaction/HYBRID_RESULTS.md) compare fixed-budget allocation, additions to a frozen summary,
+and summary-aware evidence selection. These are direct Qwen evaluations: payment input comes from a Hermes-collected
+synthetic task, plus an independent replica fixture. Hermes does not continue its agent loop during evaluation.
+
+The summary-aware arm keeps every summary byte unchanged, then adds at most 400 evidence tokens selected at probability
+0.5 or higher. A task-only selector uses the same threshold as a control. Across 16 valid frozen summary instances, strict fact
+accuracy improved in 7 and tied in 9, with no observed regression; the mean gain was 12.2 percentage points. At a 300-token
+base-summary allowance, the short payment case improved from 60% to 100%, and its long-log variant from 75% to 100%.
+
+![Summary-aware evidence additions to unchanged summaries](../figure/decision-compaction-summary-aware.svg)
+
+This post-hoc diagnostic covers two task families, including a noise variant and repeated generations. It is not held-out
+validation or a monotonicity guarantee. Appending evidence increases input: the long-log 600-token baseline grew from
+3070 to 3452 actual input tokens, with strict accuracy improving from 70% to 87.5%. The hybrid policy remains experimental
+and does not change the production `compact_context` contract above.

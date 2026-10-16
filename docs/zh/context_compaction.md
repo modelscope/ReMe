@@ -125,3 +125,19 @@ Jev 分块筛选、首尾截取和普通 Qwen 摘要。证据预算为 600 / 100
 这项实验显示了输入压缩和较短的压缩耗时，尚未证明稳定优于普通摘要。它只有一个任务及其合成变体，
 每个上下文回答两次；预算使用本地 tokenizer 代理，总输入使用 API usage，未计算总费用或测试原文恢复。
 具体评分方法、完整结果、遗漏分析与复现命令均见 Benchmark 文档。
+
+
+## 摘要与增量原文
+
+[多组评测方案与结果](https://github.com/jinliyl/ReMe/blob/ba57fc5cdb80f3eb8b53ea12588254f3212a2c6f/benchmark/compaction/HYBRID_RESULTS.md)比较了固定预算配比、冻结摘要后追加原文，以及让决策模型看到摘要后选择互补证据。
+这些实验直接调用 Qwen；支付数据来自 Hermes 采集的合成任务，另有独立副本故障 fixture，没有运行 Hermes 代理继续执行。
+
+摘要感知组保留同一份纯摘要，再追加最多 400 token 原文，只选择增量有用概率不低于 0.5 的片段。
+同阈值的任务相关性选择作为对照。16 份有效冻结摘要实例中，7 份严格得分提升、9 份持平，未观察到下降，
+严格事实得分平均提高 12.2 个百分点。支付短样本的 300-token 基础摘要从 60% 到 100%，长日志同档从 75% 到 100%。
+
+![Summary-aware evidence additions to unchanged summaries](../figure/decision-compaction-summary-aware.svg)
+
+这是两个任务族上的事后机制诊断，包含增噪变体和重复生成，不能视为独立测试集或单调性保证。
+追加原文增加总输入：长日志 600-token 基础摘要从 3070 到 3452 个实际输入 token，严格得分从 70% 到 87.5%。
+该策略仍是 benchmark 实验，没有改变上面的 `compact_context` 生产契约。
