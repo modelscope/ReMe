@@ -191,3 +191,16 @@ python -m benchmark.compaction.plot_results --aware \
 This makes new decision calls and may make new Qwen answering calls. It uses the valid frozen baselines from the
 incremental experiment, including their exact stored hashes. Report every arm, additional input cost and failed
 baseline; do not treat post-hoc gains on these same tasks as held-out validation or guaranteed monotonic improvement.
+
+
+### Unified strategy comparison
+
+The context-compaction guide combines selection and fusion in one chart using the October 16 splitter and strict
+fact scores. It shows actual input usage alongside accuracy, including larger pure-summary controls. It does not
+combine scores from the earlier pilot or claim global optimality. Render offline from the combined analysis:
+
+```bash
+python -m benchmark.compaction.plot_results --comparison \
+  --results /path/outside/repository/incremental-experiment/analysis.json \
+  --output docs/figure/decision-compaction-comparison.svg
+```

@@ -265,6 +265,130 @@ def plot_hybrid(results, output, *, incremental=False, aware=False):
     plt.close(figure)
 
 
+def plot_comparison(results, output):
+    """Compare saved selection, summary and frozen-summary fusion results with actual input usage."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Patch
+
+    plt.rcParams.update(
+        {
+            "font.family": "DejaVu Sans",
+            "svg.fonttype": "none",
+            "svg.hashsalt": "reme-compaction-comparison",
+        },
+    )
+    primary = {(r["case"], r["budget"], r["arm"]): r for r in results["primary"]}
+    aware = {(r["case"], r["budget"], r["arm"]): r for r in results["summary_aware"]}
+    configurations = [
+        ("Summary 300", aware, 300, "same_summary", "#0d9488"),
+        ("Fusion 300 + 400", aware, 300, "aware400", "#2563eb"),
+        ("Summary 600", aware, 600, "same_summary", "#0d9488"),
+        ("Fusion 600 + 400", aware, 600, "aware400", "#2563eb"),
+        ("Jev only 600", primary, 600, "spans", "#8b5cf6"),
+        ("Summary 1,000", aware, 1000, "same_summary", "#0d9488"),
+        ("Fusion 1,000 + 400", aware, 1000, "aware400", "#2563eb"),
+        ("Jev only 1,000", primary, 1000, "spans", "#8b5cf6"),
+    ]
+    figure, axes = plt.subplots(1, 3, figsize=(19, 9))
+    figure.subplots_adjust(left=0.10, right=0.98, top=0.73, bottom=0.25, wspace=0.58)
+    figure.text(0.03, 0.94, "Summary + decision-selected evidence: quality and input", size=23, weight="bold")
+    figure.text(
+        0.03,
+        0.885,
+        "Fusion keeps the exact baseline summary and appends missing evidence selected by Jev.",
+        size=13,
+        color="#475569",
+    )
+    figure.text(
+        0.03,
+        0.845,
+        "Row labels show token allowances; the right column reports actual total API input tokens.",
+        size=12,
+        color="#475569",
+    )
+    for axis, case, name in zip(
+        axes,
+        ["payment_short", "payment_long", "replica"],
+        ["Payment / short", "Payment / long logs", "Replica fixture"],
+    ):
+        axis.set_title(name, loc="left", weight="bold", size=14, pad=28)
+        axis.set_xlim(0, 155)
+        axis.set_ylim(7.65, -0.65)
+        axis.set_yticks(range(8), [c[0] for c in configurations], fontsize=10)
+        axis.set_xticks([0, 25, 50, 75, 100], ["0%", "25%", "50%", "75%", "100%"])
+        axis.set_xlabel("Strict fact accuracy", color="#475569", labelpad=12)
+        axis.tick_params(length=0, pad=7, colors="#475569")
+        for spine in axis.spines.values():
+            spine.set_visible(False)
+        for tick in [0, 25, 50, 75, 100]:
+            axis.axvline(tick, color="#e2e8f0", linewidth=0.8, zorder=0)
+        axis.text(132, -0.9, "Input tokens", ha="center", fontsize=10, color="#475569")
+        for y, (_, source, budget, arm, color) in enumerate(configurations):
+            row = source.get((case, budget, arm))
+            if not row or not row["valid_compressions"]:
+                axis.text(0, y, "Baseline over budget", va="center", size=9, color="#94a3b8")
+                axis.text(132, y, "—", va="center", ha="center", color="#94a3b8")
+                continue
+            score = row["strict_fact_accuracy"] * 100
+            axis.barh(y, score, height=0.48, color=color, zorder=3)
+            axis.text(score + 2, y, f"{score:g}%", va="center", fontsize=10, color="#0f172a")
+            axis.text(132, y, f'{row["prompt_tokens"]:,.0f}', va="center", ha="center", fontsize=10)
+        for separator in [1.5, 4.5]:
+            axis.axhline(separator, color="#e2e8f0", linewidth=0.8)
+    figure.legend(
+        handles=[
+            Patch(color="#0d9488", label="Pure summary"),
+            Patch(color="#2563eb", label="Summary-aware fusion"),
+            Patch(color="#8b5cf6", label="Original evidence selection"),
+        ],
+        loc="lower left",
+        bbox_to_anchor=(0.025, 0.15),
+        ncol=3,
+        frameon=False,
+        fontsize=12,
+    )
+    figure.text(
+        0.03,
+        0.125,
+        "Frozen-summary comparison: 7 improved, 9 tied, 0 observed regressions; mean gain +12.2 pp.",
+        size=12,
+        weight="bold",
+        color="#2563eb",
+    )
+    figure.text(
+        0.03,
+        0.085,
+        "Fusion improves small summaries here; it is not globally best. "
+        "A 1,000-token pure summary reaches 100% in all three cases.",
+        size=11,
+        color="#475569",
+    )
+    figure.text(
+        0.03,
+        0.045,
+        "2026-10-16 | Direct qwen3.8-max evaluation | "
+        "Two generations x two answers per valid row | No Hermes continuation",
+        size=10,
+        color="#64748b",
+    )
+    figure.text(
+        0.03,
+        0.015,
+        "Two task families; post-hoc fusion diagnostic. Allowances use a local tokenizer proxy. "
+        "Full matrices: benchmark/compaction/HYBRID_RESULTS.md",
+        size=10,
+        color="#64748b",
+    )
+    output.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(output, format=output.suffix.lstrip("."), metadata={"Date": "2026-10-16"})
+    if output.suffix == ".svg":
+        output.write_text("\n".join(line.rstrip() for line in output.read_text().splitlines()) + "\n")
+    plt.close(figure)
+
+
 def main():
     """Read saved experiment results; plotting never calls model providers."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -273,9 +397,12 @@ def main():
     parser.add_argument("--hybrid", action="store_true")
     parser.add_argument("--incremental", action="store_true")
     parser.add_argument("--aware", action="store_true")
+    parser.add_argument("--comparison", action="store_true")
     args = parser.parse_args()
     results = json.loads(args.results.read_text(encoding="utf-8"))
-    if args.aware:
+    if args.comparison:
+        plot_comparison(results, args.output)
+    elif args.aware:
         plot_hybrid(results["summary_aware"], args.output, incremental=True, aware=True)
     elif args.incremental:
         plot_hybrid(results["incremental"], args.output, incremental=True)

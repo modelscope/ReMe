@@ -108,36 +108,22 @@ REME_RUN_DECISION_INTEGRATION=1 pytest tests/integration/test_decision_compactio
 真实 trajectory 评测应对比近期保留和纯规则预览，同时测量恢复次数、继续执行的质量、时延、总成本和 token 节省。
 ReMe 不会自动生成摘要或写入长期记忆。
 
+## 压缩策略对比
 
-## 分块压缩实验
+[Benchmark 评测方案与完整结果](https://github.com/jinliyl/ReMe/blob/ba57fc5cdb80f3eb8b53ea12588254f3212a2c6f/benchmark/compaction/HYBRID_RESULTS.md)比较纯摘要、Jev 原文筛选和摘要感知融合。
+下图统一使用 2026-10-16 的分块方式与严格事实评分，展示支付短样本、长日志变体和独立副本故障 fixture。
+评测直接调用 Qwen；支付 trajectory 由 Hermes 采集，评测阶段没有运行 Hermes 代理继续执行。
 
-[Benchmark 评测方案与结果](https://github.com/jinliyl/ReMe/blob/cf5587681070735db6b49fe90f93c752a17935eb/benchmark/compaction/RESULTS.md)
-记录了 2026-10-15 的本地对照实验：以 Hermes 采集的合成支付 trajectory 及其长日志增噪变体，比较完整证据、
-Jev 分块筛选、首尾截取和普通 Qwen 摘要。证据预算为 600 / 1000 token，所有组保持相同的 system、user 和评测提示。
-分块排序只在实验脚本中实现；上述 `compact_context` 的配对判断与低概率预览策略保持不变。
+融合保留同一份基础摘要，让决策模型看到摘要后选择缺失或不够精确的证据，再追加最多 400 token 原文；
+只选择增量有用概率不低于 0.5 的片段。图中行名是预算上限，右列是 API 返回的实际总输入 token，包含公共上下文。
+融合与基础摘要的总预算不同；更大预算的纯摘要和纯原文筛选同时列出，供质量与输入量对比。
 
-1000 token 预算下，原始短样本的 Jev 事实正确率为 100%，摘要为 90%；长日志变体则分别为 85% 和 90%。
-长日志 Jev 总输入从 8617 降至 3557 token，减少 58.7%；压缩耗时约 0.8 秒，摘要约 16.5 秒。
-所有组的候选修复代码均通过六项行为测试，未区分出修复效果差异。
+![Summary, original evidence selection and summary-aware fusion: accuracy and actual input tokens](../figure/decision-compaction-comparison.svg)
 
-![Long-log compaction: input tokens, fact accuracy and compaction time](../figure/decision-compaction-benchmark.svg)
+16 份有效冻结摘要实例中，融合有 7 份严格得分提升、9 份持平，未观察到下降，平均提高 12.2 个百分点。
+300-token 基础摘要的支付短样本从 60% 到 100%，长日志从 75% 到 100%。这支持“摘要加互补原文”可以修复小摘要的遗漏。
 
-这项实验显示了输入压缩和较短的压缩耗时，尚未证明稳定优于普通摘要。它只有一个任务及其合成变体，
-每个上下文回答两次；预算使用本地 tokenizer 代理，总输入使用 API usage，未计算总费用或测试原文恢复。
-具体评分方法、完整结果、遗漏分析与复现命令均见 Benchmark 文档。
-
-
-## 摘要与增量原文
-
-[多组评测方案与结果](https://github.com/jinliyl/ReMe/blob/ba57fc5cdb80f3eb8b53ea12588254f3212a2c6f/benchmark/compaction/HYBRID_RESULTS.md)比较了固定预算配比、冻结摘要后追加原文，以及让决策模型看到摘要后选择互补证据。
-这些实验直接调用 Qwen；支付数据来自 Hermes 采集的合成任务，另有独立副本故障 fixture，没有运行 Hermes 代理继续执行。
-
-摘要感知组保留同一份纯摘要，再追加最多 400 token 原文，只选择增量有用概率不低于 0.5 的片段。
-同阈值的任务相关性选择作为对照。16 份有效冻结摘要实例中，7 份严格得分提升、9 份持平，未观察到下降，
-严格事实得分平均提高 12.2 个百分点。支付短样本的 300-token 基础摘要从 60% 到 100%，长日志同档从 75% 到 100%。
-
-![Summary-aware evidence additions to unchanged summaries](../figure/decision-compaction-summary-aware.svg)
-
-这是两个任务族上的事后机制诊断，包含增噪变体和重复生成，不能视为独立测试集或单调性保证。
-追加原文增加总输入：长日志 600-token 基础摘要从 3070 到 3452 个实际输入 token，严格得分从 70% 到 87.5%。
-该策略仍是 benchmark 实验，没有改变上面的 `compact_context` 生产契约。
+现有数据不能证明融合全局最优：1000-token 纯摘要在三个场景均达到 100%；长日志中，它使用 3292 个实际输入 token，
+而 600 + 400 融合使用 3452 个、得分 87.5%。因此应根据输入预算选择策略，不能把追加输入后的提升当作同预算优势。
+这是两个任务族上的事后诊断，包含增噪变体与重复生成，不是独立测试集或单调性保证。
+完整预算矩阵、失败样本、选择对照及早期实验见 Benchmark 文档。融合仅在实验脚本实现，未改变上述 `compact_context` 生产契约。

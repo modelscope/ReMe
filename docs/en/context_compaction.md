@@ -117,42 +117,27 @@ Only model requests run externally; fixture tool calls are not executed. These c
 success. Evaluate real trajectories against recency and rule-based previews, measuring recovery, continuation quality,
 latency and total cost alongside token reduction. ReMe does not automatically summarize or write persistent memory.
 
+## Compaction strategy comparison
 
-## Span-selection experiment
+The [benchmark protocol and complete results (Chinese)](https://github.com/jinliyl/ReMe/blob/ba57fc5cdb80f3eb8b53ea12588254f3212a2c6f/benchmark/compaction/HYBRID_RESULTS.md) compare pure summaries, Jev original-evidence selection,
+and summary-aware fusion. This unified chart uses the October 16, 2026 splitter and strict fact scoring across a short
+payment case, its long-log variant and an independent replica fixture. Evaluation calls Qwen directly; Hermes collected
+the payment trajectory but does not continue its agent loop during evaluation.
 
-The [benchmark protocol and results (Chinese)](https://github.com/jinliyl/ReMe/blob/cf5587681070735db6b49fe90f93c752a17935eb/benchmark/compaction/RESULTS.md)
-describe a local run on October 15, 2026, using a synthetic Hermes payment trajectory and a controlled long-log
-augmentation. It compares full evidence, Jev span selection, head/tail clipping and ordinary Qwen summaries under
-600/1000 evidence-token allowances, with identical system/user instructions and evaluation prompts.
-Span ranking is implemented in the experiment runner; the pair-level, low-probability preview policy above is unchanged.
+Fusion keeps the exact baseline summary, lets the decision model identify missing or insufficiently precise evidence,
+and appends at most 400 original-evidence tokens with incremental-usefulness probability at least 0.5. Row labels show
+allowances; the right column shows actual total API input tokens, including shared context. Fusion has a larger allowance
+than its baseline. Larger pure summaries and original-evidence selection are included to expose the quality/input tradeoff.
 
-At the 1000-token allowance, Jev retained 100% of facts versus 90% for summarization on the short sample, but 85%
-versus 90% on the long-log variant. Jev reduced the long-log request from 8617 to 3557 input tokens (58.7%), with
-about 0.8 seconds of compaction versus 16.5 seconds for summarization. Every arm passed all six function-level repair
-tests, so those tests did not distinguish repair quality.
+![Summary, original evidence selection and summary-aware fusion: accuracy and actual input tokens](../figure/decision-compaction-comparison.svg)
 
-![Long-log compaction: input tokens, fact accuracy and compaction time](../figure/decision-compaction-benchmark.svg)
+Across 16 valid frozen summary instances, fusion improved strict scores in 7 and tied in 9, with no observed regression;
+the mean gain was 12.2 percentage points. At the 300-token summary allowance, the short payment case improved from 60%
+to 100%, and the long-log variant from 75% to 100%. Complementary original evidence can repair omissions in small summaries.
 
-This run demonstrates input reduction and lower observed compaction latency, without establishing consistent quality
-improvements over summarization. It uses one task and its synthetic variant, with two answers per context. Budgets use
-a local tokenizer proxy, input usage comes from the API, and total billing cost and archive recovery were not tested.
-See the benchmark for scoring, complete results, omission analysis and reproduction commands.
-
-
-## Summary plus incremental evidence
-
-The [multi-arm protocol and results (Chinese)](https://github.com/jinliyl/ReMe/blob/ba57fc5cdb80f3eb8b53ea12588254f3212a2c6f/benchmark/compaction/HYBRID_RESULTS.md) compare fixed-budget allocation, additions to a frozen summary,
-and summary-aware evidence selection. These are direct Qwen evaluations: payment input comes from a Hermes-collected
-synthetic task, plus an independent replica fixture. Hermes does not continue its agent loop during evaluation.
-
-The summary-aware arm keeps every summary byte unchanged, then adds at most 400 evidence tokens selected at probability
-0.5 or higher. A task-only selector uses the same threshold as a control. Across 16 valid frozen summary instances, strict fact
-accuracy improved in 7 and tied in 9, with no observed regression; the mean gain was 12.2 percentage points. At a 300-token
-base-summary allowance, the short payment case improved from 60% to 100%, and its long-log variant from 75% to 100%.
-
-![Summary-aware evidence additions to unchanged summaries](../figure/decision-compaction-summary-aware.svg)
-
-This post-hoc diagnostic covers two task families, including a noise variant and repeated generations. It is not held-out
-validation or a monotonicity guarantee. Appending evidence increases input: the long-log 600-token baseline grew from
-3070 to 3452 actual input tokens, with strict accuracy improving from 70% to 87.5%. The hybrid policy remains experimental
+These results do not establish fusion as globally optimal: a 1,000-token pure summary reaches 100% in all three cases.
+On long logs it uses 3,292 actual input tokens, versus 3,452 tokens and 87.5% accuracy for 600 + 400 fusion. Choose according
+to the input budget; an improvement after adding input is not a same-budget advantage. This post-hoc diagnostic covers
+two task families, a noise variant and repeated generations, without held-out validation or a monotonicity guarantee.
+See the benchmark for all budgets, invalid cases, selection controls and earlier experiments. Fusion remains experimental
 and does not change the production `compact_context` contract above.
