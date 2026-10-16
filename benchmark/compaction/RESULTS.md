@@ -1,5 +1,7 @@
 # Jev across two summary strategies
 
+**English** | [简体中文](./RESULTS_ZH.md)
+
 2026-10-16 · Qwen `qwen3.8-max` · Jev `jev-1.13.0`.
 
 One **13-method experiment**: Full context, generic summary **S + Top 0–5**, and Hermes compaction summary (small-budget setting)

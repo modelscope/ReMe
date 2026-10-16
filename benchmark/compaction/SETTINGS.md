@@ -1,5 +1,7 @@
 # Experiment settings and reproducibility
 
+**English** | [简体中文](./SETTINGS_ZH.md)
+
 This describes the **13-method comparison** reported in [RESULTS.md](./RESULTS.md): Full context, generic summary S
 and Hermes compaction summary H, each with Jev Top 0–5. Top 0 means summary only.
 [STUDY.md](./STUDY.md) defines the queries, fixed answers, scoring rules and protocol amendments.
@@ -153,4 +155,4 @@ The bundle's `corpus/`, `evaluation/`, `native/`, `native-source/`, `combined/` 
 Fresh runs require `.env` entries `LLM_API_KEY`, `LLM_BASE_URL`, `DECISION_MODEL_API_KEY`, optional
 `DECISION_MODEL_BASE_URL`, and `DECISION_MODEL_NAME=jev-1.13.0` to request the recorded Jev version when available.
 Use isolated Python environments, the versions above, the pinned Hermes checkout and tokenizer, and new output directories.
-Do not commit `.env`, raw records or the bundle. No fresh paid inference is needed for frozen replay.
+Do not commit `.env`, raw records or the bundle. No fresh model inference is needed for frozen replay.

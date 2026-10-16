@@ -1,5 +1,7 @@
 # Fourteen-task study: frozen queries, answers and rules
 
+**English** | [简体中文](./STUDY_ZH.md)
+
 Model/framework versions, exact parameters and artifact requirements are in [experiment settings](./SETTINGS.md).
 
 The initial task panel was frozen before collection. Explicit format corrections and native additions are recorded below.
@@ -18,7 +20,7 @@ The follow-up and expected values never enter collection or compression requests
 | payment | Investigate the original payment retry incident. | `{"incident_id": "PAY-4827", "invoice_id": "INV-731", "successful_charge_id": "CH-991", "amount_minor": 12900, "attempt_keys": ["pay-a", "pay-b"], "first_attempt_committed": true, "max_attempts": 3, "no_retry_http_statuses": [402, 422], "key_generation_line": 5, "regression_attempt_counts": {"timeout_then_success": 2, "validation_422": 1, "three_timeouts": 3}}` | Primary candidate |
 | backup | A while back I told you one of my repos needed nightly backups — find which repo that was in our past conversations (do not guess). Then: write backup.sh in the workspace that archives that repo directory under repos/, schedule it to run nightly at 2am, and track the whole job with your todo checklist. Report back which repo it was and what you set up. | `{"repo": "sparks-data", "ignored_repo": "toybox", "data_text": "important"}` | Control: short_fixture |
 | refactor | In src/, every requests call uses timeout=30. Bump them all to timeout=45, add a CHANGELOG.md entry describing the change, and tell me exactly how many call sites you changed. | `{"old_timeout": 30, "call_sites": 3, "functions": ["fetch_a", "fetch_b", "fetch_c"], "methods": ["get", "post", "head"], "old_version": "1.0"}` | Control: short_fixture |
-| three_files | This is a multi-step job — track it with your todo checklist tool and keep it updated as you go, marking each step completed when verified. Steps: (1) create greet.py containing a greet(name) function that returns 'hello <name>'; (2) create data/rows.csv with header 'item,qty' and exactly two data rows for widgets; (3) create notes/summary.md stating how many files you created. Finish only when all three are done and checked off. | `{"file_count": 3, "header": "item,qty", "data_rows": 2}` | Control: query_only |
+| three_files | This is a multi-step job — track it with your todo checklist tool and keep it updated as you go, marking each step completed when verified. Steps: (1) create greet.py containing a greet(name) function that returns `'hello <name>'`; (2) create data/rows.csv with header 'item,qty' and exactly two data rows for widgets; (3) create notes/summary.md stating how many files you created. Finish only when all three are done and checked off. | `{"file_count": 3, "header": "item,qty", "data_rows": 2}` | Control: query_only |
 | active_config | Search this workspace for wherever the retry_limit setting is configured and tell me its current value. | `{"retry_limit": 7, "backoff": 2, "active_file": "conf/app.ini", "old_file": "conf/old.ini"}` | Control: short_fixture |
 | checkout_504 | Investigate the checkout 504 incident: distinguish the failed rollback, root cause and final database fix. | `{"setting": "statement_timeout", "value_seconds": 45, "index_mode": "CONCURRENTLY", "root_cause": "CREATE INDEX without CONCURRENTLY", "rolled_back_version": "v2.30.2", "rollback_fixed": false, "deployed_version": "v2.31.0", "initial_error_percent": 8}` | Primary candidate |
 | dependency_version | What exact left-pad version is pinned, and which file declares the test script? Record the package scripts for a handoff. | `{"version": "1.3.0", "declaration": "package.json", "test": "vitest run", "build": "tsc -p .", "package_version": "4.2.1"}` | Control: short_fixture |
@@ -84,9 +86,9 @@ and appends a total word limit (35% of the token target, at least 18 words) allo
 The Historical Task Snapshot/no-user sentinel and Critical Context sections remain. Native validation is retained.
 
 Strip the native control prefix with Hermes' own helper before using the same downstream `Summary:` carrier as S.
-This compares generated summary bodies without charging Hermes twice for handoff framing. No model response is edited
+This compares generated summary bodies without duplicating handoff framing. No model response is edited
 for factual content. The native call sees only the pre-final evidence history and the original task as its focus;
-no exam or gold. Allow at most three length-only retries, reducing the requested target by 0.8, without answer feedback.
+no exam or gold. Allow at most three length-check attempts, reducing the requested target by 0.8, without answer feedback.
 
 Three summaries × two answers × fourteen tasks add **42 contexts and 84 planned answers**: **336 contexts and 672 planned
 answers** across eight methods. Keep the same original system/task and exact scoring follow-up as other methods.

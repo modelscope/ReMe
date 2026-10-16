@@ -1,5 +1,7 @@
 # Context compaction: fixed summary + selected evidence
 
+**English** | [简体中文](./README_ZH.md)
+
 A **14-query fixture panel** with predefined answers and rule scoring: four primary tasks and ten short/query-only
 controls. See [queries, answers and frozen settings](./STUDY.md) and [measured results](./RESULTS.md).
 
