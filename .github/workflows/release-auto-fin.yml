@@ -3,22 +3,17 @@
 # 2. 确认插件依赖的 reme-ai 版本已经发布到 PyPI；本工作流会在构建阶段验证该依赖可下载。
 # 3. 确认 PyPI Trusted Publisher 已绑定本仓库、此工作流和 pypi environment，且 PyPI 上不存在相同版本。
 # 4. 在 GitHub 仓库的 Actions 页面选择“Release / Auto Fin plugin”，点击“Run workflow”。
-# 5. 输入与 project.version 完全一致的版本号（例如 0.1.0）后运行；版本也可以带 v 前缀。
+# 5. 选择目标分支并运行；发布版本直接读取该提交的 project.version。
 #
 # 推荐发布顺序：reme-ai -> reme-auto-fin -> QwenPaw 更新依赖并通过 plugins: [auto-fin] 启用。
 # 当前仅支持 workflow_dispatch 手动触发，不会因 push、tag 或 release 自动发布。
 
 name: Release / Auto Fin plugin
 
-run-name: Publish reme-auto-fin ${{ inputs.version }}
+run-name: Publish reme-auto-fin ${{ github.ref_name }}
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: Version from plugins/auto-fin/pyproject.toml (for example, 0.1.0)
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -31,8 +26,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    env:
-      RELEASE_VERSION: ${{ inputs.version }}
+    outputs:
+      version: ${{ steps.package.outputs.version }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -54,9 +49,8 @@ jobs:
       - name: Validate package name and release version
         id: package
         run: |
-          python - "${RELEASE_VERSION}" <<'PY'
+          python - <<'PY'
           import os
-          import sys
           import tomllib
           from pathlib import Path
 
@@ -64,12 +58,9 @@ jobs:
           from packaging.version import Version
 
           project = tomllib.loads(Path("plugins/auto-fin/pyproject.toml").read_text(encoding="utf-8"))["project"]
-          expected = Version(sys.argv[1].removeprefix("v"))
           actual = Version(project["version"])
           if project["name"] != "reme-auto-fin":
               raise SystemExit(f"Expected project name 'reme-auto-fin', found {project['name']!r}")
-          if actual != expected:
-              raise SystemExit(f"Package version is {actual}, but workflow input is {expected}")
           requirements = [requirement for requirement in project["dependencies"] if requirement.startswith("reme-ai")]
           if len(requirements) != 1:
               raise SystemExit(f"Expected one reme-ai dependency, found {requirements!r}")
@@ -97,6 +88,7 @@ jobs:
           with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
               print(f"reme_requirement={reme_requirement}", file=output)
               print(f"agentscope_requirement={agentscope_requirement}", file=output)
+              print(f"version={actual}", file=output)
           print(f"Publishing {project['name']} {actual}")
           PY
 
@@ -152,7 +144,7 @@ jobs:
       - name: Upload distributions
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: reme-auto-fin-${{ inputs.version }}
+          name: reme-auto-fin-${{ steps.package.outputs.version }}
           path: dist/auto-fin/
           if-no-files-found: error
 
@@ -169,7 +161,7 @@ jobs:
       - name: Download distributions
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: reme-auto-fin-${{ inputs.version }}
+          name: reme-auto-fin-${{ needs.build.outputs.version }}
           path: dist/auto-fin
 
       - name: Publish reme-auto-fin

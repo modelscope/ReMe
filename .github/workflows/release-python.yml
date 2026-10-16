@@ -1,17 +1,13 @@
 name: Release / ReMe Python package
 
 # Publishing a GitHub Release is the primary release trigger for reme-ai; workflow_dispatch is the recovery path.
+# Manual runs publish the version in reme/__init__.py from the selected ref.
 # Configure a PyPI Trusted Publisher for this repository, workflow, and its pypi environment first.
 
-run-name: Publish reme-ai ${{ github.event.release.tag_name || inputs.version }}
+run-name: Publish reme-ai ${{ github.event.release.tag_name || github.ref_name }}
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: Exact reme-ai version; an optional v prefix is accepted
-        required: true
-        type: string
   release:
     types: [published]
 
@@ -27,7 +23,7 @@ jobs:
     name: Build and verify distributions
     uses: ./.github/workflows/_build-python-packages.yml
     with:
-      expected_version: ${{ github.event.release.tag_name || inputs.version }}
+      expected_version: ${{ github.event.release.tag_name }}
       upload_artifacts: true
 
   publish-reme:

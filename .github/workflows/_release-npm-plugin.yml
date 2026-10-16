@@ -15,14 +15,6 @@ on:
         description: Prefix for the packed package artifact
         required: true
         type: string
-      version:
-        description: Exact package.json version; an optional v prefix is accepted
-        required: true
-        type: string
-      npm_tag:
-        description: npm distribution tag
-        required: true
-        type: string
       use_npm_token:
         description: Use the npm environment NPM_TOKEN instead of Trusted Publishing
         required: false
@@ -37,6 +29,9 @@ on:
       version:
         description: Normalized package version
         value: ${{ jobs.build.outputs.version }}
+      npm_tag:
+        description: npm distribution tag derived from the package version
+        value: ${{ jobs.build.outputs.npm_tag }}
     secrets:
       NPM_TOKEN:
         description: Optional bootstrap or recovery token for npm publishing
@@ -51,6 +46,7 @@ jobs:
     timeout-minutes: 30
     outputs:
       version: ${{ steps.validate.outputs.version }}
+      npm_tag: ${{ steps.validate.outputs.npm_tag }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -68,21 +64,15 @@ jobs:
         working-directory: ${{ inputs.directory }}
         env:
           EXPECTED_NAME: ${{ inputs.package_name }}
-          RELEASE_VERSION: ${{ inputs.version }}
-          NPM_TAG: ${{ inputs.npm_tag }}
         run: |
           node --input-type=module <<'JS'
           import { appendFileSync, readFileSync } from 'node:fs';
           const manifest = JSON.parse(readFileSync('package.json', 'utf8'));
-          const expected = process.env.RELEASE_VERSION.replace(/^v/, '');
           if (manifest.name !== process.env.EXPECTED_NAME) {
             throw new Error(`Expected ${process.env.EXPECTED_NAME}, found ${manifest.name}`);
           }
-          if (manifest.version !== expected) throw new Error(`package.json is ${manifest.version}, workflow input is ${expected}`);
-          if (manifest.version.includes('-') !== (process.env.NPM_TAG === 'next')) {
-            throw new Error('Prereleases must use next; stable releases must use latest');
-          }
           appendFileSync(process.env.GITHUB_OUTPUT, `version=${manifest.version}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `npm_tag=${manifest.version.includes('-') ? 'next' : 'latest'}\n`);
           JS
 
       - run: npm ci
@@ -140,13 +130,13 @@ jobs:
       - name: Publish to npm with Trusted Publishing
         if: ${{ !inputs.use_npm_token }}
         env:
-          NPM_TAG: ${{ inputs.npm_tag }}
+          NPM_TAG: ${{ needs.build.outputs.npm_tag }}
         run: npm publish dist/plugin/*.tgz --access public --tag "$NPM_TAG" --provenance
       - name: Publish to npm with NPM_TOKEN
         if: inputs.use_npm_token
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_TAG: ${{ inputs.npm_tag }}
+          NPM_TAG: ${{ needs.build.outputs.npm_tag }}
         run: |
           if [[ -z "${NODE_AUTH_TOKEN}" ]]; then
             echo "NPM_TOKEN is required when use_npm_token is enabled" >&2
