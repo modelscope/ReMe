@@ -110,19 +110,23 @@ ReMe 不会自动生成摘要或写入长期记忆。
 
 ## 固定摘要与增量原文实验
 
-支付实验先固定一份摘要 **S**，再追加 Jev 排名前 N 的完整原文，不重写或缩短摘要。
-5 份摘要及对应排名，每种方式回答 3 次，对比 Full context、S、S + Top 1～5，共 105 次回答。
+实验固定 **14 个有预设答案的 fixture query**，通过 Hermes 采集轨迹：4 个按来源长度筛出的主实验任务，
+以及 10 个短任务或 query-only 对照。使用确定性 JSON 字段规则评分，不用 LLM 生成标准答案或担任 judge。
 
-![Input tokens and fact retention for a fixed summary plus Top N](../figure/compaction-topn-results.svg)
+![Exact-field score and downstream input for four primary tasks](../figure/compaction-topn-results.svg)
 
-S + Top 4 的十项事实正确率达到 **100%**，与 Full context 相同，后续输入从 4715 降至 3529 tokens，
-减少 **25.2%**。纯摘要为 73.3%，Top 2 为 86.0%，Top 3 为 94.0%；Top 5 增加 token，没有继续提分。
-所有方式均通过六项可执行修复测试，当前差异体现在事实保留率。
+4 个主实验任务中，Full context 为 100%，S 为 82.0%，S + Top 3 达到 **99.5%**，平均输入从 4014 降至
+3241 tokens，减少 **19.3%**。Top 4、Top 5 分别为 98.1%、97.4%，追加更多原文没有继续提分。
+每轮在评分前固定 S 和 Jev 排名，五种融合始终保留逐字相同的 S。
 
-<!-- 原支付轨迹共有 10 个证据块，最多 Top 10；本次只测试 Top 1～5。 -->
-原轨迹共有 **10 个证据块，最多 Top 10**；本次测试 Top 1～5。摘要按 3200-token 完整输入额度生成，
-扩展实验的回答输入上限为 3800 tokens。所有融合保留逐字相同的 S，追加原文会增加输入长度，实际压缩输入均未超限。
+新增的 **Hermes 小窗口摘要适配器** 得分为 79.4%，平均输入 2432 tokens。它实际调用原生摘要生成器，
+但显式增加小窗口预算与字数约束，并使用摘要正文统一封装；不是默认自动压缩器。
+42/42 个上下文均满足预算，且实际 API 输入严格短于对应 Full，没有用原文回退充当压缩成功。
 
-这是 Hermes 采集的一个合成任务，评测直接调用 Qwen，没有继续运行 Hermes 代理；重复测量不能证明通用任务表现，
-也未证明融合优于纯 Jev。融合仅在 benchmark 中实现，上述生产压缩契约保持不变。
-详见 [Benchmark 方案、评分与完整结果](https://github.com/jinliyl/ReMe/blob/26a83c1904d5c8312ed8e8cb5ffa21500b6e50e6/benchmark/compaction/RESULTS.md)。
+<!-- 支付轨迹有 10 个证据块，最多 Top 10；其他任务数量不同，实际 N 为 min(N, 可用证据块数)。 -->
+Top N 按完整证据块计数，超过可用数量时保留全部。原支付轨迹共有 10 块，最多 Top 10；本次测试 Top 1～5。
+摘要正文预算和完整输入上限按任务计算；这是逐步追加证据的曲线，不是等长比较，也不代表所有 Full 都超过上限。
+
+共 336 个上下文、672 次回答，短任务对照单独报告。Hermes 负责采集，评分时直接调用 Qwen，没有继续工具循环或
+恢复原文。少量合成任务不能证明通用优势或统计等价；融合和原生摘要适配器均仅用于 benchmark。
+详见[完整 query、answer 与实验设定](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/STUDY.md)和[结果、对照与审计](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md)。

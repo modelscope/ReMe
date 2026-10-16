@@ -1,56 +1,57 @@
-# Frozen summary + Jev Top N
+# Context compaction: fixed summary + selected evidence
 
-One payment trajectory, one fixed-summary experiment, one [results table](./RESULTS.md).
-The question is whether adding selected original evidence repairs information lost by a summary.
-This benchmark is separate from production `compact_context`.
+A **14-query fixture panel** with predefined answers and rule scoring: four primary tasks and ten short/query-only
+controls. See [queries, answers and frozen settings](./STUDY.md) and [measured results](./RESULTS.md).
 
-## Protocol
-
-Hermes collected the synthetic payment investigation: 11 messages with the actual system prompt and six paired tool
-calls/results. Exclude the final assistant report, then losslessly group tool results into **10 evidence units**.
-Short files remain whole; long logs group correlated events and routine text. No noise or identifier variants are added.
-The fixture supplies ten exact facts and six executable repair checks; no LLM creates or judges the gold answers.
-
-For each of five generations, create one summary **S** of all evidence and one Jev ranking using only the initial task
-and original evidence. Neither compressor sees the follow-up question or gold. Freeze both before answering:
-
-- **Full context:** original history, allowed to exceed the compressed-input ceiling.
-- **S:** the frozen summary.
-- **S + Jev Top 1–5:** exactly the same S, plus the first N original units ranked by usefulness.
-
-Select a strict descending score prefix, break ties by unit ID, and restore source order when rendering. There is no
-probability threshold, skipping, truncation or summary rewriting. **There are 10 units, so Top 10 is the maximum; the
-reported sweep tests Top 1–5.** Larger N requires more input space.
-
-S is generated with a **3,200-token complete-input allowance**. The sweep uses a **3,800-token complete-input ceiling**,
-including the same original system/task, evidence, follow-up and framing. This is incremental evidence at extra input
-cost, not an equal-length S-versus-fusion comparison. A local Qwen tokenizer and 64-token reserve budget requests;
-actual API usage is checked independently. Overruns fail instead of shrinking S or silently dropping original units.
-
-Each context receives three answers: 35 contexts and 105 answers, temperature zero, thinking disabled. Average ten
-strict fact checks within each answer, then answers and generations equally. Also report the proportion passing all
-six restricted fake-client repair tests. Invalid conditions stay in the denominator with zero credit.
-**Hermes collected the source; evaluation calls Qwen directly**, without tool continuation or recovery.
+Hermes collects the source through real `read_file` calls. ReMe's experiment then compares Full context, a frozen Qwen
+summary S, S + Jev Top 1–5, and a **Hermes small-window summary adapter**. Scored answering calls Qwen directly;
+there is no resumed Hermes tool loop or archive recovery. Production `compact_context` is separate.
 
 ## Run
 
-Use the development environment plus optional `tokenizers`; no Hermes runtime is needed for replay.
-The runner accepts only the pinned original payment trajectory whose fixture oracle is in [cases.py](./cases.py).
-Credentials come from `.env`: `LLM_API_KEY`, `LLM_BASE_URL`, `DECISION_MODEL_API_KEY`, and optional
-`DECISION_MODEL_NAME` / `DECISION_MODEL_BASE_URL`. Provider calls require `--live`.
+Use ReMe's development environment plus optional `tokenizers`. Collection and native generation need a separately
+installed Hermes environment, also able to import `tokenizers`. Credentials come from ReMe's `.env`:
+`LLM_API_KEY`, `LLM_BASE_URL`, `DECISION_MODEL_API_KEY`, and optional `DECISION_MODEL_NAME` / `DECISION_MODEL_BASE_URL`.
+All commands require `--live`; outputs must be new directories outside this repository.
 
 ```bash
-python -m benchmark.compaction.run --live \
-  --trajectory /path/outside/repository/trajectory.full.json \
+# Freeze all task/answer definitions, then collect 13 new read-only trajectories.
+# Reuse the pinned original payment trajectory as the fourteenth source.
+python -m benchmark.compaction.suite_collect --live \
+  --hermes /path/to/hermes-agent \
+  --hermes-python /path/to/hermes-environment/bin/python \
+  --payment-trajectory /path/to/original/trajectory.full.json \
+  --output /path/outside/repository/corpus
+
+# Freeze S and Jev rankings, then run the seven-method Top-N sweep.
+python -m benchmark.compaction.suite_run --live \
+  --corpus /path/outside/repository/corpus/corpus.json \
   --tokenizer /path/to/cached/qwen/tokenizer.json \
-  --output /path/outside/repository/new-evaluation
+  --output /path/outside/repository/evaluation
+
+# Generate the native-adapter summaries and add the eighth method.
+# An existing complete --native directory reuses all frozen native generations.
+python -m benchmark.compaction.suite_native --live \
+  --corpus /path/outside/repository/corpus/corpus.json \
+  --evaluation /path/outside/repository/evaluation \
+  --native /path/outside/repository/native-generations \
+  --hermes /path/to/hermes-agent \
+  --hermes-python /path/to/hermes-environment/bin/python \
+  --tokenizer /path/to/cached/qwen/tokenizer.json \
+  --output /path/outside/repository/combined-results
 ```
 
-Defaults: `qwen3.8-max`, five generations, three answers, Top 1–5 and four concurrent requests. To use every previously
-frozen S/ranking pair without new compression calls, add `--frozen-run /path/to/previous/results`. This generates fresh
-answers for every method; `--compressions` must match all saved summary generations. For an offline input reconstruction,
-replace `--live` with `--check-only --frozen-run /path/to/previous/results`.
+The task definitions use local Hermes commit `30463589eb54fa0f48724594cc0e98e6b995729b` (MIT). The recorded study uses
+`qwen3.8-max`, three summary/ranking generations and two answers per context: **336 contexts, 672 answers**. Provider
+requests are bounded to four at a time. Raw files, sessions, wire bodies, code snapshots and per-field grades stay
+outside git; existing runs are never overwritten.
 
-`--top-n` can extend the sweep to at most 10. Increase `--input-cap` explicitly if needed; the runner records over-budget
-contexts rather than changing their content. Outputs must be new directories outside the repository. Protocol, source
-hashes, frozen selections, code snapshots, requests/responses, usage and per-answer checks remain there.
+S remains byte-identical across its five fusion variants. Top N means a strict descending-score prefix, without a
+probability threshold, skipping or truncation; selected units are rendered in source order. When a task has fewer
+than N units, all available units are retained and `actual_n` records the count. The original payment source has ten
+units (maximum Top 10); this study sweeps Top 1–5 with task-specific unit counts.
+
+The native baseline invokes Hermes' actual summary generator with an explicit small-window adapter: legacy template,
+S-matched body budget, final word constraint, native provenance validation, and body-only downstream framing. It bypasses
+normal triggers/head-tail selection and **must actually shorten input**; it is not the unchanged automatic Hermes policy.
+See [the exact simulation settings and preflight disclosures](./STUDY.md#added-baseline-hermes-small-window-summary-adapter).

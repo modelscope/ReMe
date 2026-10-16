@@ -50,7 +50,7 @@
 <!-- 最新动态最多展开 5 条；新增条目时，将超出的旧条目移入下方“更多更新”折叠区。 -->
 
 - [2026.10] - **[基于决策模型的上下文压缩](docs/zh/context_compaction.md)**：根据下一步任务判断旧工具证据的保留价值，
-  保护关键历史，并返回可回溯的压缩建议；提供 SVG 流程图、两个真实模型集成场景和固定摘要 Top-N 实验。
+  保护关键历史，并返回可回溯的压缩建议；提供 SVG 流程图、两个真实模型集成场景和 14-query 固定摘要实验，包含强制 Hermes 摘要基线。
 - [2026.10] - **[ReMe 多模态记忆更新](https://reme.agentscope.io/zh/blog_20261009)**：Auto Memory 将会话图片和上下文一起
   写入记忆并保留图片来源；Auto Resource 将图片资料整理为可检索、可回溯原图的 daily 卡片。
 - [2026.10] - **[ReMe Studio Playground](https://reme.agentscope.io/studio/?lang=zh) 上线**：无需安装或启动后端，

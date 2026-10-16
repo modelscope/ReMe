@@ -119,20 +119,25 @@ latency and total cost alongside token reduction. ReMe does not automatically su
 
 ## Fixed summary + selected original evidence
 
-The payment experiment freezes one summary **S**, then appends Jev-ranked original blocks without rewriting it.
-Five summary/ranking pairs and three answers per method compare Full context, S and S + Top 1–5 (105 answers).
+The experiment uses **14 fixture queries with predefined answers**, collected through Hermes: four source-length-qualified
+primary tasks and ten short/query-only controls. Rule scoring checks exact JSON fields; no LLM judge creates or grades gold.
 
-![Input tokens and fact retention for a fixed summary plus Top N](../figure/compaction-topn-results.svg)
+![Exact-field score and downstream input for four primary tasks](../figure/compaction-topn-results.svg)
 
-S + Top 4 reaches **100% on ten exact facts**, matching Full context with **25.2% fewer downstream input tokens**
-(3,529 versus 4,715). S alone reaches 73.3%; Top 2 reaches 86.0% and Top 3 reaches 94.0%. Top 5 adds tokens without
-improving the score. All methods pass the six executable repair tests.
+Across the four primary tasks, Full context reaches 100%, S reaches 82.0%, and S + Top 3 reaches **99.5% with 19.3% fewer
+input tokens** (3,241 versus 4,014). Top 4 and Top 5 score 98.1% and 97.4%, so more retained text is not automatically better.
+Each generation freezes S and the Jev ranking before answers; all five fusion methods keep byte-identical S.
 
-<!-- The original payment trajectory has 10 evidence units: Top 10 is the maximum; only Top 1–5 were evaluated. -->
-There are **10 evidence units, so Top 10 is the maximum**; this sweep tests Top 1–5. S uses a 3,200-token generation
-allowance; the extended answering sweep has a 3,800-token total-input ceiling. S remains byte-identical in every fusion;
-adding originals intentionally increases input length. Actual compressed inputs stay within the ceiling.
+The **Hermes small-window adapter** scores 79.4% at 2,432 input tokens. It calls the real native summary generator with
+explicit small-window budget/word constraints and a body-only carrier; this is not the unchanged automatic compressor.
+All 42 native contexts fit their budgets and use strictly fewer actual input tokens than Full, with no original fallback.
 
-This is one synthetic task collected by Hermes, evaluated by calling Qwen directly. Repeated measurements do not
-establish general task performance or superiority over pure Jev. The hybrid is benchmark-only; the production contract
-above is unchanged. See the [protocol, scoring and complete results](https://github.com/jinliyl/ReMe/blob/26a83c1904d5c8312ed8e8cb5ffa21500b6e50e6/benchmark/compaction/RESULTS.md).
+<!-- Payment has 10 units (maximum Top 10). Other tasks have different counts; actual N is min(N, available units). -->
+Top N counts complete source units and saturates at each task's available count. The original payment has ten units,
+so its maximum is Top 10; the sweep tests Top 1–5. Summary/body allowances and complete-input ceilings are task-specific;
+this is an incremental-evidence curve, not an equal-length comparison or proof that every Full exceeds its ceiling.
+
+The panel has 336 contexts and 672 answers, with the controls reported separately. Hermes collects source trajectories;
+answering calls Qwen directly without tool continuation or recovery. These few synthetic tasks do not establish general
+superiority or statistical equivalence. The hybrid and native adapter remain benchmark-only.
+See the [exact queries, answers and settings](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/STUDY.md) and [results, controls and audit](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md).

@@ -53,7 +53,7 @@ users retain control of the durable files.
 
 - [2026.10] - **[Decision-model context compaction](docs/en/context_compaction.md)**: score old tool calls and results
   against the next action, preserve protected history, and return a recoverable compaction proposal. Includes an SVG
-  walkthrough, two live-model integration scenarios, and a fixed-summary Top-N benchmark.
+  walkthrough, two live-model integration scenarios, and a 14-query fixed-summary Top-N benchmark with a forced Hermes summary baseline.
 - [2026.10] - **[ReMe Multimodal Memory](https://reme.agentscope.io/en/blog_20261009) update**: Auto Memory reads images
   with their conversation context and preserves image sources; Auto Resource turns image files into searchable daily
   cards linked to the originals.
