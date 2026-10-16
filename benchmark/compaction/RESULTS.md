@@ -8,44 +8,62 @@ each summary remains byte-identical across its six conditions.
 
 ## Four primary tasks
 
-| Method | Fact score | Answer input | Summary in / out | Jev in / out |
-| --- | ---: | ---: | ---: | ---: |
-| Full context | 100.0% | 4,014 | 0 / 0 | 0 / 0 |
-| S | 82.0% | 2,480 | 5,379 / 200 | 0 / 0 |
-| S + Jev Top 1 | 83.0% | 2,753 | 5,379 / 200 | 4,162 / 344 |
-| S + Jev Top 2 | 94.5% | 2,974 | 5,379 / 200 | 4,162 / 344 |
-| S + Jev Top 3 | 99.5% | 3,241 | 5,379 / 200 | 4,162 / 344 |
-| S + Jev Top 4 | 98.1% | 3,496 | 5,379 / 200 | 4,162 / 344 |
-| S + Jev Top 5 | 97.4% | 3,660 | 5,379 / 200 | 4,162 / 344 |
-| H (Hermes, small budget) | 79.4% | 2,432 | 3,120 / 152 | 0 / 0 |
-| H + Jev Top 1 | 85.3% | 2,705 | 3,120 / 152 | 4,162 / 344 |
-| H + Jev Top 2 | 92.9% | 2,927 | 3,120 / 152 | 4,162 / 344 |
-| H + Jev Top 3 | 97.9% | 3,193 | 3,120 / 152 | 4,162 / 344 |
-| H + Jev Top 4 | 96.9% | 3,448 | 3,120 / 152 | 4,162 / 344 |
-| H + Jev Top 5 | 96.9% | 3,613 | 3,120 / 152 | 4,162 / 344 |
+| Method | Fact score | Answer input | Summary in / out | Jev in / out | Total USD |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Full context | 100.0% | 4,014 | 0 / 0 | 0 / 0 | $0.006992 |
+| S | 82.0% | 2,480 | 5,379 / 200 | 0 / 0 | $0.014293 |
+| S + Jev Top 1 | 83.0% | 2,753 | 5,379 / 200 | 4,162 / 344 | $0.014920 |
+| S + Jev Top 2 | 94.5% | 2,974 | 5,379 / 200 | 4,162 / 344 | $0.015289 |
+| S + Jev Top 3 | 99.5% | 3,241 | 5,379 / 200 | 4,162 / 344 | $0.015738 |
+| S + Jev Top 4 | 98.1% | 3,496 | 5,379 / 200 | 4,162 / 344 | $0.016166 |
+| S + Jev Top 5 | 97.4% | 3,660 | 5,379 / 200 | 4,162 / 344 | $0.016429 |
+| H (Hermes, small budget) | 79.4% | 2,432 | 3,120 / 152 | 0 / 0 | $0.010245 |
+| H + Jev Top 1 | 85.3% | 2,705 | 3,120 / 152 | 4,162 / 344 | $0.010877 |
+| H + Jev Top 2 | 92.9% | 2,927 | 3,120 / 152 | 4,162 / 344 | $0.011244 |
+| H + Jev Top 3 | 97.9% | 3,193 | 3,120 / 152 | 4,162 / 344 | $0.011697 |
+| H + Jev Top 4 | 96.9% | 3,448 | 3,120 / 152 | 4,162 / 344 | $0.012114 |
+| H + Jev Top 5 | 96.9% | 3,613 | 3,120 / 152 | 4,162 / 344 | $0.012388 |
 
-![Quality, downstream input and Jev overhead by Top N](../../docs/figure/compaction-topn-results.svg)
+![Quality, downstream input and estimated total fees by Top N](../../docs/figure/compaction-topn-results.svg)
 
 Both summary mechanisms benefit on this panel: S rises from **82.0% to 99.5%** at Top 3; H rises from **79.4% to 97.9%**.
 Mean downstream inputs at Top 3 are **3,241 / 3,193**, versus Full's **4,014**: reductions of **19.3% / 20.4%**.
 Top 4–5 do not improve these point estimates. This is an exploratory result on four synthetic task templates,
 not a general optimal-N claim, equivalence test or proof that Jev beats other equal-budget selectors.
 
-Panel C plots Jev overhead against Top N: zero at Top 0, then the same **4,162 input + 344 output tokens**
-(4,506 total) at Top 1–5 for either summary mechanism. Ranking scores every available unit once, irrespective of how
-many units are subsequently retained. Summary-generation usage remains in the table.
+Panel C plots **one-compression + one-answer total fees** against Top N, separately for S and H.
+S increases from **$0.014293** at Top 0 to **$0.016429** at Top 5;
+H increases from **$0.010245** to **$0.012388**.
+Full's answering fee is **$0.006992**. More selected evidence increases downstream Qwen input cost;
+Jev's ranking fee itself stays **$0.000175** for every N > 0.
 
 ## Token and cost accounting
 
-All table values are mean provider tokens. Answer input includes the original system/task, summary/evidence and held-out
-question. Summary and Jev columns are **one-time overhead per standalone condition**, including recorded length retries.
-One frozen Jev ranking serves every N and either summary mechanism: Top 1–5 therefore have the same ranking cost;
-it is neither multiplied by N nor divided by the number of sweep conditions. Summary-only and Full incur no Jev cost.
-The two scoring repeats estimate one downstream answer; overhead is not amortized across those evaluation repeats.
+Token columns are mean actual provider usage. Answer input includes the original system/task, summary/evidence and
+held-out question. **Total USD** includes one summary generation, one complete Jev ranking for N > 0, and **one Qwen
+answer (input + output)**. Recorded summary/ranking retries are included; trajectory collection and calibration are
+excluded. Full pays its answering fee and has no compression preprocessing. The two scoring repeats estimate the
+mean cost of one answer; preprocessing is charged once, not amortized across them.
 
-These are token counts, **not currency**: model prices and cached-token discounts are not applied. Compression increases
-one-off provider work here; lower downstream input alone does not demonstrate lower total cost. Repeated future turns
-may amortize overhead, but that has not been measured.
+For reference, preprocessing alone costs S $0.009864 / H $0.005902 at Top 0,
+or S $0.010039 / H $0.006077 with Jev. Those preprocessing fees stay flat
+at Top 1–5; the **overall** curve rises because the selected evidence must be read by Qwen when answering.
+
+Prices checked **2026-10-16**, per million tokens:
+
+| Model | Input USD | Output USD | Source |
+| --- | ---: | ---: | --- |
+| Qwen `qwen3.8-max`, China (Beijing) | $1.65 | $4.951 | [Alibaba Cloud](https://www.alibabacloud.com/help/en/model-studio/qwen3-8-max) |
+| Jev `jev-1.13.0`, direct TypeSafe | $0.042 | $0 | [TypeSafe](https://docs.typesafe.ai/models) |
+
+`total_usd = ((summary_input + answer_input) × 1.65 + (summary_output + answer_output) × 4.951
++ jev_input × 0.042) / 1,000,000`.
+[pricing.json](./pricing.json) freezes the rates, sources and scope. These are **uncached public-list-price estimates**:
+all prompt tokens are priced at the regular input rate, even where API usage reports cache hits. Free quotas, discounts,
+credits, taxes and account billing differences are excluded. This is a one-answer list-price comparison, not invoice reconciliation. In this horizon every compressed method
+costs more than Full; future-turn amortization or total savings have not been established.
+One shared ranking serves Top 1–5 and both mechanisms in the experiment; each standalone fused method includes its full
+cost, neither multiplied by N nor divided across sweep conditions.
 
 ## Setup and boundaries
 
@@ -72,21 +90,21 @@ the other 38 comprise 9 primary and 29 control contexts. All remain scored. Aver
 <details>
 <summary>Ten short/query-only controls</summary>
 
-| Method | Fact score | Answer input | Summary in / out | Jev in / out |
-| --- | ---: | ---: | ---: | ---: |
-| Full context | 100.0% | 2,727 | 0 / 0 | 0 / 0 |
-| S | 67.1% | 2,315 | 1,099 / 74 | 0 / 0 |
-| S + Jev Top 1 | 84.7% | 2,493 | 1,099 / 74 | 929 / 50 |
-| S + Jev Top 2 | 87.5% | 2,573 | 1,099 / 74 | 929 / 50 |
-| S + Jev Top 3 | 92.9% | 2,687 | 1,099 / 74 | 929 / 50 |
-| S + Jev Top 4 | 92.9% | 2,722 | 1,099 / 74 | 929 / 50 |
-| S + Jev Top 5 | 92.5% | 2,722 | 1,099 / 74 | 929 / 50 |
-| H (Hermes, small budget) | 73.2% | 2,308 | 1,944 / 69 | 0 / 0 |
-| H + Jev Top 1 | 80.1% | 2,486 | 1,944 / 69 | 929 / 50 |
-| H + Jev Top 2 | 92.5% | 2,566 | 1,944 / 69 | 929 / 50 |
-| H + Jev Top 3 | 99.2% | 2,680 | 1,944 / 69 | 929 / 50 |
-| H + Jev Top 4 | 99.2% | 2,715 | 1,944 / 69 | 929 / 50 |
-| H + Jev Top 5 | 98.8% | 2,715 | 1,944 / 69 | 929 / 50 |
+| Method | Fact score | Answer input | Summary in / out | Jev in / out | Total USD |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Full context | 100.0% | 2,727 | 0 / 0 | 0 / 0 | $0.004692 |
+| S | 67.1% | 2,315 | 1,099 / 74 | 0 / 0 | $0.006175 |
+| S + Jev Top 1 | 84.7% | 2,493 | 1,099 / 74 | 929 / 50 | $0.006517 |
+| S + Jev Top 2 | 87.5% | 2,573 | 1,099 / 74 | 929 / 50 | $0.006654 |
+| S + Jev Top 3 | 92.9% | 2,687 | 1,099 / 74 | 929 / 50 | $0.006843 |
+| S + Jev Top 4 | 92.9% | 2,722 | 1,099 / 74 | 929 / 50 | $0.006901 |
+| S + Jev Top 5 | 92.5% | 2,722 | 1,099 / 74 | 929 / 50 | $0.006901 |
+| H (Hermes, small budget) | 73.2% | 2,308 | 1,944 / 69 | 0 / 0 | $0.007532 |
+| H + Jev Top 1 | 80.1% | 2,486 | 1,944 / 69 | 929 / 50 | $0.007871 |
+| H + Jev Top 2 | 92.5% | 2,566 | 1,944 / 69 | 929 / 50 | $0.008019 |
+| H + Jev Top 3 | 99.2% | 2,680 | 1,944 / 69 | 929 / 50 | $0.008204 |
+| H + Jev Top 4 | 99.2% | 2,715 | 1,944 / 69 | 929 / 50 | $0.008263 |
+| H + Jev Top 5 | 98.8% | 2,715 | 1,944 / 69 | 929 / 50 | $0.008264 |
 
 These controls are not ten additional long-context tasks. Their small source-unit counts can make Top N saturate.
 

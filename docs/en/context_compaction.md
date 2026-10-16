@@ -126,9 +126,11 @@ Jev-selected originals across mechanisms.
 ![Quality, downstream input and compression overhead](../figure/compaction-topn-results.svg)
 
 On four primary task templates, S improves from **82.0% to 99.5%** at Top 3; H improves from **79.4% to 97.9%**.
-Their mean answer inputs are **3,241 / 3,193 tokens**, versus Full's **4,014 / 100%**. The figure separates downstream
-input from Jev ranking overhead; summary-generation usage is in the results table. Top 0 has no Jev call; Top 1–5 share
-one complete ranking and have identical Jev overhead. Fewer answer tokens do not establish lower total monetary cost.
+Their mean answer inputs are **3,241 / 3,193 tokens**, versus Full's **4,014 / 100%**. Panel C shows **total fees for one compression plus one Qwen answer**:
+summary generation + Jev ranking + downstream input/output. S increases **$0.014293 → $0.016429** from Top 0 to 5;
+H increases **$0.010245 → $0.012388**. Full costs **$0.006992** for its answer.
+Jev's fee stays flat after Top 1; additional retained evidence increases Qwen's input fee. These are uncached,
+dated public-list-price estimates, not invoices or evidence of one-answer savings.
 
 The panel has 14 predefined query/answer templates, 546 contexts and 1,092 direct-Qwen answers. Ten short/query-only
 controls are reported separately. H reuses Hermes' compaction summary-generation pipeline with a smaller budget

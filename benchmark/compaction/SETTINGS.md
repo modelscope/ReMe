@@ -26,7 +26,8 @@ this comparison. This is more specific than calling H a modified version of all 
 The Qwen alias is what the requests and captured answering responses identify; an immutable provider weight revision
 was not supplied. Service-side updates and nondeterminism can change new-run results even at temperature zero.
 Use the same `LLM_BASE_URL` service for the closest rerun; this endpoint and API keys are supplied privately in `.env`.
-No portable public-provider identity or monetary price schedule is asserted.
+The endpoint was verified as the public China (Beijing) DashScope endpoint; API keys remain private.
+The chart uses the published USD list-price schedule below rather than an account invoice.
 
 ## Runtime dependencies
 
@@ -118,7 +119,20 @@ generations, generations within tasks, then tasks equally. Report primary/contro
 Answer input includes system/task, compressed history and exam. Standalone-method overhead includes one summary and,
 for N > 0, one whole Jev ranking, including recorded retries. Ranking cost is identical across N and both mechanisms;
 do not multiply by N or divide by sweep size. Evaluation repeats do not amortize overhead. Report input/output tokens
-by model; no prices/cache discounts are applied and no total monetary saving is claimed.
+by model. Total fees use [pricing.json](./pricing.json), checked 2026-10-16: Qwen `qwen3.8-max` China (Beijing)
+input **$1.65/M**, output **$4.951/M** ([official rate](https://www.alibabacloud.com/help/en/model-studio/qwen3-8-max));
+Jev `jev-1.13.0` input **$0.042/M**, output free ([official rate](https://docs.typesafe.ai/models)).
+
+`total_usd = ((summary_input + answer_input) * 1.65 + (summary_output + answer_output) * 4.951
++ jev_input * 0.042) / 1e6`.
+At Top 0 charge summary generation plus one Qwen answer; Top 1–5 add one identical whole Jev ranking
+and charge the Qwen answer on the enlarged context. Mean usage is averaged across
+the same tasks/generations; fees are computed from unrounded usage. Recorded retries are included. The plotted amount
+includes one downstream answer and excludes collection/calibration. Full pays its actual mean answering fee and
+no compression preprocessing. Two scoring repeats estimate the cost of one answer; they do not amortize overhead.
+These are uncached list-price estimates: cache hits are deliberately charged at the regular input rate for comparison.
+No free quotas, promotions, taxes or account-specific adjustments are applied. Prices are a dated snapshot, not an invoice;
+no total monetary saving is claimed.
 
 ## Reproduction levels and artifact availability
 

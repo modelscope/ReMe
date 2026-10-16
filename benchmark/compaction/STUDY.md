@@ -114,5 +114,7 @@ shorten 172/210 contexts (51/60 primary, 121/150 controls). Summary-only H still
 For costs, each independent method includes one summary generation when applicable, one complete Jev ranking when
 N > 0, and one downstream answer. Recorded retry usage is included. One ranking is shared across the Top-N sweep and
 mechanisms in the actual experiment; its standalone-method cost is neither multiplied by N nor divided by sweep size.
-The two answer repeats do not amortize compression overhead. Report provider input/output tokens separately; do not
-claim currency or total savings without prices, cache billing and an explicit continuation horizon.
+The two answer repeats do not amortize compression overhead. Report provider input/output tokens separately.
+The current chart estimates summary + Jev + one downstream answer fees from the dated public USD rates in [pricing.json](./pricing.json),
+using uncached input pricing and excluding trajectory collection. [Settings](./SETTINGS.md#scoring-and-costs) define
+the formula and exclusions; this is not an account invoice or a claim of total pipeline savings.

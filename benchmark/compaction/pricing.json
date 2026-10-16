@@ -1,0 +1,18 @@
+{
+  "checked_on": "2026-10-16",
+  "currency": "USD",
+  "unit": "per_1000000_tokens",
+  "qwen3.8-max": {
+    "input": 1.65,
+    "output": 4.951,
+    "region": "China (Beijing)",
+    "source": "https://www.alibabacloud.com/help/en/model-studio/qwen3-8-max"
+  },
+  "jev-1.13.0": {
+    "input": 0.042,
+    "output": 0.0,
+    "source": "https://docs.typesafe.ai/models"
+  },
+  "scope": "One summary generation plus one complete Jev ranking when N > 0, plus one downstream Qwen answer; recorded summary/ranking retries included; trajectory collection excluded",
+  "billing_basis": "Public list-price estimate; all input charged at uncached rate; no credits, promotions, taxes, exchange conversion or invoice reconciliation"
+}
