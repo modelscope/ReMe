@@ -119,20 +119,18 @@ generations, generations within tasks, then tasks equally. Report primary/contro
 Answer input includes system/task, compressed history and exam. Standalone-method overhead includes one summary and,
 for N > 0, one whole Jev ranking, including recorded retries. Ranking cost is identical across N and both mechanisms;
 do not multiply by N or divide by sweep size. Evaluation repeats do not amortize overhead. Report input/output tokens
-by model. Total fees use [pricing.json](./pricing.json), checked 2026-10-16: Qwen `qwen3.8-max` China (Beijing)
+by model. Compaction fees use [pricing.json](./pricing.json), checked 2026-10-16: Qwen `qwen3.8-max` China (Beijing)
 input **$1.65/M**, output **$4.951/M** ([official rate](https://www.alibabacloud.com/help/en/model-studio/qwen3-8-max));
 Jev `jev-1.13.0` input **$0.042/M**, output free ([official rate](https://docs.typesafe.ai/models)).
 
-`total_usd = ((summary_input + answer_input) * 1.65 + (summary_output + answer_output) * 4.951
-+ jev_input * 0.042) / 1e6`.
-At Top 0 charge summary generation plus one Qwen answer; Top 1–5 add one identical whole Jev ranking
-and charge the Qwen answer on the enlarged context. Mean usage is averaged across
-the same tasks/generations; fees are computed from unrounded usage. Recorded retries are included. The plotted amount
-includes one downstream answer and excludes collection/calibration. Full pays its actual mean answering fee and
-no compression preprocessing. Two scoring repeats estimate the cost of one answer; they do not amortize overhead.
-These are uncached list-price estimates: cache hits are deliberately charged at the regular input rate for comparison.
-No free quotas, promotions, taxes or account-specific adjustments are applied. Prices are a dated snapshot, not an invoice;
-no total monetary saving is claimed.
+`compaction_usd = (summary_input * 1.65 + summary_output * 4.951 + jev_input * 0.042) / 1e6`.
+At Top 0 charge only summary generation; Top 1–5 each add one identical complete Jev ranking. Mean usage is averaged
+across the same tasks/generations, and fees are computed from unrounded usage. Recorded summary/ranking retries are
+included. **Downstream answering, collection and calibration are excluded.** Full is excluded from panel C and has
+“—” in the cost table; it remains the quality/input reference in A/B. Scoring repeats do not amortize preprocessing.
+These are uncached list-price estimates: summary cache hits are charged at the regular input rate for comparison.
+No free quotas, promotions, taxes or account-specific adjustments are applied. Prices are a dated snapshot, not an
+invoice. This scope measures summary + Jev compaction overhead, not total execution cost or monetary savings.
 
 ## Reproduction levels and artifact availability
 

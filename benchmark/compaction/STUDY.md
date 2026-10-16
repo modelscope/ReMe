@@ -111,10 +111,10 @@ The extension keeps the existing per-task ceilings. Strict shrinkage versus Full
 filtering or removing conditions: Top 3–5 each shorten 9/12 primary contexts in both mechanisms. The H fusion arms
 shorten 172/210 contexts (51/60 primary, 121/150 controls). Summary-only H still shortens all 42/42.
 
-For costs, each independent method includes one summary generation when applicable, one complete Jev ranking when
-N > 0, and one downstream answer. Recorded retry usage is included. One ranking is shared across the Top-N sweep and
+For compaction costs, each independent method includes one summary generation and one complete Jev ranking when
+N > 0. Downstream answering is excluded. Recorded retry usage is included. One ranking is shared across the Top-N sweep and
 mechanisms in the actual experiment; its standalone-method cost is neither multiplied by N nor divided by sweep size.
 The two answer repeats do not amortize compression overhead. Report provider input/output tokens separately.
-The current chart estimates summary + Jev + one downstream answer fees from the dated public USD rates in [pricing.json](./pricing.json),
-using uncached input pricing and excluding trajectory collection. [Settings](./SETTINGS.md#scoring-and-costs) define
+Panel C estimates summary + Jev compaction fees from the dated public USD rates in [pricing.json](./pricing.json),
+using uncached input pricing and excluding downstream answering and trajectory collection. Full appears in A/B only. [Settings](./SETTINGS.md#scoring-and-costs) define
 the formula and exclusions; this is not an account invoice or a claim of total pipeline savings.

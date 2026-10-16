@@ -13,6 +13,6 @@
     "output": 0.0,
     "source": "https://docs.typesafe.ai/models"
   },
-  "scope": "One summary generation plus one complete Jev ranking when N > 0, plus one downstream Qwen answer; recorded summary/ranking retries included; trajectory collection excluded",
+  "scope": "Compaction only: one summary generation plus one complete Jev ranking when N > 0; recorded retries included; downstream answering and trajectory collection excluded; Full omitted from the cost comparison",
   "billing_basis": "Public list-price estimate; all input charged at uncached rate; no credits, promotions, taxes, exchange conversion or invoice reconciliation"
 }

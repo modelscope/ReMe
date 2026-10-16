@@ -124,7 +124,7 @@ latency and total cost alongside token reduction. ReMe does not automatically su
 Summaries shorten history but can omit exact identifiers, configuration values or log details needed for a later answer.
 This experiment asks: **can a few Jev-selected original evidence blocks recover information missing from a fixed summary,
 and does that benefit occur with both a generic summary and a Hermes summary?** Answer input and total fees show the
-tradeoff between retained information, context length and cost.
+tradeoff between retained information, context length and compaction cost.
 
 ### Experimental setup
 
@@ -143,7 +143,7 @@ This is a gold-answer **information-retention evaluation**, without resuming Her
 
 ### Reading the figure and conclusions
 
-![Answer quality, downstream input and total cost across two summary strategies](../figure/compaction-topn-results.svg)
+![Answer quality, downstream input and compaction cost across two summary strategies](../figure/compaction-topn-results.svg)
 
 - **A: selected originals help both summary mechanisms on this panel.** Full scores 100%; Top 3 improves S from
   **82.0% to 99.5%**, and H from **79.4% to 97.9%**. This supports supplementing these summaries with original evidence;
@@ -151,10 +151,12 @@ This is a gold-answer **information-retention evaluation**, without resuming Her
 - **B: higher retention consumes more context than summary alone.** Top 3 uses **3,241 / 3,193** mean answer-input tokens
   for S/H, versus Full's **4,014**, reductions of **19.3% / 20.4%**. Both exceed their summary-only input. Top 4–5 do not
   improve the scores: more original text does not guarantee better answers.
-- **C: there is no total-cost saving over a single post-compression answer here.** Fees include **summary generation +
-  one Jev ranking + one Qwen answer, input and output**. At Top 3, S/H cost about **$0.015738 / $0.011697**, versus Full's
-  **$0.006992**. Ranking fees are identical at Top 1–5; reading additional evidence increases Qwen's fee. These are
-  public USD list-price estimates dated 2026-10-16, excluding cache discounts, free quotas and account offers, not invoices.
+- **C: compare compaction fees only.** Top 0 pays for Qwen summary generation: **$0.009864 / $0.005902** for S/H.
+  Top 1–5 each pay for summary generation plus one complete Jev ranking: **$0.010039 / $0.006077**.
+  Jev adds **$0.000175**, about **1.8% / 3.0%** of S/H summary fees. The curve plateaus because Jev scores all evidence
+  once before selecting Top N. **C excludes downstream answering and omits Full; Full remains the reference in A/B.**
+  Fees use public USD list prices dated 2026-10-16, excluding cache discounts, free quotas and account offers.
+  This is neither an invoice nor evidence of end-to-end savings.
 
 **Scope:** the primary result covers four synthetic task templates; ten controls are separate. All 42 H-only contexts
 shorten Full, but Top 3–5 shorten only **9/12 primary contexts per method**, with every case still scored. Strict field scoring includes format compliance; semantically equivalent wording can still lose credit.
