@@ -96,6 +96,7 @@ class CodexAgentWrapper(BaseAgentWrapper):
         codex_bin: str | None = None,
         config_overrides: list[str] | tuple[str, ...] | None = None,
         experimental_api: bool = True,
+        release_threads: bool = True,
         **kwargs,
     ) -> None:
         if "launch_args_override" in kwargs:
@@ -112,6 +113,7 @@ class CodexAgentWrapper(BaseAgentWrapper):
             experimental_api=experimental_api,
         )
         self._codex: AsyncCodex | None = None
+        self._release_threads = release_threads
         self._turn_lock = asyncio.Lock()
         self._mcp_snapshot_path: Path | None = None
         self._thread_tool_contexts: dict[str, str] = {}
@@ -403,6 +405,25 @@ class CodexAgentWrapper(BaseAgentWrapper):
                     self._mcp_snapshot_path.unlink(missing_ok=True)
                     self._mcp_snapshot_path = None
 
+    async def _release_thread(self, codex: AsyncCodex, thread_id: str) -> None:
+        """Unload a finished thread from the app-server so its MCP children exit."""
+        try:
+            from openai_codex.generated.v2_all import ThreadUnsubscribeResponse
+
+            # The SDK exposes no public unsubscribe; request() is public but
+            # reached through the private client attribute on SDK 0.162.x.
+            await codex._client.request(  # pylint: disable=protected-access
+                "thread/unsubscribe",
+                {"threadId": thread_id},
+                response_model=ThreadUnsubscribeResponse,
+            )
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            self.logger.warning(f"Failed to unsubscribe Codex thread {thread_id}: {exc}")
+            return
+        # The thread is still loaded when unsubscribe fails; keep its tool
+        # context so a later resume cannot silently bypass changed constraints.
+        self._thread_tool_contexts.pop(thread_id, None)
+
     @staticmethod
     def _serialize(value: Any) -> Any:
         from pydantic_core import to_jsonable_python
@@ -418,7 +439,11 @@ class CodexAgentWrapper(BaseAgentWrapper):
         async with self._turn_lock:
             codex = await self._get_codex()
             thread = await self._open_thread(codex, kwargs)
-            result = await thread.run(inputs, **self._turn_kwargs(kwargs))
+            try:
+                result = await thread.run(inputs, **self._turn_kwargs(kwargs))
+            finally:
+                if self._release_threads:
+                    await self._release_thread(codex, thread.id)
 
         final_response = result.final_response or ""
         response = {
@@ -445,7 +470,11 @@ class CodexAgentWrapper(BaseAgentWrapper):
         async with self._turn_lock:
             codex = await self._get_codex()
             thread = await codex.thread_resume(session_id)
-            await thread.compact()
+            try:
+                await thread.compact()
+            finally:
+                if self._release_threads:
+                    await self._release_thread(codex, thread.id)
 
     @classmethod
     # pylint: disable=too-many-return-statements
@@ -572,19 +601,23 @@ class CodexAgentWrapper(BaseAgentWrapper):
         async with self._turn_lock:
             codex = await self._get_codex()
             thread = await self._open_thread(codex, kwargs)
-            turn = await thread.turn(inputs, **self._turn_kwargs(kwargs))
-            stream = turn.stream()
-            completed = False
             try:
-                async for event in stream:
-                    if event.method == "turn/completed":
-                        completed = True
-                    for chunk in self._event_to_chunks(event, thread.id):
-                        yield chunk
+                turn = await thread.turn(inputs, **self._turn_kwargs(kwargs))
+                stream = turn.stream()
+                completed = False
+                try:
+                    async for event in stream:
+                        if event.method == "turn/completed":
+                            completed = True
+                        for chunk in self._event_to_chunks(event, thread.id):
+                            yield chunk
+                finally:
+                    if not completed:
+                        try:
+                            await turn.interrupt()
+                        except Exception as exc:  # pylint: disable=broad-exception-caught
+                            self.logger.warning(f"Failed to interrupt Codex turn {turn.id}: {exc}")
+                    await stream.aclose()
             finally:
-                if not completed:
-                    try:
-                        await turn.interrupt()
-                    except Exception as exc:  # pylint: disable=broad-exception-caught
-                        self.logger.warning(f"Failed to interrupt Codex turn {turn.id}: {exc}")
-                await stream.aclose()
+                if self._release_threads:
+                    await self._release_thread(codex, thread.id)
