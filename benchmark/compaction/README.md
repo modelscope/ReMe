@@ -96,3 +96,98 @@ python -m benchmark.compaction.plot_results \
 
 The chart shows the controlled long-log variant at the 1000-token evidence allowance, including all four arms.
 Axes start at zero; timings that were not measured are labeled explicitly. All plotted values come from `results.json`.
+
+## Hybrid summary and exact-evidence experiment
+
+`hybrid_experiment.py` compares summary-only, Jev-selected evidence, head/tail clipping, three hybrid allocations
+(70/30, 50/50, 30/70 summary/evidence), and a 50/50 recency-selected hybrid control. Budgets are 600, 1000 and
+1600 tokens, including headings and source citations. Each case/arm/budget has two independent compression requests
+and two answers per context. Jev scores are reused across budgets/allocations within each compression repetition.
+
+```bash
+python -m benchmark.compaction.hybrid_experiment --live \
+  --trajectory /path/to/trajectory.full.json \
+  --tokenizer /path/to/cached/qwen/tokenizer.json \
+  --output /path/outside/repository/hybrid-experiment
+```
+
+Credentials and optional tokenizer requirements match the span experiment. The primary matrix has 132 contexts,
+up to 264 evaluation answers and 90 summaries. Real provider calls incur charges. Outputs cannot overwrite an existing
+run or be written inside the repository. The protocol, source cases, exam, gold data and experiment code are saved
+before model calls. Over-budget/truncated generations remain invalid; they are not tuned against exam answers.
+
+This is **direct Qwen inference**, not continuation inside the Hermes agent loop. Payment input comes from the earlier
+Hermes-collected synthetic trajectory; its long-log version is a controlled augmentation. The independent replica
+case is a deterministic synthetic fixture. Payment repair functions run six executable tests. Replica outputs receive
+five structured procedure checks; no live operation or end-to-end agent execution occurs.
+
+All arms share a new event splitter: short files stay whole; long log lines with a shared invoice, trace or request ID
+are grouped, and other lines form bounded blocks. Each original character range remains recoverable. Compare the
+arms within this experiment; changes from the previous pilot cannot be attributed solely to combining strategies.
+Hybrid summaries receive all source evidence plus the selected original snippets, with instructions to avoid repeating
+those snippets. Unused allocation is not transferred between summary and evidence after generation.
+
+Artifacts include `protocol.json`, per-case `*.source.json`, exact contexts, Jev/Qwen request/response bodies,
+`results.json`, `aggregate.json`, `REPORT.md` and `validation.json`. Aggregation reports valid/attempted compressions,
+mean exact fact accuracy, all-facts-correct rate, task-check pass rate, actual prompt tokens and compaction latency.
+Scores are descriptive: two task families and repeated generations do not establish broad statistical superiority.
+
+
+### Freeze the summary, then append evidence
+
+The [hybrid and incremental results](./HYBRID_RESULTS.md) distinguish fixed-budget reallocation from genuinely
+incremental evidence. The latter keeps every baseline summary byte unchanged and appends at most 200/400 evidence
+tokens. A recency-selected 400-token control isolates the contribution of decision ranking. Total input increases.
+The supplemental protocol was frozen before its additional calls; it is a post-hoc diagnostic, not the initial matrix.
+
+```bash
+python -m benchmark.compaction.frozen_summary_experiment --live \
+  --primary /path/outside/repository/hybrid-experiment \
+  --tokenizer /path/to/cached/qwen/tokenizer.json \
+  --output /path/outside/repository/incremental-experiment
+
+python -m benchmark.compaction.analyze_hybrid \
+  --primary /path/outside/repository/hybrid-experiment \
+  --incremental /path/outside/repository/incremental-experiment \
+  --output /path/outside/repository/incremental-experiment/analysis.json
+
+python -m benchmark.compaction.plot_results --incremental \
+  --results /path/outside/repository/incremental-experiment/analysis.json \
+  --output docs/figure/decision-compaction-incremental.svg
+```
+
+The append experiment reuses 600/1000-token baseline summaries and their answers, generates six additional 300-token
+baselines, then freezes their text hashes. It requires the primary run with its default two compression generations
+and two answers. Invalid new baselines remain invalid; their append groups are not generated. No new Jev calls are
+needed because primary scores are reused. Remaining provider calls are opt-in and outputs stay outside the repository.
+The analyzer replays strict grading and reports narrowly normalized number/boolean/line formats as a separate,
+post-hoc content diagnostic. It never overwrites original scores or changes evidence selection.
+Use `plot_results --hybrid` with the primary `aggregate.json` to render the fixed-budget heatmap.
+
+
+### Summary-aware incremental selection
+
+`summary_aware_experiment.py` is a separately registered post-hoc control. It supplies the frozen summary to Jev and
+scores missing or insufficiently precise information. Both this arm and its task-only control retain only scores at
+least 0.5 and append at most 400 evidence tokens. Identical contexts reuse answers. No summary text is regenerated.
+
+```bash
+python -m benchmark.compaction.summary_aware_experiment --live \
+  --incremental /path/outside/repository/incremental-experiment \
+  --tokenizer /path/to/cached/qwen/tokenizer.json \
+  --output /path/outside/repository/summary-aware-experiment
+
+python -m benchmark.compaction.analyze_hybrid \
+  --primary /path/outside/repository/hybrid-experiment \
+  --incremental /path/outside/repository/incremental-experiment \
+  --aware /path/outside/repository/summary-aware-experiment \
+  --output /path/outside/repository/incremental-experiment/analysis.json
+
+python -m benchmark.compaction.plot_results --aware \
+  --results /path/outside/repository/incremental-experiment/analysis.json \
+  --output docs/figure/decision-compaction-summary-aware.svg
+```
+
+This makes new decision calls and may make new Qwen answering calls. It uses the valid frozen baselines from the
+incremental experiment, including their exact stored hashes. Report every arm, additional input cost and failed
+baseline; do not treat post-hoc gains on these same tasks as held-out validation or guaranteed monotonic improvement.

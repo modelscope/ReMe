@@ -129,7 +129,16 @@ def head_tail(text, budget, tokenizer):
     raise ValueError("Evidence budget is too small")
 
 
-async def score_units(model, units, task, output, scenario):
+async def score_units(
+    model,
+    units,
+    task,
+    output,
+    scenario,
+    *,
+    goal=GOAL,
+    next_action="Propose a correct payment retry fix and regression tests",
+):
     """Score each complete span once; a failed batch invalidates the experiment."""
     scores, decision_usage, decision_responses = {}, [], []
     started = time.monotonic()
@@ -137,10 +146,10 @@ async def score_units(model, units, task, output, scenario):
 
     async def score_batch(batch, index):
         state = {
-            "goal": GOAL,
+            "goal": goal,
             "task": task,
             "evidence_units": batch,
-            "next_action": "Propose a correct payment retry fix and regression tests",
+            "next_action": next_action,
         }
         questions = {
             u["id"]: {
