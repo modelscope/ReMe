@@ -67,7 +67,7 @@ async def test_dream_reprocesses_concurrent_source_edits_after_restart(tmp_path,
             if phase == "extract":
                 unit = {"name": "deployment", "bucket": "wiki", "summary": fact, "paths": [SOURCE]}
                 return {"result": json.dumps({"units": [unit]})}
-            action = "UPDATED" if (tmp_path / TARGET).exists() else "CREATE"
+            action = "CORRECT" if (tmp_path / TARGET).exists() else "CREATE"
             response = await app.run_job("write", path=TARGET, content=fact)
             assert response.success, response.answer
             return {"result": json.dumps({"action": action, "target_path": TARGET})}
@@ -100,6 +100,7 @@ async def test_dream_reprocesses_concurrent_source_edits_after_restart(tmp_path,
         release.set()
         first = await asyncio.wait_for(task, timeout=5)
         assert first.success, first.answer
+        assert first.metadata["dream"]["warnings"] == []
         nodes = await app.context.components["file_catalog"]["dream"].get_nodes([SOURCE])
         first_checkpoint = nodes[0].st_mtime
         if edit_phase == "integrate":
@@ -123,11 +124,13 @@ async def test_dream_reprocesses_concurrent_source_edits_after_restart(tmp_path,
             as_llm=Mock(spec=ChatModelBase),
         )
         assert second.success, second.answer
+        assert second.metadata["dream"]["warnings"] == []
         assert first_checkpoint == scanned_mtime
         if edit_phase is None:
             assert second.metadata["dream"]["changed_paths"] == []
             assert len(calls) == before_retry
         else:
+            assert second.metadata["dream"]["integrate_results"][0]["action"] == "CORRECT"
             assert SOURCE in second.metadata["dream"]["changed_paths"]
             assert NEW in (tmp_path / TARGET).read_text()
             assert NEW in source.read_text()
