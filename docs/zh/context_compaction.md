@@ -110,20 +110,25 @@ ReMe 不会自动生成摘要或写入长期记忆。
 
 ## 压缩策略对比
 
-[Benchmark 评测方案与完整结果](https://github.com/jinliyl/ReMe/blob/ba57fc5cdb80f3eb8b53ea12588254f3212a2c6f/benchmark/compaction/HYBRID_RESULTS.md)比较纯摘要、Jev 原文筛选和摘要感知融合。
-下图统一使用 2026-10-16 的分块方式与严格事实评分，展示支付短样本、长日志变体和独立副本故障 fixture。
-评测直接调用 Qwen；支付 trajectory 由 Hermes 采集，评测阶段没有运行 Hermes 代理继续执行。
+[Benchmark 方案与结果](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md)统一比较 Full context、Jev、Summary 和 Jev + Summary，结果用一张四行表呈现。
+三个压缩组使用相同的 **3300-token 完整输入上限**，包含原始 system、任务、压缩内容、评测提示和消息封装；
+Full context 保留原始历史，作为允许超限的参考组。
 
-融合保留同一份基础摘要，让决策模型看到摘要后选择缺失或不够精确的证据，再追加最多 400 token 原文；
-只选择增量有用概率不低于 0.5 的片段。图中行名是预算上限，右列是 API 返回的实际总输入 token，包含公共上下文。
-融合与基础摘要的总预算不同；更大预算的纯摘要和纯原文筛选同时列出，供质量与输入量对比。
+融合先用最多 40% 的可用空间保留 Jev 筛选的原文，再用全部剩余空间总结其余证据；摘要模型同时看到保留的原文，避免重复。
+摘要和原文共用同一输入上限，未用完的原文配额可给摘要。每轮调用前冻结配比与样本，超限或生成失败计为失败。
 
-![Summary, original evidence selection and summary-aware fusion: accuracy and actual input tokens](../figure/decision-compaction-comparison.svg)
+| Method | Input tokens | Reduction | Fact accuracy |
+| --- | ---: | ---: | ---: |
+| Full context | 8,030 | 0.0% | 100.0% |
+| Jev | 2,903 | 63.8% | 95.0% |
+| Summary | 3,045 | 62.1% | 88.3% |
+| Jev + Summary | 3,094 | 61.5% | 90.0% |
 
-16 份有效冻结摘要实例中，融合有 7 份严格得分提升、9 份持平，未观察到下降，平均提高 12.2 个百分点。
-300-token 基础摘要的支付短样本从 60% 到 100%，长日志从 75% 到 100%。这支持“摘要加互补原文”可以修复小摘要的遗漏。
+2026-10-16 实跑：每组 12/12 个有效上下文、24 次回答；所有组的任务检查均通过。
+融合优于纯摘要，但低于纯 Jev，距 Full context 仍差 10 个百分点，**尚未验证“融合最优或等价全量”**。
+表中的 token 节省仅指后续回答的输入，不包含压缩本身的额外消耗。
 
-现有数据不能证明融合全局最优：1000-token 纯摘要在三个场景均达到 100%；长日志中，它使用 3292 个实际输入 token，
-而 600 + 400 融合使用 3452 个、得分 87.5%。因此应根据输入预算选择策略，不能把追加输入后的提升当作同预算优势。
-这是两个任务族上的事后诊断，包含增噪变体与重复生成，不是独立测试集或单调性保证。
-完整预算矩阵、失败样本、选择对照及早期实验见 Benchmark 文档。融合仅在实验脚本实现，未改变上述 `compact_context` 生产契约。
+两个合成任务族各有三个固定变体，每个条件生成两次、回答两次，直接调用 Qwen。
+支付证据来自 Hermes 采集的合成 trajectory，另有独立副本故障 fixture；评测不运行 Hermes 代理继续执行。
+事实按严格类型与值评分，另检查支付修复函数和副本恢复计划。具体实测结果、有效样本数与复现命令见 Benchmark。
+该融合策略仅在实验脚本实现，未改变上述 `compact_context` 生产契约。

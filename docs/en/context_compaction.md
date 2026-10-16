@@ -119,25 +119,30 @@ latency and total cost alongside token reduction. ReMe does not automatically su
 
 ## Compaction strategy comparison
 
-The [benchmark protocol and complete results (Chinese)](https://github.com/jinliyl/ReMe/blob/ba57fc5cdb80f3eb8b53ea12588254f3212a2c6f/benchmark/compaction/HYBRID_RESULTS.md) compare pure summaries, Jev original-evidence selection,
-and summary-aware fusion. This unified chart uses the October 16, 2026 splitter and strict fact scoring across a short
-payment case, its long-log variant and an independent replica fixture. Evaluation calls Qwen directly; Hermes collected
-the payment trajectory but does not continue its agent loop during evaluation.
+The [benchmark protocol and results](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md) use one four-row table: Full context, Jev, Summary and Jev + Summary.
+All compressed methods share a **3,300-token complete input ceiling**, including the original system prompt, task,
+compressed evidence, evaluation question and message framing. Full context preserves the original history as an
+explicitly over-budget reference.
 
-Fusion keeps the exact baseline summary, lets the decision model identify missing or insufficiently precise evidence,
-and appends at most 400 original-evidence tokens with incremental-usefulness probability at least 0.5. Row labels show
-allowances; the right column shows actual total API input tokens, including shared context. Fusion has a larger allowance
-than its baseline. Larger pure summaries and original-evidence selection are included to expose the quality/input tradeoff.
+Fusion first retains Jev-selected original evidence within 40% of the available space, then summarizes the remaining
+evidence using all unused space. The summarizer also sees the retained evidence to avoid duplication. Both parts
+share the same ceiling; unused original-evidence capacity is available to the summary.
+The allocation and corpus are frozen before inference. Budget overruns and generation failures count as failures.
 
-![Summary, original evidence selection and summary-aware fusion: accuracy and actual input tokens](../figure/decision-compaction-comparison.svg)
+| Method | Input tokens | Reduction | Fact accuracy |
+| --- | ---: | ---: | ---: |
+| Full context | 8,030 | 0.0% | 100.0% |
+| Jev | 2,903 | 63.8% | 95.0% |
+| Summary | 3,045 | 62.1% | 88.3% |
+| Jev + Summary | 3,094 | 61.5% | 90.0% |
 
-Across 16 valid frozen summary instances, fusion improved strict scores in 7 and tied in 9, with no observed regression;
-the mean gain was 12.2 percentage points. At the 300-token summary allowance, the short payment case improved from 60%
-to 100%, and the long-log variant from 75% to 100%. Complementary original evidence can repair omissions in small summaries.
+Measured on October 16, 2026: 12/12 valid contexts and 24 answers per method; all task checks passed.
+Fusion beats Summary here but trails Jev and Full context. **Equivalence to full context or superiority over both
+baselines is not established.** Token reduction covers downstream answering input, excluding compression overhead.
 
-These results do not establish fusion as globally optimal: a 1,000-token pure summary reaches 100% in all three cases.
-On long logs it uses 3,292 actual input tokens, versus 3,452 tokens and 87.5% accuracy for 600 + 400 fusion. Choose according
-to the input budget; an improvement after adding input is not a same-budget advantage. This post-hoc diagnostic covers
-two task families, a noise variant and repeated generations, without held-out validation or a monotonicity guarantee.
-See the benchmark for all budgets, invalid cases, selection controls and earlier experiments. Fusion remains experimental
-and does not change the production `compact_context` contract above.
+Two synthetic task families have three fixed variants each, with two compression generations and two answers per
+condition. Evaluation calls Qwen directly. Payment evidence comes from a Hermes-collected synthetic trajectory;
+replica evidence is an independent fixture. Hermes does not continue its agent loop during evaluation.
+Facts use strict type/value scoring, alongside payment function tests and replica-plan checks. See the benchmark for
+measured results, valid counts and reproduction commands. Fusion remains experimental and does not change the
+production `compact_context` contract above.
