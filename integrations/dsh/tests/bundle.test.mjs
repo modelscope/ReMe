@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import test from "node:test";
 import vm from "node:vm";
+import semver from "semver";
 
 test("declares one installable DeepSeek Harness plugin", async () => {
   const manifest = JSON.parse(
@@ -24,7 +25,28 @@ test("declares one installable DeepSeek Harness plugin", async () => {
     "@deepseek-ai/dsh-tools",
     "@deepseek-ai/dsh-typert-protocol",
   ]) {
-    assert.equal(manifest.peerDependencies[dependency], "0.1.7-rc.2");
+    for (const version of [
+      "0.1.7-rc.2",
+      "0.2.0-rc.2",
+      "0.2.1-alpha.2",
+      "0.2.1-alpha.4",
+    ]) {
+      assert.ok(
+        semver.satisfies(version, manifest.peerDependencies[dependency]),
+      );
+    }
+    for (const version of [
+      "0.1.6",
+      "0.2.0-rc.1",
+      "0.2.2-alpha.1",
+      "0.3.0-alpha.1",
+      "0.3.0",
+    ]) {
+      assert.equal(
+        semver.satisfies(version, manifest.peerDependencies[dependency]),
+        false,
+      );
+    }
     assert.equal(manifest.peerDependenciesMeta[dependency]?.optional, true);
   }
   assert.equal(manifest.peerDependencies.openclaw, undefined);
@@ -47,14 +69,14 @@ test("builds a lazy DSH browser module for the ReMe settings card", async () => 
   );
   assert.match(bundle, /window\.__ModuleLoader__\.load/);
   assert.match(bundle, /id: "@agentscope-ai\/reme-dsh-plugin"/);
-  assert.match(bundle, /plugins\.item/);
+  assert.match(bundle, /plugins\.row\.config/);
   assert.match(bundle, /reme-status/);
   assert.match(bundle, /Personal Knowledge Base/);
   assert.match(statusPage, /个人知识库/);
   assert.match(bundle, /health_check/);
 });
 
-test("registers a visible title for the Plugins page", async () => {
+test("registers configuration on the ReMe bundle row", async () => {
   const bundle = await readFile(
     new URL("../dist/client.js", import.meta.url),
     "utf8",
@@ -115,7 +137,9 @@ test("registers a visible title for the Plugins page", async () => {
     },
   };
   client.apply(ctx);
-  const item = registrations.find((options) => options.name === "plugins.item");
-  assert.equal(item.id, "reme-memory");
+  const item = registrations.find(
+    (options) => options.name === "plugins.row.config",
+  );
+  assert.equal(item.key, "@agentscope-ai/reme-dsh-plugin#reme-memory");
   assert.equal(item.label(), "ReMe Memory");
 });

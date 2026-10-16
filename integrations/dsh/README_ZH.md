@@ -26,11 +26,13 @@ DSH 启动新会话时，插件向根 Agent 注入一段“如何使用长期记
 ## 2. 环境要求
 
 - ReMe Python 服务已安装，且配置中提供 `search`、`auto_memory` 和 `auto_dream` Job。
-- DeepSeek Harness `0.1.7-rc.2`。
+- DeepSeek Harness `0.1.7-rc.2`、`0.2.0-rc.2`、`0.2.1-alpha.2` 或 `0.2.1-alpha.4`。
 - Node.js `^22.19.0` 或 `>=24.0.0`，与当前 DSH 的 engine 范围一致。
 - DSH 页面能够访问 ReMe HTTP 地址；跨机器部署时还要允许 DSH 页面所在的浏览器 Origin。
 
 ReMe HTTP 服务默认监听 `http://127.0.0.1:2333`，不使用 API Key 认证。因此不建议未经网络隔离直接暴露到公网。
+
+peer 范围覆盖已测试的预发布系列及兼容的 `0.1.x` / `0.2.x` 正式版本；其他预发布系列需验证后再加入，不包含 `0.3.x`。
 
 ## 3. 安装与启动
 
@@ -103,11 +105,11 @@ dsh web --no-open --port 3090
 
 ## 4. ReMe Memory 配置
 
-进入 **插件 → ReMe Memory**。修改后点击保存；设置存入当前 DSH profile patch，并从后续请求或捕获开始生效。修改 `language` 只影响之后创建的新会话，修改每日计划会重新安排下一次整理。
+进入 **插件 → ReMe 插件包 → reme-memory → 配置**。修改后点击保存，全部字段会作为一次带版本校验的原子更新提交；设置存入当前 DSH profile patch，并从后续请求或捕获开始生效。修改 `language` 只影响之后创建的新会话，修改每日计划会重新安排下一次整理。
 
 从旧版 `settings.yaml` 升级时，DSH 会将其中的 `reme-memory` 设置导入 ReMe 运行条目。如果 profile patch 显式指定了原来的 `reme-memory-runtime` 条目，需要将该条目 ID 改为 `reme-memory`；外层 group 现为 `reme-memory-scope`。
 
-如果此前升级已将 `settings.yaml` 改名为 `settings.yaml.imported`，但当时 ReMe 设置导入失败，DSH 不会再次导入这个文件。请打开 DSH home 目录中的 `settings.yaml.imported`，找到 `reme-memory` 段，并与每个受影响 profile 的 **插件 → ReMe Memory** 当前设置逐项比较。只将仍需保留的旧值填入表单并保存，保留更新后的 profile 设置。使用插件前尤其要核对 `endpoint`、`autoMemoryEnabled` 和 `autoDreamEnabled`。不要把备份文件改回 `settings.yaml`，否则其他 section 也会再次导入。
+如果此前升级已将 `settings.yaml` 改名为 `settings.yaml.imported`，但当时 ReMe 设置导入失败，DSH 不会再次导入这个文件。请打开 DSH home 目录中的 `settings.yaml.imported`，找到 `reme-memory` 段，并与每个受影响 profile 的 **插件 → ReMe 插件包 → reme-memory → 配置** 当前设置逐项比较。只将仍需保留的旧值填入表单并保存，保留更新后的 profile 设置。使用插件前尤其要核对 `endpoint`、`autoMemoryEnabled` 和 `autoDreamEnabled`。不要把备份文件改回 `settings.yaml`，否则其他 section 也会再次导入。
 
 ![ReMe Memory 插件配置](./figures/reme-memory-settings.png)
 

@@ -1,6 +1,8 @@
 import { createUserMessage } from "@deepseek-ai/dsh-llm";
 import type { Context } from "@deepseek-ai/cordis";
 import type {} from "@deepseek-ai/cordis-plugin-loader";
+import type {} from "@deepseek-ai/dsh-agent";
+import type {} from "@deepseek-ai/dsh-session";
 import { ReMeClient } from "./reme/client.js";
 
 import { resolveConfig } from "./config.js";
