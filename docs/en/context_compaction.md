@@ -119,8 +119,8 @@ latency and total cost alongside token reduction. ReMe does not automatically su
 
 ## Jev across two summary strategies
 
-One 13-method experiment compares Full context with a generic summary S and a forced Hermes small-window summary H,
-each plus Jev Top 0–5. Top 0 means summary only. Every condition preserves its frozen summary and shares the same
+One 13-method experiment compares Full context with a generic summary S and Hermes compaction summary H
+(small-budget setting), each plus Jev Top 0–5. Top 0 means summary only. Every condition preserves its frozen summary and shares the same
 Jev-selected originals across mechanisms.
 
 ![Quality, downstream input and compression overhead](../figure/compaction-topn-results.svg)
@@ -130,9 +130,11 @@ Their mean answer inputs are **3,241 / 3,193 tokens**, versus Full's **4,014 / 1
 input from summary/ranking overhead; fewer answer tokens do not establish lower total monetary cost.
 
 The panel has 14 predefined query/answer templates, 546 contexts and 1,092 direct-Qwen answers. Ten short/query-only
-controls are reported separately. H uses an explicit native-generator budget adapter, not Hermes' default automatic
-compressor. All H-only contexts shorten Full; at Top 3–5 only 9/12 primary contexts per method do so, with all cases
-retained in scoring. This is an incremental, unequal-length comparison without agent continuation.
+controls are reported separately. H reuses Hermes' compaction summary-generation pipeline with a smaller budget
+and length constraints. The experiment invokes summary generation directly, bypassing automatic triggering and head/tail
+selection. All H-only contexts shorten Full; at Top 3–5 only 9/12 primary contexts per method do so, with all cases retained
+in scoring. This is an incremental, unequal-length comparison without agent continuation.
 
 <!-- Payment has 10 units (maximum Top 10); actual N is min(N, available units). -->
-See the [query/answer protocol](https://github.com/jinliyl/ReMe/blob/d2638b166f6daeec6f3e842750313526617786a1/benchmark/compaction/STUDY.md) and [complete results and token accounting](https://github.com/jinliyl/ReMe/blob/d2638b166f6daeec6f3e842750313526617786a1/benchmark/compaction/RESULTS.md).
+See [models, framework versions, parameters and reproduction steps](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/SETTINGS.md),
+the [query/answer protocol](https://github.com/jinliyl/ReMe/blob/d2638b166f6daeec6f3e842750313526617786a1/benchmark/compaction/STUDY.md) and [complete results and token accounting](https://github.com/jinliyl/ReMe/blob/d2638b166f6daeec6f3e842750313526617786a1/benchmark/compaction/RESULTS.md).

@@ -2,7 +2,7 @@
 
 2026-10-16 · Qwen `qwen3.8-max` · Jev `jev-1.13.0`.
 
-One **13-method experiment**: Full context, generic summary **S + Top 0–5**, and forced Hermes small-window summary
+One **13-method experiment**: Full context, generic summary **S + Top 0–5**, and Hermes compaction summary (small-budget setting)
 **H + Top 0–5**. Top 0 means summary only. Both curves share the same original evidence and frozen Jev rankings;
 each summary remains byte-identical across its six conditions.
 
@@ -17,7 +17,7 @@ each summary remains byte-identical across its six conditions.
 | S + Jev Top 3 | 99.5% | 3,241 | 5,379 / 200 | 4,162 / 344 |
 | S + Jev Top 4 | 98.1% | 3,496 | 5,379 / 200 | 4,162 / 344 |
 | S + Jev Top 5 | 97.4% | 3,660 | 5,379 / 200 | 4,162 / 344 |
-| H (Hermes small-window) | 79.4% | 2,432 | 3,120 / 152 | 0 / 0 |
+| H (Hermes, small budget) | 79.4% | 2,432 | 3,120 / 152 | 0 / 0 |
 | H + Jev Top 1 | 85.3% | 2,705 | 3,120 / 152 | 4,162 / 344 |
 | H + Jev Top 2 | 92.9% | 2,927 | 3,120 / 152 | 4,162 / 344 |
 | H + Jev Top 3 | 97.9% | 3,193 | 3,120 / 152 | 4,162 / 344 |
@@ -45,7 +45,7 @@ may amortize overhead, but that has not been measured.
 
 ## Setup and boundaries
 
-[Queries, fixed answers and scoring rules](./STUDY.md) · [Reproduction commands](./README.md).
+[Queries, fixed answers and scoring rules](./STUDY.md) · [Experiment settings and reproducibility](./SETTINGS.md) · [Run commands](./README.md).
 
 The panel contains **14 task templates**, one existing payment trajectory and thirteen real read-only Hermes executions
 over synthetic upstream fixtures. Four primary tasks were selected by source length before collection; ten short/query-only
@@ -56,8 +56,8 @@ No new summary or Jev calls were needed. All 1,092 grades were replayed against 
 Scoring uses predefined, recursive type-strict JSON field rules, with no LLM judge. Questions/gold/final collection reports
 are excluded from summary and decision inputs. Answering calls Qwen directly, without Hermes tool continuation or recovery.
 S and H share a 64–256-token maximum summary-body allowance, but use different prompts and actual lengths.
-H calls Hermes' real legacy generator through an explicit budget/word-limit adapter; it is **not the default automatic
-compressor**. All 42 H-only contexts strictly shorten Full, without original-history fallback.
+H reuses Hermes' context-compaction summary-generation pipeline with `tail_mode=legacy`, a smaller summary budget
+and additional length constraints. It invokes the generator directly, bypassing automatic triggering and head/tail selection. All 42 H-only contexts strictly shorten Full, without original-history fallback.
 
 Top N adds complete source units without truncation, saturating at the available count. The payment source has ten units
 (maximum Top 10); this experiment sweeps Top 1–5. Existing per-task input ceilings are preserved, not tuned after answers.
@@ -77,7 +77,7 @@ the other 38 comprise 9 primary and 29 control contexts. All remain scored. Aver
 | S + Jev Top 3 | 92.9% | 2,687 | 1,099 / 74 | 929 / 50 |
 | S + Jev Top 4 | 92.9% | 2,722 | 1,099 / 74 | 929 / 50 |
 | S + Jev Top 5 | 92.5% | 2,722 | 1,099 / 74 | 929 / 50 |
-| H (Hermes small-window) | 73.2% | 2,308 | 1,944 / 69 | 0 / 0 |
+| H (Hermes, small budget) | 73.2% | 2,308 | 1,944 / 69 | 0 / 0 |
 | H + Jev Top 1 | 80.1% | 2,486 | 1,944 / 69 | 929 / 50 |
 | H + Jev Top 2 | 92.5% | 2,566 | 1,944 / 69 | 929 / 50 |
 | H + Jev Top 3 | 99.2% | 2,680 | 1,944 / 69 | 929 / 50 |

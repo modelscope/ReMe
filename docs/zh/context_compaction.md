@@ -110,7 +110,7 @@ ReMe 不会自动生成摘要或写入长期记忆。
 
 ## 两种摘要机制下的 Jev 增益
 
-只保留一个 13 组实验：Full context，以及普通摘要 S、Hermes 小窗口摘要 H 各自追加 Jev Top 0～5。
+只保留一个 13 组实验：Full context，以及普通摘要 S、Hermes 上下文压缩摘要 H（小预算版） 各自追加 Jev Top 0～5。
 Top 0 表示纯摘要；每轮摘要逐字固定，两种机制使用完全相同的 Jev 排名与原文块。
 
 ![Quality, downstream input and compression overhead](../figure/compaction-topn-results.svg)
@@ -120,8 +120,10 @@ Top 0 表示纯摘要；每轮摘要逐字固定，两种机制使用完全相�
 图中分别展示效果、回答输入和摘要／排序开销；回答输入减少不等于总费用降低。
 
 共 14 个预设 query/answer 模板、546 个上下文、1092 次直接 Qwen 回答；10 个短任务对照单独报告。
-H 是显式调整预算的原生生成器适配方案，不是 Hermes 默认自动压缩器。纯 H 的 42 个上下文全部短于 Full；
+H 复用 Hermes 的上下文压缩摘要生成流程，并采用小预算与长度约束；实验直接生成摘要，不经过自动触发和首尾窗口选择。
+纯 H 的 42 个上下文全部短于 Full；
 Top 3～5 每组主任务只有 9/12 个上下文实现缩短，全部样例均保留评分。这是非等长的增量比较，未继续运行 agent。
 
 <!-- 支付轨迹有 10 个证据块，最多 Top 10；实际 N 为 min(N, 可用证据块数)。 -->
+模型、框架版本、参数和复现步骤见[实验设置](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/SETTINGS.md)。
 详见[query、answer 与实验设定](https://github.com/jinliyl/ReMe/blob/d2638b166f6daeec6f3e842750313526617786a1/benchmark/compaction/STUDY.md)及[完整结果与 token 开销](https://github.com/jinliyl/ReMe/blob/d2638b166f6daeec6f3e842750313526617786a1/benchmark/compaction/RESULTS.md)。

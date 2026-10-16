@@ -1,5 +1,7 @@
 # Fourteen-task study: frozen queries, answers and rules
 
+Model/framework versions, exact parameters and artifact requirements are in [experiment settings](./SETTINGS.md).
+
 The initial task panel was frozen before collection. Explicit format corrections and native additions are recorded below.
 It evaluates **14 distinct task/answer templates**:
 one existing payment trajectory and thirteen newly collected read-only adaptations of Hermes task fixtures.
@@ -54,7 +56,7 @@ no task is selected because a method wins. Coverage, pairing and collection fail
 - Jev sees only the initial task and source evidence. Scores are shared across N, with no probability threshold.
 - Select the strict score prefix, then render in source order. If fewer than N units exist, retain all of them and report the actual count.
 - Summary allowance: 64–256 local Qwen tokens, equal to 20% of rendered evidence tokens clamped to those limits. The allowance is frozen from source length.
-- Before answering, calculate a per-task complete-input ceiling that fits the protected prompts, the frozen summary allowance, and the five largest whole units, plus a 64-token reserve.
+- Before answering, calculate a per-task complete-input ceiling that fits the protected prompts, the frozen summary allowance, and the five largest whole units, plus a 64-token reserve and 32 extra framing tokens; the ceiling is enlarged before answers if needed to fit serialized S.
   This size-only ceiling permits the entire N sweep without changing S or truncating evidence; actual lengths are reported rather than forced equal.
 - Report Full-to-fusion input reduction. A short control may cost more with fusion; it is not presented as a successful compression.
 - Save protocol, source hashes, code snapshots, requests/responses, nested selections and per-field grades outside the repository. No archive recovery.
@@ -72,9 +74,9 @@ All seven methods on both affected tasks are re-answered with the same frozen S/
 retained as a format preflight and excluded from final metrics. The other twelve tasks retain all 504 original answers,
 with identical questions. This correction changes no cohort, evidence, answer values, ranking or summary.
 
-## Added baseline: Hermes small-window summary adapter
+## Hermes compaction summary: small-budget setting
 
-This is a **simulation adapter**, not Hermes' unchanged automatic policy. It calls the real
+H is **Hermes compaction summary under a small-budget setting**. It calls the real
 `agent.context_compressor.ContextCompressor._generate_summary` with native serialization, checkpoint template,
 redaction and provenance validation. Use the built-in `tail_mode=legacy` to omit lean's additional 4,000-token session
 log and deterministic appendices. A benchmark subclass sets the summary budget to the same per-task 64–256 tokens as S,
@@ -100,7 +102,7 @@ before their new scored answers. No expected answer, cohort, Jev ranking or exis
 ## Current comparison: two frozen summary mechanisms
 
 The current experiment is one 13-arm panel: Full; S + Jev Top 0–5; H + Jev Top 0–5. Top 0 means summary only.
-H is the forced Hermes small-window adapter defined above. The extension reuses every original S/H summary, ranking,
+H is the Hermes compaction summary under the small-budget setting defined above. The extension reuses every original S/H summary, ranking,
 selected unit and scored answer; no new summarization, Jev request or trajectory collection occurs. It adds 210 contexts
 and 420 answers, for 546 contexts and 1,092 answers overall. All new inputs were frozen before answering.
 S/H use identical selected units per task/generation/N, restored to source order. No answer-based reranking is allowed.

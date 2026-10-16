@@ -4,8 +4,11 @@ A **14-query fixture panel** with predefined answers and rule scoring: four prim
 controls. See [queries, answers and frozen settings](./STUDY.md) and [measured results](./RESULTS.md).
 
 Hermes collects the source through real `read_file` calls. ReMe's experiment then compares Full context, a frozen Qwen
-summary S and forced **Hermes small-window summary H**, each with Jev Top 0–5. Scored answering calls Qwen directly;
+summary S and **Hermes compaction summary H (small-budget setting)**, each with Jev Top 0–5. Scored answering calls Qwen directly;
 there is no resumed Hermes tool loop or archive recovery. Production `compact_context` is separate.
+
+Models, framework/runtime versions, request parameters, artifact hashes and replay requirements:
+[Experiment settings and reproducibility](./SETTINGS.md).
 
 ## Run
 
@@ -29,7 +32,7 @@ python -m benchmark.compaction.suite_run --live \
   --tokenizer /path/to/cached/qwen/tokenizer.json \
   --output /path/outside/repository/evaluation
 
-# Generate the native-adapter summaries and add the eighth method.
+# Generate Hermes compaction summaries under the small-budget setting.
 # An existing complete --native directory reuses all frozen native generations.
 python -m benchmark.compaction.suite_native --live \
   --corpus /path/outside/repository/corpus/corpus.json \
@@ -60,10 +63,10 @@ Top N means a strict descending-score prefix, without a probability threshold, s
 than N units, all available units are retained and `actual_n` records the count. The original payment source has ten
 units (maximum Top 10); this study sweeps Top 1–5 with task-specific unit counts.
 
-The native baseline invokes Hermes' actual summary generator with an explicit small-window adapter: legacy template,
-S-matched body budget, final word constraint, native provenance validation, and body-only downstream framing. It bypasses
-normal triggers/head-tail selection and **must actually shorten input**; it is not the unchanged automatic Hermes policy.
-See [the exact simulation settings and preflight disclosures](./STUDY.md#added-baseline-hermes-small-window-summary-adapter).
+H reuses Hermes' context-compaction summary-generation pipeline with a small-budget setting: legacy template,
+S-matched body budget, final word constraint, native provenance validation, and body-only downstream framing. The experiment invokes summary generation directly, bypassing
+automatic triggering and head/tail selection, and **must actually shorten input**.
+See [the exact simulation settings and preflight disclosures](./STUDY.md#hermes-compaction-summary-small-budget-setting).
 
 For the recorded format amendment, native summaries used the pre-amendment source files: pass
 `--native-evaluation /path/to/pre-amendment/evaluation` when extending that run. The extension verifies its source hash
