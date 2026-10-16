@@ -110,7 +110,7 @@ ReMe 不会自动生成摘要或写入长期记忆。
 
 ## 压缩策略对比
 
-[Benchmark 方案与结果](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md)统一比较 Full context、Jev、Summary 和 Jev + Summary，结果用一张四行表呈现。
+[Benchmark 方案与结果](https://github.com/jinliyl/ReMe/blob/de6f80bd1a4b3e83a5e694ccbdf944413936561d/benchmark/compaction/RESULTS.md)统一比较 Full context、Jev、Summary 和 Jev + Summary，结果用一张四行表呈现。
 三个压缩组使用相同的 **3300-token 完整输入上限**，包含原始 system、任务、压缩内容、评测提示和消息封装；
 Full context 保留原始历史，作为允许超限的参考组。
 

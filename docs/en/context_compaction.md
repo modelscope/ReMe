@@ -119,7 +119,7 @@ latency and total cost alongside token reduction. ReMe does not automatically su
 
 ## Compaction strategy comparison
 
-The [benchmark protocol and results](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md) use one four-row table: Full context, Jev, Summary and Jev + Summary.
+The [benchmark protocol and results](https://github.com/jinliyl/ReMe/blob/de6f80bd1a4b3e83a5e694ccbdf944413936561d/benchmark/compaction/RESULTS.md) use one four-row table: Full context, Jev, Summary and Jev + Summary.
 All compressed methods share a **3,300-token complete input ceiling**, including the original system prompt, task,
 compressed evidence, evaluation question and message framing. Full context preserves the original history as an
 explicitly over-budget reference.
