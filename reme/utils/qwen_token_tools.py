@@ -72,6 +72,8 @@ class QwenTokenTools:
         """Count tokenizer IDs, or estimate from bytes when the tokenizer is unavailable."""
         if not isinstance(text, str):
             raise TypeError("text must be a string")
+        if not text:
+            return 0
         tokenizer = self.tokenizer
         if tokenizer is None:
             return _estimated_count(text)
@@ -83,6 +85,8 @@ class QwenTokenTools:
             raise TypeError("text must be a string")
         if not isinstance(max_tokens, int) or isinstance(max_tokens, bool) or max_tokens < 1:
             raise ValueError("max_tokens must be a positive integer")
+        if not text:
+            return "", 0, False
         tokenizer = self.tokenizer
         if tokenizer is None:
             token_count = _estimated_count(text)
@@ -107,10 +111,10 @@ class QwenTokenTools:
         # prefix to check the budget instead of decoding a partial character.
         end = encoding.offsets[max_tokens - 1][1]
         truncated = text[:end]
-        token_count = self.count(truncated)
+        token_count = len(tokenizer.encode(truncated, add_special_tokens=False).ids)
         while truncated and token_count > max_tokens:
             truncated = truncated[:-1]
-            token_count = self.count(truncated)
+            token_count = len(tokenizer.encode(truncated, add_special_tokens=False).ids)
         return truncated, token_count, True
 
 

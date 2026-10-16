@@ -240,10 +240,12 @@ def test_local_sources_follow_file_updates_and_current_directory(word_tokenizer,
 
 
 def test_invalid_inputs_do_not_load_tokenizer(monkeypatch):
-    """Reject invalid text and token budgets before loading or downloading."""
+    """Handle empty text and reject invalid inputs before loading or downloading."""
     load = Mock(side_effect=AssertionError("unexpected tokenizer load"))
     monkeypatch.setattr(qwen_token_tools, "_load_tokenizer", load)
     tools = QwenTokenTools()
+    assert tools.count("") == 0
+    assert tools.truncate("", 1) == ("", 0, False)
     for text in (None, b"hello"):
         with pytest.raises(TypeError, match="text must be a string"):
             tools.count(text)
@@ -252,4 +254,6 @@ def test_invalid_inputs_do_not_load_tokenizer(monkeypatch):
     for budget in (True, 0, -1, 1.5):
         with pytest.raises(ValueError, match="max_tokens must be a positive integer"):
             tools.truncate("hello", budget)
+        with pytest.raises(ValueError, match="max_tokens must be a positive integer"):
+            tools.truncate("", budget)
     load.assert_not_called()
