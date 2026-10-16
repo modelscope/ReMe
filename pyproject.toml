@@ -65,6 +65,9 @@ core = [
     "polars>=1.43.0",
     "reme_studio",
 ]
+qwen-tokenizer = [
+    "tokenizers>=0.21,<1",
+]
 image-heif = [
     "pillow>=10.0.0",
     "pillow-heif>=0.13.0",
@@ -77,6 +80,7 @@ dev = [
 ]
 full = [
     "reme-ai[core]",
+    "reme-ai[qwen-tokenizer]",
     "reme-ai[classifier-jev]",
     "reme-ai[dev]",
     "reme-ai[image-heif]",

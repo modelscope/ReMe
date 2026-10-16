@@ -22,6 +22,7 @@ from .service_utils import (
 )
 from .similarity_utils import cosine_similarity, batch_cosine_similarity
 from .token_utils import estimate_token_count
+from .qwen_token_tools import QwenTokenTools
 from .web_static import REME_WEB_STATIC_DIR, resolve_web_static_dir
 from .agent_state_io import AsStateHandler
 from .counter import (
@@ -55,6 +56,7 @@ __all__ = [
     "cosine_similarity",
     "batch_cosine_similarity",
     "estimate_token_count",
+    "QwenTokenTools",
     "REME_WEB_STATIC_DIR",
     "resolve_web_static_dir",
     "AsStateHandler",
