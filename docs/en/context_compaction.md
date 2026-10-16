@@ -119,30 +119,32 @@ latency and total cost alongside token reduction. ReMe does not automatically su
 
 ## Compaction strategy comparison
 
-The [benchmark protocol and results](https://github.com/jinliyl/ReMe/blob/de6f80bd1a4b3e83a5e694ccbdf944413936561d/benchmark/compaction/RESULTS.md) use one four-row table: Full context, Jev, Summary and Jev + Summary.
-All compressed methods share a **3,300-token complete input ceiling**, including the original system prompt, task,
-compressed evidence, evaluation question and message framing. Full context preserves the original history as an
-explicitly over-budget reference.
+The [benchmark protocol and results](https://github.com/jinliyl/ReMe/blob/feat/decision-model-compaction/benchmark/compaction/RESULTS.md) use **30 distinct HotpotQA validation questions** with human gold answers
+and sentence-level supporting facts: 15 bridge and 15 comparison questions, with no article shared between questions.
+Hermes actually reads ten articles per question, producing 30 complete trajectories and 300 tool calls. Gold answers
+and support labels stay outside the tool workspace and are used only for deterministic scoring. The final assistant
+answer is excluded from the history to be compressed.
 
-Fusion first retains Jev-selected original evidence within 40% of the available space, then summarizes the remaining
-evidence using all unused space. The summarizer also sees the retained evidence to avoid duplication. Both parts
-share the same ceiling; unused original-evidence capacity is available to the summary.
-The allocation and corpus are frozen before inference. Budget overruns and generation failures count as failures.
+All compressed methods share a **3,600-token complete input ceiling**, including original system/task, evidence,
+evaluation question and framing. Full context keeps public API message fields as an explicitly over-budget reference;
+Hermes DB snapshots and internal reasoning fields never enter model inputs. Fusion retains Jev-selected original
+evidence within 40% of available space, then summarizes remaining evidence using all unused capacity.
 
-| Method | Input tokens | Reduction | Fact accuracy |
+| Method | Input tokens | Reduction | Answer EM |
 | --- | ---: | ---: | ---: |
-| Full context | 8,030 | 0.0% | 100.0% |
-| Jev | 2,903 | 63.8% | 95.0% |
-| Summary | 3,045 | 62.1% | 88.3% |
-| Jev + Summary | 3,094 | 61.5% | 90.0% |
+| Full context | 5,482 | 0.0% | 61.7% |
+| Jev | 2,606 | 52.5% | 51.7% |
+| Summary | 2,686 | 51.0% | 61.7% |
+| Jev + Summary | 3,043 | 44.5% | 60.0% |
 
-Measured on October 16, 2026: 12/12 valid contexts and 24 answers per method; all task checks passed.
-Fusion beats Summary here but trails Jev and Full context. **Equivalence to full context or superiority over both
-baselines is not established.** Token reduction covers downstream answering input, excluding compression overhead.
+Every method has 60/60 valid contexts and 120 answers. Actual compressed inputs use 2,392–3,447 tokens, all below
+the ceiling. Fusion reduces downstream input by 44.5% and trails Full context by 1.7 percentage points in answer EM.
+However, Summary also reaches 61.7% with less input; **superiority over both compressed baselines is not established**.
+Supporting-fact F1 is 83.0% / 67.2% / 75.5% / 80.0% for Full / Jev / Summary / Fusion. These point estimates do not
+establish statistical equivalence, and downstream reduction excludes compression overhead.
 
-Two synthetic task families have three fixed variants each, with two compression generations and two answers per
-condition. Evaluation calls Qwen directly. Payment evidence comes from a Hermes-collected synthetic trajectory;
-replica evidence is an independent fixture. Hermes does not continue its agent loop during evaluation.
-Facts use strict type/value scoring, alongside payment function tests and replica-plan checks. See the benchmark for
-measured results, valid counts and reproduction commands. Fusion remains experimental and does not change the
-production `compact_context` contract above.
+The primary metric is official answer Exact Match. Answer F1, supporting-fact and joint metrics are reported separately;
+the primary metric does not change after observing results. Two compression generations and two answers per condition
+produce 240 contexts and 480 answers. Budget overruns and generation failures score zero. Evaluation calls Qwen directly;
+Hermes does not continue its agent loop and discarded evidence cannot be retrieved. Fusion remains experimental and
+does not change the production `compact_context` contract above.
