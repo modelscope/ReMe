@@ -117,7 +117,7 @@ Finish 阶段不会 checkpoint 失败路径，保证下次还能重试。
 `dream_finish_step` 负责收尾：
 
 1. 将成功处理的 changed paths 写入 `file_catalog: dream`。
-2. 将扫描窗口内每个已刷新的 day-index 页也写入 catalog。
+2. 将扫描窗口内由 Extract 扫描到的已刷新 day-index 页也写入 catalog。
 3. 如果有 upsert 或 delete，持久化 dream catalog。
 4. 返回包含 scanned、changed、integrated、checkpoint 等计数的摘要。
 
@@ -125,6 +125,9 @@ Auto Dream 不读取或写入 proactive 状态和 `interests.yaml`。这些文�
 见 [Proactive](./proactive.md)。
 
 失败路径不会被 checkpoint。这样下一次 `auto_dream` 仍会把它们视作 changed input，直到整合成功。
+
+Checkpoint 保留 Extract 扫描到的输入 mtime，day-index 页也遵循同一规则。如果来源在模型处理期间被编辑，新版本在后续调用中
+仍会被视为变化，重启后也能继续处理。后续调用的扫描窗口须包含来源日期。Finish 不会 checkpoint 本轮未扫描到的文件。
 
 ### 4. Auto Tag
 
