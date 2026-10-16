@@ -1209,11 +1209,14 @@ class _RecordingClient:
     def __init__(self, fail: bool = False):
         self.requests = []
         self.fail = fail
+        self.loaded_threads = ["thread-1"]
 
     async def request(self, method, params, *, response_model):
         self.requests.append({"method": method, "params": params, "response_model": response_model})
         if self.fail:
             raise RuntimeError("unsubscribe failed")
+        if method == "thread/loaded/list":
+            return SimpleNamespace(data=self.loaded_threads, next_cursor=None)
         return SimpleNamespace(status="unsubscribed")
 
 
@@ -1533,3 +1536,107 @@ async def test_reply_stream_releases_thread_when_turn_start_is_cancelled(tmp_pat
 
     _assert_unsubscribed(client)
     assert not wrapper._thread_tool_contexts  # pylint: disable=protected-access
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("original", "changed"),
+    [
+        ({"tool_context_id": "ctx-a"}, {"tool_context_id": "ctx-b"}),
+        ({"injected_job_kwargs": {"tenant": "a"}}, {"injected_job_kwargs": {"tenant": "b"}}),
+    ],
+)
+async def test_cancelled_reply_keeps_loaded_thread_constraints(tmp_path, monkeypatch, original, changed):
+    wrapper, _job = _wrapper(tmp_path, auth_mode="oauth")
+    client = _RecordingClient()
+    entered = asyncio.Event()
+
+    class FakeThread:
+        id = "thread-1"
+        calls = 0
+
+        async def run(self, _inputs, **_kwargs):
+            self.calls += 1
+            if self.calls > 1:
+                return _TurnResult(final_response="old MCP constraints")
+            entered.set()
+            await asyncio.Event().wait()
+
+    monkeypatch.setattr(
+        "reme.components.agent_wrapper.codex_agent_wrapper.AsyncCodex",
+        _fake_codex(client, FakeThread()),
+    )
+    task = asyncio.create_task(wrapper.reply("answer", **original))
+    try:
+        await asyncio.wait_for(entered.wait(), timeout=5)
+    finally:
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    try:
+        _assert_unsubscribed(client)
+        with pytest.raises(ValueError, match="cannot change"):
+            await wrapper.reply("answer", session_id="thread-1", **changed)
+    finally:
+        await wrapper.close()
+
+
+@pytest.mark.asyncio
+async def test_unloaded_thread_can_resume_with_new_constraints(tmp_path, monkeypatch):
+    wrapper, _job = _wrapper(tmp_path, auth_mode="oauth")
+    client = _RecordingClient()
+
+    class FakeThread:
+        id = "thread-1"
+
+        async def run(self, _inputs, **_kwargs):
+            return _TurnResult(final_response="done")
+
+    monkeypatch.setattr(
+        "reme.components.agent_wrapper.codex_agent_wrapper.AsyncCodex",
+        _fake_codex(client, FakeThread()),
+    )
+    try:
+        await wrapper.reply("answer", tool_context_id="ctx-a")
+        assert "thread-1" in wrapper._thread_tool_contexts
+        await wrapper.reply("answer", session_id="thread-1", tool_context_id="ctx-a")
+        with pytest.raises(ValueError, match="cannot change"):
+            await wrapper.reply("answer", session_id="thread-1", tool_context_id="ctx-b")
+        # Unsubscribe schedules delayed unload; only a later loaded-list query
+        # establishes that a resume will create a fresh runtime and MCP config.
+        client.loaded_threads.clear()
+        result = await wrapper.reply("answer", session_id="thread-1", tool_context_id="ctx-b")
+        assert result["last_message"] == "done"
+        assert json.loads(wrapper._thread_tool_contexts["thread-1"])["tool_context_id"] == "ctx-b"
+    finally:
+        await wrapper.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fail_second_page", [False, True])
+async def test_prune_thread_constraints_reads_all_pages_before_removing_entries(tmp_path, fail_second_page):
+    from openai_codex.generated.v2_all import ThreadLoadedListResponse
+
+    wrapper, _job = _wrapper(tmp_path)
+    wrapper._thread_tool_contexts = {"first": "a", "last": "b", "unloaded": "c"}
+    cursors = []
+
+    class Client:
+        async def request(self, method, params, *, response_model):
+            assert method == "thread/loaded/list"
+            assert response_model is ThreadLoadedListResponse
+            cursors.append(params["cursor"])
+            if params["cursor"] is None:
+                return ThreadLoadedListResponse(data=["first"], nextCursor="page-2")
+            if fail_second_page:
+                raise RuntimeError("loaded-list unavailable")
+            return ThreadLoadedListResponse(data=["last"])
+
+    await wrapper._prune_thread_tool_contexts(SimpleNamespace(_client=Client()))
+
+    assert cursors == [None, "page-2"]
+    expected = {"first": "a", "last": "b"}
+    if fail_second_page:
+        expected["unloaded"] = "c"
+    assert wrapper._thread_tool_contexts == expected
