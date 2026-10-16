@@ -146,4 +146,4 @@ Jev 先依据原任务给全部证据块打分，再选择 Top N；N 只影响�
 agent 继续执行的成功率尚未验证。
 
 <!-- 支付轨迹有 10 个证据块，最多 Top 10；实际 N 为 min(N, 可用证据块数)。 -->
-[完整实验设置与复现步骤](https://github.com/jinliyl/ReMe/blob/7686be7baaddd4094b454c30c8fca61f5429df98/benchmark/compaction/SETTINGS.md) · [query、answer 与评分规则](https://github.com/jinliyl/ReMe/blob/7686be7baaddd4094b454c30c8fca61f5429df98/benchmark/compaction/STUDY.md) · [13 组完整结果及短任务对照](https://github.com/jinliyl/ReMe/blob/7686be7baaddd4094b454c30c8fca61f5429df98/benchmark/compaction/RESULTS.md)
+[完整实验设置与复现步骤](https://github.com/jinliyl/ReMe/blob/9cc6dad5a7b0f9d6ec08b84268c8e1a2faf97ecd/benchmark/compaction/SETTINGS.md) · [query、answer 与评分规则](https://github.com/jinliyl/ReMe/blob/9cc6dad5a7b0f9d6ec08b84268c8e1a2faf97ecd/benchmark/compaction/STUDY.md) · [13 组完整结果及短任务对照](https://github.com/jinliyl/ReMe/blob/9cc6dad5a7b0f9d6ec08b84268c8e1a2faf97ecd/benchmark/compaction/RESULTS.md)
