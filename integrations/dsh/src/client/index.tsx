@@ -1,4 +1,5 @@
 import { useState, useSyncExternalStore } from "react";
+import type { ConfigForm } from "@deepseek-ai/dsh-client-ui-settings/client";
 
 import type { ReMeSettings } from "../types.js";
 import {
@@ -32,22 +33,6 @@ const FIELDS = [
 type Field = (typeof FIELDS)[number];
 type Translator = (key: keyof typeof en) => string;
 
-interface SettingsSnapshot<T> {
-  status: "loading" | "ready" | "unavailable";
-  value: T | undefined;
-  base: unknown;
-  user: unknown;
-  revision: number | undefined;
-  writable: boolean;
-}
-
-interface SettingsScope<T> {
-  getSnapshot(): SettingsSnapshot<T>;
-  subscribe(listener: () => void): () => void;
-  set(field: string, value: unknown): Promise<void>;
-  unset(field: string): Promise<void>;
-}
-
 interface ClientContext {
   get(name: string): { rpc: StatusRpc };
   effect(factory: () => (() => void) | void, label: string): void;
@@ -63,7 +48,7 @@ interface ClientContext {
     ): () => void;
   };
   configForms: {
-    get<T>(namespace: string): SettingsScope<T>;
+    get<T>(namespace: string): ConfigForm<T>;
     whileServed(namespaces: string[], register: () => () => void): () => void;
   };
   slots: {
@@ -92,7 +77,7 @@ interface Draft {
 }
 
 interface ReMeCardProps {
-  scope: SettingsScope<ReMeSettings>;
+  scope: ConfigForm<ReMeSettings>;
   t: Translator;
   view?: "summary" | "page";
 }
@@ -101,8 +86,6 @@ const en = {
   title: "ReMe Memory",
   description:
     "Turn conversations into lasting memory and grow your personal knowledge base.",
-  expand: "Expand ReMe Memory settings",
-  collapse: "Collapse ReMe Memory settings",
   loading: "Loading configuration…",
   unavailable: "ReMe settings are unavailable.",
   connected: "Connected",
@@ -176,8 +159,6 @@ const en = {
 const zh: typeof en = {
   title: "ReMe Memory",
   description: "让对话沉淀为长期记忆，持续构建你的个人知识库。",
-  expand: "展开 ReMe Memory 设置",
-  collapse: "收起 ReMe Memory 设置",
   loading: "正在加载配置…",
   unavailable: "ReMe 设置不可用。",
   connected: "已连接",
@@ -265,11 +246,11 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(
     () =>
       ctx.configForms.whileServed([SETTINGS_NS], () =>
-        ctx.slots.inject("plugins.item", () =>
+        ctx.slots.inject("plugins.row.config", () =>
           ctx.slots.register(
             {
-              name: "plugins.item",
-              id: SETTINGS_NS,
+              name: "plugins.row.config",
+              key: "@agentscope-ai/reme-dsh-plugin#reme-memory",
               label: () => t("title"),
               locale: NS,
               inject: () => ({ scope, t }),
@@ -307,14 +288,17 @@ function ReMeSettingsCard({
     (listener) => scope.subscribe(listener),
     () => scope.getSnapshot(),
   );
-  const [open, setOpen] = useState(false);
-  const [draftOverride, setDraft] = useState<Draft>();
+  const [draftOverride, setDraft] = useState<{
+    value: Draft;
+    revision: number | undefined;
+  }>();
   const [resetAll, setResetAll] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState<"" | "saved" | "failed">("");
   const value = snapshot.value;
   const draft =
-    draftOverride ?? (value === undefined ? undefined : draftFrom(value));
+    draftOverride?.value ??
+    (value === undefined ? undefined : draftFrom(value));
 
   if (view === "summary") return <>{t("description")}</>;
   if (snapshot.status === "unavailable") return null;
@@ -327,11 +311,10 @@ function ReMeSettingsCard({
 
   const update = <K extends keyof Draft>(field: K, next: Draft[K]) => {
     if (value === undefined) return;
-    setDraft((current) =>
-      current === undefined
-        ? { ...draftFrom(value), [field]: next }
-        : { ...current, [field]: next },
-    );
+    setDraft((current) => ({
+      value: { ...(current?.value ?? draftFrom(value)), [field]: next },
+      revision: current ? current.revision : snapshot.revision,
+    }));
     setResetAll(false);
     setSaveState("");
   };
@@ -341,135 +324,122 @@ function ReMeSettingsCard({
       value === undefined ||
       draft === undefined ||
       validation === undefined ||
+      !snapshot.writable ||
+      !dirty ||
       saving
     )
       return;
     setSaving(true);
     setSaveState("");
     try {
-      if (resetAll) {
-        await Promise.all(FIELDS.map((field) => scope.unset(field)));
-      } else {
-        await Promise.all(
-          FIELDS.flatMap((field) =>
+      const ops = resetAll
+        ? FIELDS.map((field) => ({ op: "unset" as const, path: [field] }))
+        : FIELDS.flatMap((field) =>
             Object.is(value[field], validation[field])
               ? []
-              : [scope.set(field, validation[field])],
-          ),
-        );
-      }
-      const accepted = scope.getSnapshot().value;
-      const expected = resetAll ? scope.getSnapshot().base : validation;
-      const success =
-        isRecord(expected) &&
-        accepted !== undefined &&
-        FIELDS.every((field) => Object.is(accepted[field], expected[field]));
+              : [
+                  {
+                    op: "set" as const,
+                    path: [field],
+                    value: validation[field],
+                  },
+                ],
+          );
+      const success = await scope.mutate(
+        ops,
+        draftOverride?.revision ?? snapshot.revision,
+      );
       setSaveState(success ? "saved" : "failed");
       if (success) {
-        setDraft(draftFrom(accepted));
+        setDraft(undefined);
         setResetAll(false);
       }
+    } catch {
+      setSaveState("failed");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className={`reme-settings-card${open ? " open" : ""}`}>
-      <button
-        type="button"
-        className="reme-settings-header"
-        aria-expanded={open}
-        aria-label={t(open ? "collapse" : "expand")}
-        onClick={() => setOpen(!open)}
-      >
-        <span className="reme-settings-title">
-          <strong>{t("title")}</strong>
-          <span>{t("description")}</span>
-        </span>
-        {dirty ? (
-          <span className="reme-settings-pending">{t("unsaved")}</span>
-        ) : null}
-        <svg
-          className={`reme-settings-chevron${open ? " open" : ""}`}
-          viewBox="0 0 14 14"
-          aria-hidden="true"
-        >
-          <path d="m3 5.25 4 4 4-4" />
-        </svg>
-      </button>
-      {open ? (
-        <div className="reme-settings-body">
-          {snapshot.status === "loading" ||
-          draft === undefined ||
-          value === undefined ? (
-            <p className="reme-settings-muted">{t("loading")}</p>
-          ) : (
-            <>
+    <div className="reme-settings-card">
+      <div className="reme-settings-body">
+        {dirty ? <p className="reme-settings-pending">{t("unsaved")}</p> : null}
+        {snapshot.status === "loading" ||
+        draft === undefined ||
+        value === undefined ? (
+          <p className="reme-settings-muted">{t("loading")}</p>
+        ) : (
+          <>
+            <fieldset
+              className="reme-settings-fields"
+              disabled={saving || !snapshot.writable}
+            >
               <SettingsForm draft={draft} update={update} t={t} />
-              {!snapshot.writable ? (
-                <p className="reme-settings-error" role="status">
-                  {t("readOnly")}
-                </p>
-              ) : null}
-              {validation === undefined ? (
-                <p className="reme-settings-error" role="status">
-                  {t("invalid")}
-                </p>
-              ) : null}
-              <div className="reme-settings-actions">
-                <button
-                  type="button"
-                  className="reme-settings-reset"
-                  disabled={!snapshot.writable || saving}
-                  onClick={() => {
-                    setDraft(draftFrom(baseSettings(snapshot.base, value)));
-                    setResetAll(true);
-                    setSaveState("");
-                  }}
-                >
-                  {t("reset")}
-                </button>
-                <span className="reme-settings-result" role="status">
-                  {saveState === "failed" ? (
-                    <span className="reme-settings-error">
-                      {t("saveFailed")}
-                    </span>
-                  ) : null}
-                  {saveState === "saved" ? (
-                    <span className="reme-settings-success">{t("saved")}</span>
-                  ) : null}
-                </span>
-                <button
-                  type="button"
-                  className="reme-settings-discard"
-                  disabled={!dirty || saving}
-                  onClick={() => {
-                    setDraft(draftFrom(value));
-                    setResetAll(false);
-                    setSaveState("");
-                  }}
-                >
-                  {t("discard")}
-                </button>
-                <button
-                  type="button"
-                  className="reme-settings-save"
-                  disabled={
-                    !snapshot.writable ||
-                    !dirty ||
-                    validation === undefined ||
-                    saving
-                  }
-                  onClick={() => void save()}
-                >
-                  {t(saving ? "saving" : "save")}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      ) : null}
+            </fieldset>
+            {!snapshot.writable ? (
+              <p className="reme-settings-error" role="status">
+                {t("readOnly")}
+              </p>
+            ) : null}
+            {validation === undefined ? (
+              <p className="reme-settings-error" role="status">
+                {t("invalid")}
+              </p>
+            ) : null}
+            <div className="reme-settings-actions">
+              <button
+                type="button"
+                className="reme-settings-reset"
+                disabled={!snapshot.writable || saving}
+                onClick={() => {
+                  setDraft({
+                    value: draftFrom(baseSettings(snapshot.base, value)),
+                    revision: snapshot.revision,
+                  });
+                  setResetAll(true);
+                  setSaveState("");
+                }}
+              >
+                {t("reset")}
+              </button>
+              <span className="reme-settings-result" role="status">
+                {saveState === "failed" ? (
+                  <span className="reme-settings-error">{t("saveFailed")}</span>
+                ) : null}
+                {saveState === "saved" ? (
+                  <span className="reme-settings-success">{t("saved")}</span>
+                ) : null}
+              </span>
+              <button
+                type="button"
+                className="reme-settings-discard"
+                disabled={!dirty || saving}
+                onClick={() => {
+                  setDraft(undefined);
+                  setResetAll(false);
+                  setSaveState("");
+                }}
+              >
+                {t("discard")}
+              </button>
+              <button
+                type="button"
+                className="reme-settings-save"
+                disabled={
+                  !snapshot.writable ||
+                  !dirty ||
+                  validation === undefined ||
+                  saving
+                }
+                onClick={() => void save()}
+              >
+                {t(saving ? "saving" : "save")}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

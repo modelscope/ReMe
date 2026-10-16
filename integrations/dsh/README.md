@@ -4,7 +4,7 @@
 
 This guide explains how to install, configure, and use `@agentscope-ai/reme-dsh-plugin` with DeepSeek Harness (DSH), including memory guidance injection, the `reme_search` tool, automatic memory, daily consolidation, and the ReMe Status page.
 
-The screenshots record an earlier local integration test against DSH `0.1.5-rc.2`; the current compatibility target is `0.1.7-rc.2`. Both the interface and ReMe guidance are set to English, and the isolated DSH and ReMe workspaces contain only fictional Project Aurora data. No `.env` values, API keys, access tokens, or personal memories appear in the screenshots.
+The screenshots record an earlier local integration test against DSH `0.1.5-rc.2`; the supported releases are `0.1.7-rc.2`, `0.2.0-rc.2`, `0.2.1-alpha.2`, and `0.2.1-alpha.4`. Both the interface and ReMe guidance are set to English, and the isolated DSH and ReMe workspaces contain only fictional Project Aurora data. No `.env` values, API keys, access tokens, or personal memories appear in the screenshots.
 
 ## 1. How the plugin works
 
@@ -26,11 +26,13 @@ The DSH adapter injects **usage guidance**, not every historical memory. Relevan
 ## 2. Requirements
 
 - ReMe is installed and its configuration exposes the `search`, `auto_memory`, and `auto_dream` jobs.
-- DeepSeek Harness `0.1.7-rc.2`.
+- DeepSeek Harness `0.1.7-rc.2`, `0.2.0-rc.2`, `0.2.1-alpha.2`, or `0.2.1-alpha.4`.
 - Node.js `^22.19.0` or `>=24.0.0`, matching the current DSH engine range.
 - The browser running DSH can reach the configured ReMe HTTP endpoint. Cross-machine deployments must also allow the DSH browser origin.
 
 The default ReMe endpoint is `http://127.0.0.1:2333`. ReMe HTTP does not use API-key authentication, so do not expose it directly to an untrusted network.
+
+Peer ranges cover the tested prerelease lines and compatible stable `0.1.x` / `0.2.x` releases. Other prerelease lines require validation before being added; `0.3.x` is excluded.
 
 ## 3. Install and start
 
@@ -100,11 +102,11 @@ Declare the route with `api: openai-completions`, select `LLM_MODEL_NAME` (or an
 
 ## 4. Configure ReMe Memory
 
-Open **Plugins → ReMe Memory**. Save changes before starting the next session. Settings are stored in the active DSH profile patch and apply to subsequent requests and captures. A language change affects new sessions; a schedule change immediately reschedules the next consolidation.
+Open **Plugins → ReMe bundle → reme-memory → Configure**. Save submits all edits together as one revision-checked atomic update. Save changes before starting the next session. Settings are stored in the active DSH profile patch and apply to subsequent requests and captures. A language change affects new sessions; a schedule change immediately reschedules the next consolidation.
 
 On upgrade from the old `settings.yaml`, DSH imports its `reme-memory` section into the ReMe runtime entry. If a profile patch explicitly targets the former `reme-memory-runtime` entry, change that entry ID to `reme-memory`; the enclosing group is now `reme-memory-scope`.
 
-If an earlier upgrade already renamed `settings.yaml` to `settings.yaml.imported` while ReMe's import failed, DSH will not retry that file. Open `settings.yaml.imported` in the DSH home directory, find its `reme-memory` section, and compare those fields with **Plugins → ReMe Memory** in each affected profile. Copy the old values you still want into the form and save; keep any newer profile values. In particular, check `endpoint`, `autoMemoryEnabled`, and `autoDreamEnabled` before using the plugin. Do not rename the backup back to `settings.yaml`, since that would retry imports for unrelated sections too.
+If an earlier upgrade already renamed `settings.yaml` to `settings.yaml.imported` while ReMe's import failed, DSH will not retry that file. Open `settings.yaml.imported` in the DSH home directory, find its `reme-memory` section, and compare those fields with **Plugins → ReMe bundle → reme-memory → Configure** in each affected profile. Copy the old values you still want into the form and save; keep any newer profile values. In particular, check `endpoint`, `autoMemoryEnabled`, and `autoDreamEnabled` before using the plugin. Do not rename the backup back to `settings.yaml`, since that would retry imports for unrelated sections too.
 
 ![ReMe Memory plugin configuration](./figures/reme-memory-settings.png)
 
