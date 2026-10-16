@@ -165,4 +165,4 @@ the entire gain cannot be attributed to Jev ranking itself. Future-turn cost amo
 remain unmeasured.
 
 <!-- Payment has 10 units (maximum Top 10); actual N is min(N, available units). -->
-[Full settings and reproduction](https://github.com/jinliyl/ReMe/blob/8f796715ab107550a78d462f72f9e1b934ef7daa/benchmark/compaction/SETTINGS.md) · [Queries, answers and scoring](https://github.com/jinliyl/ReMe/blob/8f796715ab107550a78d462f72f9e1b934ef7daa/benchmark/compaction/STUDY.md) · [All 13 methods and short-task controls](https://github.com/jinliyl/ReMe/blob/8f796715ab107550a78d462f72f9e1b934ef7daa/benchmark/compaction/RESULTS.md)
+[Full settings and reproduction](https://github.com/jinliyl/ReMe/blob/7686be7baaddd4094b454c30c8fca61f5429df98/benchmark/compaction/SETTINGS.md) · [Queries, answers and scoring](https://github.com/jinliyl/ReMe/blob/7686be7baaddd4094b454c30c8fca61f5429df98/benchmark/compaction/STUDY.md) · [All 13 methods and short-task controls](https://github.com/jinliyl/ReMe/blob/7686be7baaddd4094b454c30c8fca61f5429df98/benchmark/compaction/RESULTS.md)

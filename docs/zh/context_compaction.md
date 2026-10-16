@@ -151,4 +151,4 @@ Jev 先依据原任务给全部证据块打分，再选择 Top N；N 只影响�
 多轮摊销后的费用收益和 agent 继续执行的成功率均未验证。
 
 <!-- 支付轨迹有 10 个证据块，最多 Top 10；实际 N 为 min(N, 可用证据块数)。 -->
-[完整实验设置与复现步骤](https://github.com/jinliyl/ReMe/blob/8f796715ab107550a78d462f72f9e1b934ef7daa/benchmark/compaction/SETTINGS.md) · [query、answer 与评分规则](https://github.com/jinliyl/ReMe/blob/8f796715ab107550a78d462f72f9e1b934ef7daa/benchmark/compaction/STUDY.md) · [13 组完整结果及短任务对照](https://github.com/jinliyl/ReMe/blob/8f796715ab107550a78d462f72f9e1b934ef7daa/benchmark/compaction/RESULTS.md)
+[完整实验设置与复现步骤](https://github.com/jinliyl/ReMe/blob/7686be7baaddd4094b454c30c8fca61f5429df98/benchmark/compaction/SETTINGS.md) · [query、answer 与评分规则](https://github.com/jinliyl/ReMe/blob/7686be7baaddd4094b454c30c8fca61f5429df98/benchmark/compaction/STUDY.md) · [13 组完整结果及短任务对照](https://github.com/jinliyl/ReMe/blob/7686be7baaddd4094b454c30c8fca61f5429df98/benchmark/compaction/RESULTS.md)
