@@ -137,5 +137,5 @@ selection. All H-only contexts shorten Full; at Top 3–5 only 9/12 primary cont
 in scoring. This is an incremental, unequal-length comparison without agent continuation.
 
 <!-- Payment has 10 units (maximum Top 10); actual N is min(N, available units). -->
-See [models, framework versions, parameters and reproduction steps](https://github.com/jinliyl/ReMe/blob/65ef7358417d21746cf9f95aaf9005aa521c5688/benchmark/compaction/SETTINGS.md),
-the [query/answer protocol](https://github.com/jinliyl/ReMe/blob/65ef7358417d21746cf9f95aaf9005aa521c5688/benchmark/compaction/STUDY.md) and [complete results and token accounting](https://github.com/jinliyl/ReMe/blob/65ef7358417d21746cf9f95aaf9005aa521c5688/benchmark/compaction/RESULTS.md).
+See [models, framework versions, parameters and reproduction steps](https://github.com/jinliyl/ReMe/blob/e1a3b42579c91306a08db4f7b3a9e9b4a3968ed2/benchmark/compaction/SETTINGS.md),
+the [query/answer protocol](https://github.com/jinliyl/ReMe/blob/e1a3b42579c91306a08db4f7b3a9e9b4a3968ed2/benchmark/compaction/STUDY.md) and [complete results and token accounting](https://github.com/jinliyl/ReMe/blob/e1a3b42579c91306a08db4f7b3a9e9b4a3968ed2/benchmark/compaction/RESULTS.md).
