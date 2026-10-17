@@ -477,9 +477,14 @@ def test_traverse_answer_is_llm_readable_and_actionable():
         with tempfile.TemporaryDirectory() as tmp, _temp_chdir(tmp):
             store = await _make_store(
                 [
-                    _node("a.md", [("b.md", None), ("c.md", "intro")]),
-                    _node("b.md"),
-                    _node("c.md"),
+                    _node(
+                        "a.md",
+                        [("b.md", None), ("c.md", "intro")],
+                        name="Seed",
+                        description="Anchors two outgoing links",
+                    ),
+                    _node("b.md", name="Child B", description="First hop"),
+                    _node("c.md", name="Child C", description="Second hop with anchor"),
                 ],
             )
             step = traverse_mod.TraverseStep(file_store=store)
@@ -492,6 +497,20 @@ def test_traverse_answer_is_llm_readable_and_actionable():
             assert "[0] a.md" in answer
             assert "[1] b.md" in answer
             assert "[1] c.md" in answer
+            # Round-3 review: opaque or date-based filenames need the
+            # frontmatter name to be useful from the readable answer
+            # alone (MCP and chat-tool adapters return only
+            # response.answer, so the structured graph is not visible).
+            # Names are appended after the path; descriptions are
+            # listed in a dedicated section so the one-line-per-node
+            # layout stays scannable.
+            assert "[0] a.md — Seed" in answer
+            assert "a.md: Anchors two outgoing links" in answer
+            assert "[1] b.md — Child B" in answer
+            assert "b.md: First hop" in answer
+            assert "[1] c.md — Child C" in answer
+            assert "c.md: Second hop with anchor" in answer
+            assert "--- descriptions ---" in answer
             assert "--- edges ---" in answer
             assert "a.md -> b.md (depth=1)" in answer
             assert "a.md -> c.md#intro (depth=1)" in answer

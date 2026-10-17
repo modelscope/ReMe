@@ -143,11 +143,14 @@ def _render_answer(graph: TraverseGraph) -> str:
 
     ``traverse`` is consumed directly by LLM agents (MCP/chat read-only tools),
     so ``response.answer`` carries the readable form: a summary header, one line
-    per reached node with its hop depth, and one line per directed edge with its
-    anchor and depth. A node marked ``(unindexed)`` has no entry in the file
-    graph; it may still exist on disk, because ``read`` resolves against the
-    filesystem rather than the index. The structured :class:`TraverseGraph`
-    stays available in ``metadata["graph"]`` for programmatic consumers.
+    per reached node with its hop depth and, when present, the frontmatter
+    ``name`` and ``description`` (otherwise opaque or date-based filenames
+    force a follow-up read just to identify a relevant node), and one line
+    per directed edge with its anchor and depth. A node marked ``(unindexed)``
+    has no entry in the file graph; it may still exist on disk, because
+    ``read`` resolves against the filesystem rather than the index. The
+    structured :class:`TraverseGraph` stays available in
+    ``metadata["graph"]`` for programmatic consumers.
     """
     lines = [
         f"=== traverse seeds={','.join(graph.seeds)} depth={graph.depth} "
@@ -155,7 +158,14 @@ def _render_answer(graph: TraverseGraph) -> str:
     ]
     for node in graph.nodes:
         marker = "" if node.indexed else " (unindexed)"
-        lines.append(f"[{node.depth}] {node.path}{marker}")
+        name_part = f" — {node.name}" if node.name else ""
+        lines.append(f"[{node.depth}] {node.path}{name_part}{marker}")
+    if any(node.description for node in graph.nodes):
+        lines.append("--- descriptions ---")
+        for node in graph.nodes:
+            if not node.description:
+                continue
+            lines.append(f"{node.path}: {node.description}")
     lines.append("--- edges ---")
     if graph.edges:
         for edge in graph.edges:
