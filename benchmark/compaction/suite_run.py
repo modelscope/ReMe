@@ -152,7 +152,7 @@ async def run(args):
             raise ValueError("Missing " + key)
     output.mkdir(parents=True)
     write(output / "corpus.json", manifest)
-    for name in ("suite.py", "suite_run.py", "run.py", "cases.py", "STUDY.md"):
+    for name in ("suite.py", "suite_run.py", "run.py", "cases.py", "README.md"):
         shutil.copy2(Path(__file__).parent / name, output / name)
     write(
         output / "protocol.json",

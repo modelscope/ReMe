@@ -96,7 +96,7 @@ async def run(args):
     if not values.get("LLM_API_KEY") or not values.get("LLM_BASE_URL"):
         raise ValueError("Missing Qwen credentials")
     output.mkdir(parents=True)
-    for name in ("suite_fusion.py", "suite_run.py", "STUDY.md"):
+    for name in ("suite_fusion.py", "suite_run.py", "README.md"):
         shutil.copy2(Path(__file__).parent / name, output / name)
     write(
         output / "protocol.json",

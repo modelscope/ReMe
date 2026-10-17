@@ -22,7 +22,7 @@ async def run(args):
     manifest = freeze(args.hermes.resolve(), output)
     shutil.copy2(args.payment_trajectory, output / "payment/trajectory.full.json")
     write(output / "payment/collection.json", {"completed": True, "reused": True, "trajectory_sha256": SOURCE_SHA256})
-    for name in ("suite.py", "suite_collect.py", "hermes_worker.py", "STUDY.md"):
+    for name in ("suite.py", "suite_collect.py", "hermes_worker.py", "README.md"):
         shutil.copy2(Path(__file__).parent / name, output / name)
     semaphore = asyncio.Semaphore(args.concurrency)
     statuses = []

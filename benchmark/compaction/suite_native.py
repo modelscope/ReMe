@@ -49,7 +49,7 @@ async def prepare_native(args, cases, repo):
     if native == repo or repo in native.parents:
         raise ValueError("Native artifacts must stay outside repository")
     native.mkdir(parents=True)
-    for name in ("hermes_summary.py", "STUDY.md"):
+    for name in ("hermes_summary.py", "README.md"):
         shutil.copy2(Path(__file__).parent / name, native / name)
     limit = asyncio.Semaphore(4)
 
@@ -111,7 +111,7 @@ async def run(args):
     await prepare_native(args, cases, repo)
     rows = deepcopy(original)
     output.mkdir(parents=True)
-    for name in ("suite_native.py", "hermes_summary.py", "suite.py", "STUDY.md"):
+    for name in ("suite_native.py", "hermes_summary.py", "suite.py", "README.md"):
         shutil.copy2(Path(__file__).parent / name, output / name)
     write(
         output / "protocol.json",
