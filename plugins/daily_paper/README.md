@@ -45,11 +45,8 @@ curl -s http://127.0.0.1:2333/daily_paper \
   -d '{"topics":"Agent memory"}'
 ```
 
-To run the Job once without starting a long-lived service:
-
-```bash
-reme start plugins='["daily-paper"]' job=daily_paper topics="Agent memory"
-```
+For scripts that need to run once without a persistent service, see [One-shot Jobs](../../docs/en/services.md#one-shot-jobs).
+Normal usage follows the service startup and client invocation workflow above.
 
 Custom application configs must provide `agent_wrapper.default`, a `file_store.default` with an enabled tag index, and
 the `search`, `read`, `list_tags`, `frontmatter_read`, and `frontmatter_update` Jobs used by Daily Paper and automatic

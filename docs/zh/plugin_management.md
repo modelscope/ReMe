@@ -153,7 +153,7 @@ reme start plugins='["auto-fin"]'
 override 优先。这个 mapping 是 `ApplicationConfig` 配置片段，并不是另一套配置 schema。插件 backend 只注册到该
 Application 的局部 registry。
 
-默认 HTTP service 启动后，可以通过 ReMe CLI client 或 HTTP 访问插件 Job：
+默认 HTTP service 启动后，在另一个终端通过 ReMe CLI client 或 HTTP 访问插件 Job：
 
 ```bash
 reme auto_fin topics="黄金,AI,存储芯片"

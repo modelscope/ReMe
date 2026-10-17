@@ -9,7 +9,8 @@ ReMe recovery protects user-owned workspace files and rebuilds catalogs, indexes
 
 ## Quick diagnosis
 
-Run these in order:
+These commands inspect a running service. For a new deployment, first start it as shown in [Quick Start](./quick_start.md).
+From another terminal, run these in order:
 
 ```bash
 reme find_reme
@@ -47,6 +48,8 @@ reme reindex scope=embedding
 ```
 
 `reindex` rebuilds BM25 and/or embedding indexes from the current `file_chunks`. It does not scan the workspace, rechunk files, or rebuild the wikilink graph. Diagnose the watcher first when ingestion is the problem.
+
+When a ReMe upgrade or chunker configuration change alters chunking behavior, existing chunks do not refresh automatically. To apply the new behavior, follow [Recover derived state](#recover-derived-state).
 
 Rebuild a daily index page separately:
 
@@ -89,9 +92,10 @@ Do not remove anything until a backup exists. Then:
 1. preserve `session/`, `resource/`, `daily/`, and `digest/`;
 2. record the effective configuration and component backends;
 3. verify that the failure is limited to `metadata/`;
-4. move suspect derived state to an isolated backup location;
-5. restart with the same configuration and let watchers rebuild;
-6. validate search, graph traversal, and daily indexes.
+4. stop the service, so shutdown persistence cannot write the old in-memory state back over the cleanup;
+5. move only the affected store's derived state to an isolated backup location, preserving unrelated catalogs;
+6. restart with the same configuration and let watchers rebuild the files in their configured watch scope;
+7. validate search, graph traversal, and daily indexes.
 
 The internal layout of metadata files is not a public automation contract.
 

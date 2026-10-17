@@ -103,7 +103,6 @@ docker compose exec reme reme health_check
 docker compose exec reme reme status
 ```
 
-Other commands pass through unchanged, including `reme start job=version` for a one-shot job or `python` for diagnostics.
 From a host CLI, supply the published address explicitly, for example `reme health_check host=127.0.0.1 port=2444`.
 Host process discovery cannot reconstruct a container's startup arguments. Configure agent integrations to use the
 published HTTP or MCP endpoint instead of starting a second native ReMe on the same workspace.
@@ -154,3 +153,14 @@ python scripts/test_docker_image.py --image reme:local
 
 The smoke check uses a disposable workspace and no model credentials. It verifies Studio, HTTP and MCP, file containment,
 non-root execution, graceful shutdown, and memory search after replacing a container on a different port.
+
+## One-shot Execution and Diagnostics
+
+For a script that needs to run one Job and exit, use a separate one-shot container:
+
+```bash
+docker run --rm --no-healthcheck reme:local start job=version
+```
+
+This runs the Job locally in the container instead of calling an existing service. The image also supports direct
+diagnostic commands such as `python`.

@@ -159,7 +159,7 @@ When `config` is omitted, ReMe loads `default.yaml`. The plugin's `application_d
 so explicit config values and CLI overrides win. This mapping is an `ApplicationConfig` fragment, not a separate
 configuration schema. The plugin backends are registered only in that Application's local registry.
 
-After the default HTTP service starts, access plugin Jobs through ReMe's CLI client or HTTP:
+After the default HTTP service starts, access plugin Jobs from another terminal through ReMe's CLI client or HTTP:
 
 ```bash
 reme auto_fin topics="黄金,AI,存储芯片"

@@ -96,6 +96,7 @@ class CodexAgentWrapper(BaseAgentWrapper):
         codex_bin: str | None = None,
         config_overrides: list[str] | tuple[str, ...] | None = None,
         experimental_api: bool = True,
+        release_threads: bool = True,
         **kwargs,
     ) -> None:
         if "launch_args_override" in kwargs:
@@ -112,6 +113,7 @@ class CodexAgentWrapper(BaseAgentWrapper):
             experimental_api=experimental_api,
         )
         self._codex: AsyncCodex | None = None
+        self._release_threads = release_threads
         self._turn_lock = asyncio.Lock()
         self._mcp_snapshot_path: Path | None = None
         self._thread_tool_contexts: dict[str, str] = {}
@@ -305,6 +307,8 @@ class CodexAgentWrapper(BaseAgentWrapper):
         fork_session = bool(kwargs.get("fork_session", False))
         if fork_session and not thread_id:
             raise ValueError("fork_session=True requires resume or session_id")
+        if self._release_threads and self._thread_tool_contexts:
+            await self._prune_thread_tool_contexts(codex)
         requested_tool_context = json.dumps(
             {
                 "tool_context_id": str(kwargs.get("tool_context_id") or ""),
@@ -403,6 +407,48 @@ class CodexAgentWrapper(BaseAgentWrapper):
                     self._mcp_snapshot_path.unlink(missing_ok=True)
                     self._mcp_snapshot_path = None
 
+    async def _prune_thread_tool_contexts(self, codex: AsyncCodex) -> None:
+        """Forget tool constraints only after the server confirms a thread is unloaded."""
+        try:
+            from openai_codex.generated.v2_all import ThreadLoadedListResponse
+
+            loaded_ids: set[str] = set()
+            cursor = None
+            while True:
+                page = await codex._client.request(  # pylint: disable=protected-access
+                    "thread/loaded/list",
+                    {"cursor": cursor},
+                    response_model=ThreadLoadedListResponse,
+                )
+                loaded_ids.update(page.data)
+                cursor = page.next_cursor
+                if not cursor:
+                    break
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            self.logger.warning(f"Failed to list loaded Codex threads: {exc}")
+            return
+        self._thread_tool_contexts = {
+            thread_id: context for thread_id, context in self._thread_tool_contexts.items() if thread_id in loaded_ids
+        }
+
+    async def _release_thread(self, codex: AsyncCodex, thread_id: str) -> None:
+        """Unsubscribe so the app-server can unload the thread once it is idle."""
+        try:
+            from openai_codex.generated.v2_all import ThreadUnsubscribeResponse
+
+            # The SDK exposes no public unsubscribe; request() is public but
+            # reached through the private client attribute on SDK 0.162.x.
+            await codex._client.request(  # pylint: disable=protected-access
+                "thread/unsubscribe",
+                {"threadId": thread_id},
+                response_model=ThreadUnsubscribeResponse,
+            )
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            self.logger.warning(f"Failed to unsubscribe Codex thread {thread_id}: {exc}")
+        # Unsubscribe is not an unload acknowledgement. In particular, a
+        # cancelled turn can still be running with its original MCP constraints.
+        # Keep the guard until thread/loaded/list confirms the thread is gone.
+
     @staticmethod
     def _serialize(value: Any) -> Any:
         from pydantic_core import to_jsonable_python
@@ -418,7 +464,11 @@ class CodexAgentWrapper(BaseAgentWrapper):
         async with self._turn_lock:
             codex = await self._get_codex()
             thread = await self._open_thread(codex, kwargs)
-            result = await thread.run(inputs, **self._turn_kwargs(kwargs))
+            try:
+                result = await thread.run(inputs, **self._turn_kwargs(kwargs))
+            finally:
+                if self._release_threads:
+                    await self._release_thread(codex, thread.id)
 
         final_response = result.final_response or ""
         response = {
@@ -445,7 +495,11 @@ class CodexAgentWrapper(BaseAgentWrapper):
         async with self._turn_lock:
             codex = await self._get_codex()
             thread = await codex.thread_resume(session_id)
-            await thread.compact()
+            try:
+                await thread.compact()
+            finally:
+                if self._release_threads:
+                    await self._release_thread(codex, thread.id)
 
     @classmethod
     # pylint: disable=too-many-return-statements
@@ -572,19 +626,23 @@ class CodexAgentWrapper(BaseAgentWrapper):
         async with self._turn_lock:
             codex = await self._get_codex()
             thread = await self._open_thread(codex, kwargs)
-            turn = await thread.turn(inputs, **self._turn_kwargs(kwargs))
-            stream = turn.stream()
-            completed = False
             try:
-                async for event in stream:
-                    if event.method == "turn/completed":
-                        completed = True
-                    for chunk in self._event_to_chunks(event, thread.id):
-                        yield chunk
+                turn = await thread.turn(inputs, **self._turn_kwargs(kwargs))
+                stream = turn.stream()
+                completed = False
+                try:
+                    async for event in stream:
+                        if event.method == "turn/completed":
+                            completed = True
+                        for chunk in self._event_to_chunks(event, thread.id):
+                            yield chunk
+                finally:
+                    if not completed:
+                        try:
+                            await turn.interrupt()
+                        except Exception as exc:  # pylint: disable=broad-exception-caught
+                            self.logger.warning(f"Failed to interrupt Codex turn {turn.id}: {exc}")
+                    await stream.aclose()
             finally:
-                if not completed:
-                    try:
-                        await turn.interrupt()
-                    except Exception as exc:  # pylint: disable=broad-exception-caught
-                        self.logger.warning(f"Failed to interrupt Codex turn {turn.id}: {exc}")
-                await stream.aclose()
+                if self._release_threads:
+                    await self._release_thread(codex, thread.id)

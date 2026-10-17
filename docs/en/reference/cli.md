@@ -13,18 +13,20 @@ reme ACTION key=value ...
 
 ## Start an Application
 
+Use two stages: start a service in one terminal, then call Jobs from another. Choose one startup command and leave it
+running:
+
 ```bash
 reme start
 reme start config=demo
 reme start workspace_dir=/data/reme service.port=8181
-reme start job=search query="keywords" limit=5
 ```
 
-`start job=<name>` runs one Job through a one-shot service; plain `start` runs the configured Service.
+Plain `start` runs the configured Service. Omit `config` to use `default`; select another configuration when needed.
 
 ## Call Jobs
 
-Once a service is running, each action name is a Job name:
+In another terminal, each action name is a Job name. The CLI discovers the running service configuration:
 
 ```bash
 reme help
@@ -85,3 +87,14 @@ The [Job API Reference](./jobs.md) describes the default configuration. Plugins 
 reme help
 reme app_config
 ```
+
+## Run Once Without a Persistent Service
+
+For a script that needs to execute one Job and exit, use the one-shot CLI Service:
+
+```bash
+reme start config=default job=search query="keywords" limit=5
+```
+
+`start job=<name>` runs the Job locally through the normal application lifecycle and then exits. It does not call an
+already running service. Normal interactive examples use the two-stage workflow above.

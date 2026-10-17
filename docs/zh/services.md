@@ -10,12 +10,20 @@ ReMe 可以作为本地 HTTP 服务、独立 MCP Server 或一次性 CLI Job 运
 
 ## HTTP 服务
 
+在一个终端启动服务并保持运行，以下启动命令任选一条：
+
 ```bash
 reme start
 reme start service.host=127.0.0.1 service.port=8181
 ```
 
-普通 Job 暴露为 `POST /<job-name>`：
+在另一个终端通过 CLI client 调用 Job：
+
+```bash
+reme search query="用户偏好" limit=5
+```
+
+普通 Job 也暴露为 `POST /<job-name>`；以下 HTTP 示例使用默认端口 `2333`：
 
 ```bash
 curl -s http://127.0.0.1:2333/search \

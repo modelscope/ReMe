@@ -37,7 +37,7 @@ reme start config=cookbook
 `cookbook.yaml` 负责跨插件路由：在自动标签之后追加通知 Step，让手动 Job 与 cron Job 复用同一 pipeline，并显式以
 background Job 启动钉钉 Agent bridge。两个业务插件仍可完全脱离钉钉使用。
 
-## Markdown 发送 Job 示例
+## Markdown 发送：无服务单次执行
 
 需要直接发送时，可以在 Application 配置中添加一个私有 one-shot Job：
 

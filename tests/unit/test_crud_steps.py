@@ -113,7 +113,7 @@ def _seed_md(workspace_dir: Path, rel: str, body: str) -> Path:
 
 
 def test_stat_indexed_file():
-    """stat returns size, mime, and frontmatter for an indexed .md file."""
+    """stat reports size and mtime in its answer, plus metadata for an indexed file."""
 
     async def run():
         with tempfile.TemporaryDirectory() as tmp, temp_chdir(tmp):
@@ -123,7 +123,10 @@ def test_stat_indexed_file():
             payload = _metadata(step)
             assert payload["exists"] is True
             assert payload["type"] == "file"
-            assert "size" in payload and payload["size"] > 0
+            assert payload["size"] == (Path(tmp) / "topics/n.md").stat().st_size
+            assert step.context.response.answer == (
+                f"stat: topics/n.md (file, {payload['size']} bytes, mtime {payload['mtime']})"
+            )
             assert payload["mime"].startswith("text/")
             assert payload["frontmatter"] == {"name": "T"}
             await store.close()
@@ -144,6 +147,7 @@ def test_stat_directory_fallback():
             payload = _metadata(step)
             assert payload["exists"] is True
             assert payload["type"] == "dir"
+            assert step.context.response.answer == f"stat: topics (dir, mtime {payload['mtime']})"
             await store.close()
         print("✓ test_stat_directory_fallback passed")
 

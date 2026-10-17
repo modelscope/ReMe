@@ -1,6 +1,7 @@
 """Parser for YAML config with CLI argument overrides."""
 
 import json
+import math
 import os
 import re
 from collections.abc import Mapping
@@ -101,6 +102,7 @@ def _convert_value(value_str: str) -> Any:
     Only converts "true"/"false" (case-insensitive) to boolean.
     Use JSON format (e.g., '"yes"', '"no"') to preserve these as strings.
     Leading-zero strings (e.g., "007", "00501") are kept as strings.
+    "nan", "inf" and "Infinity" are kept as strings: JSON has no such numbers.
     """
     s = value_str.strip()
     lower = s.lower()
@@ -117,9 +119,11 @@ def _convert_value(value_str: str) -> Any:
     if not _LEADING_ZERO_RE.match(s):
         for converter in (int, float):
             try:
-                return converter(s)
+                number = converter(s)
             except ValueError:
                 continue
+            # float() also reads "nan" and "inf", which no JSON request can carry
+            return number if isinstance(number, int) or math.isfinite(number) else s
 
     # JSON handles lists, dicts, and explicitly-quoted strings
     try:

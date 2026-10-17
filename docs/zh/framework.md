@@ -68,6 +68,7 @@ reme/
     file_chunker/            # Markdown / JSON / JSONL / 通用文本分块
     file_catalog/            # 变更 checkpoint
     as_llm/, as_embedding/   # 模型封装
+    as_classifier/           # 可选的 Jev 概率分类封装
     agent_wrapper/           # AgentScope / Claude Code / Codex wrapper
   steps/
     base_step.py             # BaseStep、Ref、dispatch_steps
@@ -119,11 +120,15 @@ flowchart LR
     J --> K["client(action=action, **kwargs)"]
 ```
 
-常用命令：
+在一个终端启动服务并保持运行；省略 `config` 时使用默认配置：
 
 ```bash
 reme start
-reme start service.port=8181
+```
+
+在另一个终端通过已启动的服务调用 Job：
+
+```bash
 reme version
 reme search query="memory" limit=5
 reme search query="memory" backend=mcp
@@ -520,6 +525,7 @@ flowchart LR
 | `as_embedding`    | `default`                       | 默认未配置；示例为 `openai` | 取消配置注释后提供 embedding 模型封装                      |
 | `embedding_store` | `default`                       | 默认未配置；示例为 `local`  | 取消配置注释后依赖 `as_embedding: default`                 |
 | `as_llm`          | `default`                       | `${LLM_BACKEND:-openai}`    | LLM 模型封装                                               |
+| `as_classifier`   | `default`                       | 默认未配置；示例为 `jev` | 可选概率分类；通过继承 default 的 classifier_demo 配置演示   |
 | `agent_wrapper`   | `default`                       | `agentscope`                | AgentScope wrapper                                         |
 | `agent_wrapper`   | `claude_code`                   | `claude_code`               | Claude Code wrapper                                        |
 | `agent_wrapper`   | `codex/codex_oauth`             | `codex`                     | 分别使用 API key 与 OAuth 的 Codex wrapper                 |
@@ -636,9 +642,11 @@ Job 通常不需要写 Python 类，只需要在配置里编排已有 Step。只
 
 ### 10.1 新增普通请求型 Job
 
-在 YAML 配置的 `jobs:` 下新增：
+将配置保存为例如 `/path/to/uppercase.yaml`，继承默认服务并添加 Job：
 
 ```yaml
+extends: default
+
 jobs:
   uppercase:
     backend: base
@@ -655,10 +663,15 @@ jobs:
       - backend: uppercase_step
 ```
 
-启动后调用：
+在一个终端启动这份配置并保持运行：
 
 ```bash
-reme start
+reme start config=/path/to/uppercase.yaml
+```
+
+在另一个终端调用 Job：
+
+```bash
 reme uppercase text="hello"
 ```
 

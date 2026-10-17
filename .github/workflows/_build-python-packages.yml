@@ -68,7 +68,7 @@ jobs:
           "${RUNNER_TEMP}/reme-package-smoke/bin/python" -c "import reme"
 
       - name: Verify released core dependencies
-        if: inputs.expected_version != ''
+        if: inputs.upload_artifacts
         run: |
           REME_WHEEL="$(pwd)/$(ls dist/reme/reme_ai-[0-9]*.whl)"
           python -m venv "${RUNNER_TEMP}/reme-core-package-smoke"
@@ -82,7 +82,7 @@ jobs:
 
       - name: Upload ReMe distributions
         if: inputs.upload_artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: reme-distributions
           path: dist/reme/

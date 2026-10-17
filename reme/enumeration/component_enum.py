@@ -10,6 +10,8 @@ class ComponentEnum(str, Enum):
 
     AS_LLM = "as_llm"
 
+    AS_CLASSIFIER = "as_classifier"
+
     AS_EMBEDDING = "as_embedding"
 
     EMBEDDING_STORE = "embedding_store"

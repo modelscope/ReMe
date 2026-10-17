@@ -99,7 +99,6 @@ docker compose exec reme reme health_check
 docker compose exec reme reme status
 ```
 
-其他命令直接执行，例如 `reme start job=version` 可运行一次性 Job，`python` 可用于诊断。
 宿主机 CLI 应明确指定发布地址，例如 `reme health_check host=127.0.0.1 port=2444`；宿主机的进程发现无法还原容器内
 启动参数。Agent 集成应连接发布的 HTTP 或 MCP 地址，避免对同一工作区再启动第二个本机 ReMe。
 
@@ -146,3 +145,13 @@ python scripts/test_docker_image.py --image reme:local
 
 验证脚本使用一次性工作区，不传入模型凭证；检查 Studio、HTTP/MCP、路径隔离、非 root 执行、正常关闭，以及更换容器和
 端口之后的记忆检索。
+
+## 无服务单次执行与诊断
+
+仅需运行一个 Job 后退出时，可以单独启动一次性容器：
+
+```bash
+docker run --rm --no-healthcheck reme:local start job=version
+```
+
+这条命令在容器中执行本地 Job，不调用已运行的服务；镜像也支持直接执行 `python` 等诊断命令。

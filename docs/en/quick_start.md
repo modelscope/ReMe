@@ -51,6 +51,8 @@ You can initially omit the LLM configuration if you only need basic file operati
 
 ## Start the Service
 
+Start ReMe in one terminal and leave it running:
+
 ```bash
 reme start
 ```
@@ -60,6 +62,8 @@ The default service address is `127.0.0.1:2333`. If the port is already in use:
 ```bash
 reme start service.port=8181
 ```
+
+From another terminal, call the running service:
 
 ```bash
 reme version

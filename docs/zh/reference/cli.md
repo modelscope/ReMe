@@ -13,18 +13,19 @@ reme ACTION key=value ...
 
 ## 启动应用
 
+默认采用两阶段：在一个终端启动服务，再在另一个终端调用 Job。以下启动命令任选一条，并保持运行：
+
 ```bash
 reme start
 reme start config=demo
 reme start workspace_dir=/data/reme service.port=8181
-reme start job=search query="关键词" limit=5
 ```
 
-`start job=<name>` 运行一次性 Job；普通 `start` 启动配置中的 Service。
+普通 `start` 启动配置中的 Service；省略 `config` 时使用 `default`，需要其他配置时再显式指定。
 
 ## 调用 Job
 
-服务运行后，Action 名就是 Job 名：
+在另一个终端调用，Action 名就是 Job 名；CLI 会发现正在运行的服务配置：
 
 ```bash
 reme help
@@ -85,3 +86,14 @@ reme plugins uninstall auto-fin
 reme help
 reme app_config
 ```
+
+## 无服务单次执行
+
+脚本需要执行一个 Job 后退出时，可以使用一次性 CLI Service：
+
+```bash
+reme start config=default job=search query="关键词" limit=5
+```
+
+`start job=<name>` 通过正常应用生命周期在本地运行 Job，然后退出；它不会调用已经运行的服务。
+常规交互示例采用上面的两阶段流程。
