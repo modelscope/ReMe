@@ -281,12 +281,12 @@ async def test_read_answer_tolerates_rich_yaml_types():
         assert resp.success is True
         assert resp.answer == (
             "Read frontmatter from notes/types.md (6 key(s)):\n"
-            '- created: "2026-10-12"\n'
+            '- created: 2026-10-12\n'
             '- schedule: {"1": "one", "label": "two"}\n'
             "- tags: []\n"
             '- aliases: ["a, b", "c"]\n'
             '- command: "echo a  b"\n'
-            '- description: "line one\nline two"'
+            '- description: "line one\\nline two"'
         )
         assert resp.metadata["frontmatter"] == {
             "created": date(2026, 10, 12),

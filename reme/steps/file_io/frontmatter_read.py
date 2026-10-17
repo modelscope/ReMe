@@ -22,24 +22,32 @@ from ...components import R
 
 
 def _render_value(value) -> str:
-    """Render one frontmatter key or value on a single answer line.
+    """Render one frontmatter value on a single answer line.
 
-    ``frontmatter_read`` is served straight to the LLM, so the answer has
-    to carry the frontmatter itself. ``json.dumps`` (with ``default=str``
-    for YAML-only types such as dates, and ``ensure_ascii=False`` for
-    non-ASCII) preserves the structural distinction between a literal
-    ``"\\n"`` two-character sequence and an actual newline, between the
-    string ``"null"`` and YAML ``null``, and between mixed mapping key
-    types (an int ``1`` and a string ``"1"`` round-trip with their
-    JSON-form distinction). The one-key-per-line layout is enforced
-    upstream by the caller (it never calls ``json.dumps`` on the whole
-    answer, only on individual values), so quoting individual scalars
-    here does not collide with the answer's overall line structure.
+    ``frontmatter_read`` is served straight to the LLM, so the answer
+    has to carry the frontmatter itself. ``json.dumps`` (with
+    ``default=str`` for YAML-only types such as dates, and
+    ``ensure_ascii=False`` for non-ASCII) preserves the structural
+    distinction between a literal ``"\\n"`` two-character sequence and
+    an actual newline, between the string ``"null"`` and YAML ``null``,
+    and between mixed mapping key types (an int ``1`` and a string
+    ``"1"`` round-trip with their JSON-form distinction). The
+    one-key-per-line layout is enforced upstream by the caller.
     """
     try:
         return json.dumps(value, ensure_ascii=False, default=str)
     except (TypeError, ValueError, RecursionError):
         return repr(value)
+
+
+def _render_key(key) -> str:
+    """Render a frontmatter key (the caller formats ``key: value`` lines).
+
+    Keys are always strings in YAML frontmatter, so they do not need
+    the json.dumps structural pinning. Return them as-is so the answer
+    reads as ``- key: value`` rather than ``- "key": value``.
+    """
+    return str(key)
 
 
 @R.register("frontmatter_read_step")
@@ -88,7 +96,7 @@ class FrontmatterReadStep(BaseStep):
             return
         self.context.response.success = True
         header = f"Read frontmatter from {probed} ({len(meta)} key(s))"
-        rendered = [f"- {_render_value(key)}: {_render_value(value)}" for key, value in meta.items()]
+        rendered = [f"- {_render_key(key)}: {_render_value(value)}" for key, value in meta.items()]
         self.context.response.answer = f"{header}:\n" + "\n".join(rendered) if rendered else f"{header}: (no keys)"
         self.context.response.metadata.update({"path": path, "exists": True, "frontmatter": meta, **resolved})
         self.logger.info(f"[{self.name}] path={path} keys={len(meta)}")
