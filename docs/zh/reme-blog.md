@@ -292,7 +292,7 @@ cases / 400 题上取得 66.1%，在 1M 设置下的 35 cases / 700 题上取得
 Agent 在 5 种用户角色（User Persona）上平均取得 0.580 的 PROC 分数，超出相同测试模型配置的 NanoBot
 2.4%。关于该基准的详细介绍见 [$\pi$-Bench 论文](https://arxiv.org/abs/2605.14678)。
 
-在多模态长历史问答中，ReMe Image 在 **MemLens-256K** 的 Qwen3.6-35B-A3B / Qwen3.8-Max 设置下，LLM-Judge 分别达到 **53.44% / 72.49%**。五种方法、两个模型统一使用排除六个明确内容审查 QID 后的同一 189 题，所有方法在保留集合上均有完整有效结果。原始 session 访问、图片读取与 memory-only 检索等方法差异，以及独立复现的严格配对结果，见[多模态记忆评测](./blog_20261009.md#memlens-256k-results)。
+在 **MemLens-256K** 上，ReMe Image 的 LLM-Judge 在 Qwen3.6-35B-A3B / Qwen3.8-Max 下达到 **53.44% / 72.49%**，比 Full Context Image 高 **6.35 / 6.88** 个百分点。统一过滤 6 个触发模型服务商内容安全审核的 case 后，汇报 **189/195** 个 case；五种方法的对比见[多模态记忆评测](./blog_20261009.md#memlens-256k-results)。
 
 ## ReMe 能帮谁？
 
