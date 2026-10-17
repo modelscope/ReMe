@@ -125,7 +125,7 @@ paths enter `failed_paths`. The Finish stage does not checkpoint failed paths, e
 `dream_finish_step` completes the run:
 
 1. Write successfully processed changed paths to `file_catalog: dream`.
-2. Also write every refreshed day-index page in the scan window to the catalog.
+2. Also write refreshed day-index pages observed by Extract in the scan window to the catalog.
 3. Persist the dream catalog if there were upserts or deletions.
 4. Return a summary containing counts for scanned, changed, integrated, checkpoints, and related values.
 
@@ -134,6 +134,10 @@ pipeline; see [Proactive](./proactive.md).
 
 Failed paths are not checkpointed. The next `auto_dream` run therefore continues to treat them as changed inputs until
 integration succeeds.
+
+Checkpoints retain the input mtimes observed by Extract, including scanned day-index pages. If a source is edited while
+model work runs, its newer version remains changed for a later run, even after restart. The later run must include the
+source date in its scan window. Finish does not checkpoint files absent from that scan.
 
 ### 4. Auto Tag
 

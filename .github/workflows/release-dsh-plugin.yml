@@ -1,23 +1,11 @@
 # Configure npm Trusted Publishing for this caller filename and the npm environment.
 name: Release / DSH plugin
 
-run-name: Publish ReMe DSH plugin ${{ inputs.version }} (${{ inputs.npm_tag }})
+run-name: Publish ReMe DSH plugin from ${{ github.ref_name }}
 
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: Exact package.json version; an optional v prefix is accepted
-        required: true
-        type: string
-      npm_tag:
-        description: npm distribution tag
-        required: true
-        default: latest
-        type: choice
-        options:
-          - next
-          - latest
       use_npm_token:
         description: Use the npm environment NPM_TOKEN instead of Trusted Publishing
         required: true
@@ -44,6 +32,4 @@ jobs:
       directory: integrations/dsh
       package_name: '@agentscope-ai/reme-dsh-plugin'
       artifact_name: agentscope-ai-reme-dsh-plugin
-      version: ${{ inputs.version }}
-      npm_tag: ${{ inputs.npm_tag }}
       use_npm_token: ${{ inputs.use_npm_token }}
