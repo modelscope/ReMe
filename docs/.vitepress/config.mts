@@ -179,6 +179,7 @@ function integrationsSidebar(language: "zh" | "en"): DefaultTheme.SidebarItem[] 
     items: [
       { text: zh ? "集成总览" : "Overview", link: `/${language}/integrations` },
       { text: "Claude Code", link: `/${language}/integrations/claude-code` },
+      { text: "Codex", link: `/${language}/integrations/codex` },
       { text: "Hermes Agent", link: `/${language}/integrations/hermes` },
       { text: "DeepSeek Harness", link: `/${language}/integrations/dsh` },
       { text: "OpenClaw", link: `/${language}/integrations/openclaw` },
@@ -226,6 +227,7 @@ function singlePageSidebar(language: "zh" | "en", page: "blog" | "faq"): Default
       items: [
         { text: zh ? "ReMe介绍" : "About ReMe", link: `/${language}/reme-blog` },
         { text: zh ? "记忆标签" : "Memory Tags", link: `/${language}/blog_20260920` },
+        { text: zh ? "图片记忆" : "Image Memory", link: `/${language}/blog_20261009` },
       ],
     }];
   }
@@ -248,7 +250,7 @@ function sidebars(language: "zh" | "en"): DefaultTheme.SidebarMulti {
     [`/${language}/plugin_development`]: pluginsSidebar(language),
     [`/${language}/benchmarks/`]: benchmarksSidebar(language),
     [`/${language}/reme-blog`]: singlePageSidebar(language, "blog"),
-    [`/${language}/blog_20260920`]: singlePageSidebar(language, "blog"),
+    [`/${language}/blog_`]: singlePageSidebar(language, "blog"),
     [`/${language}/faq`]: singlePageSidebar(language, "faq"),
     [`/${language}/`]: docsSidebar(language),
   };

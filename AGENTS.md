@@ -79,7 +79,7 @@ existing async and typing patterns unless the task explicitly requires a new con
 
 - CLI syntax is `reme ACTION key=value ...`; leading `-` or `--` on arguments is accepted.
 - Nested overrides use dot notation. Values support null, booleans, numbers, JSON collections, and quoted JSON strings;
-  leading-zero numeric-looking values remain strings.
+  leading-zero numeric-looking values, `nan`, and `inf` remain strings.
 - `config=<name-or-path>` loads a discovered config name or a `.yaml`, `.yml`, or `.json` file. With no explicit config
   path, `default` is loaded when available.
 - Config files expand `${VAR}` and `${VAR:-default}` recursively. An undefined variable without a default is an error.
@@ -203,6 +203,9 @@ reference is generated from `reme/config/default.yaml`; do not edit generated pa
 
 - Preserve unrelated user changes in a dirty working tree.
 - Make the smallest coherent change and avoid unrelated cleanup or broad refactors.
+- Documentation should recommend two-stage service usage: start `reme start config=<name-or-path>` in one terminal,
+  then call `reme <job-name>` from another. Keep `reme start job=...` in explicitly labeled one-shot CLI sections;
+  service-private jobs must retain their documented local execution path.
 - Do not edit generated output when the source can be changed instead. The publish workflow builds
   `reme_studio/dist-static` and stages it under `reme_studio/src/reme_studio/static`; change `reme_studio/` source for
   frontend work.
