@@ -160,6 +160,30 @@ These are not ten additional long-context tasks. Top N saturates when fewer sour
 
 </details>
 
+## Related Hermes Agent experiment
+
+[Hermes Agent PR #116246](https://github.com/NousResearch/hermes-agent/pull/116246) reports a different experiment:
+`fast-jev-compaction` replaces summaries with Jev-scored tool-call/result retention while keeping user/assistant text
+verbatim. On three real 500K-token lineage prefixes, with 15 recall questions each, the authors report:
+
+| Method | Mean recall | Retained tokens |
+| --- | ---: | ---: |
+| Summary only | 43.3% | 55K |
+| Summary + one `session_search` recovery round | 78.9% | 55K |
+| Jev, plugin defaults | 75.5% | 115K |
+| Jev-ranked / recency-ranked, same 60K tool-evidence budget | 77.8% / 77.8% | 176K / 177K |
+
+At the default threshold, all 851 candidate tool calls were dropped; the closed-book gain over summary-only therefore
+came from retaining user/assistant text, not selective tool retention. Repeated-compaction simulations also found that
+the growing text floor eventually prevents further savings. The authors recommend against adopting that strategy as
+Hermes' primary compaction mechanism; the merged PR adds evaluation, not production adoption.
+
+Our experiment instead keeps a summary and appends selected original evidence, with tool-result bodies visible to Jev.
+It uses small synthetic tasks, a small-budget summary setting and exact-field scoring, without archive recovery or
+continuous compaction. Its scores cannot be compared directly with the Hermes recall percentages, and it does not
+establish superiority over Hermes' production summary-plus-recovery path. The experiments address different strategies;
+our missing equal-budget selector controls also prevent attributing the gains solely to Jev ranking.
+
 ## Reproduction
 
 ### Models and runtime
