@@ -109,6 +109,8 @@ are reported in `CaseResult.error` and make `success` false for cases that used
 that worker; failures for an unused worker apply to the whole run. Cancellation
 waits for owned-container cleanup before propagating. A failed `close()` retains
 unfinished Docker handles so another call can retry removal.
+If container creation outlasts the cleanup timeout, a tracked cleanup task
+remains in the running host process and removes the container once creation settles.
 The build log also records configuration, construction, build job, checkpoint,
 and Application lifecycle failures, including available tracebacks.
 

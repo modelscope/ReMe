@@ -8,6 +8,7 @@ would add an unrelated network-dependent image layer and process.
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import sys
 from typing import Any
@@ -16,6 +17,7 @@ from aiodocker.exceptions import DockerError
 from agentscope.workspace import DockerWorkspace
 
 DOCKER_CLEANUP_TIMEOUT = 30.0
+_PENDING_CLEANUPS: set[asyncio.Task[None]] = set()
 
 
 class DirectDockerWorkspace(DockerWorkspace):
@@ -31,10 +33,21 @@ class DirectDockerWorkspace(DockerWorkspace):
         super().__init__(**kwargs)
         self._lifecycle_lock = asyncio.Lock()
         self._stopped = False
+        # Retain the task until its creation result has been reconciled.
+        self._creation_task: asyncio.Task[None] | None = None
+        self._deferred_cleanup_task: asyncio.Task[None] | None = None
 
     async def _build_or_reuse_image(self) -> None:
         """Select the caller-provided image instead of deriving a gateway image."""
         self._image_tag = self.base_image
+
+    async def _create_and_start_container(self) -> None:
+        """Keep creation owned until its result can be reconciled on cleanup."""
+        self._creation_task = asyncio.create_task(super()._create_and_start_container())
+        # Let the request settle even when initialize is cancelled. Otherwise a
+        # name lookup could return 404 before Docker finishes creating it.
+        await asyncio.shield(self._creation_task)
+        self._creation_task = None
 
     async def initialize(self) -> None:
         """Start one Docker container and expose its filesystem/exec backend."""
@@ -81,6 +94,31 @@ class DirectDockerWorkspace(DockerWorkspace):
     async def _teardown_backend(self) -> None:
         """Remove the container, preserving handles until cleanup is confirmed."""
         self.is_alive = False
+        if self._creation_task is not None:
+            done, _ = await asyncio.wait({self._creation_task}, timeout=DOCKER_CLEANUP_TIMEOUT)
+            if not done:
+                if self._deferred_cleanup_task is None or self._deferred_cleanup_task.done():
+                    self._deferred_cleanup_task = asyncio.create_task(
+                        self._finish_creation_cleanup(self._creation_task),
+                    )
+                    # Keep cleanup owned even if factory creation returns no workspace.
+                    _PENDING_CLEANUPS.add(self._deferred_cleanup_task)
+                    self._deferred_cleanup_task.add_done_callback(_PENDING_CLEANUPS.discard)
+                raise TimeoutError("Docker container creation has not settled; deferred cleanup is pending")
+            # initialize already reports the provisioning failure. A cancelled
+            # initialize may instead leave a failed creation to reconcile here.
+            if not self._creation_task.cancelled():
+                self._creation_task.exception()
+            if self._container is None:
+                try:
+                    self._container = await asyncio.wait_for(
+                        self._client.containers.get(f"as_ws_{self.workspace_id}"),
+                        timeout=DOCKER_CLEANUP_TIMEOUT,
+                    )
+                except DockerError as exc:
+                    if exc.status != 404:
+                        raise
+            self._creation_task = None
         if self._container is not None:
             # Preserve AgentScope's bind-mount ownership repair on native Linux.
             if (
@@ -109,6 +147,18 @@ class DirectDockerWorkspace(DockerWorkspace):
             await asyncio.wait_for(self._client.close(), timeout=DOCKER_CLEANUP_TIMEOUT)
             self._client = None
         self._backend = None
+
+    async def _finish_creation_cleanup(self, creation: asyncio.Task[None]) -> None:
+        """Remove a late creation result after bounded foreground cleanup expires."""
+        await asyncio.wait({creation})
+        async with self._lifecycle_lock:
+            # A caller may have already closed and even reinitialized this workspace.
+            if self._creation_task is not creation:
+                return
+            try:
+                await self._teardown_backend()
+            except Exception:
+                logging.getLogger(__name__).exception("Deferred Docker cleanup failed for %s", self.workspace_id)
 
     async def close(self) -> None:
         """Report cleanup errors and allow another call to retry unfinished work."""

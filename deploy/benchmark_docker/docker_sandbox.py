@@ -665,10 +665,10 @@ class DockerReMeSandbox:
 
     async def run_queries(self, queries: list[EvaluationQuery | dict[str, Any]]) -> dict[str, Any]:
         """Answer multiple queries in one candidate Application with isolated logs."""
-        serialized, query_ids = self._serialize_queries(queries)
+        serialized = self._serialize_queries(queries)
         if not serialized:
             raise ValueError("run_queries requires at least one query")
-        if len(query_ids) != len(set(query_ids)):
+        if len(serialized) != len({query["query_id"] for query in serialized}):
             raise ValueError("query IDs must be unique")
         async with self._operation_lock:
             return await self._run_worker_request("queries", {"queries": serialized})
@@ -676,7 +676,7 @@ class DockerReMeSandbox:
     async def run_query(self, query: EvaluationQuery | dict[str, Any]) -> dict[str, Any]:
         """Answer one append-only query for a host-side lease."""
 
-        serialized, _ = self._serialize_queries([query])
+        serialized = self._serialize_queries([query])
         async with self._operation_lock:
             response = await self._run_worker_request("query", {"queries": serialized})
         results = response.get("queries")
@@ -687,11 +687,10 @@ class DockerReMeSandbox:
     def _serialize_queries(
         self,
         queries: list[EvaluationQuery | dict[str, Any]],
-    ) -> tuple[list[dict[str, Any]], list[str]]:
+    ) -> list[dict[str, Any]]:
         """Validate and serialize query payloads shared by batch and lease APIs."""
 
         serialized: list[dict[str, Any]] = []
-        query_ids: list[str] = []
         for query in queries:
             value = (
                 {
@@ -716,7 +715,6 @@ class DockerReMeSandbox:
             if leaked:
                 names = ", ".join(sorted(leaked))
                 raise ValueError(f"query {query_id!r} answer_arguments contain private judge fields: {names}")
-            query_ids.append(query_id)
             # This allowlist is a security boundary.  Golden answers, rubrics,
             # question types and scoring configuration remain on the host and
             # are not written to the candidate container's inbox.
@@ -728,7 +726,7 @@ class DockerReMeSandbox:
                     "answer_job": str(value.get("answer_job") or "agentic_answer"),
                 },
             )
-        return serialized, query_ids
+        return serialized
 
     async def ingest_session(
         self,
@@ -834,46 +832,58 @@ class DockerReMeSandbox:
         except FileNotFoundError as exc:
             raise SandboxCommandError(f"{description} is missing required artifact: {path}") from exc
 
+    async def _artifact_directory_exists(self, path: str) -> bool:
+        """Check for artifacts independently of completion markers."""
+        result = await self._exec("check_artifact_directory", ["test", "-d", path])
+        if result.exit_code not in (0, 1):
+            raise SandboxCommandError(f"cannot check artifact directory {path!r}: {_decode(result.stderr)}")
+        return result.exit_code == 0
+
+    async def _require_artifact_directory(self, path: str, description: str) -> None:
+        """Require an artifact directory while allowing incomplete diagnostics."""
+        if not await self._artifact_directory_exists(path):
+            raise SandboxCommandError(f"{description} is missing required artifact: {path}")
+
     async def export_memory_construction(self, destination: str | Path) -> Path:
         """Download the workspace and build log; reusable with upload_workspace."""
         async with self._operation_lock:
+            await self._require_artifact(f"{CASE_ROOT}/build_log/build.log", "memory construction export")
             return await self._export_archive(
                 destination,
                 "export_memory_construction",
                 CASE_ROOT,
                 ["reme_workspace", "build_log"],
-                required=("build_log/build.log", "memory construction export"),
             )
 
     async def export_queries(self, destination: str | Path) -> Path:
-        """Download per-query logs, results, and their aggregate summary."""
+        """Download per-query logs, results, and any aggregate summary."""
         async with self._operation_lock:
+            await self._require_artifact_directory(f"{CASE_ROOT}/queries", "query export")
             return await self._export_archive(
                 destination,
                 "export_queries",
                 CASE_ROOT,
                 ["queries"],
-                required=("queries/summary.json", "query export"),
             )
 
     async def export_query(self, query_id: str, destination: str | Path) -> Path:
-        """Download one leased query's logs and result without a case summary."""
+        """Download one leased query's available logs and result without a case summary."""
 
         self._validate_query_artifact_id(query_id)
         async with self._operation_lock:
+            await self._require_artifact_directory(f"{CASE_ROOT}/queries/{query_id}", "query export")
             return await self._export_archive(
                 destination,
                 "export_query",
                 CASE_ROOT,
                 [f"queries/{query_id}"],
-                required=(f"queries/{query_id}/result.json", "query export"),
             )
 
     async def export_evaluation(self, destination: str | Path) -> Path:
         """Download reusable workspace and query artifacts, plus any build log."""
         async with self._operation_lock:
             assert self.backend is not None, "sandbox is not initialized"
-            await self._require_artifact(f"{CASE_ROOT}/queries/summary.json", "evaluation export")
+            await self._require_artifact_directory(f"{CASE_ROOT}/queries", "evaluation export")
             members = ["reme_workspace", "queries"]
             try:
                 await self.backend.read_file(f"{CASE_ROOT}/build_log/build.log")
@@ -898,20 +908,28 @@ class DockerReMeSandbox:
         members: list[str],
         *,
         archive_path: str = EXPORT_ARCHIVE,
-        required: tuple[str, str] | None = None,
     ) -> Path:
         """Archive selected sandbox paths and download the archive while locked."""
         assert self.backend is not None, "sandbox is not initialized"
-        if required is not None:
-            path, description = required
-            await self._require_artifact(f"{root}/{path}", description)
         if root == CASE_ROOT:
             await self._write_export_manifest(
                 name.removeprefix("export_"),
                 workspace_root="reme_workspace" if "reme_workspace" in members else None,
             )
             members = ["manifest.json", *members]
-        await self._exec_checked(name, ["tar", "-czf", archive_path, "-C", root, *members])
+        return await self._pack_and_download(destination, name, ["-C", root, *members], archive_path=archive_path)
+
+    async def _pack_and_download(
+        self,
+        destination: str | Path,
+        name: str,
+        arguments: list[str],
+        *,
+        archive_path: str = EXPORT_ARCHIVE,
+    ) -> Path:
+        """Pack selected paths, download the archive, and save it on the host."""
+        assert self.backend is not None, "sandbox is not initialized"
+        await self._exec_checked(name, ["tar", "-czf", archive_path, *arguments])
         return self._save_host_file(destination, await self.backend.read_file(archive_path))
 
     async def upload_workspace(self, source: str | Path, *, clear: bool = True) -> None:
@@ -1043,10 +1061,7 @@ class DockerReMeSandbox:
         )
         if profile == "analysis":
             workspace_root, analysis_excludes = await self._analysis_archive_spec()
-            command = [
-                "tar",
-                "-czf",
-                EXPORT_ARCHIVE,
+            arguments = [
                 "-C",
                 CASE_ROOT,
                 *(f"--exclude={path}" for path in analysis_excludes),
@@ -1057,11 +1072,10 @@ class DockerReMeSandbox:
                 workspace_root,
             ]
         else:
-            command = ["tar", "-czf", EXPORT_ARCHIVE, "-C", CASE_ROOT, "."]
+            arguments = ["-C", CASE_ROOT, "."]
         if include_candidate:
-            command.extend(["-C", "/workspace", "candidate"])
-        await self._exec_checked("export_case", command)
-        self._save_host_file(target, await self.backend.read_file(EXPORT_ARCHIVE))
+            arguments.extend(["-C", "/workspace", "candidate"])
+        await self._pack_and_download(target, "export_case", arguments)
         if profile == "analysis":
             await self._export_analysis_logs(artifacts)
         return target
@@ -1078,9 +1092,7 @@ class DockerReMeSandbox:
             log_path.parent.mkdir(parents=True, exist_ok=True)
             log_path.write_bytes(build_log)
 
-        try:
-            await self.backend.read_file(f"{CASE_ROOT}/queries/summary.json")
-        except FileNotFoundError:
+        if not await self._artifact_directory_exists(f"{CASE_ROOT}/queries"):
             return
         await self._exec_checked(
             "export_analysis_queries",

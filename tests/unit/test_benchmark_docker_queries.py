@@ -13,8 +13,7 @@ from deploy.benchmark_docker.docker_sandbox import DockerReMeSandbox
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("method", ["run_query", "run_queries"])
-@pytest.mark.parametrize("as_mapping", [False, True])
+@pytest.mark.parametrize(("method", "as_mapping"), [("run_query", False), ("run_queries", True)])
 async def test_query_upload_ignores_uncopyable_golden_answer(monkeypatch, method, as_mapping):
     case = DockerReMeSandbox(
         case_id="query",

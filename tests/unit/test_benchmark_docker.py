@@ -768,6 +768,8 @@ class FakeBackend:
         self.commands.append(command)
         output = b""
         exit_code = 0
+        if command[:2] == ["test", "-d"]:
+            exit_code = 0 if any(path.startswith(command[2] + "/") for path in self.files) else 1
         if len(command) > 2 and command[1] == "-c":
             output = json.dumps(
                 {
@@ -1148,11 +1150,11 @@ async def test_pool_replaces_worker_after_backend_timeout(tmp_path):
             "memory construction export",
             ["manifest.json", "reme_workspace", "build_log"],
         ),
-        ("export_queries", "queries/summary.json", "query export", ["manifest.json", "queries"]),
-        ("export_query", "queries/q1/result.json", "query export", ["manifest.json", "queries/q1"]),
+        ("export_queries", "queries", "query export", ["manifest.json", "queries"]),
+        ("export_query", "queries/q1", "query export", ["manifest.json", "queries/q1"]),
         (
             "export_evaluation",
-            "queries/summary.json",
+            "queries",
             "evaluation export",
             ["manifest.json", "reme_workspace", "queries"],
         ),
@@ -1168,7 +1170,8 @@ async def test_archive_exports_check_required_artifacts(tmp_path, method, requir
         with pytest.raises(SandboxCommandError) as failure:
             await export(*args)
         assert str(failure.value) == f"{description} is missing required artifact: /workspace/case/{required}"
-        backend.files[f"/workspace/case/{required}"] = b"{}"
+        artifact = "queries/q1/answer.log" if required.startswith("queries") else required
+        backend.files[f"/workspace/case/{artifact}"] = b"{}"
         assert await export(*args) == destination
         assert ["tar", "-czf", "/tmp/reme-case-export.tar.gz", "-C", "/workspace/case", *members] in backend.commands
     finally:
@@ -1264,17 +1267,18 @@ def test_workspace_import_checks_case_archive_format(tmp_path, manifest, workspa
 
 
 @pytest.mark.asyncio
-async def test_default_analysis_export_saves_logs_outside_archive(tmp_path):
+@pytest.mark.parametrize("query_state", ["batch", "single", "partial", "absent"])
+async def test_default_analysis_export_saves_logs_outside_archive(tmp_path, query_state):
     class AnalysisBackend(FakeBackend):
         async def exec_shell(self, command, *, cwd=None, timeout=None):
             result = await super().exec_shell(command, cwd=cwd, timeout=timeout)
             if command[:2] == ["tar", "-czf"] and command[-1] == "queries":
                 stream = io.BytesIO()
                 with tarfile.open(fileobj=stream, mode="w:gz") as archive:
-                    for name, content in (
-                        ("queries/summary.json", b"{}"),
-                        ("queries/q1/answer.log", b"answer log"),
-                    ):
+                    for path, content in self.files.items():
+                        if not path.startswith("/workspace/case/queries/"):
+                            continue
+                        name = path.removeprefix("/workspace/case/")
                         info = tarfile.TarInfo(name)
                         info.size = len(content)
                         archive.addfile(info, io.BytesIO(content))
@@ -1290,14 +1294,32 @@ async def test_default_analysis_export_saves_logs_outside_archive(tmp_path):
             b'{"workspace_root":"reme_workspace","analysis_excludes":[]}'
         )
         backend.files["/workspace/case/build_log/build.log"] = b"build log"
-        backend.files["/workspace/case/queries/summary.json"] = b"{}"
+        if query_state == "single":
+            backend.worker_responses["query"] = {"success": True, "queries": [{"answer": "ok"}]}
+            assert await case.run_query({"query_id": "q1", "question": "Question?"}) == {"answer": "ok"}
+        if query_state != "absent":
+            backend.files["/workspace/case/queries/q1/answer.log"] = b"answer log"
+        if query_state in {"batch", "single"}:
+            backend.files["/workspace/case/queries/q1/result.json"] = b'{"answer":"ok"}'
+        if query_state == "batch":
+            backend.files["/workspace/case/queries/summary.json"] = b"{}"
         archive = tmp_path / "analysis.tar.gz"
         assert await case.export(archive) == archive
         assert archive.read_bytes() == b"workspace archive"
         artifacts = tmp_path / "analysis.tar.gz.artifacts"
         assert (artifacts / "build_log" / "build.log").read_bytes() == b"build log"
-        assert (artifacts / "queries" / "summary.json").read_bytes() == b"{}"
-        assert (artifacts / "queries" / "q1" / "answer.log").read_bytes() == b"answer log"
+        query_files = {
+            path.removeprefix("/workspace/case/"): content
+            for path, content in backend.files.items()
+            if path.startswith("/workspace/case/queries/")
+        }
+        assert {
+            str(path.relative_to(artifacts)): path.read_bytes()
+            for path in (artifacts / "queries").rglob("*")
+            if path.is_file()
+        } == query_files
+        query_commands = [command for command in backend.commands if command[:2] == ["tar", "-czf"]]
+        assert len(query_commands) == (1 if query_state == "absent" else 2)
         archive_command = next(
             command for command in backend.commands if command[:3] == ["tar", "-czf", "/tmp/reme-case-export.tar.gz"]
         )

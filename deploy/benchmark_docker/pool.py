@@ -53,6 +53,18 @@ class CaseResult:
         )
 
 
+@dataclass(slots=True)
+class _WorkerSlots:
+    """Mutable worker availability owned by one pool run."""
+
+    workers: list[DockerReMeSandbox]
+    available: asyncio.Queue[DockerReMeSandbox | None]
+    unclaimed: set[str]
+    live_slots: int
+    next_worker_index: int
+    exhaustion_error: str = "no available workers"
+
+
 class BenchmarkDockerPool:
     """Reuse at most ``concurrency`` containers across case plans.
 
@@ -95,10 +107,7 @@ class BenchmarkDockerPool:
         available: asyncio.Queue[DockerReMeSandbox | None] = asyncio.Queue()
         for worker in workers:
             available.put_nowait(worker)
-        unclaimed = set(by_id)
-        live_slots = len(workers)
-        next_worker_index = len(workers)
-        exhaustion_error = "no available workers"
+        slots = _WorkerSlots(workers, available, set(by_id), len(workers), len(workers))
         worker_results: dict[int, list[CaseResult]] = {}
         results: list[CaseResult] = []
         run_error: BaseException | None = None
@@ -111,26 +120,20 @@ class BenchmarkDockerPool:
                 tasks: dict[str, asyncio.Task[CaseResult]] = {}
 
                 async def execute(plan: CasePlan) -> CaseResult:
-                    nonlocal live_slots, next_worker_index, exhaustion_error
                     result = CaseResult(plan.case_id)
                     source = plan.workspace_source
                     if plan.reuse_workspace_from is not None:
                         parent = await tasks[plan.reuse_workspace_from]
                         if parent.workspace_snapshot is None:
-                            unclaimed.discard(plan.case_id)
+                            slots.unclaimed.discard(plan.case_id)
                             return CaseResult(plan.case_id, error=f"source case {parent.case_id!r} failed")
                         source = parent.workspace_snapshot
 
                     worker = await available.get()
-                    unclaimed.discard(plan.case_id)
+                    slots.unclaimed.discard(plan.case_id)
                     if worker is None:
-                        return CaseResult(plan.case_id, error=exhaustion_error)
+                        return CaseResult(plan.case_id, error=slots.exhaustion_error)
                     worker_results.setdefault(id(worker), []).append(result)
-
-                    def record_lifecycle_error(phase: str, exc: Exception) -> str:
-                        detail = f"{phase} failed: {format_error(exc)}"
-                        result.error = f"{result.error}; {detail}" if result.error else detail
-                        return detail
 
                     try:
                         await worker.reset_case(plan.case_id)
@@ -165,42 +168,7 @@ class BenchmarkDockerPool:
                         result.error = format_error(exc)
                         return result
                     finally:
-                        if worker.reusable:
-                            available.put_nowait(worker)
-                        else:
-                            # Confirm cleanup (or retry a failed removal) before
-                            # allowing another case into this slot.
-                            closed = False
-                            try:
-                                await worker.close()
-                            except Exception as exc:
-                                exhaustion_error = (
-                                    f"no available workers: {record_lifecycle_error('worker close', exc)}"
-                                )
-                            else:
-                                closed = True
-
-                            replaced = False
-                            if closed and unclaimed and not asyncio.current_task().cancelling():
-                                worker_index = next_worker_index
-                                next_worker_index += 1
-                                try:
-                                    replacement = await self.factory.create_case(f"pool-{worker_index}")
-                                except Exception as exc:
-                                    exhaustion_error = (
-                                        f"no available workers: {record_lifecycle_error('replacement', exc)}"
-                                    )
-                                else:
-                                    workers.append(replacement)
-                                    available.put_nowait(replacement)
-                                    replaced = True
-                            if not replaced:
-                                live_slots -= 1
-                                if live_slots == 0:
-                                    # Every future case, including one waiting on a
-                                    # parent, must be able to leave available.get().
-                                    for _ in unclaimed:
-                                        available.put_nowait(None)
+                        await self._release_worker(worker, result, slots)
 
                 for plan in plans:
                     tasks[plan.case_id] = asyncio.create_task(execute(plan))
@@ -220,6 +188,41 @@ class BenchmarkDockerPool:
             raise
         finally:
             await self._close_workers(workers, worker_results, results, run_error)
+
+    async def _release_worker(self, worker: DockerReMeSandbox, result: CaseResult, slots: _WorkerSlots) -> None:
+        """Return a reusable worker or retire its slot after confirmed cleanup."""
+        if worker.reusable:
+            slots.available.put_nowait(worker)
+            return
+
+        def record_lifecycle_error(phase: str, exc: Exception) -> None:
+            detail = f"{phase} failed: {format_error(exc)}"
+            result.error = f"{result.error}; {detail}" if result.error else detail
+            slots.exhaustion_error = f"no available workers: {detail}"
+
+        # Do not reuse the slot while its old container may still be running.
+        try:
+            await worker.close()
+        except Exception as exc:
+            record_lifecycle_error("worker close", exc)
+        else:
+            if slots.unclaimed and not asyncio.current_task().cancelling():
+                worker_index = slots.next_worker_index
+                slots.next_worker_index += 1
+                try:
+                    replacement = await self.factory.create_case(f"pool-{worker_index}")
+                except Exception as exc:
+                    record_lifecycle_error("replacement", exc)
+                else:
+                    slots.workers.append(replacement)
+                    slots.available.put_nowait(replacement)
+                    return
+
+        slots.live_slots -= 1
+        if slots.live_slots == 0:
+            # Also wake cases that are still waiting for a parent to complete.
+            for _ in slots.unclaimed:
+                slots.available.put_nowait(None)
 
     @staticmethod
     async def _retain_failed_build_log(worker: DockerReMeSandbox, plan: CasePlan, result: CaseResult) -> None:
