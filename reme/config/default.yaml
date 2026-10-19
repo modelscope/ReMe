@@ -15,6 +15,7 @@ jobs:
         monitor_name: default
         dispatch_steps: [update_index_step]
       - backend: watch_changes_step
+        watch_mode: awatch  # Set to watch to isolate the blocking wait from AnyIO's shared thread limiter.
         dispatch_steps:
           - backend: update_index_step
             persist: False
@@ -35,6 +36,7 @@ jobs:
               - auto_image_resource_step
               - auto_text_resource_step
       - backend: watch_changes_step
+        watch_mode: awatch
         dispatch_steps:
           - backend: update_catalog_step
             file_catalog: resource
@@ -56,6 +58,7 @@ jobs:
             file_catalog: digest
           - backend: log_changes_step
       - backend: watch_changes_step
+        watch_mode: awatch
         dispatch_steps:
           - backend: update_catalog_step
             file_catalog: digest
@@ -458,7 +461,11 @@ jobs:
           default: 5
         min_score:
           type: number
-          description: "min fused score"
+          description: >-
+            Minimum returned score; 0 disables filtering (recommended).
+            Uses native vector or BM25 scores when only one branch has hits,
+            and rank-based RRF scores (at most 1/61, about 0.01639) when both have hits.
+            The scale can change per query; this is not a normalized relevance threshold.
           default: 0.0
         tags:
           type: array
@@ -844,6 +851,17 @@ components:
 #    default:
 #      backend: local
 #      as_embedding: default
+
+#  as_decision_model:
+#    default:
+#      backend: ${DECISION_MODEL_BACKEND:-agentscope}
+#      model: ${DECISION_MODEL_NAME:-null}
+#      credential:
+#        api_key: ${DECISION_MODEL_API_KEY:-}
+#        base_url: ${DECISION_MODEL_BASE_URL:-null}
+#      timeout: 30
+#      max_retries: 2
+#      retry_delay: 0.5
 
   as_llm:
     default:

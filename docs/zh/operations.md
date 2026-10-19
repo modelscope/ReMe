@@ -9,7 +9,7 @@ ReMe 的恢复原则是：保护 workspace 中的用户文件，通过源文件�
 
 ## 快速诊断
 
-依次执行：
+以下命令检查已运行的服务。首次部署时，先按[快速开始](./quick_start.md)启动服务；再在另一个终端依次执行：
 
 ```bash
 reme find_reme
@@ -52,6 +52,8 @@ reme reindex scope=embedding
 
 如果问题发生在文件摄取阶段，应先确认后台 watcher 正常运行；不能把 `reindex` 当成通用“重新扫描”命令。
 
+升级 ReMe 或修改 chunker 配置导致分块规则变化后，已有分块不会自动刷新。如需应用新规则，请按[从派生状态故障恢复](#从派生状态故障恢复)流程重建。
+
 Daily 索引页可单独重建：
 
 ```bash
@@ -93,9 +95,10 @@ reme start workspace_dir=/new/location/reme-memory
 1. 保留 `session/`、`resource/`、`daily/` 和 `digest/`；
 2. 记录当前配置和组件 backend；
 3. 确认故障只发生在 `metadata/`；
-4. 将有问题的派生状态移到隔离备份位置；
-5. 用同一配置启动 ReMe，让 watcher 从源文件重建；
-6. 验证搜索、图谱和 Daily 索引。
+4. 先停止服务，避免关闭时的持久化把旧的内存状态写回、覆盖刚做的清理；
+5. 只把受影响存储的派生状态移到隔离备份位置，保留无关 catalog 状态；
+6. 用同一配置启动 ReMe，让 watcher 重建其配置覆盖的文件；
+7. 验证搜索、图谱和 Daily 索引。
 
 具体 metadata 文件属于实现细节，不应在自动化脚本里依赖其内部格式。
 

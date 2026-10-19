@@ -3,6 +3,7 @@
 from .add import AddStep
 from .app_config import AppConfigStep
 from .chat import ChatStep
+from .decision_demo import DecisionDemoStep
 from .demo import DemoEchoStep1, DemoEchoStep2
 from .health_check import HealthCheckStep
 from .help import HelpStep
@@ -18,6 +19,7 @@ __all__ = [
     "AddStep",
     "AppConfigStep",
     "ChatStep",
+    "DecisionDemoStep",
     "DemoEchoStep1",
     "DemoEchoStep2",
     "HealthCheckStep",

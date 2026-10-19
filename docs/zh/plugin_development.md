@@ -77,7 +77,17 @@ reme plugins validate ./path/to/my-plugin
 reme plugins install ./path/to/my-plugin --editable
 reme plugins list
 reme plugins show my-plugin
+```
+
+在一个终端启用插件并启动服务，保持运行：
+
+```bash
 reme start plugins='["my-plugin"]'
+```
+
+在另一个终端调用插件 Job：
+
+```bash
 reme my_action text=hello
 ```
 

@@ -2,6 +2,7 @@
 
 from . import agent_wrapper
 from . import as_llm
+from . import as_decision_model
 from . import client
 from . import as_embedding
 from . import embedding_store
@@ -33,6 +34,7 @@ __all__ = [
     # base components
     "agent_wrapper",
     "as_llm",
+    "as_decision_model",
     "client",
     "as_embedding",
     "embedding_store",

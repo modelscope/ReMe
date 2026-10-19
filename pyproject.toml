@@ -42,7 +42,10 @@ dependencies = [
 
 [project.optional-dependencies]
 as = [
-    "agentscope[model-ollama]==2.0.9",
+    "agentscope[model-ollama]==2.0.10",
+]
+decision = [
+    "agentscope[classifier-jev]==2.0.10",
 ]
 web = [
     "reme_studio",
@@ -62,6 +65,9 @@ core = [
     "polars>=1.43.0",
     "reme_studio",
 ]
+qwen-tokenizer = [
+    "tokenizers>=0.21,<1",
+]
 image-heif = [
     "pillow>=10.0.0",
     "pillow-heif>=0.13.0",
@@ -72,8 +78,14 @@ dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=0.23",
 ]
+benchmark-docker = [
+    "reme-ai[as]",
+    "aiodocker",
+]
 full = [
     "reme-ai[core]",
+    "reme-ai[qwen-tokenizer]",
+    "reme-ai[decision]",
     "reme-ai[dev]",
     "reme-ai[image-heif]",
 ]
@@ -87,12 +99,13 @@ Repository = "https://github.com/agentscope-ai/ReMe"
 reme = "reme.reme:main"
 
 [tool.setuptools]
-packages = { find = { where = ["."], include = ["reme", "reme.*"], exclude = ["reme_studio*"] } }
+packages = { find = { where = ["."], include = ["reme", "reme.*", "deploy", "deploy.*"], exclude = ["reme_studio*"] } }
 include-package-data = true
 
 [tool.setuptools.package-data]
 "*" = ["py.typed", "**/*.yaml", "**/*.json"]
 "reme.components.tokenizer" = ["stopwords"]
+"deploy.benchmark_docker" = ["Dockerfile.*", "README.md"]
 
 [tool.setuptools.dynamic]
 version = { attr = "reme.__version__" }

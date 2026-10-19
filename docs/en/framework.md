@@ -73,6 +73,7 @@ reme/
     file_chunker/            # Markdown / JSON / JSONL / generic text chunking
     file_catalog/            # change checkpoints
     as_llm/, as_embedding/   # model wrappers
+    as_decision_model/       # optional decision model adapters
     agent_wrapper/           # AgentScope / Claude Code / Codex wrappers
   steps/
     base_step.py             # BaseStep, Ref, dispatch_steps
@@ -124,11 +125,15 @@ flowchart LR
     J --> K["client(action=action, **kwargs)"]
 ```
 
-Common commands:
+Start a service in one terminal and leave it running; omit `config` to use the default configuration:
 
 ```bash
 reme start
-reme start service.port=8181
+```
+
+From another terminal, call Jobs through the running service:
+
+```bash
 reme version
 reme search query="memory" limit=5
 reme search query="memory" backend=mcp
@@ -537,6 +542,7 @@ Current default components in `reme/config/default.yaml`:
 | `service`         | singleton                       | `http`                                           | Default HTTP service.                                                          |
 | `tokenizer`       | `default`                       | `regex`                                          | BM25 tokenizer.                                                                |
 | `as_embedding`    | `default`                       | Not configured by default; example uses `openai` | Provides the embedding model wrapper after uncommenting the example config.    |
+| `as_decision_model`   | `default`                       | Not configured by default; example uses `agentscope` | Optional probabilistic decision model; demonstrated by the decision_demo config extending default. |
 | `embedding_store` | `default`                       | Not configured by default; example uses `local`  | Depends on `as_embedding: default` after uncommenting the example config.      |
 | `as_llm`          | `default`                       | `${LLM_BACKEND:-openai}`                         | LLM model wrapper.                                                             |
 | `agent_wrapper`   | `default`                       | `agentscope`                                     | AgentScope wrapper.                                                            |
@@ -656,9 +662,11 @@ execution model is required.
 
 ### 10.1 Adding a Normal Request Job
 
-Add the Job under `jobs:` in a YAML configuration:
+Save a configuration such as `/path/to/uppercase.yaml`, inheriting the default service and adding the Job:
 
 ```yaml
+extends: default
+
 jobs:
   uppercase:
     backend: base
@@ -675,10 +683,15 @@ jobs:
       - backend: uppercase_step
 ```
 
-Start and call it:
+Start that configuration in one terminal and leave it running:
 
 ```bash
-reme start
+reme start config=/path/to/uppercase.yaml
+```
+
+From another terminal, call the Job:
+
+```bash
 reme uppercase text="hello"
 ```
 

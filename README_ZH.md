@@ -47,6 +47,12 @@
 
 ## 📰 最新动态
 
+<!-- 最新动态最多展开 5 条；新增条目时，将超出的旧条目移入下方“更多更新”折叠区。 -->
+
+- [2026.10] - **[基于决策模型的上下文压缩](docs/zh/context_compaction.md)**：根据下一步任务判断旧工具证据的保留价值，
+  保护关键历史，并返回可回溯的压缩建议；提供 SVG 流程图、两个真实模型集成场景和 14-query 固定摘要实验，包含强制 Hermes 摘要基线。
+- [2026.10] - **[ReMe 多模态记忆更新](https://reme.agentscope.io/zh/blog_20261009)**：Auto Memory 将会话图片和上下文一起
+  写入记忆并保留图片来源；Auto Resource 将图片资料整理为可检索、可回溯原图的 daily 卡片。
 - [2026.10] - **[ReMe Studio Playground](https://reme.agentscope.io/studio/?lang=zh) 上线**：无需安装或启动后端，
   即可在浏览器中浏览示例记忆文件、编辑 Markdown、探索记忆关联图谱。欢迎大家[来体验](https://reme.agentscope.io/studio/?lang=zh)！
 
@@ -60,15 +66,16 @@
   可重建 Tag Index 与标签过滤检索。
 - [2026.09] - **[Hermes Agent 记忆 Provider](https://reme.agentscope.io/zh/integrations/hermes) 已可使用**：支持 HTTP 和 Embedded
   两种模式，在模型调用前自动召回、每轮对话结束后异步执行 `auto_memory`。集成支持 Hermes Agent 0.21 及以上版本，后台任务也会继承当前 profile 上下文。
+
+<details>
+<summary>更多更新</summary>
+
 - [2026.09] - **[OpenClaw 插件](https://reme.agentscope.io/zh/integrations/openclaw) 发布**：可通过
   [ClawHub](https://clawhub.ai/agentscope-ai/plugins/reme-openclaw-plugin) 或
   [npm](https://www.npmjs.com/package/@agentscope-ai/reme-openclaw-plugin) 安装，为 OpenClaw 提供原生记忆召回、自动对话捕获和定时整理能力。
 - [2026.09] - **[DeepSeek Harness 插件](https://reme.agentscope.io/zh/integrations/dsh) 发布**：可通过
   [Awesome DSH Plugin](https://awesome-dsh-plugin.com/p/agentscope-ai/ReMe--integrations-dsh/) 或
   [npm](https://www.npmjs.com/package/@agentscope-ai/reme-dsh-plugin) 安装，提供长期记忆指引、`reme_search`、自动记忆、Auto Dream 和 ReMe Status。
-
-<details>
-<summary>更多更新</summary>
 
 - [2026.08] - **ReMe 博客发布**：[ReMe 博客](https://reme.agentscope.io/zh/reme-blog) 系统介绍了本地优先的记忆架构、
   自进化工作流、混合检索、主动发现与评测结果。
@@ -111,6 +118,9 @@ cd ..
 
 静态构建要求 Node.js 22.13 或更高版本，并让源码安装可以直接使用 Studio。
 
+可选决策模型功能使用 `pip install "reme-ai[core,decision]"` 安装。配置 TypeSafe API key 后即可启动服务并调用 `reme decide`，
+详见[决策模型配置](https://reme.agentscope.io/zh/configuration#决策模型配置)。
+
 ### Docker
 
 使用 Docker 和 Compose 2.24.0+，构建并启动包含 Studio 的 ReMe：
@@ -150,6 +160,8 @@ EOF
 
 ### 启动服务
 
+在一个终端启动 ReMe，并保持运行：
+
 ```bash
 reme start
 ```
@@ -160,6 +172,8 @@ reme start
 reme start service.port=8181
 # reme start workspace_dir=/tmp/reme-demo service.port=8181
 ```
+
+在另一个终端调用正在运行的服务。CLI 会发现服务配置；以下 `curl` 示例使用默认端口 `2333`：
 
 ```bash
 reme version
@@ -218,9 +232,10 @@ runtime 的能力，将记忆指引、召回和捕获接入 Agent 生命周期�
 | **DeepSeek Harness**       | 使用 `dsh plugin --profile web add @agentscope-ai/reme-dsh-plugin` 安装 [`@agentscope-ai/reme-dsh-plugin`](https://reme.agentscope.io/zh/integrations/dsh)。 | 可配置记忆指引、`reme_search`、自动对话捕获、定时 Auto Dream 和 ReMe Status。 |
 | **OpenClaw**               | 使用 `openclaw plugins install clawhub:@agentscope-ai/reme-openclaw-plugin` 安装 [`@agentscope-ai/reme-openclaw-plugin`](https://reme.agentscope.io/zh/integrations/openclaw)。 | 原生记忆工具、用户触发运行前召回和自动对话捕获。                      |
 | **QwenPaw**                | 通过 Python API 在进程内嵌入 ReMe。                                                                                                       | 复用宿主生命周期和模型配置，同时保持记忆本地、文件化。                |
-| **Claude Code**            | 启动共享的 streamable HTTP MCP service，并安装 [ReMe 插件](https://reme.agentscope.io/zh/integrations/claude-code)。                      | 通过 MCP 进行语义、图关系和状态召回，并由 Stop Hook 异步捕获会话。 |
+| **Claude Code** | 启动 ReMe 服务后，安装 [Claude Code 插件](integrations/claude_code/README_ZH.md)。 | 自动召回、完成轮次分批记录，以及 MCP 查询工具。 |
 | **Hermes**                 | 安装 [ReMe provider](https://reme.agentscope.io/zh/integrations/hermes)，并选择 HTTP 或 Embedded 模式。                                  | 模型调用前召回，每轮对话完成后异步执行 `auto_memory`。                |
-| **Codex 及其他 CLI Agent** | 安装或复制 [ReMe Memory skill](skills/reme_memory/SKILL.md)。                                                                             | 通过 CLI 搜索、读取和写入记忆；自动捕获需要显式接入宿主生命周期。     |
+| **Codex** | 启动 ReMe 服务后，安装 [Codex 插件](integrations/codex/README_ZH.md)。 | 原生 Hook 自动召回、分批记录，以及 MCP 查询工具。 |
+| **其他 CLI Agent** | 安装或复制 [ReMe Memory skill](skills/reme_memory/SKILL.md)。 | 通过 CLI 搜索、读取和写入记忆。 |
 
 <p align="center"><b>集成演示</b></p>
 

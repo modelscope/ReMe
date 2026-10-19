@@ -62,7 +62,12 @@ def test_studio_packages_have_independent_identity() -> None:
     assert auto_fin_config["project"]["version"] == "0.1.3"
     assert daily_paper_config["project"]["version"] == "0.1.3"
     assert dingtalk_config["project"]["version"] == "0.1.0"
-    assert main_config["tool"]["setuptools"]["packages"]["find"]["include"] == ["reme", "reme.*"]
+    assert main_config["tool"]["setuptools"]["packages"]["find"]["include"] == [
+        "reme",
+        "reme.*",
+        "deploy",
+        "deploy.*",
+    ]
     assert "reme_studio*" in main_config["tool"]["setuptools"]["packages"]["find"]["exclude"]
 
 
@@ -75,7 +80,7 @@ def test_typescript_host_plugins_are_independent_packages() -> None:
 
     assert manifests["dsh"]["name"] == "@agentscope-ai/reme-dsh-plugin"
     assert manifests["openclaw"]["name"] == "@agentscope-ai/reme-openclaw-plugin"
-    assert manifests["dsh"]["version"] == "0.1.1"
+    assert manifests["dsh"]["version"] == "0.1.3"
     assert manifests["openclaw"]["version"] == "0.1.1"
     assert manifests["dsh"].get("dependencies", {}) == {}
     assert manifests["openclaw"].get("dependencies", {}) == {"typebox": "1.3.19"}
@@ -238,3 +243,13 @@ def test_studio_package_preparation_preserves_static_gitignore(monkeypatch, tmp_
 
     assert (static_dir / "index.html").is_file()
     assert (static_dir / ".gitignore").read_text(encoding="utf-8") == package_studio.STATIC_GITIGNORE
+
+
+def test_qwen_tokenizer_dependency_is_optional() -> None:
+    """Exact Qwen tokenization is opt-in and included in the full install."""
+    config = tomllib.loads((REPOSITORY / "pyproject.toml").read_text(encoding="utf-8"))
+    extras = config["project"]["optional-dependencies"]
+    assert extras["qwen-tokenizer"] == ["tokenizers>=0.21,<1"]
+    assert "tokenizers" not in {Requirement(value).name for value in config["project"]["dependencies"]}
+    assert "tokenizers" not in {Requirement(value).name for value in extras["core"]}
+    assert "reme-ai[qwen-tokenizer]" in extras["full"]

@@ -203,7 +203,8 @@ class SearchStep(BaseStep):
 
     async def execute(self):
         assert self.context is not None
-        query: str = (self.context.get("query", "") or "").strip()
+        raw_query = self.context.get("query")
+        query: str = "" if raw_query is None else str(raw_query).strip()
         limit: int = int(self.context.get("limit") or _default_limit())
         min_score: float = float(self.context.get("min_score") or 0.0)
         # vector_weight: prefer agent-supplied context value; fallback to YAML kwargs / default 0.7.
@@ -338,6 +339,14 @@ class SearchStep(BaseStep):
             fused = self._rrf_merge(vector_results, keyword_results, vector_weight)
 
         if min_score > 0.0:
+            max_rrf_score = 1.0 / (_RRF_K + 1)
+            if hybrid and min_score > max_rrf_score:
+                self.logger.warning(
+                    f"[{self.name}] min_score={min_score:g} exceeds the hybrid RRF maximum "
+                    f"{max_rrf_score:.8g}; all hybrid results will be filtered out. "
+                    "RRF scores are rank-based, not vector similarities or BM25 scores. "
+                    "Keep min_score=0 to disable filtering; single-branch queries use native scores.",
+                )
             fused = [c for c in fused if c.score >= min_score]
 
         dedup: dict | None = None

@@ -49,6 +49,14 @@ users retain control of the durable files.
 
 ## 📰 Latest Updates
 
+<!-- Keep at most 5 updates expanded; move older entries into the collapsed section below. -->
+
+- [2026.10] - **[Decision-model context compaction](docs/en/context_compaction.md)**: score old tool calls and results
+  against the next action, preserve protected history, and return a recoverable compaction proposal. Includes an SVG
+  walkthrough, two live-model integration scenarios, and a 14-query fixed-summary Top-N benchmark with a forced Hermes summary baseline.
+- [2026.10] - **[ReMe Multimodal Memory](https://reme.agentscope.io/en/blog_20261009) update**: Auto Memory reads images
+  with their conversation context and preserves image sources; Auto Resource turns image files into searchable daily
+  cards linked to the originals.
 - [2026.10] - **[ReMe Studio Playground](https://reme.agentscope.io/studio/?lang=en) is live**: explore example memory
   files, edit Markdown, and browse linked memory graphs right in your browser—no installation or backend required.
   Everyone is welcome to [try it out](https://reme.agentscope.io/studio/?lang=en)!
@@ -64,6 +72,10 @@ users retain control of the durable files.
 - [2026.09] - **[Hermes Agent memory provider](https://reme.agentscope.io/en/integrations/hermes) available**: choose HTTP or embedded
   mode for automatic recall before model calls and asynchronous `auto_memory` after completed turns. The integration
   supports Hermes Agent 0.21+ and includes profile-aware background work.
+
+<details>
+<summary>More updates</summary>
+
 - [2026.09] - **[OpenClaw plugin](https://reme.agentscope.io/en/integrations/openclaw) released**: install it from
   [ClawHub](https://clawhub.ai/agentscope-ai/plugins/reme-openclaw-plugin) or
   [npm](https://www.npmjs.com/package/@agentscope-ai/reme-openclaw-plugin) to add native memory recall, automatic
@@ -72,9 +84,6 @@ users retain control of the durable files.
   [Awesome DSH Plugin](https://awesome-dsh-plugin.com/p/agentscope-ai/ReMe--integrations-dsh/) or
   [npm](https://www.npmjs.com/package/@agentscope-ai/reme-dsh-plugin) for long-term-memory guidance, `reme_search`,
   automatic memory, Auto Dream, and ReMe Status.
-
-<details>
-<summary>More updates</summary>
 
 - [2026.08] - **ReMe blog published**: the [ReMe blog](https://reme.agentscope.io/en/reme-blog) introduces the
   local-first memory architecture, self-evolving workflows, hybrid search, proactive discovery, and benchmark results.
@@ -119,6 +128,9 @@ cd ..
 
 The static build requires Node.js 22.13 or newer and makes Studio available from the source tree.
 
+Optional decision models use `pip install "reme-ai[core,decision]"`. Configure a TypeSafe API key and run the
+service demo as described in [Decision model configuration](https://reme.agentscope.io/en/configuration#decision-model-configuration).
+
 ### Docker
 
 With Docker and Compose 2.24.0+, build and start ReMe with the bundled Studio:
@@ -159,6 +171,8 @@ Basic file operations, BM25 search, wikilink traversal, and reading proactive to
 
 ### Start the Service
 
+Start ReMe in one terminal and leave it running:
+
 ```bash
 reme start
 ```
@@ -169,6 +183,9 @@ The default service address is `127.0.0.1:2333`. If the port is occupied, specif
 reme start service.port=8181
 # reme start workspace_dir=/tmp/reme-demo service.port=8181
 ```
+
+From another terminal, call the running service. The CLI discovers its configuration; the `curl` example uses the
+default port `2333`:
 
 ```bash
 reme version
@@ -228,9 +245,10 @@ lifecycle according to the capabilities of each runtime.
 | **DeepSeek Harness**           | Install [`@agentscope-ai/reme-dsh-plugin`](https://reme.agentscope.io/en/integrations/dsh) with `dsh plugin --profile web add @agentscope-ai/reme-dsh-plugin`. | Configurable memory guidance, `reme_search`, automatic turn capture, scheduled Auto Dream, and ReMe Status. |
 | **OpenClaw**                   | Install [`@agentscope-ai/reme-openclaw-plugin`](https://reme.agentscope.io/en/integrations/openclaw) with `openclaw plugins install clawhub:@agentscope-ai/reme-openclaw-plugin`. | Native memory tools, recall before user-triggered runs, and automatic turn capture.                     |
 | **QwenPaw**                    | Embed ReMe in-process through its Python API.                                                                                            | Reuse the host lifecycle and model config while keeping memory local and file-based.                    |
-| **Claude Code**                | Start the shared streamable HTTP MCP service and install [the ReMe plugin](https://reme.agentscope.io/en/integrations/claude-code).      | Semantic, graph, and state recall through MCP, plus asynchronous session capture through a Stop hook.   |
+| **Claude Code** | Start ReMe, then install the [Claude Code plugin](integrations/claude_code/README.md). | Automatic recall, batched completed-turn recording, and MCP tools. |
 | **Hermes**                     | Install [the ReMe provider](https://reme.agentscope.io/en/integrations/hermes) and choose HTTP or embedded mode.                         | Recall before model calls and asynchronous `auto_memory` after each completed turn.                     |
-| **Codex and other CLI agents** | Install or copy the [ReMe Memory skill](skills/reme_memory/SKILL.md).                                                                    | Search, read, and write memory through the CLI; automatic capture requires host lifecycle integration.  |
+| **Codex** | Start ReMe, then install the [Codex plugin](integrations/codex/README.md). | Native hooks for automatic recall and batched recording, plus MCP tools. |
+| **Other CLI agents** | Install or copy the [ReMe Memory skill](skills/reme_memory/SKILL.md). | Search, read, and write memory through the CLI. |
 
 <p align="center"><b>Integration demos</b></p>
 

@@ -3,6 +3,15 @@
 This document describes how ReMe is used in real agent workflows. Directory names, Job names, and capability boundaries are
 based on the latest code under `reme/`.
 
+The CLI examples below use a two-stage service workflow. Start the service in one terminal and leave it running:
+
+```bash
+reme start config=default
+```
+
+Run the CLI examples below from another terminal, reusing that service. If the intended workspace already has a running
+service, use it. See [Configuration](./configuration.md) for model settings.
+
 The common ReMe pattern is:
 
 ```text

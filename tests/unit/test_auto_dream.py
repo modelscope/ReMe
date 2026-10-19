@@ -712,6 +712,9 @@ def test_finish_does_not_checkpoint_failed_changed_paths():
                 workspace=str(workspace),
                 daily_dir="daily",
                 changed_paths=[ok.relative_to(workspace).as_posix(), failed.relative_to(workspace).as_posix()],
+                existing={
+                    path.relative_to(workspace).as_posix(): path.stat().st_mtime for path in (ok, failed, day_index)
+                },
                 failed_paths=[failed.relative_to(workspace).as_posix()],
                 modified_paths=["digest/procedure/example.md"],
                 integrate_results=[
@@ -753,6 +756,7 @@ def test_finish_does_not_readd_a_failed_day_index(tmp_path):
             workspace=str(tmp_path),
             daily_dir="daily",
             changed_paths=[rel_path],
+            existing={rel_path: day_index.stat().st_mtime},
             failed_paths=[rel_path],
             errors=["extract unavailable"],
         )
@@ -773,13 +777,14 @@ def test_finish_keeps_skipped_agent_output_successful(tmp_path):
 
     async def run():
         rel_path = "daily/2026-05-28/source.md"
-        _touch(tmp_path / rel_path)
+        source = _touch(tmp_path / rel_path)
         state = DreamState(
             date="2026-05-28",
             dates=["2026-05-28"],
             workspace=str(tmp_path),
             daily_dir="daily",
             changed_paths=[rel_path],
+            existing={rel_path: source.stat().st_mtime},
             skipped_units=[{"name": "unit", "reason": "unusable receipt"}],
             warnings=["unit 'unit' skipped: unusable agent receipt"],
         )
