@@ -8,6 +8,7 @@ from importlib.metadata import EntryPoint
 from io import BytesIO
 import json
 from pathlib import Path
+import tomllib
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -26,6 +27,12 @@ from reme.steps.evolve.auto_memory import _sanitize_msg_for_save
 from reme.steps.file_io.read_image import ReadImageStep
 
 from benchmark.memlens import run as memlens
+
+
+def test_candidate_declares_required_image_dependency():
+    manifest = Path(__file__).resolve().parents[2] / "plugins/memlens/pyproject.toml"
+    project = tomllib.loads(manifest.read_text(encoding="utf-8"))["project"]
+    assert "pillow>=10.0.0" in project["dependencies"]
 
 
 def test_memlens_subset_lengths_order_and_public_inputs(tmp_path):
