@@ -7,6 +7,7 @@ from importlib.metadata import EntryPoint
 from io import BytesIO
 import json
 from pathlib import Path
+import tomllib
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -25,6 +26,12 @@ from reme.steps.evolve.auto_memory import _sanitize_msg_for_save
 from reme.steps.file_io.read_image import ReadImageStep
 
 from benchmark.mobilemem import run as mobilemem
+
+
+def test_candidate_declares_required_image_dependency():
+    manifest = Path(__file__).resolve().parents[2] / "plugins/mobilemem/pyproject.toml"
+    project = tomllib.loads(manifest.read_text(encoding="utf-8"))["project"]
+    assert "pillow>=10.0.0" in project["dependencies"]
 
 
 @pytest.fixture(name="mobile_scene")
