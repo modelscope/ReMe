@@ -251,7 +251,7 @@ python -m benchmark.compaction.suite_run --live \
   --output /path/outside/repository/evaluation
 
 # 生成小预算设置下的 Hermes 上下文压缩摘要。
-# 若 --native 已是完整目录，则复用其中全部固定摘要。
+# 若 --native 已存在，先校验来源，再复用其中固定摘要。
 python -m benchmark.compaction.suite_native --live \
   --corpus /path/outside/repository/corpus/corpus.json \
   --evaluation /path/outside/repository/evaluation \
@@ -272,8 +272,13 @@ python -m benchmark.compaction.suite_fusion --live \
 ```
 
 这复现的是实验协议，新 agent 调用可能产生不同轨迹。`suite_fusion` 只重新回答 H + Top 1～5，保留其他八组，
-不会重新回答全部十三组。复用本次已有 H 时，额外传入 `--native-evaluation /path/to/pre-amendment/evaluation`；
-程序校验来源哈希，仅允许评分用的 `exam` 不同，摘要生成器不接收该字段。
+不会重新回答全部十三组。复用本次已有 H 缓存时，向 `suite_native` 或 `suite_fusion` 额外传入
+`--native-evaluation /path/to/pre-amendment/evaluation`。
+两个程序均要求 `generation/validation.json` 中的 SHA-256 与生成摘要时使用的来源文件一致，且三次摘要均完整。
+默认来源为当前评测的 `source.json`；`--native-evaluation` 显式指定原始来源。
+仅允许当前来源中的评分用 `exam` 不同，摘要生成器不接收该字段。
+缺少来源记录、哈希不匹配或证据发生变化时，程序会在回答调用前拒绝缓存。
+请保留被拒绝的缓存，使用新的 `--native` 路径重新生成。
 
 ### 冻结结果离线复核
 

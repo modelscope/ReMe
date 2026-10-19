@@ -7,7 +7,7 @@ from argparse import Namespace
 import pytest
 
 from benchmark.compaction.cases import event_units, write
-from benchmark.compaction.suite_native import validate_base
+from benchmark.compaction.suite_native import prepare_native, validate_base
 from benchmark.compaction.suite_fusion import prepare
 from benchmark.compaction.suite import context, define, exam, grade
 from benchmark.compaction.suite_run import ARMS, load_cases, metrics
@@ -151,6 +151,75 @@ def test_native_rejects_incompatible_or_duplicate_base_panels(tmp_path):
     write(tmp_path / "protocol.json", protocol)
     with pytest.raises(ValueError, match="matching fourteen-task"):
         validate_base(tmp_path, corpus, cases)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "change,error",
+    [
+        ("none", None),
+        ("hash", "source mismatch"),
+        ("missing_validation", "incomplete"),
+        ("missing_hash", "source mismatch"),
+        ("missing_summaries", "incomplete"),
+        ("duplicate_repeat", "incomplete"),
+        ("exam_implicit", "source mismatch"),
+        ("exam_explicit", None),
+        ("messages", "evidence changed"),
+        ("gold", "evidence changed"),
+        ("units", "evidence changed"),
+    ],
+)
+async def test_native_cache_provenance_before_provider_calls(tmp_path, monkeypatch, change, error):
+    """Reject stale caches without generating or answering, except explicit exam-only amendments."""
+    evaluation = tmp_path / "evaluation"
+    source = evaluation / "example" / "source.json"
+    source.parent.mkdir(parents=True)
+    original = {
+        "messages": [{"role": "user", "content": "original task"}],
+        "exam": "original exam",
+        "gold": {"answer": 42},
+        "units": [{"id": "u", "text": "original evidence"}],
+    }
+    write(source, original)
+    generation = tmp_path / "native" / "example" / "generation"
+    generation.mkdir(parents=True)
+    validation_path = generation / "validation.json"
+    summaries_path = generation / "summaries.json"
+    write(validation_path, {"source_sha256": hashlib.sha256(source.read_bytes()).hexdigest()})
+    write(summaries_path, [{"repeat": i, "summary": f"frozen {i}"} for i in range(3)])
+    args = Namespace(native=tmp_path / "native", evaluation=evaluation, native_evaluation=None)
+    if change == "hash":
+        write(validation_path, {"source_sha256": "different-source"})
+    elif change == "missing_validation":
+        validation_path.unlink()
+    elif change == "missing_hash":
+        write(validation_path, {})
+    elif change == "missing_summaries":
+        summaries_path.unlink()
+    elif change == "duplicate_repeat":
+        write(summaries_path, [{"repeat": 0}] * 3)
+    elif change in ("exam_implicit", "exam_explicit", "messages", "gold", "units"):
+        native_source = tmp_path / "original" / "example" / "source.json"
+        native_source.parent.mkdir(parents=True)
+        write(native_source, original)
+        changed = {**original, "exam": "amended exam"}
+        if change in ("messages", "gold", "units"):
+            changed[change] = []
+        write(source, changed)
+        if change != "exam_implicit":
+            args.native_evaluation = tmp_path / "original"
+
+    def no_provider_calls(*_args, **_kwargs):
+        pytest.fail("Invalid cached sources must be rejected before provider calls")
+
+    monkeypatch.setattr("benchmark.compaction.suite_native.asyncio.create_subprocess_exec", no_provider_calls)
+    monkeypatch.setattr("benchmark.compaction.suite_native.AsyncOpenAI", no_provider_calls)
+    if error:
+        with pytest.raises(ValueError, match=error):
+            await prepare_native(args, ["example"], tmp_path / "repo")
+    else:
+        await prepare_native(args, ["example"], tmp_path / "repo")
 
 
 def test_hermes_fusion_reuses_summary_and_verified_jev_prefix(tmp_path, monkeypatch):

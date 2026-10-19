@@ -37,11 +37,36 @@ def validate_base(evaluation, corpus, cases):
     return rows
 
 
+def load_native_summaries(generation, source, native_source=None):
+    """Verify cached provenance and allow only an explicitly identified exam-only amendment."""
+    validation_path = generation / "validation.json"
+    summaries_path = generation / "summaries.json"
+    if not validation_path.is_file() or not summaries_path.is_file():
+        raise ValueError("Native generation set is incomplete; preserve it and use a new path")
+    native_source = native_source or source
+    validation = json.loads(validation_path.read_text())
+    if validation.get("source_sha256") != hashlib.sha256(native_source.read_bytes()).hexdigest():
+        raise ValueError("Native summary source mismatch")
+    saved = json.loads(source.read_text())
+    native_saved = json.loads(native_source.read_text())
+    # The held-out exam is excluded from native summary generation.
+    if {k: v for k, v in native_saved.items() if k != "exam"} != {k: v for k, v in saved.items() if k != "exam"}:
+        raise ValueError("Native source evidence changed")
+    summaries = json.loads(summaries_path.read_text())
+    if len(summaries) != 3 or {r["repeat"] for r in summaries} != set(range(3)):
+        raise ValueError("Native generations are incomplete")
+    return summaries
+
+
 async def prepare_native(args, cases, repo):
     """Prepare a new isolated native generation set or validate an existing frozen set."""
     if args.native.exists():
-        if not all((args.native / key / "generation/summaries.json").is_file() for key in cases):
-            raise ValueError("Native generation set is incomplete; preserve it and use a new path")
+        for key in cases:
+            load_native_summaries(
+                args.native / key / "generation",
+                args.evaluation / key / "source.json",
+                (args.native_evaluation / key / "source.json") if args.native_evaluation else None,
+            )
         return
     if not args.hermes or not args.hermes_python:
         raise ValueError("New native generations require --hermes and --hermes-python")
@@ -137,8 +162,11 @@ async def run(args):
     for key, case in cases.items():
         root = output / key
         root.mkdir()
-        generated = json.loads((args.native / key / "generation/summaries.json").read_text())
-        assert len(generated) == 3 and {r["repeat"] for r in generated} == set(range(3))
+        generated = load_native_summaries(
+            args.native / key / "generation",
+            args.evaluation / key / "source.json",
+            (args.native_evaluation / key / "source.json") if args.native_evaluation else None,
+        )
         for entry in generated:
             i = entry["repeat"]
             full = next(r for r in original if r["case"] == key and r["repeat"] == i and r["arm"] == "full")
@@ -229,6 +257,7 @@ def main():
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--hermes", type=Path)
     parser.add_argument("--hermes-python", type=Path)
+    parser.add_argument("--native-evaluation", type=Path)
     parser.add_argument("--live", action="store_true")
     args = parser.parse_args()
     if not args.live:

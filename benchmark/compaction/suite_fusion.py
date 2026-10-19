@@ -14,7 +14,7 @@ from openai import AsyncOpenAI
 from benchmark.compaction.cases import render, write
 from benchmark.compaction.run import Experiment, compose, messages, top_n
 from benchmark.compaction.suite import grade
-from benchmark.compaction.suite_native import validate_base
+from benchmark.compaction.suite_native import load_native_summaries, validate_base
 from benchmark.compaction.suite_run import ARMS, load_cases, report
 
 
@@ -37,17 +37,8 @@ def prepare(args, cases):
         if saved["messages"] != case["messages"] or saved["exam"] != case["exam"] or saved["gold"] != case["gold"]:
             raise ValueError("Corpus or evaluation questions changed")
         generation = args.native / key / "generation"
-        validation = json.loads((generation / "validation.json").read_text())
         native_source = (args.native_evaluation or args.evaluation) / key / "source.json"
-        if validation["source_sha256"] != hashlib.sha256(native_source.read_bytes()).hexdigest():
-            raise ValueError("Native summary source mismatch")
-        native_saved = json.loads(native_source.read_text())
-        # The format amendment changed only the held-out exam, never native generator input.
-        if {k: v for k, v in native_saved.items() if k != "exam"} != {k: v for k, v in saved.items() if k != "exam"}:
-            raise ValueError("Native source evidence changed")
-        summaries = json.loads((generation / "summaries.json").read_text())
-        if len(summaries) != 3 or {r["repeat"] for r in summaries} != set(range(3)):
-            raise ValueError("Native generations are incomplete")
+        summaries = load_native_summaries(generation, source, native_source)
         for entry in summaries:
             i = entry["repeat"]
             native = index[key, "hermes_summary", i]

@@ -270,7 +270,7 @@ python -m benchmark.compaction.suite_run --live \
   --output /path/outside/repository/evaluation
 
 # Generate Hermes compaction summaries under the small-budget setting.
-# An existing complete --native directory reuses all frozen native generations.
+# An existing --native directory reuses frozen generations only after source validation.
 python -m benchmark.compaction.suite_native --live \
   --corpus /path/outside/repository/corpus/corpus.json \
   --evaluation /path/outside/repository/evaluation \
@@ -292,8 +292,12 @@ python -m benchmark.compaction.suite_fusion --live \
 
 This reproduces the protocol; new agent calls may produce different trajectories. `suite_fusion` re-answers only
 H + Top 1–5, retaining the other eight arms, rather than re-answering all thirteen. To reuse the recorded H generations,
-also pass `--native-evaluation /path/to/pre-amendment/evaluation`. The runner checks source hashes and permits only the
-held-out `exam` to differ; the summary generator never receives that field.
+also pass `--native-evaluation /path/to/pre-amendment/evaluation` to either `suite_native` or `suite_fusion` when reusing
+its cache. Both runners require `generation/validation.json` to match the SHA-256 of the source file used for generation
+and all three summary repeats to be present. By default that source is the current evaluation's `source.json`;
+`--native-evaluation` explicitly identifies the original source. Only the held-out `exam` may differ from the current
+source; the summary generator never receives that field. Missing provenance, a hash mismatch or changed evidence is
+rejected before answering calls. Preserve rejected caches and use a new `--native` path to generate replacements.
 
 ### Frozen offline verification
 
