@@ -1,6 +1,7 @@
 """macOS Seatbelt file sandbox with host-identical paths."""
 
 import asyncio
+import errno
 import json
 import os
 import plistlib
@@ -16,6 +17,21 @@ import psutil
 from agentscope.tool import ExecResult
 
 from .file_sandbox_backend import FileSandboxBackend, contains
+from ..local_backend import (
+    LocalProcessBackend,
+    OutputLimitExceeded,
+    capture_output,
+    finish_cleanup,
+    output_limit_result,
+)
+
+
+class LaunchctlError(RuntimeError):
+    """Preserve launchctl's error code so missing services can be handled narrowly."""
+
+    def __init__(self, message: str, exit_code: int):
+        super().__init__(message)
+        self.exit_code = exit_code
 
 
 class PathSeatbeltBackend(FileSandboxBackend):
@@ -102,17 +118,11 @@ class PathSeatbeltBackend(FileSandboxBackend):
         """Start Seatbelt directly when the GUI launchd domain is unavailable."""
         tempdir = tempfile.mkdtemp(prefix="reme-seatbelt-", dir=os.path.realpath(tempfile.gettempdir()))
         try:
-            process = await asyncio.create_subprocess_exec(
-                "/usr/bin/sandbox-exec",
-                "-p",
-                self._profile(tempdir),
-                *command,
+            process = await self._spawn_process(
+                ["/usr/bin/sandbox-exec", "-p", self._profile(tempdir), *command],
                 cwd=cwd,
                 env={**os.environ, "HOME": self._cwd, "TMPDIR": tempdir},
                 stdin=stdin,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                start_new_session=True,
             )
         except BaseException:
             shutil.rmtree(tempdir)
@@ -127,27 +137,38 @@ class PathSeatbeltBackend(FileSandboxBackend):
 
     @staticmethod
     async def _has_gui_launchd(domain: str) -> bool:
-        process = await asyncio.create_subprocess_exec(
-            "/bin/launchctl",
-            "print",
-            domain,
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
-        )
-        return await process.wait() == 0
+        result = await LocalProcessBackend().exec_shell(["/bin/launchctl", "print", domain], timeout=5)
+        return result.ok()
 
     @staticmethod
     async def _launchctl(*arguments: str) -> str:
-        process = await asyncio.create_subprocess_exec(
-            "/bin/launchctl",
-            *arguments,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await process.communicate()
-        if process.returncode:
-            raise RuntimeError(f"launchctl {' '.join(arguments[:1])} failed: {stderr.decode(errors='replace').strip()}")
-        return stdout.decode(errors="replace").strip()
+        result = await LocalProcessBackend().exec_shell(["/bin/launchctl", *arguments], timeout=5)
+        if not result.ok():
+            raise LaunchctlError(
+                f"launchctl {arguments[0]} failed: {result.stderr.decode(errors='replace').strip()}",
+                result.exit_code,
+            )
+        return result.stdout.decode(errors="replace").strip()
+
+    async def _bootstrap(self, domain: str, plist: Path, service: str) -> None:
+        """Resolve registration before rolling it back, even when its reply is interrupted."""
+        registration = asyncio.create_task(self._launchctl("bootstrap", domain, str(plist)))
+        try:
+            await asyncio.shield(registration)
+        except BaseException:
+
+            async def rollback():
+                # Killing the client cannot undo a registration accepted by launchd.
+                # Wait for the bounded launchctl operation before issuing bootout.
+                await asyncio.gather(registration, return_exceptions=True)
+                try:
+                    await self._launchctl("bootout", service)
+                except LaunchctlError as exc:
+                    if exc.exit_code != errno.ESRCH:
+                        raise
+
+            await finish_cleanup(rollback())
+            raise
 
     @staticmethod
     async def _wait_status(status: Path, pid: int) -> int:
@@ -157,6 +178,20 @@ class PathSeatbeltBackend(FileSandboxBackend):
             if not psutil.pid_exists(pid):
                 raise RuntimeError("launchd sandbox job exited without reporting a status")
             await asyncio.sleep(0.02)
+
+    @staticmethod
+    async def _read_fifo(fd: int, buffer: bytearray, name: str, exceeded: asyncio.Future, finished: asyncio.Event):
+        """Drain launchd output through a bounded pipe instead of an unbounded disk file."""
+        while True:
+            try:
+                chunk = os.read(fd, 65536)
+            except BlockingIOError:
+                if finished.is_set():
+                    return
+                await asyncio.sleep(0.005)
+                continue
+            capture_output(buffer, chunk, name, exceeded)
+            await asyncio.sleep(0)
 
     async def _run_job(self, command: list[str], cwd: str, *, data: bytes | None, timeout: float | None) -> ExecResult:
         if sys.platform != "darwin":
@@ -189,12 +224,34 @@ class PathSeatbeltBackend(FileSandboxBackend):
         label = f"ai.agentscope.reme.sandbox.{uuid.uuid4().hex}"
         service = f"{domain}/{label}"
         registered = False
-        timed_out = False
-        completed = False
         pid = None
-        stdout = b""
-        stderr = b""
+        stdout, stderr = bytearray(), bytearray()
+        exceeded = asyncio.get_running_loop().create_future()
+        finished = asyncio.Event()
+        output_fds = []
+        readers = []
+
+        async def cleanup(completed):
+            try:
+                if registered:
+                    if not completed and pid is not None:
+                        self._kill_process(SimpleNamespace(pid=pid))
+                    await self._launchctl("bootout", service)
+            finally:
+                finished.set()
+                try:
+                    await asyncio.wait_for(asyncio.gather(*readers), timeout=0.25)
+                except TimeoutError:
+                    pass
+
         try:
+            for path, buffer, name in ((stdout_path, stdout, "stdout"), (stderr_path, stderr, "stderr")):
+                os.mkfifo(path, 0o600)
+                # Holding both ends open prevents a transient EOF before launchd
+                # opens its writer. Kernel pipe capacity bounds pending output.
+                fd = os.open(path, os.O_RDWR | os.O_NONBLOCK)
+                output_fds.append(fd)
+                readers.append(asyncio.create_task(self._read_fifo(fd, buffer, name, exceeded, finished)))
             if data is not None:
                 stdin_path.write_bytes(data)
             # The shell reports the command's status in a control file. Its
@@ -225,29 +282,34 @@ class PathSeatbeltBackend(FileSandboxBackend):
             plist_path = control / "job.plist"
             with os.fdopen(os.open(plist_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "wb") as stream:
                 plistlib.dump(job, stream)
-            await self._launchctl("bootstrap", domain, str(plist_path))
+            await self._bootstrap(domain, plist_path, service)
             registered = True
-            pid = int(await self._launchctl("kickstart", "-p", service))
+
+            async def run():
+                nonlocal pid
+                pid = int(await self._launchctl("kickstart", "-p", service))
+                return await self._watch_output(self._wait_status(status_path, pid), exceeded)
+
             try:
-                exit_code = await asyncio.wait_for(self._wait_status(status_path, pid), timeout=timeout)
+                exit_code = await self._execute(run(), timeout=timeout, cleanup=cleanup)
             except TimeoutError:
-                timed_out = True
-            else:
-                completed = True
+                return ExecResult(exit_code=-1, stdout=b"", stderr=b"timed out")
+            except OutputLimitExceeded as exc:
+                return output_limit_result(bytes(stdout), bytes(stderr), str(exc))
+            if exceeded.done():
+                return output_limit_result(bytes(stdout), bytes(stderr), exceeded.result())
+            return ExecResult(
+                exit_code=exit_code,
+                stdout=bytes(stdout),
+                stderr=bytes(stderr),
+            )
         finally:
-            try:
-                if registered:
-                    if not completed and pid is not None:
-                        self._kill_process(SimpleNamespace(pid=pid))
-                    await self._launchctl("bootout", service)
-            finally:
-                if not timed_out:
-                    stdout = stdout_path.read_bytes() if stdout_path.exists() else b""
-                    stderr = stderr_path.read_bytes() if stderr_path.exists() else b""
-                shutil.rmtree(control)
-        if timed_out:
-            return ExecResult(exit_code=-1, stdout=b"", stderr=b"timed out")
-        return ExecResult(exit_code=exit_code, stdout=stdout, stderr=stderr)
+            for reader in readers:
+                reader.cancel()
+            await asyncio.gather(*readers, return_exceptions=True)
+            for fd in output_fds:
+                os.close(fd)
+            shutil.rmtree(control)
 
     async def exec_shell(
         self,

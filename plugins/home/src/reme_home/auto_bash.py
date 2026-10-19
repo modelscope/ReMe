@@ -1,6 +1,8 @@
 """Run allowlisted shell commands without an approval prompt."""
 
 import asyncio
+import os
+import shlex
 from functools import cache
 
 from agentscope.message import TextBlock, ToolResultState
@@ -9,6 +11,8 @@ from agentscope.tool import Bash, ToolChunk
 
 from reme.steps.base_step import BaseStep
 from reme.steps.common.file_sandbox import file_sandbox_for_step
+
+from reme.utils.local_backend import LocalProcessBackend
 
 _READ_COMMANDS = {
     ":": {},
@@ -54,8 +58,7 @@ _SAFE_DESTINATIONS = {"/dev/null"}
 # Trusted shell setup, applied only after validating the user's command.
 # Git's configuration can launch helpers even for otherwise read-only commands.
 _READ_ONLY_SETUP = r"""
-unset GIT_EXTERNAL_DIFF GIT_TRACE GIT_TRACE_SETUP GIT_TRACE_PERFORMANCE
-unset GIT_TRACE_PACK_ACCESS GIT_TRACE_PACKET GIT_TRACE_CURL GIT_TRACE2 GIT_TRACE2_EVENT GIT_TRACE2_PERF
+unset GIT_EXTERNAL_DIFF
 export GIT_OPTIONAL_LOCKS=0 GIT_PAGER=/bin/cat GIT_NO_LAZY_FETCH=1 GIT_TERMINAL_PROMPT=0
 sort() {
     # A large sort otherwise writes temporary files, even without -o.
@@ -163,6 +166,8 @@ class AutoBash(Bash):
     }
 
     def __init__(self, *, is_read_only: bool = True, **kwargs):
+        if kwargs.get("backend") is None:
+            kwargs["backend"] = LocalProcessBackend()
         super().__init__(**kwargs)
         self.is_read_only = is_read_only
 
@@ -227,7 +232,11 @@ class AutoBash(Bash):
             )
             return
         if self.is_read_only:
-            command = _READ_ONLY_SETUP + command
+            # Trace destinations can write files even for metadata-only Git
+            # commands. Clear the entire inherited family on every invocation,
+            # including new Git trace variables, without changing os.environ.
+            trace_variables = " ".join(shlex.quote(name) for name in os.environ if name.startswith("GIT_TRACE"))
+            command = f"unset {trace_variables}\n" + _READ_ONLY_SETUP + command
         async for chunk in super().call(command=command, description=description, timeout=timeout):
             yield chunk
 

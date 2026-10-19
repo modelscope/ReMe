@@ -2,14 +2,12 @@
 
 import asyncio
 import os
-import signal
 import sys
 from abc import abstractmethod
 
-import psutil
-from agentscope.tool import BackendBase, ExecResult
+from agentscope.tool import ExecResult
 
-_CLEANUP_TIMEOUT = 2.0
+from ..local_backend import LocalProcessBackend
 
 
 def contains(root: str, path: str) -> bool:
@@ -17,7 +15,7 @@ def contains(root: str, path: str) -> bool:
     return os.path.commonpath((root, path)) == root
 
 
-class FileSandboxBackend(BackendBase):
+class FileSandboxBackend(LocalProcessBackend):
     """Execute subprocesses with explicit host-path read and write access."""
 
     def __init__(self, *, cwd: str | os.PathLike[str], read_only_paths: list[str], writable_paths: list[str]) -> None:
@@ -76,9 +74,6 @@ class FileSandboxBackend(BackendBase):
     async def _start_process(self, command: list[str], cwd: str, *, stdin=asyncio.subprocess.DEVNULL):
         """Start one sandboxed process, never falling back to host execution."""
 
-    def _release_process(self, process: asyncio.subprocess.Process) -> None:
-        """Release platform resources after the child has exited."""
-
     async def exec_shell(
         self,
         command: list[str],
@@ -89,61 +84,6 @@ class FileSandboxBackend(BackendBase):
         """Execute an argv list with a timeout inside the platform sandbox."""
         process = await self._start_process(command, cwd or self._cwd)
         return await self._communicate(process, timeout=timeout)
-
-    async def _communicate(
-        self,
-        process: asyncio.subprocess.Process,
-        *,
-        data: bytes | None = None,
-        timeout: float | None = None,
-    ) -> ExecResult:
-        """Drain output and release process resources on success, timeout, or cancellation."""
-        communication = asyncio.create_task(process.communicate(data))
-        try:
-            stdout, stderr = await asyncio.wait_for(asyncio.shield(communication), timeout=timeout)
-        except TimeoutError:
-            await self._stop_process(process, communication)
-            return ExecResult(exit_code=-1, stdout=b"", stderr=b"timed out")
-        except BaseException:
-            await self._stop_process(process, communication)
-            raise
-        finally:
-            self._release_process(process)
-        return ExecResult(exit_code=process.returncode, stdout=stdout, stderr=stderr)
-
-    @staticmethod
-    def _kill_process(process: asyncio.subprocess.Process) -> None:
-        """Stop the launcher and known descendants, including detached children."""
-        if sys.platform == "darwin":
-            try:
-                os.killpg(process.pid, signal.SIGSTOP)
-            except ProcessLookupError:
-                pass
-            try:
-                descendants = psutil.Process(process.pid).children(recursive=True)
-            except psutil.Error:
-                descendants = []
-            for child in reversed(descendants):
-                try:
-                    child.kill()
-                except psutil.Error:
-                    pass
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-
-    async def _stop_process(self, process: asyncio.subprocess.Process, communication: asyncio.Task) -> None:
-        """Bound pipe draining even if an untracked child kept a pipe open."""
-        self._kill_process(process)
-        try:
-            await asyncio.wait_for(asyncio.shield(communication), timeout=_CLEANUP_TIMEOUT)
-        except TimeoutError:
-            communication.cancel()
-            try:
-                await asyncio.wait_for(process.wait(), timeout=_CLEANUP_TIMEOUT)
-            except TimeoutError:
-                pass
 
     async def read_file(self, path: str) -> bytes:
         """Read through a sandboxed command so file rules still apply."""

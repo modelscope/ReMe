@@ -19,3 +19,7 @@ macOS), with sandbox paths identical to their host paths. On Linux, the
 `memory_limit_mib` cgroup limit defaults to 4096 MiB; 0 disables it. Supplying
 the limit requires a path policy. macOS has no memory limit and warns when a
 nonzero value is supplied.
+
+Standard output and standard error each have a 1 MiB (1,048,576-byte) limit on
+all backends. Exceeding either limit terminates the command and returns a
+failure with bounded partial output and a diagnostic in standard error.

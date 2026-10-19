@@ -2,18 +2,21 @@
 
 import asyncio
 import inspect
+import os
 import subprocess
 import threading
 from importlib.metadata import EntryPoint
 from pathlib import Path
 
 import pytest
+import psutil
 import yaml
 
 from agentscope.message import ToolResultState
 from agentscope.permission import PermissionBehavior
 from agentscope.tool import ExecResult
 from reme_home.auto_bash import AutoBash, AutoBashStep
+from reme.utils.local_backend import LocalProcessBackend
 
 from reme.utils.file_sandbox.path_bubble_backend import PathBubbleBackend
 from reme.components.application_context import ApplicationContext
@@ -45,6 +48,75 @@ async def test_auto_bash_runs_in_workspace(tmp_path):
 
     assert response.success is True
     assert response.answer == "hello"
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(os.name != "posix", reason="POSIX shell pipelines")
+@pytest.mark.parametrize("background", [False, True])
+@pytest.mark.parametrize("cancel", [False, True])
+async def test_local_pipeline_timeout_and_cancellation(tmp_path, monkeypatch, background, cancel):
+    """Timeouts and cancellation clean up pipelines even after the shell exits."""
+    (tmp_path / "note.txt").write_text("hello\n", encoding="utf-8")
+    step = AutoBashStep(app_context=ApplicationContext(workspace_dir=str(tmp_path)))
+    processes = []
+    descendants = []
+    original_start = asyncio.create_subprocess_exec
+    original_stop = LocalProcessBackend._stop_process  # pylint: disable=protected-access
+    started = asyncio.Event()
+
+    def group_children(pid):
+        children = []
+        for child in psutil.process_iter():
+            try:
+                if child.pid != pid and os.getpgid(child.pid) == pid:
+                    children.append(child)
+            except (ProcessLookupError, PermissionError):
+                pass
+        return children
+
+    async def start(*args, **kwargs):
+        process = await original_start(*args, **kwargs)
+        processes.append(process)
+        started.set()
+        return process
+
+    async def stop(self, process, communication):
+        descendants.extend(group_children(process.pid))
+        await original_stop(self, process, communication)
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", start)
+    monkeypatch.setattr(LocalProcessBackend, "_stop_process", stop)
+    command = "tail -f note.txt | cat" + (" &" if background else "")
+    assert AutoBash._is_read_only(command)  # pylint: disable=protected-access
+    task = asyncio.create_task(step(command=command, timeout=60000 if cancel else 100))
+    try:
+        await asyncio.wait_for(started.wait(), timeout=2)
+        if cancel:
+            # Wait until pipeline children exist before cancelling the invocation.
+            async def pipeline_started():
+                while len(group_children(processes[0].pid)) < 2:
+                    await asyncio.sleep(0.01)
+
+            await asyncio.wait_for(pipeline_started(), timeout=2)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await asyncio.wait_for(task, timeout=0.8)
+        else:
+            response = await asyncio.wait_for(task, timeout=0.8)
+            assert response.success is False
+            assert "timed out after 100ms" in response.answer
+        assert descendants
+        assert processes[0].returncode is not None
+        assert all(not child.is_running() or child.status() == psutil.STATUS_ZOMBIE for child in descendants)
+    finally:
+        if not task.done():
+            task.cancel()
+        for process in processes:
+            try:
+                os.killpg(process.pid, 9)
+            except ProcessLookupError:
+                pass
+        await asyncio.gather(task, return_exceptions=True)
 
 
 @pytest.mark.asyncio
@@ -343,6 +415,64 @@ async def test_sort_does_not_create_temporary_files(tmp_path):
             output.write(f"{number:012d} abcdefghijklmnopqrstuvwxyz\n")
     large = [chunk async for chunk in tool.call("sort -S 1K large.txt > /dev/null")]
     assert "sort:" in "".join(block.text for chunk in large for block in chunk.content)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("trace_variable", ["GIT_TRACE_REFS", "GIT_TRACE", "GIT_TRACE2_EVENT"])
+async def test_read_only_git_cannot_write_inherited_traces(tmp_path, monkeypatch, trace_variable):
+    """Allowed metadata queries must not write Git traces from the parent environment."""
+
+    def git(*args):
+        return subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    git("init", "-q")
+    git(
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.org",
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "--allow-empty",
+        "-qm",
+        "test",
+    )
+    expected = git("rev-parse", "HEAD").stdout.decode().strip()
+    marker = tmp_path / "trace output.txt"
+    tool = AutoBash(cwd=tmp_path)
+    # Set after construction to check that each invocation uses the current environment.
+    monkeypatch.setenv(trace_variable, str(marker))
+
+    chunks = [chunk async for chunk in tool.call("git rev-parse HEAD")]
+
+    assert chunks
+    assert all(chunk.state != ToolResultState.ERROR for chunk in chunks)
+    assert "".join(block.text for chunk in chunks for block in chunk.content).strip() == expected
+    assert not marker.exists()
+
+    # Control: the same environment still enables tracing for unrestricted execution.
+    unrestricted = AutoBash(cwd=tmp_path, is_read_only=False)
+    chunks = [chunk async for chunk in unrestricted.call("git rev-parse HEAD")]
+    assert all(chunk.state != ToolResultState.ERROR for chunk in chunks)
+    assert marker.stat().st_size > 0
+
+
+@pytest.mark.asyncio
+async def test_read_only_git_clears_future_trace_variables(tmp_path, monkeypatch):
+    """Trace isolation uses a prefix rule instead of an enumeration of known names."""
+    helper = tmp_path / "git"
+    helper.write_text('#!/bin/sh\nprintf "%s" "${GIT_TRACE_FUTURE-unset}"\n', encoding="utf-8")
+    helper.chmod(0o700)
+    monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ["PATH"])
+    monkeypatch.setenv("GIT_TRACE_FUTURE", "inherited")
+    tool = AutoBash(cwd=tmp_path)
+
+    chunks = [chunk async for chunk in tool.call("git rev-parse HEAD")]
+
+    assert all(chunk.state != ToolResultState.ERROR for chunk in chunks)
+    assert "".join(block.text for chunk in chunks for block in chunk.content) == "unset"
+    assert os.environ["GIT_TRACE_FUTURE"] == "inherited"
 
 
 @pytest.mark.asyncio

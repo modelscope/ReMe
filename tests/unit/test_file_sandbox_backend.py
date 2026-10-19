@@ -1,6 +1,7 @@
 """Shared file sandbox selection and macOS policy construction."""
 
 import asyncio
+import os
 import plistlib
 import sys
 from pathlib import Path
@@ -10,6 +11,7 @@ from agentscope.tool import ExecResult
 
 from reme.components.application_context import ApplicationContext
 from reme.steps.common.python_execute import PythonExecuteStep
+from reme.utils.local_backend import LocalProcessBackend
 from reme.utils.file_sandbox import create_file_sandbox_backend
 from reme.utils.file_sandbox.path_bubble_backend import PathBubbleBackend
 from reme.utils.file_sandbox.path_seatbelt_backend import PathSeatbeltBackend
@@ -109,32 +111,62 @@ def test_seatbelt_excludes_read_only_child_from_writable_parent(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_sandbox_timeout_does_not_wait_forever_for_inherited_pipe(tmp_path, monkeypatch):
+@pytest.mark.parametrize("sandbox", [False, True])
+@pytest.mark.parametrize("cancel", [False, True])
+async def test_inherited_pipe_cleanup_is_bounded(tmp_path, monkeypatch, sandbox, cancel):
     """A surviving child with an output pipe must not hold the timeout response open."""
-    backend = PathBubbleBackend(cwd=tmp_path, read_only_paths=[], writable_paths=[], memory_limit_mib=0)
+    from unittest.mock import Mock
+
+    backend = (
+        PathBubbleBackend(cwd=tmp_path, read_only_paths=[], writable_paths=[], memory_limit_mib=0)
+        if sandbox
+        else LocalProcessBackend()
+    )
+    started = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    class StuckPipe:
+        """Model an inherited pipe held open after termination."""
+
+        async def read(self, _size):
+            """Wait forever until the caller cancels pipe draining."""
+            started.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cancelled.set()
 
     class StuckProcess:
         """Model a child that keeps its output pipe open after termination."""
 
         pid = 12345
-
-        async def communicate(self, _data=None):
-            """Wait forever until the caller cancels pipe draining."""
-            await asyncio.Event().wait()
+        _transport = Mock()
+        stdout = StuckPipe()
+        stderr = StuckPipe()
+        stdin = None
 
         async def wait(self):
-            """Model an already reaped launcher."""
-            return 0
+            """A stale process transport must also have a bounded wait."""
+            await asyncio.Event().wait()
 
     async def start(*_args, **_kwargs):
         return StuckProcess()
 
     monkeypatch.setattr(backend, "_start_process", start)
     monkeypatch.setattr(backend, "_kill_process", lambda _process: None)
-    monkeypatch.setattr("reme.utils.file_sandbox.file_sandbox_backend._CLEANUP_TIMEOUT", 0.01)
+    monkeypatch.setattr("reme.utils.local_backend._CLEANUP_TIMEOUT", 0.01)
 
-    result = await asyncio.wait_for(backend.exec_shell(["true"], timeout=0.01), timeout=1)
-    assert result.exit_code == -1 and result.stderr == b"timed out"
+    task = asyncio.create_task(backend.exec_shell(["true"], timeout=None if cancel else 0.01))
+    await asyncio.wait_for(started.wait(), timeout=1)
+    if cancel:
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, timeout=1)
+    else:
+        result = await asyncio.wait_for(task, timeout=1)
+        assert result.exit_code == -1 and result.stderr == b"timed out"
+    assert cancelled.is_set()
+    StuckProcess._transport.close.assert_called_once()  # pylint: disable=protected-access
 
 
 @pytest.mark.asyncio
@@ -145,6 +177,11 @@ async def test_seatbelt_launch_failure_cleans_up_without_host_fallback(tmp_path,
     seen = {}
 
     async def fail(*arguments):
+        if arguments[0] == "bootout":
+            import errno
+            from reme.utils.file_sandbox.path_seatbelt_backend import LaunchctlError
+
+            raise LaunchctlError("service not found", errno.ESRCH)
         seen["arguments"] = arguments
         with open(arguments[-1], "rb") as stream:
             seen["job"] = plistlib.load(stream)
@@ -181,3 +218,80 @@ async def test_python_job_selects_seatbelt_on_macos(tmp_path, monkeypatch):
     assert response.success is True
     assert isinstance(seen["backend"], PathSeatbeltBackend)
     assert seen["command"] == [sys.executable, "-c", "print('ok')"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["success", "failure", "timeout", "cancel", "error", "kickstart_error"])
+async def test_seatbelt_launchd_lifecycle(tmp_path, monkeypatch, mode):
+    """Every launchd outcome unregisters the job and removes its control files."""
+    from unittest.mock import AsyncMock, Mock
+
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr("reme.utils.file_sandbox.path_seatbelt_backend.shutil.which", lambda _: "sandbox-exec")
+    backend = PathSeatbeltBackend(cwd=tmp_path, read_only_paths=[], writable_paths=[])
+    monkeypatch.setattr(backend, "_has_gui_launchd", AsyncMock(return_value=True))
+    killed = Mock()
+    monkeypatch.setattr(backend, "_kill_process", killed)
+    calls = []
+    control = None
+    started = asyncio.Event()
+
+    async def launchctl(*args):
+        nonlocal control
+        calls.append(args[0])
+        if args[0] == "bootstrap":
+            control = Path(args[-1]).parent
+        if args[0] == "kickstart" and mode == "kickstart_error":
+            raise RuntimeError("kickstart failed")
+        if args[0] == "bootout":
+            # Output is collected after launchd has reaped the process group.
+            (control / "stdout").write_bytes(b"output")
+            (control / "stderr").write_bytes(b"diagnostic")
+        return "12345"
+
+    async def wait_status(*_args):
+        started.set()
+        if mode == "error":
+            raise RuntimeError("status failed")
+        if mode in ("timeout", "cancel"):
+            await asyncio.Event().wait()
+        return 7 if mode == "failure" else 0
+
+    monkeypatch.setattr(backend, "_launchctl", launchctl)
+    monkeypatch.setattr(backend, "_wait_status", wait_status)
+    task = asyncio.create_task(backend.exec_shell(["true"], timeout=0.01 if mode == "timeout" else None))
+    if mode == "cancel":
+        await asyncio.wait_for(started.wait(), timeout=1)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, timeout=1)
+    elif mode in ("error", "kickstart_error"):
+        with pytest.raises(RuntimeError, match="failed"):
+            await asyncio.wait_for(task, timeout=1)
+    else:
+        result = await asyncio.wait_for(task, timeout=1)
+        if mode == "timeout":
+            assert result == ExecResult(exit_code=-1, stdout=b"", stderr=b"timed out")
+        else:
+            assert result.exit_code == (7 if mode == "failure" else 0)
+            assert result.stdout == b"output" and result.stderr == b"diagnostic"
+    assert calls == ["bootstrap", "kickstart", "bootout"]
+    assert not control.exists()
+    assert killed.call_count == int(mode in ("timeout", "cancel", "error"))
+
+
+@pytest.mark.asyncio
+async def test_python_timeout_preserves_exit_status_and_stderr(tmp_path):
+    """The shared executor retains the existing unsandboxed Python metadata."""
+    step = PythonExecuteStep(app_context=ApplicationContext(workspace_dir=str(tmp_path)))
+    response = await step(
+        code="import sys, time; print('diagnostic', file=sys.stderr, flush=True); time.sleep(60)",
+        python_timeout=0.3,
+    )
+    assert response.success is False
+    assert response.answer == "Python execution timed out after 0.3s"
+    assert response.metadata == {
+        "returncode": -9 if os.name == "posix" else 1,
+        "stderr": "diagnostic\n",
+        "python_timeout": 0.3,
+    }

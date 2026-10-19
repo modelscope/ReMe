@@ -77,12 +77,9 @@ class PathBubbleBackend(FileSandboxBackend):
         try:
             if group is not None:
                 argv = [sys.executable, "-I", "-S", "-c", _CGROUP_EXEC, str(group / "cgroup.procs"), *argv]
-            process = await asyncio.create_subprocess_exec(
-                *argv,
+            process = await self._spawn_process(
+                argv,
                 stdin=stdin,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                start_new_session=True,
             )
         except BaseException:
             if group is not None:
