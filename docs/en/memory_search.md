@@ -208,6 +208,26 @@ fused_score = vector_weight / (60 + vector_rank)
 The default `vector_weight=0.7` gives semantic recall more weight when embeddings are enabled, while keyword search can
 still promote chunks with exact term matches.
 
+### Score thresholds
+
+Keep `min_score=0` (the default) for normal hybrid search and use `limit` to select the top results.
+Positive `min_score` values filter the returned score before truncation, using the scale of the branches that
+actually returned hits for that query:
+
+| Branches with hits | Score compared with `min_score` |
+| --- | --- |
+| Vector only | Native vector-backend score; its range depends on the backend |
+| BM25 only | Native BM25 score, without a fixed upper bound |
+| Both | Weighted RRF rank score, at most `1/61` (approximately `0.01639`) |
+
+RRF scores express rank contributions, not normalized relevance or probabilities. The maximum assumes the same chunk
+ranks first in both lists; a vector-only contribution with the default weight is at most `0.7/61`.
+Changing `vector_weight` changes individual contributions, while the two weights still sum to 1.
+The score scale can change between queries when one branch has no hits, so a single positive threshold is not
+comparable across all modes. For example, `min_score=0.05` removes every hybrid result even if its native vector or
+BM25 score is high. Search logs a warning when both branches have hits and the threshold exceeds `1/61`.
+The threshold is still applied: the warning does not lower it or restore filtered results.
+
 ## How BM25 Works
 
 `keyword_search()` calls `keyword_index.retrieve(query, limit)`. Each chunk is a document in the BM25 index:
