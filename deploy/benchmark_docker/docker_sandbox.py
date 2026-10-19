@@ -12,7 +12,7 @@ from pathlib import Path
 from pathlib import PurePosixPath
 import re
 import tarfile
-from typing import Any, Callable, Literal, Protocol
+from typing import Any, BinaryIO, Callable, Literal, Protocol
 import uuid
 
 from ._cleanup import cleanup_on_error
@@ -171,70 +171,70 @@ def _archive_workspace(source: str | Path) -> bytes:
     if supplied_path.is_symlink():
         raise ValueError("workspace source must not be a symbolic link")
     source_path = supplied_path.resolve(strict=True)
-    entries: list[tuple[tarfile.TarInfo, bytes | None]] = []
-    if source_path.is_dir():
-        for item in sorted(source_path.rglob("*"), key=lambda value: value.relative_to(source_path).as_posix()):
-            relative = item.relative_to(source_path)
-            if item.is_symlink():
-                raise ValueError(f"workspace source contains a symbolic link: {relative}")
-            path = _workspace_member_path(relative.as_posix())
-            assert path is not None
-            info = tarfile.TarInfo(path.as_posix())
-            info.mode = item.stat().st_mode & 0o777
-            if item.is_dir():
-                info.type = tarfile.DIRTYPE
-                data = None
-            elif item.is_file():
-                data = item.read_bytes()
-                info.size = len(data)
-            else:
-                raise ValueError(f"workspace source contains unsupported file: {relative}")
-            entries.append((info, data))
-    elif source_path.is_file():
-        with tarfile.open(source_path, mode="r:*") as archive:
-            members: dict[PurePosixPath, tarfile.TarInfo] = {}
-            for member in archive.getmembers():
-                path = _workspace_member_path(member.name)
-                if path is None:
-                    continue
-                if path in members:
-                    raise ValueError(f"workspace archive contains duplicate path: {path}")
-                members[path] = member
-            workspace_root = _case_archive_workspace_root(archive, members)
-            for path, member in members.items():
-                if workspace_root is not None:
-                    if path != workspace_root and workspace_root not in path.parents:
-                        continue
-                    if path == workspace_root:
-                        if not member.isdir():
-                            raise ValueError("case export has a non-directory reme_workspace entry")
-                        continue
-                    path = path.relative_to(workspace_root)
-                info = tarfile.TarInfo(path.as_posix())
-                info.mode = member.mode & 0o777
-                if member.isdir():
-                    info.type = tarfile.DIRTYPE
-                    data = None
-                elif member.isfile():
-                    content = archive.extractfile(member)
-                    if content is None:
-                        raise ValueError(f"workspace archive cannot read file: {path}")
-                    data = content.read()
-                    info.size = len(data)
-                else:
-                    raise ValueError(f"workspace archive contains unsupported entry: {member.name!r}")
-                entries.append((info, data))
-    else:
-        raise ValueError(f"workspace source is neither a directory nor a file: {source_path}")
-
     raw = io.BytesIO()
     with gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as compressed:
-        with tarfile.open(fileobj=compressed, mode="w") as archive:
-            for info, data in entries:
+        with tarfile.open(fileobj=compressed, mode="w") as output:
+
+            def add(info: tarfile.TarInfo, content: BinaryIO | None = None) -> None:
                 info.mtime = 0
                 info.uid = info.gid = 0
                 info.uname = info.gname = ""
-                archive.addfile(info, io.BytesIO(data) if data is not None else None)
+                output.addfile(info, content)
+
+            if source_path.is_dir():
+                for item in sorted(source_path.rglob("*"), key=lambda value: value.relative_to(source_path).as_posix()):
+                    relative = item.relative_to(source_path)
+                    if item.is_symlink():
+                        raise ValueError(f"workspace source contains a symbolic link: {relative}")
+                    path = _workspace_member_path(relative.as_posix())
+                    assert path is not None
+                    info = tarfile.TarInfo(path.as_posix())
+                    info.mode = item.stat().st_mode & 0o777
+                    if item.is_dir():
+                        info.type = tarfile.DIRTYPE
+                        add(info)
+                    elif item.is_file():
+                        with item.open("rb") as content:
+                            info.size = item.stat().st_size
+                            add(info, content)
+                    else:
+                        raise ValueError(f"workspace source contains unsupported file: {relative}")
+            elif source_path.is_file():
+                with tarfile.open(source_path, mode="r:*") as archive:
+                    members: dict[PurePosixPath, tarfile.TarInfo] = {}
+                    for member in archive.getmembers():
+                        path = _workspace_member_path(member.name)
+                        if path is None:
+                            continue
+                        if path in members:
+                            raise ValueError(f"workspace archive contains duplicate path: {path}")
+                        members[path] = member
+                    workspace_root = _case_archive_workspace_root(archive, members)
+                    for path, member in members.items():
+                        if workspace_root is not None:
+                            if path != workspace_root and workspace_root not in path.parents:
+                                continue
+                            if path == workspace_root:
+                                if not member.isdir():
+                                    raise ValueError("case export has a non-directory reme_workspace entry")
+                                continue
+                            path = path.relative_to(workspace_root)
+                        info = tarfile.TarInfo(path.as_posix())
+                        info.mode = member.mode & 0o777
+                        if member.isdir():
+                            info.type = tarfile.DIRTYPE
+                            add(info)
+                        elif member.isfile():
+                            content = archive.extractfile(member)
+                            if content is None:
+                                raise ValueError(f"workspace archive cannot read file: {path}")
+                            with content:
+                                info.size = member.size
+                                add(info, content)
+                        else:
+                            raise ValueError(f"workspace archive contains unsupported entry: {member.name!r}")
+            else:
+                raise ValueError(f"workspace source is neither a directory nor a file: {source_path}")
     return raw.getvalue()
 
 

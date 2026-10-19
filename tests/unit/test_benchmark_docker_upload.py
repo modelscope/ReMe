@@ -7,6 +7,7 @@ import io
 from pathlib import Path
 import tarfile
 import threading
+import tracemalloc
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -15,6 +16,56 @@ import pytest
 from deploy.benchmark_docker import ImageCandidate
 from deploy.benchmark_docker import docker_sandbox as sandbox_module
 from deploy.benchmark_docker.docker_sandbox import _archive_workspace
+
+
+@pytest.mark.parametrize("source_kind", ["directory", "archive"])
+def test_workspace_archive_streams_large_files(tmp_path, source_kind):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    note = workspace / "large.md"
+    size = 4 * 1024 * 1024
+    with note.open("wb") as content:
+        for _ in range(size // 65536):
+            content.write(b"x" * 65536)
+    note.chmod(0o640)
+    source = workspace
+    if source_kind == "archive":
+        source = tmp_path / "source.tar.gz"
+        with tarfile.open(source, "w:gz") as archive:
+            archive.add(note, arcname="large.md")
+
+    # A compressible multi-megabyte file must not be materialized in host RAM.
+    # Leave ample room for gzip/tar buffers while catching whole-file reads.
+    tracemalloc.start()
+    try:
+        payload = _archive_workspace(source)
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert peak < size // 2
+    assert _archive_workspace(source) == payload
+    with tarfile.open(fileobj=io.BytesIO(payload), mode="r:gz") as archive:
+        member = archive.getmember("large.md")
+        assert (member.size, member.mode, member.mtime, member.uid, member.gid) == (size, 0o640, 0, 0, 0)
+        assert archive.extractfile(member).read() == b"x" * size
+
+
+@pytest.mark.parametrize("kind", ["traversal", "symlink", "hardlink", "fifo", "duplicate"])
+def test_workspace_archive_rejects_unsafe_entries(tmp_path, kind):
+    source = tmp_path / "unsafe.tar.gz"
+    with tarfile.open(source, "w:gz") as archive:
+        info = tarfile.TarInfo("../escape" if kind == "traversal" else "note.md")
+        info.type = {
+            "symlink": tarfile.SYMTYPE,
+            "hardlink": tarfile.LNKTYPE,
+            "fifo": tarfile.FIFOTYPE,
+        }.get(kind, tarfile.REGTYPE)
+        info.linkname = "outside"
+        archive.addfile(info)
+        if kind == "duplicate":
+            archive.addfile(info)
+    with pytest.raises(ValueError, match="unsafe path|unsupported entry|duplicate path"):
+        _archive_workspace(source)
 
 
 def test_candidate_image_preserves_root_exclusions_after_plugin_exceptions():

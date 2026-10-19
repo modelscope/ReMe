@@ -83,21 +83,7 @@ class BenchmarkDockerPool:
         """Return results in input order, closing every container on exit."""
         if not plans:
             return []
-        by_id = {plan.case_id: plan for plan in plans}
-        if len(by_id) != len(plans):
-            raise ValueError("case IDs must be unique")
-        for plan in plans:
-            if plan.workspace_source is not None and plan.reuse_workspace_from is not None:
-                raise ValueError(f"case {plan.case_id!r} has two workspace sources")
-            if not plan.build_jobs and plan.workspace_source is None and plan.reuse_workspace_from is None:
-                raise ValueError(f"case {plan.case_id!r} needs build jobs or a workspace source")
-            if plan.reuse_workspace_from is not None and plan.reuse_workspace_from not in by_id:
-                raise ValueError(f"unknown workspace source: {plan.reuse_workspace_from!r}")
-            if plan.export_build_log_to is not None and not plan.build_jobs:
-                raise ValueError("build log export requires build jobs")
-            if plan.export_evaluation_to is not None and not plan.queries:
-                raise ValueError("evaluation export requires queries")
-        self._check_acyclic(by_id)
+        self._validate_plans(plans)
         reused_case_ids = {plan.reuse_workspace_from for plan in plans if plan.reuse_workspace_from is not None}
 
         workers = await self.factory.create_cases(
@@ -107,7 +93,7 @@ class BenchmarkDockerPool:
         available: asyncio.Queue[DockerReMeSandbox | None] = asyncio.Queue()
         for worker in workers:
             available.put_nowait(worker)
-        slots = _WorkerSlots(workers, available, set(by_id), len(workers), len(workers))
+        slots = _WorkerSlots(workers, available, {plan.case_id for plan in plans}, len(workers), len(workers))
         worker_results: dict[int, list[CaseResult]] = {}
         results: list[CaseResult] = []
         run_error: BaseException | None = None
@@ -258,6 +244,25 @@ class BenchmarkDockerPool:
                     result.error = f"{result.error}; {detail}" if result.error else detail
         if cleanup_cancel is not None and run_error is None:
             raise cleanup_cancel
+
+    @staticmethod
+    def _validate_plans(plans: list[CasePlan]) -> None:
+        """Reject invalid plans and dependencies before creating containers."""
+        by_id = {plan.case_id: plan for plan in plans}
+        if len(by_id) != len(plans):
+            raise ValueError("case IDs must be unique")
+        for plan in plans:
+            if plan.workspace_source is not None and plan.reuse_workspace_from is not None:
+                raise ValueError(f"case {plan.case_id!r} has two workspace sources")
+            if not plan.build_jobs and plan.workspace_source is None and plan.reuse_workspace_from is None:
+                raise ValueError(f"case {plan.case_id!r} needs build jobs or a workspace source")
+            if plan.reuse_workspace_from is not None and plan.reuse_workspace_from not in by_id:
+                raise ValueError(f"unknown workspace source: {plan.reuse_workspace_from!r}")
+            if plan.export_build_log_to is not None and not plan.build_jobs:
+                raise ValueError("build log export requires build jobs")
+            if plan.export_evaluation_to is not None and not plan.queries:
+                raise ValueError("evaluation export requires queries")
+        BenchmarkDockerPool._check_acyclic(by_id)
 
     @staticmethod
     def _check_acyclic(plans: dict[str, CasePlan]) -> None:
