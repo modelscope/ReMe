@@ -2,15 +2,18 @@
 
 import asyncio
 import contextvars
+import gc
 import json
 import os
 import threading
+import weakref
 from pathlib import Path
 from typing import Callable
 from unittest.mock import patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from watchfiles import Change
 
 from reme.application import Application
 from reme.components.application_context import ApplicationContext
@@ -202,6 +205,53 @@ async def test_shutdown_rejects_queued_work_and_drains_despite_cancellation(tmp_
     assert not chunker.is_started
     async with chunker:
         assert (await chunker.chunk(path))[1][0].text == "source"
+
+
+@pytest.mark.asyncio
+async def test_shutdown_from_another_event_loop_waits_for_worker_and_closes_executor(tmp_path: Path) -> None:
+    """Worker admission and shutdown can cross event loops without stranding the executor."""
+    path = tmp_path / "source.txt"
+    path.write_text("source")
+    chunker = DefaultFileChunker()
+    entered, release = threading.Event(), threading.Event()
+    worker_errors: list[BaseException] = []
+    original = chunker._chunk_sync
+
+    def blocking_parse(file_path: Path, rel_path: str) -> tuple[FileNode, list[FileChunk]]:
+        entered.set()
+        assert release.wait(5)
+        return original(file_path, rel_path)
+
+    def run_on_worker_loop() -> None:
+        try:
+            asyncio.run(chunker.chunk(path))
+        except BaseException as exc:
+            worker_errors.append(exc)
+
+    await chunker.start()
+    with patch.object(chunker, "_chunk_sync", side_effect=blocking_parse):
+        worker_thread = threading.Thread(target=run_on_worker_loop)
+        worker_thread.start()
+        await _wait_started(entered)
+        closing = asyncio.create_task(chunker.close())
+        try:
+            for _ in range(100):
+                if chunker._worker_closing:
+                    break
+                await asyncio.sleep(0.01)
+            assert chunker._worker_closing
+            assert not closing.done()
+        finally:
+            release.set()
+        await closing
+        await asyncio.to_thread(worker_thread.join, 5)
+
+    assert not worker_thread.is_alive()
+    assert len(worker_errors) == 1
+    assert isinstance(worker_errors[0], RuntimeError)
+    assert "different event loop" not in str(worker_errors[0])
+    assert chunker._worker is None
+    assert not chunker.is_started
 
 
 @pytest.mark.asyncio
@@ -522,6 +572,76 @@ async def test_changed_batched_file_is_rebuilt_before_publication_and_valid_file
             assert "first.txt" not in nodes
         else:
             assert store.file_chunks[nodes["first.txt"].chunk_ids[0]].text == first_path.read_text()
+        assert not step._source_versions
+
+
+@pytest.mark.asyncio
+async def test_stale_batch_chunks_are_released_before_source_retry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The retry parse does not overlap the retained stale chunk batch in memory."""
+    monkeypatch.chdir(tmp_path)
+    first_path, second_path = tmp_path / "first.txt", tmp_path / "second.txt"
+    first_path.write_text("original first")
+    second_path.write_text("original second")
+    context = ApplicationContext(workspace_dir=str(tmp_path))
+    chunker = DefaultFileChunker(app_context=context)
+    context.components = {ComponentEnum.FILE_CHUNKER: {"default": chunker}}
+    async with LocalFileStore(embedding_store="") as store, chunker:
+        await store.upsert([await chunker.chunk(first_path), await chunker.chunk(second_path)])
+        first_path.write_text("parsed first")
+        second_path.write_text("parsed second")
+        entered, release = threading.Event(), threading.Event()
+        original_chunk = chunker.chunk
+
+        async def pause_second(file_path: Path) -> tuple[FileNode, list[FileChunk]]:
+            if file_path == second_path:
+                entered.set()
+                while not release.is_set():
+                    await asyncio.sleep(0.01)
+            return await original_chunk(file_path)
+
+        step = UpdateIndexStep(file_store=store, persist=False, batch_max_files=2, app_context=context)
+        original_build = step._try_build_item
+        stale_chunk_released: threading.Event | None = None
+
+        async def capture_and_check_stale_chunk(
+            change: Change,
+            path: str,
+            abs_path: Path,
+            size_bytes: int,
+            results: list[dict],
+        ) -> tuple[tuple[FileNode, list[FileChunk]], int] | None:
+            nonlocal stale_chunk_released
+            if Path(path) == first_path and stale_chunk_released is not None:
+                gc.collect()
+                assert stale_chunk_released.is_set()
+            built = await original_build(change, path, abs_path, size_bytes, results)
+            if Path(path) == first_path and stale_chunk_released is None and built is not None:
+                stale_chunk_released = threading.Event()
+                weakref.finalize(built[0][1][0], stale_chunk_released.set)
+            return built
+
+        monkeypatch.setattr(step, "_try_build_item", capture_and_check_stale_chunk)
+        with patch.object(chunker, "chunk", side_effect=pause_second):
+            task = asyncio.create_task(
+                step(
+                    RuntimeContext(
+                        changes=[
+                            {"change": "modified", "path": str(first_path)},
+                            {"change": "modified", "path": str(second_path)},
+                        ],
+                    ),
+                ),
+            )
+            await _wait_started(entered)
+            first_path.write_text("latest first")
+            release.set()
+            response = await task
+
+        assert response.success is True
+        assert stale_chunk_released is not None and stale_chunk_released.is_set()
         assert not step._source_versions
 
 

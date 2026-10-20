@@ -73,7 +73,11 @@ class InitChangesStep(BaseStep):
         self.context["changes"] = changes
         if changes:
             self.logger.info(f"[{self.name}] scan {self.monitor_type}:{self.monitor_name}: {counts}")
-            await self.dispatch_steps(self.dispatch_step_specs, changes=changes)
+            await self.dispatch_steps(
+                self.dispatch_step_specs,
+                changes=changes,
+                retry_source_changes_before_watch=True,
+            )
         else:
             self.logger.info(f"[{self.name}] {self.monitor_type}:{self.monitor_name} is up to date")
         self.context.response.metadata["counts"] = counts

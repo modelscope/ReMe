@@ -3,6 +3,7 @@
 import asyncio
 import contextvars
 import os
+import threading
 from abc import abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -42,26 +43,45 @@ class BaseFileChunker(BaseComponent):
         super().__init__(**kwargs)
         self.supported_extensions: list[str] = supported_extensions or []
         self._worker: ThreadPoolExecutor | None = None
-        self._worker_lock = asyncio.Lock()
+        self._worker_lock = threading.Lock()
+        self._worker_state_lock = threading.Lock()
         self._worker_generation = 0
         self._worker_closing = False
 
     async def _start(self) -> None:
-        self._worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="reme-chunker")
-        self._worker_generation += 1
-        self._worker_closing = False
+        await self._acquire_worker_lock()
+        try:
+            with self._worker_state_lock:
+                self._worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="reme-chunker")
+                self._worker_generation += 1
+                self._worker_closing = False
+        finally:
+            self._worker_lock.release()
 
     async def _close(self) -> None:
-        self._worker_closing = True
-        self._worker_generation += 1
+        with self._worker_state_lock:
+            self._worker_closing = True
+            self._worker_generation += 1
         await _finish_work(asyncio.create_task(self._close_worker()))
 
     async def _close_worker(self) -> None:
-        async with self._worker_lock:
-            if self._worker is not None:
-                # The admission lock is held through completion, so shutdown has no running work.
-                self._worker.shutdown(wait=True)
+        await self._acquire_worker_lock()
+        try:
+            with self._worker_state_lock:
+                self._worker_closing = True
+                self._worker_generation += 1
+                worker = self._worker
                 self._worker = None
+            if worker is not None:
+                worker.shutdown(wait=True)
+        finally:
+            self._worker_lock.release()
+
+    async def _acquire_worker_lock(self) -> None:
+        """Acquire cross-loop admission without blocking an event loop thread."""
+        # Ownership spans awaited work, so a synchronous lock context would block this loop.
+        while not self._worker_lock.acquire(blocking=False):  # pylint: disable=consider-using-with
+            await asyncio.sleep(0.01)
 
     async def _chunk_in_worker(
         self,
@@ -69,35 +89,50 @@ class BaseFileChunker(BaseComponent):
         chunk: Callable[[Path, str], tuple[FileNode, list[FileChunk]]],
     ) -> tuple[FileNode, list[FileChunk]]:
         """Admit one parse at a time without accumulating an executor work queue."""
-        generation = self._worker_generation
+        with self._worker_state_lock:
+            generation = self._worker_generation
         file_path = Path(path)
         rel_path = self.to_workspace_relative(path)
-        async with self._worker_lock:
-            if self._worker_closing or generation != self._worker_generation:
-                raise RuntimeError("File chunker closed while waiting to parse")
-            worker = self._worker
-            temporary_worker = worker is None
-            if worker is None:
-                # Standalone chunk() remains usable without start(), with no persistent threads.
-                worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="reme-chunker")
-            try:
-                context = contextvars.copy_context()
-                future = asyncio.get_running_loop().run_in_executor(
-                    worker,
-                    context.run,
-                    self._chunk_unchanged_file,
-                    file_path,
-                    rel_path,
-                    chunk,
-                )
-                result, version = await _finish_work(future)
+        await self._acquire_worker_lock()
+        temporary_worker = False
+        try:
+            with self._worker_state_lock:
                 if self._worker_closing or generation != self._worker_generation:
-                    raise RuntimeError("File chunker closed while parsing")
-                check_file_version(file_path, version, file_path.stat())
-                return result
-            finally:
-                if temporary_worker:
-                    worker.shutdown(wait=True)
+                    raise RuntimeError("File chunker closed while waiting to parse")
+                worker = self._worker
+                temporary_worker = worker is None
+            if temporary_worker:
+                # Standalone chunk() remains usable without start(), with no persistent threads.
+                with ThreadPoolExecutor(max_workers=1, thread_name_prefix="reme-chunker") as worker:
+                    return await self._run_chunk(worker, generation, file_path, rel_path, chunk)
+            assert worker is not None
+            return await self._run_chunk(worker, generation, file_path, rel_path, chunk)
+        finally:
+            self._worker_lock.release()
+
+    async def _run_chunk(
+        self,
+        worker: ThreadPoolExecutor,
+        generation: int,
+        file_path: Path,
+        rel_path: str,
+        chunk: Callable[[Path, str], tuple[FileNode, list[FileChunk]]],
+    ) -> tuple[FileNode, list[FileChunk]]:
+        context = contextvars.copy_context()
+        future = asyncio.get_running_loop().run_in_executor(
+            worker,
+            context.run,
+            self._chunk_unchanged_file,
+            file_path,
+            rel_path,
+            chunk,
+        )
+        result, version = await _finish_work(future)
+        with self._worker_state_lock:
+            if self._worker_closing or generation != self._worker_generation:
+                raise RuntimeError("File chunker closed while parsing")
+        check_file_version(file_path, version, file_path.stat())
+        return result
 
     @staticmethod
     def _chunk_unchanged_file(

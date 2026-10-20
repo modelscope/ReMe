@@ -18,6 +18,9 @@ from ...enumeration import ComponentEnum
 from ...schema import FileChunk, FileNode
 from ...utils.file_utils import FileChangedDuringChunkingError, check_file_version
 
+_SOURCE_CHANGE_RETRY_MARKER = "_source_changed"
+_INITIAL_SCAN_RECOVERY_PASSES = 1
+
 
 class ChangeApplyStep(BaseStep):
     """Shared added/modified/deleted handling for index update targets."""
@@ -91,7 +94,40 @@ class ChangeApplyStep(BaseStep):
             path_exists=lambda p: self._to_abs_path(p).is_file(),
             path_key=self._change_path_key,
         )
-        results = await self._apply_existing(buckets)
+        results: list[dict] = []
+        pending_buckets = buckets
+        recover_source_changes = bool(self.context.get("retry_source_changes_before_watch"))
+        for recovery_pass in range(_INITIAL_SCAN_RECOVERY_PASSES + 1):
+            batch_results = await self._apply_existing(pending_buckets)
+            retryable: list[dict] = []
+            for result in batch_results:
+                if result.get(_SOURCE_CHANGE_RETRY_MARKER, False):
+                    retryable.append(result)
+            if not retryable:
+                for result in batch_results:
+                    result.pop(_SOURCE_CHANGE_RETRY_MARKER, None)
+                results.extend(batch_results)
+                break
+            if not recover_source_changes:
+                for result in batch_results:
+                    result.pop(_SOURCE_CHANGE_RETRY_MARKER, None)
+                results.extend(batch_results)
+                break
+            results.extend(result for result in batch_results if not result.pop(_SOURCE_CHANGE_RETRY_MARKER, False))
+            pending_buckets = bucket_changes(
+                [{"change": result["change"], "path": result["path"]} for result in retryable],
+                path_exists=lambda p: self._to_abs_path(p).is_file(),
+                path_key=self._change_path_key,
+            )
+            results.extend(await self._apply_deleted(pending_buckets[Change.deleted]))
+            if recovery_pass == _INITIAL_SCAN_RECOVERY_PASSES:
+                pending_paths = pending_buckets[Change.added] + pending_buckets[Change.modified]
+                if pending_paths:
+                    paths = ", ".join(pending_paths)
+                    raise FileChangedDuringChunkingError(
+                        f"Initial scan could not index stable source files after bounded retries: {paths}",
+                    )
+                break
         results.extend(await self._apply_deleted(buckets[Change.deleted]))
         if persist and results:
             await self.dump_target()
@@ -174,6 +210,7 @@ class ChangeApplyStep(BaseStep):
                         "path": path,
                         "success": False,
                         "error": "not a file",
+                        _SOURCE_CHANGE_RETRY_MARKER: True,
                     },
                 )
                 return None
@@ -197,6 +234,18 @@ class ChangeApplyStep(BaseStep):
                 )
                 return None
             return abs_path, size_bytes
+        except FileNotFoundError as e:
+            self.logger.debug(f"Source disappeared while processing {path}; reconciling its current state")
+            results.append(
+                {
+                    "change": change.name,
+                    "path": path,
+                    "success": False,
+                    "error": str(e),
+                    _SOURCE_CHANGE_RETRY_MARKER: True,
+                },
+            )
+            return None
         except Exception as e:
             self.logger.exception(f"Failed to process {path}")
             results.append({"change": change.name, "path": path, "success": False, "error": str(e)})
@@ -224,7 +273,30 @@ class ChangeApplyStep(BaseStep):
                     self.logger.debug(f"Source changed while processing {path}; retrying")
                     continue
                 self.logger.exception(f"Failed to process {path}")
-                results.append({"change": change.name, "path": path, "success": False, "error": str(e)})
+                results.append(
+                    {
+                        "change": change.name,
+                        "path": path,
+                        "success": False,
+                        "error": str(e),
+                        _SOURCE_CHANGE_RETRY_MARKER: True,
+                    },
+                )
+                return None
+            except FileNotFoundError as e:
+                if attempt < self.source_change_retries:
+                    self.logger.debug(f"Source disappeared while processing {path}; retrying")
+                    continue
+                self.logger.debug(f"Source disappeared while processing {path}; reconciling its current state")
+                results.append(
+                    {
+                        "change": change.name,
+                        "path": path,
+                        "success": False,
+                        "error": str(e),
+                        _SOURCE_CHANGE_RETRY_MARKER: True,
+                    },
+                )
                 return None
             except Exception as e:
                 self.logger.exception(f"Failed to process {path}")
@@ -411,6 +483,7 @@ class UpdateIndexStep(ChangeApplyStep):
         async with self.file_store._maintenance_guard():  # pylint: disable=protected-access
             current_items: list[tuple[FileNode, list[FileChunk]]] = []
             current_paths: list[str] = []
+            item: tuple[FileNode, list[FileChunk]] | None = None
             for item, path in zip(items, ok_paths):
                 node = item[0]
                 try:
@@ -428,6 +501,18 @@ class UpdateIndexStep(ChangeApplyStep):
                             "path": path,
                             "success": False,
                             "error": str(exc),
+                            _SOURCE_CHANGE_RETRY_MARKER: True,
+                        }
+                except FileNotFoundError as exc:
+                    if retry_source_changes:
+                        retry_paths.append(path)
+                    else:
+                        result_by_path[path] = {
+                            "change": change.name,
+                            "path": path,
+                            "success": False,
+                            "error": str(exc),
+                            _SOURCE_CHANGE_RETRY_MARKER: True,
                         }
                 except (OSError, RuntimeError) as exc:
                     result_by_path[path] = {
@@ -448,6 +533,10 @@ class UpdateIndexStep(ChangeApplyStep):
                         for result in await super()._try_upsert(change, current_items, current_paths)
                     },
                 )
+            if item is not None:
+                del item
+            items.clear()
+            current_items.clear()
 
         retry_results: list[dict] = []
         for path in retry_paths:
