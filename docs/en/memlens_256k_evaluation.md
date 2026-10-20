@@ -54,7 +54,7 @@ In the table, A3B denotes Qwen3.6-35B-A3B and Max denotes Qwen3.8-Max.
 
 ## Independent Reproduction Results {#independent-reproduction}
 
-ReMe Image was rerun with an independent evaluation implementation using the same data inputs and scoring settings. See the [run instructions](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/benchmark/memlens/README.md), [method configuration](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/plugins/memlens/src/reme_memlens/benchmark.yaml), [Judge configuration](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/plugins/memlens-judge/src/judge_memlens/plugin.yaml) and [Judge scoring rules](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/plugins/memlens-judge/src/judge_memlens/protocol.py) for the implementation and settings.
+We organized and integrated the MemLens benchmark code into ReMe, then independently reran ReMe Image using the same data inputs and scoring settings. See the [run instructions](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/benchmark/memlens/README.md), [method configuration](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/plugins/memlens/src/reme_memlens/benchmark.yaml), [Judge configuration](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/plugins/memlens-judge/src/judge_memlens/plugin.yaml) and [Judge scoring rules](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/plugins/memlens-judge/src/judge_memlens/protocol.py) for the implementation and settings.
 
 After applying the same six-question filter, one A3B question and two Max questions remain incomplete because conversation-history processing failed. The table compares the 188 and 187 questions completed in both experiments, respectively.
 
@@ -63,4 +63,4 @@ After applying the same six-question filter, one A3B question and two Max questi
 | Qwen3.6-35B-A3B | 188 | 100 | 96 | 53.19 → 51.06 |
 | Qwen3.8-Max | 187 | 135 | 134 | 72.19 → 71.66 |
 
-On these matched questions, the reproduction scores are 2.13 and 0.53 percentage points lower than the original results.
+On these matched questions, the reproduced LLM-Judge scores for Qwen3.6-35B-A3B and Qwen3.8-Max are 2.13 and 0.53 percentage points lower than the original results, respectively. Overall, performance remains broadly consistent with the original experiment.

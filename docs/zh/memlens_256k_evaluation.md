@@ -54,7 +54,7 @@ Full Context、OpenViking 和 Mem0 的回答阶段同样使用 temperature 0、t
 
 ## 独立复现结果 {#independent-reproduction}
 
-使用独立评测实现重新运行 ReMe Image，数据输入和评分设置与原实验保持一致。运行方式见[评测说明](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/benchmark/memlens/README.md)，具体参数见[方法配置](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/plugins/memlens/src/reme_memlens/benchmark.yaml)、[Judge 配置](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/plugins/memlens-judge/src/judge_memlens/plugin.yaml)和[Judge 评分规则](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/plugins/memlens-judge/src/judge_memlens/protocol.py)。
+我们将 MemLens benchmark 代码整理并集成到 ReMe 项目中，在相同的数据输入和评分设置下，对 ReMe Image 进行了独立复现。运行方式见[评测说明](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/benchmark/memlens/README.md)，具体参数见[方法配置](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/plugins/memlens/src/reme_memlens/benchmark.yaml)、[Judge 配置](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/plugins/memlens-judge/src/judge_memlens/plugin.yaml)和[Judge 评分规则](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/plugins/memlens-judge/src/judge_memlens/protocol.py)。
 
 应用相同的六题过滤后，复现实验中 A3B 有 1 题、Max 有 2 题因会话历史处理失败未得到完整结果。下表分别在两次实验均完成的 188 题和 187 题上进行配对比较。
 
@@ -63,4 +63,4 @@ Full Context、OpenViking 和 Mem0 的回答阶段同样使用 temperature 0、t
 | Qwen3.6-35B-A3B | 188 | 100 | 96 | 53.19 → 51.06 |
 | Qwen3.8-Max | 187 | 135 | 134 | 72.19 → 71.66 |
 
-在共同题目上，独立复现得分分别比原实验低 2.13 和 0.53 个百分点。
+在上述配对题目上，Qwen3.6-35B-A3B 和 Qwen3.8-Max 的独立复现 LLM-Judge 得分分别比原实验低 2.13 和 0.53 个百分点，整体性能与原实验基本保持一致。
