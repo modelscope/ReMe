@@ -61,7 +61,7 @@ class DreamIntegrateStep(BaseStep):
         state = state_from_context(self)
         if not state.units:
             self.logger.info(f"[{self.name}] skip no units")
-            return self._finish(state, True, "No dream units to integrate")
+            return self._finish(state, not state.errors, "No dream units to integrate")
         if not llm_available(self):
             err = "no llm configured; dream integrate requires an LLM"
             state.errors.append(err)
