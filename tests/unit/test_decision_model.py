@@ -350,3 +350,80 @@ def test_adapter_uses_sdk_default_or_explicit_model(monkeypatch, model_name):
         model.client.aclose.assert_awaited_once()
 
     asyncio.run(run())
+
+
+def test_injected_model_is_borrowed_and_accepts_json_questions(provider, tmp_path):
+    """Application injection shares the host instance without owning its client."""
+    from reme.application import Application
+
+    factory, model = provider
+
+    async def run():
+        app = Application(
+            workspace_dir=str(tmp_path),
+            enable_logo=False,
+            log_to_console=False,
+            log_to_file=False,
+            service={"backend": "http"},
+            components={"as_decision_model": {"compaction": {"backend": "agentscope"}}},
+        )
+        component = await app.update_component("as_decision_model", "compaction", model=model)
+        assert component.model is model
+        async with app:
+            await component(state="hello", questions={"q": {"type": "binary"}})
+        factory.assert_not_called()
+        model.assert_awaited_once()
+        model.client.aclose.assert_not_awaited()
+        assert component.model is None
+
+    asyncio.run(run())
+
+
+def test_model_replacement_guards_owned_clients(provider):
+    """Replacing an owned client requires an explicit close to prevent leaks."""
+    _, model = provider
+
+    async def run():
+        component = AgentScopeAsDecisionModel(credential={"api_key": "test-key"})
+        await component(state="hello", questions={"q": {"type": "binary"}})
+        component.model = model
+        with pytest.raises(RuntimeError, match="Close"):
+            component.model = None
+        await component.close()
+        component.model = model
+        await component.close()
+        # The borrowed instance is never closed a second time.
+        model.client.aclose.assert_awaited_once()
+        with pytest.raises(TypeError, match="callable"):
+            component.model = "model-name"
+
+    asyncio.run(run())
+
+
+def test_borrowed_model_cannot_be_replaced_while_in_use(provider):
+    """Host ownership still obeys the component's in-flight request boundary."""
+    _, model = provider
+
+    async def run():
+        started, release = asyncio.Event(), asyncio.Event()
+
+        async def reply(**_kwargs):
+            started.set()
+            await release.wait()
+
+        model.side_effect = reply
+        component = AgentScopeAsDecisionModel()
+        component.model = model
+        task = asyncio.create_task(component(state="hello", questions={"q": {"type": "binary"}}))
+        await asyncio.wait_for(started.wait(), 2)
+        with pytest.raises(RuntimeError, match="Close"):
+            component.model = None
+        close = asyncio.create_task(component.close())
+        await asyncio.sleep(0)
+        assert not close.done()
+        release.set()
+        await task
+        await close
+        model.client.aclose.assert_not_awaited()
+
+    asyncio.run(run())
