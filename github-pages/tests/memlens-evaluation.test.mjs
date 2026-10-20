@@ -38,19 +38,39 @@ test("MemLens notes, chart geometry and bilingual blog values agree", async () =
       }
       const gain = (100 * (model.correct[2] - model.correct[0]) / 189).toFixed(2);
       assert.ok(blog.includes(`**${gain}**`));
-      assert.ok(notes.includes(`= ${gain}`));
+      assert.ok(notes.includes(`**${gain}**`));
     }
   }
 });
 
-test("MemLens notes expose the same fixed filter and separate paired results", async () => {
+test("MemLens notes identify each moderation case and separate paired results", async () => {
+  const triggers = {
+    zh: [
+      ["OpenViking / Max", "记忆构建"],
+      ["OpenViking / A3B", "记忆构建"],
+      ["ReMe Text、Image / A3B；OpenViking / A3B、Max；Mem0 / A3B", "记忆构建"],
+      ["ReMe Image / Max", "回答"],
+      ["ReMe Image / Max", "记忆构建"],
+      ["ReMe Text / Max", "回答"],
+    ],
+    en: [
+      ["OpenViking / Max", "Memory construction"],
+      ["OpenViking / A3B", "Memory construction"],
+      ["ReMe Text and Image / A3B; OpenViking / A3B and Max; Mem0 / A3B", "Memory construction"],
+      ["ReMe Image / Max", "Answering"],
+      ["ReMe Image / Max", "Memory construction"],
+      ["ReMe Text / Max", "Answering"],
+    ],
+  };
   for (const language of ["en", "zh"]) {
     const notes = await readFile(path.join(generatedDir, language, "memlens_256k_evaluation.md"), "utf8");
     const filter = notes.split("{#content-moderation-filter}")[1].split("{#independent-reproduction}")[0];
     assert.deepEqual([...new Set(filter.match(/q_[0-9a-f]{8}/g))].sort(), excluded);
-    assert.match(filter, /InternalError\.Algo\.DataInspectionFailed/);
-    assert.match(filter, /data_inspection_failed/);
-    assert.match(filter, /400\/429/);
+    const rows = filter.split("\n").filter((line) => line.startsWith("| `q_"));
+    assert.deepEqual(rows, excluded.map((id, index) => {
+      const [method, stage] = triggers[language][index];
+      return `| \`${id}\` | ${method} | ${stage} |`;
+    }));
     assert.match(filter, /189\/195/);
     assert.ok(notes.includes("| Qwen3.6-35B-A3B | 188 | 100 | 96 | 53.19 → 51.06 |"));
     assert.ok(notes.includes("| Qwen3.8-Max | 187 | 135 | 134 | 72.19 → 71.66 |"));
@@ -60,7 +80,7 @@ test("MemLens notes expose the same fixed filter and separate paired results", a
   }
 });
 
-test("MemLens evidence links are portable, pinned and do not expose private audit paths", async () => {
+test("MemLens configuration links are pinned without audit paths or fingerprints in the prose", async () => {
   for (const language of ["en", "zh"]) {
     const blog = await readFile(path.join(generatedDir, language, "blog_20261009.md"), "utf8");
     const notesPath = path.join(generatedDir, language, "memlens_256k_evaluation.md");
@@ -72,7 +92,9 @@ test("MemLens evidence links are portable, pinned and do not expose private audi
     assert.equal(links.length, 4);
     for (const [, link] of links) assert.ok(link.includes(`/blob/${publicRevision}/`));
     assert.doesNotMatch(notes, /\/mnt\/|\/Users\/|docs\/_build|file:\/\//);
-    for (const anchor of ["results", "evaluation-settings", "content-moderation-filter", "independent-reproduction", "sources"]) {
+    const prose = notes.replace(/\]\([^)]+\)/g, "]");
+    assert.doesNotMatch(prose, /\b[a-f0-9]{40,64}\b/);
+    for (const anchor of ["results", "evaluation-settings", "content-moderation-filter", "independent-reproduction"]) {
       assert.ok(notes.includes(`{#${anchor}}`));
     }
   }
