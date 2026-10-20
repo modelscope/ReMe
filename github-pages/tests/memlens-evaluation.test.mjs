@@ -26,40 +26,6 @@ const reproductionLinks = [
   `https://github.com/agentscope-ai/ReMe/commit/${publicRevision}`,
 ];
 
-function assertReproductionLinks(markdown) {
-  const targets = [...markdown.matchAll(/\]\(([^)\r\n]+)\)/g)].map(([, target]) => target);
-  assert.deepEqual(targets.sort(), [...reproductionLinks].sort());
-}
-
-test("MemLens reproduction links require exact destinations, not URL substrings", () => {
-  const markdown = reproductionLinks.map((url) => `[source](${url})`).join("\n");
-  assertReproductionLinks(markdown);
-  for (const url of reproductionLinks) {
-    const invalidTargets = [
-      `https://example.invalid/?next=${url}`,
-      url.replace("https://github.com", "https://github.com.example.invalid"),
-      url.replace("https://github.com", "https://github.com@example.invalid"),
-      url.replace("https:", "http:"),
-      `${url}/unexpected`,
-      `${url}?next=https://example.invalid`,
-    ];
-    for (const target of invalidTargets) {
-      assert.throws(
-        () => assertReproductionLinks(markdown.replace(`](${url})`, `](${target})`)),
-        assert.AssertionError,
-      );
-    }
-    assert.throws(
-      () => assertReproductionLinks(markdown.replace(`[source](${url})`, url)),
-      assert.AssertionError,
-    );
-    assert.throws(
-      () => assertReproductionLinks(markdown.replace(`[source](${url})`, `[${url}](https://example.invalid/)`)),
-      assert.AssertionError,
-    );
-  }
-});
-
 test("MemLens notes, chart geometry and bilingual blog values agree", async () => {
   for (const language of ["en", "zh"]) {
     const blog = await readFile(path.join(generatedDir, language, "blog_20261009.md"), "utf8");
@@ -134,7 +100,8 @@ test("MemLens notes pin the public evaluation revision without private audit det
     assert.match(notes, /\]\(\.\/blog_20261009\.md#memlens-256k-results\)/);
     assert.doesNotMatch(notes, /\/mnt\/|\/Users\/|docs\/_build|file:\/\//);
     const reproduction = notes.split("{#independent-reproduction}")[1];
-    assertReproductionLinks(reproduction);
+    const targets = [...reproduction.matchAll(/\]\(([^)\r\n]+)\)/g)].map(([, target]) => target);
+    assert.deepEqual(targets.sort(), [...reproductionLinks].sort());
     const prose = notes.replace(/\]\([^)]+\)/g, "]");
     assert.doesNotMatch(prose, /\b[a-f0-9]{40,64}\b/);
     for (const anchor of ["results", "evaluation-settings", "content-moderation-filter", "independent-reproduction"]) {
