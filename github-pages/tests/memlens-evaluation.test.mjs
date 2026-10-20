@@ -14,8 +14,7 @@ const models = [
   { name: "Qwen3.8-Max", figure: "qwen38", correct: [124, 100, 137, 80, 97] },
 ];
 const excluded = ["q_028cb832", "q_1d99a36c", "q_3b01c02a", "q_564a657b", "q_600a79aa", "q_c9f8e24d"];
-const publicRevision = "f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8";
-const reproductionRevision = "d3e79918622173306be79ecda6494acadc7c4312";
+const publicRevision = "962d5cd8401c1d2be17f3bb95f8ac9c185672cd8";
 
 test("MemLens notes, chart geometry and bilingual blog values agree", async () => {
   for (const language of ["en", "zh"]) {
@@ -81,7 +80,7 @@ test("MemLens notes identify each moderation case and separate paired results", 
   }
 });
 
-test("MemLens notes pin the reproduction revision and public links without private audit details", async () => {
+test("MemLens notes pin the public evaluation revision without private audit details", async () => {
   for (const language of ["en", "zh"]) {
     const blog = await readFile(path.join(generatedDir, language, "blog_20261009.md"), "utf8");
     const notesPath = path.join(generatedDir, language, "memlens_256k_evaluation.md");
@@ -89,13 +88,14 @@ test("MemLens notes pin the reproduction revision and public links without priva
     const notes = await readFile(notesPath, "utf8");
     assert.match(blog, /\]\(\.\/memlens_256k_evaluation\.md\)/);
     assert.match(notes, /\]\(\.\/blog_20261009\.md#memlens-256k-results\)/);
-    const links = [...notes.matchAll(/\]\((https:\/\/github\.com\/wang-qisen\/ReMe\/blob\/[^)]+)\)/g)];
+    const links = [...notes.matchAll(/\]\((https:\/\/github\.com\/agentscope-ai\/ReMe\/blob\/[^)]+)\)/g)];
     assert.equal(links.length, 4);
     for (const [, link] of links) assert.ok(link.includes(`/blob/${publicRevision}/`));
     assert.doesNotMatch(notes, /\/mnt\/|\/Users\/|docs\/_build|file:\/\//);
     const reproduction = notes.split("{#independent-reproduction}")[1];
-    assert.ok(reproduction.includes(`\`${reproductionRevision}\``));
-    const prose = notes.replace(/\]\([^)]+\)/g, "]").replace(reproductionRevision, "");
+    assert.ok(reproduction.includes(`https://github.com/agentscope-ai/ReMe/commit/${publicRevision}`));
+    assert.ok(reproduction.includes("https://github.com/agentscope-ai/ReMe/pull/640"));
+    const prose = notes.replace(/\]\([^)]+\)/g, "]");
     assert.doesNotMatch(prose, /\b[a-f0-9]{40,64}\b/);
     for (const anchor of ["results", "evaluation-settings", "content-moderation-filter", "independent-reproduction"]) {
       assert.ok(notes.includes(`{#${anchor}}`));

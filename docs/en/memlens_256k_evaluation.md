@@ -54,9 +54,9 @@ In the table, A3B denotes Qwen3.6-35B-A3B and Max denotes Qwen3.8-Max.
 
 ## Independent Reproduction Results {#independent-reproduction}
 
-We organized and integrated the MemLens benchmark code into ReMe, then independently reran ReMe Image using the same data inputs and scoring settings. See the [run instructions](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/benchmark/memlens/README.md), [method configuration](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/plugins/memlens/src/reme_memlens/benchmark.yaml), [Judge configuration](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/plugins/memlens-judge/src/judge_memlens/plugin.yaml) and [Judge scoring rules](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/plugins/memlens-judge/src/judge_memlens/protocol.py) for the implementation and settings.
+We organized and integrated the MemLens benchmark code into ReMe, then independently reran ReMe Image using the same data inputs and scoring settings. See the [run instructions](https://github.com/agentscope-ai/ReMe/blob/962d5cd8401c1d2be17f3bb95f8ac9c185672cd8/benchmark/memlens/README.md), [method configuration](https://github.com/agentscope-ai/ReMe/blob/962d5cd8401c1d2be17f3bb95f8ac9c185672cd8/plugins/memlens/src/reme_memlens/benchmark.yaml), [Judge configuration](https://github.com/agentscope-ai/ReMe/blob/962d5cd8401c1d2be17f3bb95f8ac9c185672cd8/plugins/memlens-judge/src/judge_memlens/plugin.yaml) and [Judge scoring rules](https://github.com/agentscope-ai/ReMe/blob/962d5cd8401c1d2be17f3bb95f8ac9c185672cd8/plugins/memlens-judge/src/judge_memlens/protocol.py) for the implementation and settings.
 
-This independent reproduction used code commit `d3e79918622173306be79ecda6494acadc7c4312`.
+The corresponding public evaluation code is available in [PR #640](https://github.com/agentscope-ai/ReMe/pull/640) at commit [962d5cd](https://github.com/agentscope-ai/ReMe/commit/962d5cd8401c1d2be17f3bb95f8ac9c185672cd8).
 
 After applying the same six-question filter, one A3B question and two Max questions remain incomplete because conversation-history processing failed. The table compares the 188 and 187 questions completed in both experiments, respectively.
 

@@ -54,9 +54,9 @@ Full Context、OpenViking 和 Mem0 的回答阶段同样使用 temperature 0、t
 
 ## 独立复现结果 {#independent-reproduction}
 
-我们将 MemLens benchmark 代码整理并集成到 ReMe 项目中，在相同的数据输入和评分设置下，对 ReMe Image 进行了独立复现。运行方式见[评测说明](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/benchmark/memlens/README.md)，具体参数见[方法配置](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/plugins/memlens/src/reme_memlens/benchmark.yaml)、[Judge 配置](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/plugins/memlens-judge/src/judge_memlens/plugin.yaml)和[Judge 评分规则](https://github.com/wang-qisen/ReMe/blob/f89f166dcf8b5b37a4ed9a5e7c3fdbdd042170d8/plugins/memlens-judge/src/judge_memlens/protocol.py)。
+我们将 MemLens benchmark 代码整理并集成到 ReMe 项目中，在相同的数据输入和评分设置下，对 ReMe Image 进行了独立复现。运行方式见[评测说明](https://github.com/agentscope-ai/ReMe/blob/962d5cd8401c1d2be17f3bb95f8ac9c185672cd8/benchmark/memlens/README.md)，具体参数见[方法配置](https://github.com/agentscope-ai/ReMe/blob/962d5cd8401c1d2be17f3bb95f8ac9c185672cd8/plugins/memlens/src/reme_memlens/benchmark.yaml)、[Judge 配置](https://github.com/agentscope-ai/ReMe/blob/962d5cd8401c1d2be17f3bb95f8ac9c185672cd8/plugins/memlens-judge/src/judge_memlens/plugin.yaml)和[Judge 评分规则](https://github.com/agentscope-ai/ReMe/blob/962d5cd8401c1d2be17f3bb95f8ac9c185672cd8/plugins/memlens-judge/src/judge_memlens/protocol.py)。
 
-本次独立复现使用的代码 commit 为 `d3e79918622173306be79ecda6494acadc7c4312`。
+独立复现对应的公开评测代码见 [PR #640](https://github.com/agentscope-ai/ReMe/pull/640)，commit 为 [962d5cd](https://github.com/agentscope-ai/ReMe/commit/962d5cd8401c1d2be17f3bb95f8ac9c185672cd8)。
 
 应用相同的六题过滤后，复现实验中 A3B 有 1 题、Max 有 2 题因会话历史处理失败未得到完整结果。下表分别在两次实验均完成的 188 题和 187 题上进行配对比较。
 
