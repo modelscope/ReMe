@@ -5,6 +5,7 @@ import datetime
 import os
 from typing import Final
 
+from ._source_format import ALL_RETURNED_MESSAGE, NO_RESULTS_MESSAGE
 from ..base_step import BaseStep
 from ..file_io import extract_daily_date
 from ...components import R
@@ -349,6 +350,7 @@ class SearchStep(BaseStep):
                 )
             fused = [c for c in fused if c.score >= min_score]
 
+        pre_dedup_count = len(fused)
         dedup: dict | None = None
         if tool_context_id:
             fused, dedup = self._dedupe_tool_context(fused, tool_context_id, limit)
@@ -369,6 +371,8 @@ class SearchStep(BaseStep):
             answer_lines.extend(render_expansion_lines(link_expansion.get(c.path, {})))
 
         self.context.response.answer = "\n".join(answer_lines)
+        if not fused:
+            self.context.response.answer = ALL_RETURNED_MESSAGE if pre_dedup_count else NO_RESULTS_MESSAGE
         self.context.response.metadata["results"] = [
             c.model_dump(exclude_none=True, exclude={"embedding"}) for c in fused
         ]

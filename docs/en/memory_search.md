@@ -276,6 +276,12 @@ connects to. If a result is worth pursuing, use `read path=...` to open the sour
   followed by outlinks and inlinks.
 - `response.metadata`: structured programmatic results containing `results`, `link_expansion`, and `counts`.
 
+If no candidates match or survive `min_score`, `response.answer` is
+`No relevant information was found for the given query.` If all eligible chunks were already returned within the same
+`tool_context_id`, the answer is
+`All retrieved content has already been returned in previous responses; no new content was found.`
+Both outcomes are successful searches with an empty `results` list and `counts.returned` equal to `0`.
+
 Typical text structure:
 
 ```text

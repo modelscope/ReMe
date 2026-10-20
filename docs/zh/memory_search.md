@@ -253,6 +253,11 @@ Memory Search 的“渐进式”不是一次把全库内容塞进结果，而是
 - `response.answer`：给人看的文本，每个命中块包含路径、行号、分数和 chunk 内容，后面跟 outlinks / inlinks。
 - `response.metadata`：给程序看的结构化结果，包括 `results`、`link_expansion`、`counts`。
 
+如果没有匹配结果，或所有候选都被 `min_score` 过滤，`response.answer` 返回
+`No relevant information was found for the given query.`。如果符合分数要求的内容在同一 `tool_context_id` 中都已返回过，
+则返回 `All retrieved content has already been returned in previous responses; no new content was found.`。
+这两种情况都属于成功的搜索，`results` 为空列表，`counts.returned` 为 `0`。
+
 典型文本结构：
 
 ```text
