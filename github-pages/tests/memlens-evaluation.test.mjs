@@ -15,6 +15,50 @@ const models = [
 ];
 const excluded = ["q_028cb832", "q_1d99a36c", "q_3b01c02a", "q_564a657b", "q_600a79aa", "q_c9f8e24d"];
 const publicRevision = "962d5cd8401c1d2be17f3bb95f8ac9c185672cd8";
+const reproductionLinks = [
+  ...[
+    "benchmark/memlens/README.md",
+    "plugins/memlens/src/reme_memlens/benchmark.yaml",
+    "plugins/memlens-judge/src/judge_memlens/plugin.yaml",
+    "plugins/memlens-judge/src/judge_memlens/protocol.py",
+  ].map((file) => `https://github.com/agentscope-ai/ReMe/blob/${publicRevision}/${file}`),
+  "https://github.com/agentscope-ai/ReMe/pull/640",
+  `https://github.com/agentscope-ai/ReMe/commit/${publicRevision}`,
+];
+
+function assertReproductionLinks(markdown) {
+  const targets = [...markdown.matchAll(/\]\(([^)\r\n]+)\)/g)].map(([, target]) => target);
+  assert.deepEqual(targets.sort(), [...reproductionLinks].sort());
+}
+
+test("MemLens reproduction links require exact destinations, not URL substrings", () => {
+  const markdown = reproductionLinks.map((url) => `[source](${url})`).join("\n");
+  assertReproductionLinks(markdown);
+  for (const url of reproductionLinks) {
+    const invalidTargets = [
+      `https://example.invalid/?next=${url}`,
+      url.replace("https://github.com", "https://github.com.example.invalid"),
+      url.replace("https://github.com", "https://github.com@example.invalid"),
+      url.replace("https:", "http:"),
+      `${url}/unexpected`,
+      `${url}?next=https://example.invalid`,
+    ];
+    for (const target of invalidTargets) {
+      assert.throws(
+        () => assertReproductionLinks(markdown.replace(`](${url})`, `](${target})`)),
+        assert.AssertionError,
+      );
+    }
+    assert.throws(
+      () => assertReproductionLinks(markdown.replace(`[source](${url})`, url)),
+      assert.AssertionError,
+    );
+    assert.throws(
+      () => assertReproductionLinks(markdown.replace(`[source](${url})`, `[${url}](https://example.invalid/)`)),
+      assert.AssertionError,
+    );
+  }
+});
 
 test("MemLens notes, chart geometry and bilingual blog values agree", async () => {
   for (const language of ["en", "zh"]) {
@@ -88,13 +132,9 @@ test("MemLens notes pin the public evaluation revision without private audit det
     const notes = await readFile(notesPath, "utf8");
     assert.match(blog, /\]\(\.\/memlens_256k_evaluation\.md\)/);
     assert.match(notes, /\]\(\.\/blog_20261009\.md#memlens-256k-results\)/);
-    const links = [...notes.matchAll(/\]\((https:\/\/github\.com\/agentscope-ai\/ReMe\/blob\/[^)]+)\)/g)];
-    assert.equal(links.length, 4);
-    for (const [, link] of links) assert.ok(link.includes(`/blob/${publicRevision}/`));
     assert.doesNotMatch(notes, /\/mnt\/|\/Users\/|docs\/_build|file:\/\//);
     const reproduction = notes.split("{#independent-reproduction}")[1];
-    assert.ok(reproduction.includes(`https://github.com/agentscope-ai/ReMe/commit/${publicRevision}`));
-    assert.ok(reproduction.includes("https://github.com/agentscope-ai/ReMe/pull/640"));
+    assertReproductionLinks(reproduction);
     const prose = notes.replace(/\]\([^)]+\)/g, "]");
     assert.doesNotMatch(prose, /\b[a-f0-9]{40,64}\b/);
     for (const anchor of ["results", "evaluation-settings", "content-moderation-filter", "independent-reproduction"]) {
