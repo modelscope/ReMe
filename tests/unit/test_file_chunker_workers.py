@@ -7,6 +7,7 @@ import json
 import os
 import threading
 import weakref
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Callable
 from unittest.mock import patch
@@ -582,27 +583,25 @@ async def test_stale_batch_chunks_are_released_before_source_retry(
 ) -> None:
     """The retry parse does not overlap the retained stale chunk batch in memory."""
     monkeypatch.chdir(tmp_path)
-    first_path, second_path = tmp_path / "first.txt", tmp_path / "second.txt"
-    first_path.write_text("original first")
-    second_path.write_text("original second")
+    source_path = tmp_path / "source.txt"
+    source_path.write_text("original source")
     context = ApplicationContext(workspace_dir=str(tmp_path))
     chunker = DefaultFileChunker(app_context=context)
     context.components = {ComponentEnum.FILE_CHUNKER: {"default": chunker}}
     async with LocalFileStore(embedding_store="") as store, chunker:
-        await store.upsert([await chunker.chunk(first_path), await chunker.chunk(second_path)])
-        first_path.write_text("parsed first")
-        second_path.write_text("parsed second")
-        entered, release = threading.Event(), threading.Event()
-        original_chunk = chunker.chunk
+        await store.upsert([await chunker.chunk(source_path)])
+        source_path.write_text("parsed source")
+        flush_waiting = asyncio.Event()
+        original_guard = store._maintenance_guard
 
-        async def pause_second(file_path: Path) -> tuple[FileNode, list[FileChunk]]:
-            if file_path == second_path:
-                entered.set()
-                while not release.is_set():
-                    await asyncio.sleep(0.01)
-            return await original_chunk(file_path)
+        @asynccontextmanager
+        async def track_store_guard():
+            flush_waiting.set()
+            async with original_guard():
+                yield
 
-        step = UpdateIndexStep(file_store=store, persist=False, batch_max_files=2, app_context=context)
+        monkeypatch.setattr(store, "_maintenance_guard", track_store_guard)
+        step = UpdateIndexStep(file_store=store, persist=False, batch_max_files=1, app_context=context)
         original_build = step._try_build_item
         stale_chunk_released: threading.Event | None = None
 
@@ -614,35 +613,38 @@ async def test_stale_batch_chunks_are_released_before_source_retry(
             results: list[dict],
         ) -> tuple[tuple[FileNode, list[FileChunk]], int] | None:
             nonlocal stale_chunk_released
-            if Path(path) == first_path and stale_chunk_released is not None:
+            if stale_chunk_released is not None:
                 gc.collect()
                 assert stale_chunk_released.is_set()
             built = await original_build(change, path, abs_path, size_bytes, results)
-            if Path(path) == first_path and stale_chunk_released is None and built is not None:
+            if stale_chunk_released is None and built is not None:
                 stale_chunk_released = threading.Event()
                 weakref.finalize(built[0][1][0], stale_chunk_released.set)
             return built
 
         monkeypatch.setattr(step, "_try_build_item", capture_and_check_stale_chunk)
-        with patch.object(chunker, "chunk", side_effect=pause_second):
+        await store._maintenance_lock.acquire()
+        try:
             task = asyncio.create_task(
                 step(
                     RuntimeContext(
-                        changes=[
-                            {"change": "modified", "path": str(first_path)},
-                            {"change": "modified", "path": str(second_path)},
-                        ],
+                        changes=[{"change": "modified", "path": str(source_path)}],
+                        retry_source_changes_before_watch=True,
                     ),
                 ),
             )
-            await _wait_started(entered)
-            first_path.write_text("latest first")
-            release.set()
-            response = await task
+            await asyncio.wait_for(flush_waiting.wait(), timeout=5)
+            source_path.write_text("latest source with a different size")
+        finally:
+            store._maintenance_lock.release()
+        response = await task
 
         assert response.success is True
         assert stale_chunk_released is not None and stale_chunk_released.is_set()
         assert not step._source_versions
+        nodes = await store.get_nodes()
+        assert len(nodes) == 1
+        assert store.file_chunks[nodes[0].chunk_ids[0]].text == "latest source with a different size"
 
 
 @pytest.mark.asyncio

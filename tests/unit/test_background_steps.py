@@ -1150,6 +1150,7 @@ def test_index_update_loop_init_dispatch_updates_store_across_batches():
 
                 first = await init_step(ctx)
                 assert first.metadata["counts"] == {"added": 2, "modified": 0, "deleted": 0}
+                assert "retry_source_changes_before_watch" not in ctx
                 nodes = {n.path: n for n in await fs.get_nodes()}
                 assert set(nodes) == {"daily/a.md", "digest/report.md"}
                 assert all(nodes[p].chunk_ids for p in nodes)
@@ -1161,6 +1162,7 @@ def test_index_update_loop_init_dispatch_updates_store_across_batches():
 
                 second = await init_step(ctx)
                 assert second.metadata["counts"] == {"added": 1, "modified": 1, "deleted": 1}
+                assert "retry_source_changes_before_watch" not in ctx
                 assert {(c["change"], Path(c["path"]).name) for c in ctx["changes"]} == {
                     ("modified", "a.md"),
                     ("deleted", "report.md"),
@@ -1186,9 +1188,11 @@ def test_index_update_loop_retries_source_changed_during_initial_scan(monkeypatc
         with tempfile.TemporaryDirectory() as tmpdir, temp_chdir(tmpdir):
             cwd = Path.cwd()
             path = write_file(cwd / "daily" / "source.md", "initial contents")
-            parse_started = [threading.Event(), threading.Event()]
-            resume_parse = [threading.Event(), threading.Event()]
+            parse_started = [threading.Event() for _ in range(5)]
+            resume_parse = [threading.Event() for _ in range(5)]
             watcher_started = asyncio.Event()
+            watcher_update_requested = asyncio.Event()
+            watcher_update_completed = asyncio.Event()
             chunk_calls: list[Path] = []
             watcher_contents: list[str] = []
 
@@ -1227,15 +1231,11 @@ def test_index_update_loop_retries_source_changed_during_initial_scan(monkeypatc
                 result = original_chunk(file_path, rel_path)
                 chunk_calls.append(file_path)
                 attempt = len(chunk_calls) - 1
-                if attempt < len(parse_started):
+                if attempt in {0, 1, 3, 4}:
                     parse_started[attempt].set()
                     if not resume_parse[attempt].wait(timeout=5):
-                        raise TimeoutError(f"initial parse {attempt + 1} was not resumed")
+                        raise TimeoutError(f"parse attempt {attempt + 1} was not resumed")
                 return result
-
-            from reme.steps.index import watch_changes as watch_changes_module
-
-            original_awatch = watch_changes_module.awatch
 
             async def track_watcher_start(
                 *paths: str | Path,
@@ -1247,24 +1247,20 @@ def test_index_update_loop_retries_source_changed_during_initial_scan(monkeypatc
                 poll_delay_ms: int,
                 stop_event: asyncio.Event,
             ) -> AsyncGenerator[set[tuple[Change, str]], None]:
+                del paths, watch_filter, recursive, force_polling, debounce, step, poll_delay_ms
                 nodes = await store.get_nodes()
                 watcher_contents.append(
                     "".join(store.file_chunks[chunk_id].text for node in nodes for chunk_id in node.chunk_ids),
                 )
                 watcher_started.set()
-                async for changes in original_awatch(
-                    *paths,
-                    watch_filter=watch_filter,
-                    recursive=recursive,
-                    force_polling=force_polling,
-                    debounce=debounce,
-                    step=step,
-                    poll_delay_ms=poll_delay_ms,
-                    stop_event=stop_event,
-                ):
-                    yield changes
+                await watcher_update_requested.wait()
+                yield {(Change.modified, str(path))}
+                watcher_update_completed.set()
+                await stop_event.wait()
 
             monkeypatch.setattr(chunker, "_chunk_sync", count_chunk)
+            from reme.steps.index import watch_changes as watch_changes_module
+
             monkeypatch.setattr(watch_changes_module, "awatch", track_watcher_start)
 
             try:
@@ -1286,6 +1282,22 @@ def test_index_update_loop_retries_source_changed_during_initial_scan(monkeypatc
                 assert "".join(chunk.text for chunk in chunks) == latest
                 assert watcher_contents == [latest]
                 assert len(chunk_calls) == 3
+
+                path.write_text("watcher update before first parse", encoding="utf-8")
+                watcher_update_requested.set()
+                assert await asyncio.to_thread(parse_started[3].wait, 5)
+                path.write_text("watcher update before retry parse", encoding="utf-8")
+                resume_parse[3].set()
+                assert await asyncio.to_thread(parse_started[4].wait, 5)
+                path.write_text("latest watcher update source", encoding="utf-8")
+                resume_parse[4].set()
+
+                await asyncio.wait_for(watcher_update_completed.wait(), timeout=5)
+                assert len(chunk_calls) == 5
+                assert job._task is not None and not job._task.done()
+                nodes = await store.get_nodes()
+                chunks = [store.file_chunks[chunk_id] for chunk_id in nodes[0].chunk_ids]
+                assert "".join(chunk.text for chunk in chunks) == latest
             finally:
                 for event in resume_parse:
                     event.set()

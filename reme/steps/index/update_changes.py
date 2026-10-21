@@ -189,13 +189,13 @@ class ChangeApplyStep(BaseStep):
                     memory_budget = self._batch_memory_budget()
 
                 items.append(item)
+                del item
                 ok_paths.append(path)
                 estimated_bytes += item_bytes
                 if self._batch_is_full(len(items), estimated_bytes, 0, memory_budget):
                     await self._flush_upsert_batch(change, items, ok_paths, estimated_bytes, results)
                     estimated_bytes = 0
                     memory_budget = self._batch_memory_budget()
-                del item
             if items:
                 await self._flush_upsert_batch(change, items, ok_paths, estimated_bytes, results)
         return results
