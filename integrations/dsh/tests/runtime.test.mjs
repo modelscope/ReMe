@@ -95,6 +95,81 @@ test("backs off across new turns and drains every batch after recovery", async (
   assert.equal(attempts, 102);
 });
 
+for (const status of [413, 200]) {
+  test(`isolates a rejected batch (HTTP ${status}) while preserving its session's order`, async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+    let accepted = false;
+    const calls = [];
+    const runtime = makeRuntime(
+      t,
+      {
+        async autoMemory(messages, _session, options) {
+          const text = messages[0].content[0].text;
+          calls.push({ text, requestId: options.requestId });
+          return { ok: accepted || text !== "question 101", status };
+        },
+      },
+      { ...CONFIG, autoMemoryInterval: 1 },
+    );
+    completeTurn(runtime, { id: "rejected" }, 101, 10);
+    t.mock.timers.tick(1);
+    completeTurn(runtime, { id: "rejected" }, 102, 20);
+    t.mock.timers.tick(1);
+    completeTurn(runtime, { id: "healthy" }, 201, 30);
+    await runtime.drain();
+    assert.deepEqual(
+      calls.map((call) => call.text),
+      ["question 101", "question 201"],
+    );
+    assert.equal(runtime.snapshot().autoMemory.queuedTurns, 2);
+
+    t.mock.timers.tick(10);
+    await runtime.drain();
+    assert.deepEqual(calls[2], calls[0]);
+    assert.equal(runtime.snapshot().autoMemory.queuedTurns, 2);
+    accepted = true;
+    t.mock.timers.tick(19);
+    await runtime.drain();
+    assert.equal(calls.length, 3);
+    t.mock.timers.tick(1);
+    await runtime.drain();
+    assert.deepEqual(
+      calls.slice(3).map((call) => call.text),
+      ["question 101", "question 102"],
+    );
+    assert.equal(runtime.snapshot().autoMemory.queuedTurns, 0);
+  });
+}
+
+for (const status of [429, 503]) {
+  test(`backs off the whole endpoint for HTTP ${status}`, async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    let available = false;
+    let calls = 0;
+    const runtime = makeRuntime(
+      t,
+      {
+        async autoMemory() {
+          calls++;
+          return { ok: available, status };
+        },
+      },
+      { ...CONFIG, autoMemoryInterval: 1 },
+    );
+    completeTurn(runtime, { id: "first" }, 1, 10);
+    await runtime.drain();
+    completeTurn(runtime, { id: "second" }, 1, 10);
+    await runtime.drain();
+    assert.equal(calls, 1);
+    assert.equal(runtime.snapshot().autoMemory.queuedTurns, 2);
+    available = true;
+    t.mock.timers.tick(10);
+    await runtime.drain();
+    assert.equal(calls, 3);
+    assert.equal(runtime.snapshot().autoMemory.queuedTurns, 0);
+  });
+}
+
 test("retries ended sessions without another turn and releases session state", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   let available = false;
@@ -347,6 +422,86 @@ test("a failed old destination does not block a newly configured service", async
   await runtime.drain();
   assert.deepEqual(calls, [CONFIG.endpoint, "http://new.test"]);
   assert.equal(runtime.snapshot().autoMemory.queuedTurns, 1);
+});
+
+test("drains a new destination while the old request remains stalled", async (t) => {
+  let config = { ...CONFIG, autoMemoryInterval: 1 };
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const calls = [];
+  const active = new Map();
+  const maximum = new Map();
+  const runtime = makeRuntime(
+    t,
+    {
+      async autoMemory(_messages, _session, options) {
+        const endpoint = options.endpoint;
+        calls.push(endpoint);
+        active.set(endpoint, (active.get(endpoint) ?? 0) + 1);
+        maximum.set(
+          endpoint,
+          Math.max(maximum.get(endpoint) ?? 0, active.get(endpoint)),
+        );
+        await (endpoint === CONFIG.endpoint ? gate : settle());
+        active.set(endpoint, active.get(endpoint) - 1);
+        return { ok: true };
+      },
+    },
+    () => config,
+  );
+  try {
+    completeTurn(runtime, { id: "old" }, 1, 10);
+    await settle();
+    config = { ...config, endpoint: "http://new.test" };
+    runtime.reconfigure();
+    completeTurn(runtime, { id: "new" }, 1, 10);
+    completeTurn(runtime, { id: "new" }, 2, 20);
+    await settle();
+    assert.equal(runtime.snapshot().autoMemory.tasksRunning, 2);
+    await settle();
+    await settle();
+    assert.deepEqual(calls, [
+      CONFIG.endpoint,
+      "http://new.test",
+      "http://new.test",
+    ]);
+    assert.equal(runtime.snapshot().autoMemory.queuedTurns, 1);
+    assert.equal(runtime.snapshot().autoMemory.tasksRunning, 1);
+    assert.equal(runtime.snapshot().autoMemory.tasksQueued, 0);
+    assert.deepEqual([...maximum.values()], [1, 1]);
+  } finally {
+    release();
+    await runtime.drain();
+  }
+  assert.equal(runtime.snapshot().autoMemory.queuedTurns, 0);
+});
+
+test("aborts all destination workers at the shutdown deadline without discarding batches", async (t) => {
+  let config = { ...CONFIG, autoMemoryInterval: 1, shutdownTimeoutMs: 20 };
+  const signals = [];
+  const runtime = makeRuntime(
+    t,
+    {
+      async autoMemory(_messages, _session, options) {
+        signals.push(options.signal);
+        return new Promise(() => {});
+      },
+    },
+    () => config,
+  );
+  completeTurn(runtime, { id: "old" }, 1, 10);
+  await settle();
+  config = { ...config, endpoint: "http://new.test" };
+  runtime.reconfigure();
+  completeTurn(runtime, { id: "new" }, 1, 10);
+  await settle();
+  assert.equal(signals.length, 2);
+  await runtime.disposeAll();
+  assert.ok(signals.every((signal) => signal.aborted));
+  assert.equal(runtime.snapshot().phase, "stopped");
+  assert.equal(runtime.snapshot().autoMemory.queuedTurns, 2);
 });
 
 test("runs only one auto-dream task at a time", async (t) => {

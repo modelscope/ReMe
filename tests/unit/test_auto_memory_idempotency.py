@@ -6,6 +6,7 @@ import asyncio
 from types import SimpleNamespace
 
 import pytest
+from agentscope.message import Msg
 
 from reme.components.runtime_context import RuntimeContext
 from reme.steps.evolve.auto_memory import AutoMemoryStep
@@ -22,6 +23,41 @@ def _step(tmp_path, request_id="batch-1", **kwargs):
         **kwargs,
     )
     return step
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("first_is_msg", [False, True])
+@pytest.mark.parametrize("replay_is_msg", [False, True])
+async def test_message_objects_and_dicts_share_a_stable_request_fingerprint(tmp_path, first_is_msg, replay_is_msg):
+    message = Msg.model_validate(
+        {
+            "id": "stable-message",
+            "name": "user",
+            "role": "user",
+            "content": [{"type": "text", "text": "fact"}],
+            "created_at": "2026-10-21T12:00:00+08:00",
+        },
+    )
+    original = message.model_dump(mode="json")
+    first = _step(tmp_path)
+    first.context["messages"] = [message if first_is_msg else original]
+
+    async def execute():
+        first.context.response.answer = "recorded"
+
+    first._execute = execute
+    await first.execute()
+    assert first.context.response.success
+    assert message.model_dump(mode="json") == original
+    replay = _step(tmp_path)
+    replay.context["messages"] = [Msg.model_validate(original) if replay_is_msg else original]
+
+    async def unexpected():
+        pytest.fail("replaying a supported message form must not invoke the agent")
+
+    replay._execute = unexpected
+    await replay.execute()
+    assert replay.context.response == first.context.response
 
 
 @pytest.mark.asyncio

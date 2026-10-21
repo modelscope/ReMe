@@ -1,19 +1,23 @@
 import type { LoggerLike, ReMeClientLike, ReMeMessage } from "./reme/types.js";
 import { messagesDay, nextDailyRun } from "./scheduling.js";
 import { captureMessage, remeSessionId } from "./messages.js";
-import { MemoryOutbox } from "./outbox.js";
+import { MemoryOutbox, type MemoryBatch } from "./outbox.js";
 import { safeError } from "./endpoint.js";
 import type { DshSession, ReMeConfig, SessionEvent } from "./types.js";
 import type { ReMeRuntimeSnapshot, ReMeRuntimeTask } from "./runtime-status.js";
+
+interface MemoryWorker {
+  controller: AbortController;
+  task: Promise<void>;
+  active?: ReMeRuntimeTask;
+}
 
 export class ReMeRuntime {
   private readonly states = new Map<string, ReMeMessage[]>();
   private readonly configSource: () => ReMeConfig;
   private readonly outbox: MemoryOutbox;
   private memoryTask: Promise<void> | null = null;
-  private memoryWake = false;
-  private activeMemoryTask: ReMeRuntimeTask | null = null;
-  private memoryController: AbortController | null = null;
+  private readonly memoryWorkers = new Map<string, MemoryWorker>();
   private readonly retryTimers = new Map<
     string,
     ReturnType<typeof setTimeout>
@@ -81,89 +85,128 @@ export class ReMeRuntime {
     void this.drain();
   }
 
-  /** Drain ready batches serially; failed batches stay on disk for the retry timer. */
+  /** Drain each endpoint independently; failed batches stay on disk for retry. */
   drain(): Promise<void> {
     if (this.closed) return Promise.resolve();
-    if (this.memoryTask) {
-      this.memoryWake = true;
-      return this.memoryTask;
-    }
     if (this.retryTimers.has("*") || !this.configSource().autoMemoryEnabled)
-      return Promise.resolve();
-    this.memoryController = new AbortController();
-    const controller = this.memoryController;
+      return this.memoryTask ?? Promise.resolve();
+    try {
+      for (;;) {
+        const next = this.outbox.next(
+          (batch) =>
+            !this.memoryWorkers.has(batch.endpoint) && !this.blocked(batch),
+        );
+        if (!next) break;
+        const { endpoint } = next.batch;
+        const worker: MemoryWorker = {
+          controller: new AbortController(),
+          task: Promise.resolve(),
+        };
+        this.memoryWorkers.set(endpoint, worker);
+        worker.task = Promise.resolve()
+          .then(() => this.drainEndpoint(endpoint, worker))
+          .catch((error: unknown) => {
+            this.recordMemoryError(error);
+            this.scheduleRetry();
+          })
+          .finally(() => {
+            this.memoryWorkers.delete(endpoint);
+            // A capture may have arrived after this worker observed an empty queue.
+            if (!this.stopping) void this.drain();
+          });
+      }
+    } catch (error) {
+      this.recordMemoryError(error);
+      this.scheduleRetry();
+    }
+    if (this.memoryTask) return this.memoryTask;
+    if (!this.memoryWorkers.size) return Promise.resolve();
+    // Share one completion promise instead of accumulating waiters on stalled requests.
     this.memoryTask = Promise.resolve()
       .then(async () => {
-        while (
-          !controller.signal.aborted &&
-          this.configSource().autoMemoryEnabled
-        ) {
-          const next = this.outbox.next(this.retryTimers);
-          if (!next) return;
-          const { name, batch } = next;
-          const messages = batch.turns.flat();
-          const task: ReMeRuntimeTask = {
-            id: `${batch.id}-${++this.taskSequence}`,
-            phase: "running",
-            queuedAt: new Date(batch.createdAt).toISOString(),
-            startedAt: new Date().toISOString(),
-            turns: batch.turns.length,
-            messages: messages.length,
-          };
-          this.activeMemoryTask = task;
-          this.recentTasks.unshift(task);
-          this.recentTasks.length = Math.min(this.recentTasks.length, 20);
-          try {
-            const result = await this.client.autoMemory(
-              messages,
-              batch.sessionId,
-              {
-                date: batch.date,
-                endpoint: batch.endpoint,
-                requestId: batch.id,
-                signal: controller.signal,
-              },
-            );
-            if (controller.signal.aborted) {
-              task.phase = "cancelled";
-              return;
-            }
-            if (!result.ok)
-              throw new Error(
-                `ReMe automatic-memory request failed (HTTP ${
-                  result.status ?? 0
-                })`,
-              );
-            this.outbox.acknowledge(name);
-            task.phase = "completed";
-            // Reply text and file names can contain personal information.
-            this.failures.delete(batch.endpoint);
-            if (!this.retryTimers.size) this.memoryError = undefined;
-          } catch (error) {
-            task.phase = controller.signal.aborted ? "cancelled" : "failed";
-            task.error = safeError(error);
-            this.recordMemoryError(error);
-            if (this.stopping) return;
-            this.scheduleRetry(batch.endpoint);
-          } finally {
-            task.finishedAt = new Date().toISOString();
-            this.activeMemoryTask = null;
-          }
-        }
-      })
-      .catch((error: unknown) => {
-        this.recordMemoryError(error);
-        this.scheduleRetry();
+        while (this.memoryWorkers.size)
+          await Promise.all(
+            [...this.memoryWorkers.values()].map((worker) => worker.task),
+          );
       })
       .finally(() => {
         this.memoryTask = null;
-        this.memoryController = null;
-        if (this.memoryWake && !this.stopping) {
-          this.memoryWake = false;
-          return this.drain();
-        }
+        if (!this.stopping) return this.drain();
       });
     return this.memoryTask;
+  }
+
+  private blocked(batch: MemoryBatch): boolean {
+    return (
+      this.retryTimers.has(endpointKey(batch.endpoint)) ||
+      this.retryTimers.has(sessionKey(batch))
+    );
+  }
+
+  private async drainEndpoint(
+    endpoint: string,
+    worker: MemoryWorker,
+  ): Promise<void> {
+    const { signal } = worker.controller;
+    while (
+      !signal.aborted &&
+      !this.closed &&
+      this.configSource().autoMemoryEnabled &&
+      !this.retryTimers.has("*")
+    ) {
+      const next = this.outbox.next(
+        (batch) => batch.endpoint === endpoint && !this.blocked(batch),
+      );
+      if (!next) return;
+      const { name, batch } = next;
+      const messages = batch.turns.flat();
+      const task: ReMeRuntimeTask = {
+        id: `${batch.id}-${++this.taskSequence}`,
+        phase: "running",
+        queuedAt: new Date(batch.createdAt).toISOString(),
+        startedAt: new Date().toISOString(),
+        turns: batch.turns.length,
+        messages: messages.length,
+      };
+      worker.active = task;
+      this.recentTasks.unshift(task);
+      this.recentTasks.length = Math.min(this.recentTasks.length, 20);
+      let retryKey = endpointKey(endpoint);
+      try {
+        const result = await this.client.autoMemory(messages, batch.sessionId, {
+          date: batch.date,
+          endpoint,
+          requestId: batch.id,
+          signal,
+        });
+        if (signal.aborted) {
+          task.phase = "cancelled";
+          return;
+        }
+        if (!result.ok) {
+          // Payload/job errors affect this session; network, auth and service errors affect the endpoint.
+          if (requestFailure(result.status)) retryKey = sessionKey(batch);
+          throw new Error(
+            `ReMe automatic-memory request failed (HTTP ${result.status ?? 0})`,
+          );
+        }
+        this.outbox.acknowledge(name);
+        task.phase = "completed";
+        // Reply text and file names can contain personal information.
+        this.failures.delete(endpointKey(endpoint));
+        this.failures.delete(sessionKey(batch));
+        if (!this.retryTimers.size) this.memoryError = undefined;
+      } catch (error) {
+        task.phase = signal.aborted ? "cancelled" : "failed";
+        task.error = safeError(error);
+        this.recordMemoryError(error);
+        if (this.stopping || signal.aborted) return;
+        this.scheduleRetry(retryKey);
+      } finally {
+        task.finishedAt = new Date().toISOString();
+        worker.active = undefined;
+      }
+    }
   }
 
   private recordMemoryError(error: unknown): void {
@@ -171,26 +214,26 @@ export class ReMeRuntime {
     this.log("warn", "auto_memory_failed", { error: this.memoryError });
   }
 
-  private scheduleRetry(endpoint = "*"): void {
+  private scheduleRetry(key = "*"): void {
     if (
       this.stopping ||
-      this.retryTimers.has(endpoint) ||
+      this.retryTimers.has(key) ||
       !this.configSource().autoMemoryEnabled
     )
       return;
     const config = this.configSource();
-    const failures = this.failures.get(endpoint) ?? 0;
-    this.failures.set(endpoint, failures + 1);
+    const failures = this.failures.get(key) ?? 0;
+    this.failures.set(key, failures + 1);
     const delay = Math.min(
       config.autoMemoryRetryMaxMs,
       config.autoMemoryRetryMs * 2 ** Math.min(failures, 20),
     );
     const timer = setTimeout(() => {
-      this.retryTimers.delete(endpoint);
+      this.retryTimers.delete(key);
       void this.drain();
     }, delay);
     timer.unref?.();
-    this.retryTimers.set(endpoint, timer);
+    this.retryTimers.set(key, timer);
   }
 
   private clearRetries(): void {
@@ -327,12 +370,14 @@ export class ReMeRuntime {
       await this.withinShutdownBudget(
         Promise.all([this.drain(), this.dreamTask]).then(() => undefined),
         () => {
-          this.memoryController?.abort();
+          for (const worker of this.memoryWorkers.values())
+            worker.controller.abort();
           this.dreamController?.abort();
         },
       );
     } finally {
-      this.memoryController?.abort();
+      for (const worker of this.memoryWorkers.values())
+        worker.controller.abort();
       this.outbox.close();
       this.closed = true;
     }
@@ -342,7 +387,9 @@ export class ReMeRuntime {
   snapshot(): ReMeRuntimeSnapshot {
     const config = this.configSource();
     const queued = this.outbox.stats();
-    const running = this.activeMemoryTask === null ? 0 : 1;
+    const running = [...this.memoryWorkers.values()].filter(
+      (worker) => worker.active !== undefined,
+    ).length;
     return {
       phase: this.closed
         ? "stopped"
@@ -413,4 +460,21 @@ export class ReMeRuntime {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function endpointKey(endpoint: string): string {
+  return `endpoint:${endpoint}`;
+}
+
+function sessionKey(batch: MemoryBatch): string {
+  return `session:${JSON.stringify([batch.endpoint, batch.sessionId])}`;
+}
+
+function requestFailure(status = 0): boolean {
+  return (
+    (status >= 200 && status < 300) ||
+    (status >= 400 &&
+      status < 500 &&
+      ![401, 403, 404, 405, 408, 429].includes(status))
+  );
 }

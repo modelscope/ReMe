@@ -8,6 +8,7 @@ import {
   opendirSync,
   readFileSync,
   renameSync,
+  rmdirSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -33,27 +34,42 @@ export class MemoryOutbox {
   constructor(readonly directory: string) {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     this.lock = join(directory, ".lock");
-    if (existsSync(this.lock)) {
-      const pid = Number(readFileSync(this.lock, "utf8").split(":")[0]);
-      if (!Number.isSafeInteger(pid) || pid <= 0)
-        throw new Error(
-          "Invalid ReMe outbox lock; inspect the queue directory",
-        );
-      try {
-        process.kill(pid, 0);
-        throw new Error(
-          "ReMe outbox is in use; configure a separate autoMemoryQueueDir for each Host",
-        );
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
-      }
-      unlinkSync(this.lock);
-    }
-    const fd = openSync(this.lock, "wx", 0o600);
+    // Serialize inspection, stale-owner removal, and replacement as one operation.
+    // An interrupted recovery fails closed; never reclaim this guard automatically.
+    const guard = join(directory, ".lock-recovery");
     try {
-      writeFileSync(fd, this.owner);
+      mkdirSync(guard, { mode: 0o700 });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      throw new Error(
+        "ReMe outbox lock recovery is busy or interrupted; retry, or inspect .lock-recovery after stopping all Hosts",
+      );
+    }
+    try {
+      if (existsSync(this.lock)) {
+        const pid = Number(readFileSync(this.lock, "utf8").split(":")[0]);
+        if (!Number.isSafeInteger(pid) || pid <= 0)
+          throw new Error(
+            "Invalid ReMe outbox lock; inspect the queue directory",
+          );
+        try {
+          process.kill(pid, 0);
+          throw new Error(
+            "ReMe outbox is in use; configure a separate autoMemoryQueueDir for each Host",
+          );
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+        }
+        unlinkSync(this.lock);
+      }
+      const fd = openSync(this.lock, "wx", 0o600);
+      try {
+        writeFileSync(fd, this.owner);
+      } finally {
+        closeSync(fd);
+      }
     } finally {
-      closeSync(fd);
+      rmdirSync(guard);
     }
   }
 
@@ -106,14 +122,14 @@ export class MemoryOutbox {
   }
 
   next(
-    blocked: ReadonlyMap<string, unknown> = new Map(),
+    accepts: (batch: MemoryBatch) => boolean = () => true,
   ): { name: string; batch: MemoryBatch } | undefined {
     let oldest: string | undefined;
     for (const name of this.files()) {
       if (
         name.startsWith("ready-") &&
         (oldest === undefined || name < oldest) &&
-        !blocked.has(this.read(name).endpoint)
+        accepts(this.read(name))
       )
         oldest = name;
     }

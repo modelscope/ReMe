@@ -475,6 +475,12 @@ class AutoMemoryStep(BaseStep):
         payload = {
             key: self.context.get(key) for key in ("session_id", "messages", "date", "memory_hint", "include_images")
         }
+        if payload["messages"]:
+            # Keep caller-provided IDs/timestamps; parsing dictionaries would generate defaults on every retry.
+            payload["messages"] = [
+                message.model_dump(mode="json") if isinstance(message, Msg) else message
+                for message in payload["messages"]
+            ]
         fingerprint = hashlib.sha256(
             json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode(),
         ).hexdigest()
