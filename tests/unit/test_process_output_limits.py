@@ -34,6 +34,8 @@ async def test_pipe_output_boundary(tmp_path, monkeypatch, backend_name, stream,
         # kernel sandbox support or changing the host launchd domain.
         monkeypatch.setattr(backend, "_start_process", local._start_process)
         if backend_name == "seatbelt":
+            monkeypatch.setattr("reme.utils.file_sandbox.path_seatbelt_backend.sys.platform", "darwin")
+            monkeypatch.setattr("reme.utils.file_sandbox.path_seatbelt_backend.shutil.which", lambda _: "sandbox-exec")
             monkeypatch.setattr(backend, "_has_gui_launchd", AsyncMock(return_value=False))
     size = OUTPUT_LIMIT_BYTES + extra
     code = "import os;" + ";".join(
