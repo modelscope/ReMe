@@ -3,6 +3,7 @@
 import asyncio
 import base64
 import datetime
+import hashlib
 import heapq
 import json
 import time
@@ -106,6 +107,23 @@ class LocalFileStore(BaseFileStore):
         if self.embedding_store is None:
             return 0
         return max(0, int(getattr(self.embedding_store, "dimensions", 0)))
+
+    def _chunks_embedding_digest(self) -> str:
+        """Order-independent digest of the live (chunk_id, embedding) set.
+
+        Float16 bytes match the authoritative chunk JSONL serialization even
+        before a fresh provider vector has round-tripped through persistence.
+        Vector backends use this digest to reject stale index sidecars.
+        """
+        digest = hashlib.sha256()
+        eligible = sorted(
+            cid for cid, chunk in self.file_chunks.items() if self._embedding_dim_matches(chunk.embedding)
+        )
+        for cid in eligible:
+            digest.update(cid.encode("utf-8"))
+            digest.update(b"\x00")
+            digest.update(np.asarray(self.file_chunks[cid].embedding, dtype=np.float16).tobytes())
+        return digest.hexdigest()
 
     # -- lifecycle ------------------------------------------------------------
 

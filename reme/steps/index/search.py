@@ -5,6 +5,7 @@ import datetime
 import os
 from typing import Final
 
+from ._tool_context import _ToolContextMixin
 from ..base_step import BaseStep
 from ..file_io import extract_daily_date
 from ...components import R
@@ -35,10 +36,9 @@ def _filter_values(value: object) -> set:
 
 
 @R.register("search_step")
-class SearchStep(BaseStep):
+class SearchStep(_ToolContextMixin, BaseStep):
     """Hybrid search: run vector + keyword in parallel, fuse via RRF, filter, truncate."""
 
-    TOOL_CONTEXTS_KEY: Final[str] = "tool_contexts"
     SEARCH_SEEN_KEY: Final[str] = "search_seen_chunk_ids"
 
     def __init__(
@@ -97,14 +97,6 @@ class SearchStep(BaseStep):
     @staticmethod
     def _now_ts() -> float:
         return datetime.datetime.now().timestamp()
-
-    def _tool_context_store(self, tool_context_id: str) -> dict:
-        """Return the mutable state bucket for a tool context."""
-        if self.app_context is not None:
-            contexts = self.app_context.metadata.setdefault(self.TOOL_CONTEXTS_KEY, {})
-        else:
-            contexts = self.kwargs.setdefault(self.TOOL_CONTEXTS_KEY, {})
-        return contexts.setdefault(tool_context_id, {})
 
     def _dedupe_tool_context(
         self,
