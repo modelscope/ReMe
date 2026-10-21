@@ -11,6 +11,7 @@ import numpy as np
 import openai
 
 from reme.components.as_embedding import DashScopeAsEmbedding, OllamaAsEmbedding, OpenAIAsEmbedding
+from reme.components.embedding_store._embedding_types import _EmbeddingError
 from reme.components.embedding_store.base_embedding_store import BaseEmbeddingStore
 from reme.components.embedding_store.local_embedding_store import LocalEmbeddingStore
 from reme.schema import EmbNode
@@ -566,7 +567,7 @@ def test_insufficient_quota_waits_sixty_seconds_before_retry(monkeypatch):
         store.as_embedding = embedding
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
-        result = await store._call_with_retry(["text"])
+        result = (await store._call_with_retry(["text"])).embeddings
 
         assert result == [[1.0, 0.0]]
         assert embedding.calls == 2
@@ -589,7 +590,7 @@ def test_insufficient_quota_does_not_retry_without_opt_in(monkeypatch):
         store.as_embedding = embedding
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
-        result = await store._call_with_retry(["text"])
+        result = (await store._call_with_retry(["text"])).embeddings
 
         assert result is None
         assert embedding.calls == 1
@@ -612,7 +613,7 @@ def test_rate_limit_retries_with_backoff_without_opt_in(monkeypatch):
         store.as_embedding = embedding
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
-        result = await store._call_with_retry(["text"])
+        result = (await store._call_with_retry(["text"])).embeddings
 
         assert result == [[1.0, 0.0]]
         assert embedding.calls == 2
@@ -634,16 +635,16 @@ def test_is_rate_limited_recognizes_status_code_or_body_and_nothing_else():
 
         body = {"error": {"code": "rate_limit_exceeded"}}
 
-    assert LocalEmbeddingStore._is_rate_limited(StatusCodeError())
-    assert LocalEmbeddingStore._is_rate_limited(BodyCodeError())
-    assert not LocalEmbeddingStore._is_rate_limited(ValueError("unrelated"))
+    assert _EmbeddingError.from_exception(StatusCodeError()).is_rate_limited
+    assert _EmbeddingError.from_exception(BodyCodeError()).is_rate_limited
+    assert not _EmbeddingError.from_exception(ValueError("unrelated")).is_rate_limited
 
 
 def test_is_rate_limited_defers_to_insufficient_quota_on_status_code_429():
     """An insufficient_quota error carrying status_code=429 is not the generic rate-limit case."""
 
-    assert not LocalEmbeddingStore._is_rate_limited(InsufficientQuotaError("quota exhausted"))
-    assert LocalEmbeddingStore._is_insufficient_quota(InsufficientQuotaError("quota exhausted"))
+    assert not _EmbeddingError.from_exception(InsufficientQuotaError("quota exhausted")).is_rate_limited
+    assert _EmbeddingError.from_exception(InsufficientQuotaError("quota exhausted")).is_insufficient_quota
 
 
 def test_rate_limit_exhausts_retries_and_reports_unhealthy(monkeypatch):
@@ -660,7 +661,7 @@ def test_rate_limit_exhausts_retries_and_reports_unhealthy(monkeypatch):
         store.as_embedding = embedding
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
-        result = await store._call_with_retry(["text"])
+        result = (await store._call_with_retry(["text"])).embeddings
 
         assert result is None
         assert store.is_healthy is False
@@ -1033,7 +1034,7 @@ def test_batch_failure_falls_back_to_per_item_embedding():
         store = LocalEmbeddingStore(name="t_local_embedding_poison_batch", enable_cache=False)
         store.as_embedding = provider
 
-        results = await store._call_with_retry(["ok", "x" * 64, "also ok"])
+        results = (await store._call_with_retry(["ok", "x" * 64, "also ok"])).embeddings
 
         assert results == [[1.0, 0.0], None, [1.0, 0.0]]
         assert provider.batch_sizes == [3, 1, 1, 1]
@@ -1065,7 +1066,9 @@ def test_single_item_failure_still_reports_a_failed_batch():
         store = LocalEmbeddingStore(name="t_local_embedding_single_poison", enable_cache=False)
         store.as_embedding = PerItemLimitAsEmbedding()
 
-        assert await store._call_with_retry(["x" * 64]) is None
+        result = await store._call_with_retry(["x" * 64])
+        assert result.embeddings is None
+        assert result.terminal_failure is False
 
     run(go())
 
@@ -1084,7 +1087,7 @@ def test_rate_limited_batch_is_not_split_into_per_item_requests(monkeypatch):
         store.as_embedding = embedding
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
-        assert await store._call_with_retry(["a", "b"]) is None
+        assert (await store._call_with_retry(["a", "b"])).embeddings is None
         assert embedding.calls == 2
         assert sleeps == [1.0]
 
@@ -1105,7 +1108,7 @@ def test_insufficient_quota_batch_is_not_split_into_per_item_requests(monkeypatc
         store.as_embedding = embedding
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
-        assert await store._call_with_retry(["a", "b", "c"]) is None
+        assert (await store._call_with_retry(["a", "b", "c"])).embeddings is None
         assert embedding.batch_sizes == [3]
         assert store.is_healthy is False
         assert not sleeps
@@ -1131,7 +1134,7 @@ def test_exhausted_quota_retries_still_do_not_split_the_batch(monkeypatch):
         store.as_embedding = embedding
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
-        assert await store._call_with_retry(["a", "b"]) is None
+        assert (await store._call_with_retry(["a", "b"])).embeddings is None
         assert embedding.batch_sizes == [2, 2, 2]
         assert sleeps == [5.0, 5.0]
 
@@ -1163,7 +1166,7 @@ def test_per_item_fallback_keeps_a_rate_limited_vector(monkeypatch):
         store.as_embedding = provider
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
-        results = await store._call_with_retry(["ok", "x" * 64, "also ok"])
+        results = (await store._call_with_retry(["ok", "x" * 64, "also ok"])).embeddings
 
         assert results == [[1.0, 0.0], None, [1.0, 0.0]]
         assert provider.batch_sizes == [3, 1, 1, 1, 1]
@@ -1185,7 +1188,7 @@ def test_provider_wide_credentials_errors_are_not_split_into_per_item_requests()
             store = LocalEmbeddingStore(name="t_local_embedding_provider_wide", max_retries=3)
             store.as_embedding = provider
 
-            assert await store._call_with_retry([f"item{i}" for i in range(10)]) is None
+            assert (await store._call_with_retry([f"item{i}" for i in range(10)])).embeddings is None
             assert provider.batch_sizes == [10]
             assert store.is_healthy is False
 
@@ -1206,7 +1209,7 @@ def test_provider_wide_server_errors_are_not_retried_without_splitting(monkeypat
         store.as_embedding = provider
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
-        assert await store._call_with_retry([f"item{i}" for i in range(10)]) is None
+        assert (await store._call_with_retry([f"item{i}" for i in range(10)])).embeddings is None
         # One request only: the wrapper and the SDK already retry a 5xx, and retrying here
         # as well multiplied their attempts (12 -> 36 in the reported reproduction).
         assert provider.batch_sizes == [10]
@@ -1237,7 +1240,7 @@ def test_sdk_transport_errors_are_provider_wide_and_not_retried_here(monkeypatch
             store = LocalEmbeddingStore(name="t_local_embedding_sdk_transport", max_retries=3)
             store.as_embedding = provider
 
-            assert await store._call_with_retry([f"item{i}" for i in range(10)]) is None
+            assert (await store._call_with_retry([f"item{i}" for i in range(10)])).embeddings is None
             # One request only: the wrapper and the SDK already retry a transport failure
             # (4 wrapper attempts, each retried by the SDK), so another loop here only
             # multiplies them -- a persistent timeout used to cost 36 attempts instead of 12.
@@ -1279,7 +1282,7 @@ def test_a_provider_without_a_retry_policy_keeps_the_store_backoff(monkeypatch):
             store.as_embedding = provider
             monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
-            results = await store._call_with_retry(["ok", "x" * 64, "also ok"])
+            results = (await store._call_with_retry(["ok", "x" * 64, "also ok"])).embeddings
 
             assert results == [[1.0, 0.0], None, [1.0, 0.0]]
             assert provider.batch_sizes == [3, 1, 1, 1, 1]
@@ -1306,7 +1309,7 @@ def test_a_persistent_transport_error_is_not_multiplied_by_the_store(monkeypatch
         )
         store.as_embedding = provider
 
-        assert await store._call_with_retry([f"item{i}" for i in range(3)]) is None
+        assert (await store._call_with_retry([f"item{i}" for i in range(3)])).embeddings is None
         assert provider.calls == 1
         assert endpoint.requests == 12
         assert store.is_healthy is False
@@ -1335,7 +1338,7 @@ def test_a_transient_transport_error_still_recovers_through_the_sdk(monkeypatch)
         )
         store.as_embedding = provider
 
-        results = await store._call_with_retry([f"item{i}" for i in range(3)])
+        results = (await store._call_with_retry([f"item{i}" for i in range(3)])).embeddings
 
         assert results == [[0.0, 1.0]] * 3
         assert provider.calls == 1
@@ -1374,7 +1377,7 @@ def test_an_isolated_item_still_recovers_through_the_sdk(monkeypatch):
         )
         store.as_embedding = provider
 
-        results = await store._call_with_retry(["ok", "x" * 64, "also ok"])
+        results = (await store._call_with_retry(["ok", "x" * 64, "also ok"])).embeddings
 
         assert results == [[0.0, 1.0], None, [0.0, 1.0]]
         assert provider.calls == 4
@@ -1387,16 +1390,15 @@ def test_provider_wide_statuses_exclude_input_dependent_bad_request():
     """404 is provider-wide, but an over-limit 400 must stay input-dependent."""
 
     async def go():
-        store = LocalEmbeddingStore(name="t_local_embedding_classifier")
         for error in (
             AuthenticationError("bad key"),
             PermissionDeniedError("no access"),
             NotFoundError("model_not_found"),
             InternalServerError("boom"),
         ):
-            assert store._is_provider_wide_failure(error) is True
+            assert _EmbeddingError.from_exception(error).is_provider_wide is True
         over_limit = ContextLengthError("the input length exceeds the context length")
-        assert store._is_provider_wide_failure(over_limit) is False
+        assert _EmbeddingError.from_exception(over_limit).is_provider_wide is False
 
     run(go())
 
@@ -1415,7 +1417,7 @@ def test_provider_wide_not_found_errors_are_not_split(monkeypatch):
         store.as_embedding = provider
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
-        assert await store._call_with_retry([f"item{i}" for i in range(10)]) is None
+        assert (await store._call_with_retry([f"item{i}" for i in range(10)])).embeddings is None
         assert provider.batch_sizes == [10]
         assert not sleeps
 
@@ -1489,26 +1491,22 @@ class DashScopeRuntimeError(RuntimeError):
 def test_http_status_reads_every_supported_exception_shape():
     """Read the status from status_code, an integer code, response.status_code or the message."""
 
-    store = LocalEmbeddingStore(name="t_local_embedding_status_shapes")
-
-    assert store._http_status(AuthenticationError("bad key")) == 401
-    assert store._http_status(NotFoundError("model_not_found")) == 404
-    assert store._http_status(GenAiClientError(401)) == 401
-    assert store._http_status(GenAiServerError(503)) == 503
-    assert store._http_status(WrappedTransportError(404)) == 404
-    assert store._http_status(DashScopeRuntimeError.for_status(401)) == 401
-    assert store._http_status(ValueError("no status here")) is None
+    assert _EmbeddingError.from_exception(AuthenticationError("bad key")).status == 401
+    assert _EmbeddingError.from_exception(NotFoundError("model_not_found")).status == 404
+    assert _EmbeddingError.from_exception(GenAiClientError(401)).status == 401
+    assert _EmbeddingError.from_exception(GenAiServerError(503)).status == 503
+    assert _EmbeddingError.from_exception(WrappedTransportError(404)).status == 404
+    assert _EmbeddingError.from_exception(DashScopeRuntimeError.for_status(401)).status == 401
+    assert _EmbeddingError.from_exception(ValueError("no status here")).status is None
 
 
 def test_http_status_ignores_a_string_code():
     """A string ``code`` names the error; reading it as a status would misclassify quota errors."""
 
-    store = LocalEmbeddingStore(name="t_local_embedding_status_string_code")
-
-    assert store._http_status(StringCodeError("invalid key")) is None
-    assert store._is_insufficient_quota(StringCodeError("invalid key")) is False
-    assert store._http_status(InsufficientQuotaError("quota exhausted")) == 429
-    assert store._is_insufficient_quota(InsufficientQuotaError("quota exhausted")) is True
+    assert _EmbeddingError.from_exception(StringCodeError("invalid key")).status is None
+    assert _EmbeddingError.from_exception(StringCodeError("invalid key")).is_insufficient_quota is False
+    assert _EmbeddingError.from_exception(InsufficientQuotaError("quota exhausted")).status == 429
+    assert _EmbeddingError.from_exception(InsufficientQuotaError("quota exhausted")).is_insufficient_quota is True
 
 
 def test_google_genai_service_failures_are_not_split_into_per_item_requests(monkeypatch):
@@ -1541,7 +1539,7 @@ def test_google_genai_service_failures_are_not_split_into_per_item_requests(monk
             )
             store.as_embedding = provider
 
-            assert await store._call_with_retry([f"item{i}" for i in range(10)]) is None
+            assert (await store._call_with_retry([f"item{i}" for i in range(10)])).embeddings is None
             assert provider.batch_sizes == expected_batches
 
     run(go())
@@ -1572,7 +1570,7 @@ def test_dashscope_runtime_errors_are_not_split_into_per_item_requests(monkeypat
             )
             store.as_embedding = provider
 
-            assert await store._call_with_retry([f"item{i}" for i in range(10)]) is None
+            assert (await store._call_with_retry([f"item{i}" for i in range(10)])).embeddings is None
             assert provider.batch_sizes == expected_batches
 
     run(go())
@@ -1586,7 +1584,7 @@ def test_unrecognized_errors_are_not_split_into_per_item_requests():
         store = LocalEmbeddingStore(name="t_local_embedding_unrecognized", max_retries=3)
         store.as_embedding = provider
 
-        assert await store._call_with_retry(["a", "b", "c"]) is None
+        assert (await store._call_with_retry(["a", "b", "c"])).embeddings is None
         assert provider.batch_sizes == [3]
 
     run(go())
@@ -1595,19 +1593,17 @@ def test_unrecognized_errors_are_not_split_into_per_item_requests():
 def test_input_dependent_classifier_pins_both_halves_of_the_boundary():
     """The isolation must keep working for the one error a single item can explain."""
 
-    store = LocalEmbeddingStore(name="t_local_embedding_input_dependent")
-
     assert (
-        store._is_input_dependent_failure(
+        _EmbeddingError.from_exception(
             ContextLengthError("the input length exceeds the context length"),
-        )
+        ).is_input_dependent
         is True
     )
-    assert store._is_input_dependent_failure(ContextLengthError("too long")) is True
-    assert store._is_input_dependent_failure(AuthenticationError("bad key")) is False
-    assert store._is_input_dependent_failure(InternalServerError("boom")) is False
-    assert store._is_input_dependent_failure(GenAiClientError(400)) is False
-    assert store._is_input_dependent_failure(RuntimeError("provider said no")) is False
+    assert _EmbeddingError.from_exception(ContextLengthError("too long")).is_input_dependent is True
+    assert _EmbeddingError.from_exception(AuthenticationError("bad key")).is_input_dependent is False
+    assert _EmbeddingError.from_exception(InternalServerError("boom")).is_input_dependent is False
+    assert _EmbeddingError.from_exception(GenAiClientError(400)).is_input_dependent is False
+    assert _EmbeddingError.from_exception(RuntimeError("provider said no")).is_input_dependent is False
 
 
 def test_bad_request_without_an_input_length_signal_is_not_split():
@@ -1618,7 +1614,7 @@ def test_bad_request_without_an_input_length_signal_is_not_split():
         store = LocalEmbeddingStore(name="t_local_embedding_bare_400", max_retries=2)
         store.as_embedding = provider
 
-        assert await store._call_with_retry(["a", "b", "c"]) is None
+        assert (await store._call_with_retry(["a", "b", "c"])).embeddings is None
         assert provider.batch_sizes == [3]
 
     run(go())
@@ -1640,9 +1636,10 @@ def test_isolation_stops_when_a_provider_wide_failure_hits():
         )
         store.as_embedding = provider
 
-        results = await store._call_with_retry(["ok", "x" * 64, "also ok", "still ok"])
+        result = await store._call_with_retry(["ok", "x" * 64, "also ok", "still ok"])
 
-        assert results == [[1.0, 0.0], None, None, None]
+        assert result.embeddings == [[1.0, 0.0], None, None, None]
+        assert result.terminal_failure is True
         # One rejected batch, the recovered first item, the over-limit item, then the quota
         # failure. The fourth item is never requested once the quota failure is seen.
         assert provider.batch_sizes == [4, 1, 1, 1]
@@ -1700,9 +1697,10 @@ def test_isolation_keeps_going_while_only_inputs_fail():
         )
         store.as_embedding = provider
 
-        results = await store._call_with_retry(["ok", "x" * 64, "also ok", "still ok"])
+        result = await store._call_with_retry(["ok", "x" * 64, "also ok", "still ok"])
 
-        assert results == [[1.0, 0.0], None, [1.0, 0.0], [1.0, 0.0]]
+        assert result.embeddings == [[1.0, 0.0], None, [1.0, 0.0], [1.0, 0.0]]
+        assert result.terminal_failure is False
         assert provider.batch_sizes == [4, 1, 1, 1, 1]
 
     run(go())
@@ -1725,8 +1723,8 @@ def test_dashscope_serialized_quota_errors_keep_their_quota_policy(monkeypatch):
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
         error = DashScopeRuntimeError.for_status(429, code="insufficient_quota")
-        assert LocalEmbeddingStore._is_insufficient_quota(error) is True
-        assert LocalEmbeddingStore._is_rate_limited(error) is False
+        assert _EmbeddingError.from_exception(error).is_insufficient_quota is True
+        assert _EmbeddingError.from_exception(error).is_rate_limited is False
 
         provider = AlwaysProviderWideFailureAsEmbedding(error)
         store = LocalEmbeddingStore(
@@ -1737,7 +1735,7 @@ def test_dashscope_serialized_quota_errors_keep_their_quota_policy(monkeypatch):
         )
         store.as_embedding = provider
 
-        assert await store._call_with_retry(["a", "b"]) is None
+        assert (await store._call_with_retry(["a", "b"])).embeddings is None
         assert provider.batch_sizes == [2, 2, 2]
         assert sleeps == [7.0, 7.0]
 
@@ -1799,7 +1797,7 @@ def test_context_length_rejection_reported_as_http_413_is_isolated():
         )
         store.as_embedding = provider
 
-        results = await store._call_with_retry(["ok", "x" * 64, "also ok"])
+        results = (await store._call_with_retry(["ok", "x" * 64, "also ok"])).embeddings
 
         assert results == [[1.0, 0.0], None, [1.0, 0.0]]
         assert provider.batch_sizes == [3, 1, 1, 1]
@@ -1821,7 +1819,7 @@ def test_bare_http_413_without_an_input_signal_is_not_split():
         store = LocalEmbeddingStore(name="t_local_embedding_bare_413", max_retries=2)
         store.as_embedding = provider
 
-        assert await store._call_with_retry(["a", "b", "c"]) is None
+        assert (await store._call_with_retry(["a", "b", "c"])).embeddings is None
         assert provider.batch_sizes == [3]
 
     run(go())
@@ -1830,18 +1828,18 @@ def test_bare_http_413_without_an_input_signal_is_not_split():
 def test_input_dependent_classifier_accepts_a_413_only_with_an_input_signal():
     """Pin both halves of the 413 boundary, and that the 400 behaviour is unchanged."""
 
-    store = LocalEmbeddingStore(name="t_local_embedding_413_classifier")
-
     assert (
-        store._is_input_dependent_failure(
+        _EmbeddingError.from_exception(
             ContextLength413Error("the input length exceeds the context length"),
-        )
+        ).is_input_dependent
         is True
     )
-    assert store._is_input_dependent_failure(ContextLength413Error("too long")) is True
-    assert store._is_input_dependent_failure(RequestBodyTooLargeError("request entity too large")) is False
-    assert store._is_input_dependent_failure(ContextLengthError("too long")) is True
-    assert store._is_input_dependent_failure(GenAiClientError(400)) is False
+    assert _EmbeddingError.from_exception(ContextLength413Error("too long")).is_input_dependent is True
+    assert (
+        _EmbeddingError.from_exception(RequestBodyTooLargeError("request entity too large")).is_input_dependent is False
+    )
+    assert _EmbeddingError.from_exception(ContextLengthError("too long")).is_input_dependent is True
+    assert _EmbeddingError.from_exception(GenAiClientError(400)).is_input_dependent is False
 
 
 class _NoRetryPolicyModel:
@@ -1904,7 +1902,7 @@ def test_a_provider_with_an_empty_retry_policy_recovers_a_connection_error(monke
         )
         store.as_embedding = provider
 
-        results = await store._call_with_retry(["a", "b", "c"])
+        results = (await store._call_with_retry(["a", "b", "c"])).embeddings
 
         assert results == [[1.0, 0.0]] * 3
         assert provider.batch_sizes == [3, 3]
@@ -1939,7 +1937,7 @@ def test_a_policy_that_does_not_cover_the_error_keeps_the_store_backoff(monkeypa
         )
         store.as_embedding = provider
 
-        results = await store._call_with_retry(["a", "b", "c"])
+        results = (await store._call_with_retry(["a", "b", "c"])).embeddings
 
         assert results == [[1.0, 0.0]] * 3
         assert provider.batch_sizes == [3, 3]
@@ -1976,7 +1974,7 @@ def test_an_isolated_item_does_not_multiply_sdk_transport_retries(monkeypatch):
         )
         store.as_embedding = provider
 
-        results = await store._call_with_retry(["ok", "x" * 64, "also ok"])
+        results = (await store._call_with_retry(["ok", "x" * 64, "also ok"])).embeddings
 
         assert results == [None, None, None]
         assert provider.calls == 2
