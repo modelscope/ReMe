@@ -271,6 +271,8 @@ class APITimeoutError(APIConnectionError):
 class _RetryingPolicyModel:
     """Stand-in for AgentScope's OpenAI embedding model: it retries transport errors."""
 
+    max_retries = 3
+
     @classmethod
     def _get_retryable_exceptions(cls):
         """Mirror the OpenAI policy the real wrapper consults."""
@@ -1843,12 +1845,30 @@ def test_input_dependent_classifier_accepts_a_413_only_with_an_input_signal():
 
 
 class _NoRetryPolicyModel:
-    """Stand-in for AgentScope's Ollama embedding model: an empty retryable tuple."""
+    """Stand-in for AgentScope's Ollama embedding model: an empty policy plus a numeric budget.
+
+    The real model keeps the inherited ``max_retries=3`` next to the empty tuple, so the double
+    has to carry both fields: omitting the number is what let the previous helper mistake the
+    budget for a policy.
+    """
+
+    max_retries = 3
 
     @classmethod
     def _get_retryable_exceptions(cls):
         """Mirror the inherited empty policy."""
         return ()
+
+
+class _PartialRetryPolicyModel:
+    """Stand-in for AgentScope's DashScope embedding model: ``(RuntimeError,)`` and nothing else."""
+
+    max_retries = 3
+
+    @classmethod
+    def _get_retryable_exceptions(cls):
+        """Mirror the DashScope policy, which does not cover a connection error."""
+        return (RuntimeError,)
 
 
 class OllamaLikeTransientProvider(TransientThenSuccessAsEmbedding):
@@ -1879,6 +1899,41 @@ def test_a_provider_with_an_empty_retry_policy_recovers_a_connection_error(monke
         provider = OllamaLikeTransientProvider(ConnectionError("connection reset"))
         store = LocalEmbeddingStore(
             name="t_local_embedding_empty_retry_policy",
+            max_retries=3,
+            enable_cache=False,
+        )
+        store.as_embedding = provider
+
+        results = await store._call_with_retry(["a", "b", "c"])
+
+        assert results == [[1.0, 0.0]] * 3
+        assert provider.batch_sizes == [3, 3]
+        assert sleeps == [1.0]
+
+    run(go())
+
+
+def test_a_policy_that_does_not_cover_the_error_keeps_the_store_backoff(monkeypatch):
+    """A nonempty policy is not ownership unless it covers the error that actually occurred.
+
+    AgentScope's DashScope model declares ``(RuntimeError,)``, which does not cover a connection
+    error raised by ``requests`` underneath it. Trusting the whole tuple would leave that retry
+    to a layer that re-raises the error immediately, so one dropped connection would still cost
+    the vector. The store has to answer it as the base implementation did.
+    """
+
+    async def go():
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+        provider = OllamaLikeTransientProvider(ConnectionError("connection reset"))
+        provider.model = _PartialRetryPolicyModel()
+        store = LocalEmbeddingStore(
+            name="t_local_embedding_partial_policy",
             max_retries=3,
             enable_cache=False,
         )

@@ -36,6 +36,12 @@ _TRANSPORT_FAILURE_TYPES = frozenset(
     },
 )
 
+# Transport errors an SDK retries on its own. A positive numeric retry budget is not evidence:
+# AgentScope's Ollama model keeps the inherited ``max_retries=3`` next to an empty policy, and
+# the number never buys a retry. Only a client that both has a budget and retries this class of
+# error owns the failure; otherwise the store keeps its backoff.
+_SDK_TRANSPORT_RETRY_TYPES = frozenset({"APIConnectionError", "APITimeoutError"})
+
 # The status a provider reports can live in more than one place. ``status_code`` is the
 # OpenAI-compatible attribute, Google GenAI exposes an integer ``code``, httpx-style wrappers
 # keep it on ``response``, and AgentScope's DashScope implementation raises a plain
@@ -311,7 +317,7 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
                     # a batch they answer after 12 attempts used to reach the provider 36 times
                     # with this store retrying on top of them, and an isolated item used to
                     # multiply the same budget a third time.
-                    if self._provider_owns_transport_retry():
+                    if self._provider_owns_transport_retry(error):
                         self.logger.exception(
                             "Embedding request failed: transport error owned by the provider, not splitting",
                         )
@@ -454,35 +460,72 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
             return True
         return any(cls.__name__ in _TRANSPORT_FAILURE_TYPES for cls in type(error).__mro__)
 
-    def _provider_owns_transport_retry(self) -> bool:
-        """Return whether the embedding model below already retries transport failures.
+    def _provider_owns_transport_retry(self, error: Exception) -> bool:
+        """Return whether a lower layer retries *this* transport failure.
 
-        AgentScope's OpenAI embedding model retries every exception its
-        ``_get_retryable_exceptions()`` returns (connection errors and timeouts included), and
-        the OpenAI SDK retries each of those attempts, so a store retry would be a third loop
-        over the same failure. Ollama's embedding model inherits the empty tuple and its SDK
-        converts ``httpx.ConnectError`` into a plain ``ConnectionError`` without retrying, so
-        there the store is the only layer that can recover a dropped connection.
+        Retry ownership is a property of the provider and of the error, not of the call site.
+        A model whose ``_get_retryable_exceptions()`` covers the error owns the retry, and so
+        does an SDK that retries that class of error. Everything else must keep the store's
+        backoff, or one dropped connection costs the vector.
 
-        A model that exposes neither signal -- the test doubles, and any custom provider -- is
-        treated as having no lower-layer policy, so the store keeps its own retry rather than
-        silently dropping a vector.
+        Two shapes are deliberately not treated as ownership. AgentScope's Ollama embedding
+        model declares an empty policy but keeps the inherited ``max_retries=3``: its loop
+        re-raises every exception outside the empty tuple, so the number never buys a retry.
+        AgentScope's DashScope model declares ``(RuntimeError,)``, which does not cover a
+        connection error raised underneath it. A nonempty policy is therefore checked against
+        the error that actually occurred rather than trusted as a whole.
+
+        A model that exposes no policy at all -- test doubles and custom providers -- is only
+        trusted to an SDK that has a positive retry budget *and* retries this class of
+        transport error. Otherwise the store answers, as the base implementation did.
         """
         model = getattr(self.as_embedding, "model", None)
         if model is None:
             return False
-        retryable = getattr(model, "_get_retryable_exceptions", None)
-        if callable(retryable):
-            try:
-                if tuple(retryable()):  # pylint: disable=not-callable
-                    return True
-            except Exception:  # pragma: no cover - defensive: a broken policy is a no
-                pass
-        for owner in (model, getattr(model, "client", None)):
-            max_retries = getattr(owner, "max_retries", None)
-            if isinstance(max_retries, int) and max_retries > 0:
+        policy = self._declared_retry_policy(model)
+        if policy:
+            max_retries = getattr(model, "max_retries", None)
+            if isinstance(max_retries, int) and max_retries > 0 and self._policy_covers(policy, error):
                 return True
-        return False
+        return self._sdk_owns_transport_retry(model, error)
+
+    @staticmethod
+    def _declared_retry_policy(model) -> tuple[type[Exception], ...] | None:
+        """Return the model's declared retryable types, or ``None`` when it declares none."""
+        retryable = getattr(model, "_get_retryable_exceptions", None)
+        if not callable(retryable):
+            return None
+        try:
+            return tuple(retryable())  # pylint: disable=not-callable
+        except Exception:  # pragma: no cover - a broken policy owns nothing
+            return None
+
+    @staticmethod
+    def _policy_covers(policy: tuple[type[Exception], ...], error: Exception) -> bool:
+        """Return whether the declared policy actually retries this exception."""
+        try:
+            return isinstance(error, policy)
+        except TypeError:  # pragma: no cover - a malformed policy covers nothing
+            return False
+
+    @staticmethod
+    def _sdk_owns_transport_retry(model, error: Exception) -> bool:
+        """Return whether the SDK under the model retries this transport error itself.
+
+        The numeric ``max_retries`` only counts once the client also identifies this error as
+        retryable. The OpenAI client retries ``APIConnectionError`` / ``APITimeoutError``;
+        Ollama's client has no retry budget at all, and AgentScope's DashScope path calls the
+        module directly, so neither has a client to consult.
+        """
+        if not LocalEmbeddingStore._is_transport_failure(error):
+            return False
+        client = getattr(model, "client", None)
+        if client is None:
+            return False
+        max_retries = getattr(client, "max_retries", None)
+        if not isinstance(max_retries, int) or max_retries <= 0:
+            return False
+        return any(cls.__name__ in _SDK_TRANSPORT_RETRY_TYPES for cls in type(error).__mro__)
 
     @staticmethod
     def _http_status(error: Exception) -> int | None:
