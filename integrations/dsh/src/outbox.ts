@@ -30,6 +30,7 @@ export interface MemoryBatch {
 export class MemoryOutbox {
   private readonly lock: string;
   private readonly owner = `${process.pid}:${randomUUID()}`;
+  private latestCreatedAt = 0;
 
   constructor(readonly directory: string) {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
@@ -68,6 +69,14 @@ export class MemoryOutbox {
       } finally {
         closeSync(fd);
       }
+      for (const name of this.files())
+        this.latestCreatedAt = Math.max(
+          this.latestCreatedAt,
+          this.read(name).createdAt,
+        );
+    } catch (error) {
+      this.close();
+      throw error;
     } finally {
       rmdirSync(guard);
     }
@@ -90,7 +99,11 @@ export class MemoryOutbox {
       : {
           version: 1,
           id: randomUUID(),
-          createdAt: Date.now(),
+          // Keep FIFO ordering when the clock repeats or moves backwards, including after restart.
+          createdAt: (this.latestCreatedAt = Math.max(
+            Date.now(),
+            this.latestCreatedAt + 1,
+          )),
           endpoint,
           sessionId,
           date,

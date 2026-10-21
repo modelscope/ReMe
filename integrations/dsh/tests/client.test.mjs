@@ -3,6 +3,35 @@ import test from "node:test";
 import { ReMeClient } from "../dist/reme/client.js";
 import { safeError } from "../dist/endpoint.js";
 
+test("redacts URL credentials containing spaces or stripped URL whitespace", async () => {
+  const originalFetch = globalThis.fetch;
+  const client = new ReMeClient({
+    endpoint: "http://localhost:2333",
+    requestTimeoutMs: 1000,
+    backgroundTimeoutMs: 1000,
+  });
+  try {
+    for (const password of [
+      "SECRET CANARY",
+      "SECRET\tCANARY",
+      "SECRET\nCANARY",
+    ]) {
+      const url = `http://alice:${password}@localhost:2333/search`;
+      assert.ok(new URL(url).password);
+      const expected = "refused http://[redacted]@localhost:2333/search";
+      globalThis.fetch = async () =>
+        Response.json({ success: false, answer: `refused ${url}` });
+      assert.equal((await client.search("fact")).error, expected);
+      globalThis.fetch = async () => {
+        throw new Error(`refused ${url}`);
+      };
+      assert.equal((await client.search("fact")).error, expected);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("rejects credentials before fetch and redacts URL credentials from service and transport errors", async () => {
   const originalFetch = globalThis.fetch;
   let calls = 0;

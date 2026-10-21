@@ -294,6 +294,40 @@ test("does not put service reply text or file names into diagnostic snapshots", 
   assert.doesNotMatch(JSON.stringify(runtime.snapshot()), /PRIVATE/);
 });
 
+test("keeps whitespace-bearing URL credentials out of snapshots and logs", async (t) => {
+  const logs = [];
+  const error = "refused http://alice:SECRET CANARY\n@localhost:2333";
+  const runtime = makeRuntime(
+    t,
+    {
+      async autoMemory() {
+        throw new Error(error);
+      },
+      async autoDream() {
+        return { ok: false, error };
+      },
+    },
+    { ...CONFIG, autoMemoryInterval: 1 },
+    {
+      debug() {},
+      warn(...args) {
+        logs.push(args);
+      },
+    },
+  );
+  completeTurn(runtime, { id: "credentials" }, 1, 10);
+  await runtime.drain();
+  await runtime.runDream();
+  const snapshot = runtime.snapshot();
+  assert.equal(snapshot.autoMemory.recentTasks[0].phase, "failed");
+  assert.equal(snapshot.autoDream.lastResult, "failed");
+  assert.equal(logs.length, 2);
+  assert.doesNotMatch(
+    JSON.stringify({ snapshot, logs }),
+    /alice|SECRET|CANARY/,
+  );
+});
+
 test("splits dates and flushes a partial previous day without a new interval", async (t) => {
   const calls = [];
   const runtime = makeRuntime(

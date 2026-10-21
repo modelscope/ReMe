@@ -177,6 +177,8 @@ The outbox defaults to `$DSH_HOME/reme-memory/outbox` (`~/.dsh/reme-memory/outbo
 
 Owner-lock recovery is serialized. If startup reports a busy or interrupted `.lock-recovery`, retry first; if the error persists, stop all Hosts using that queue, inspect it, and remove only the empty `.lock-recovery` directory before restarting. Preserve `.lock` and all queued JSON files.
 
+New batches receive strictly increasing ordering timestamps, recovered from queued files after restart, so equal wall-clock times or a clock rollback cannot reorder them. Older batches that already share a timestamp retain their existing file order.
+
 Sealed batches keep a stable `request_id` across timeouts and restarts. The updated ReMe service stores completed request receipts under its configured metadata directory, rejects reuse with different input, and replays completed results without invoking the memory agent again. An interruption before a receipt is committed can still repeat an unfinished operation; receipts do not make arbitrary agent file edits transactional.
 
 ![Automatic-memory activity](./figures/reme-status-auto-memory.png)
