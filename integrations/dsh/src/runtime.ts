@@ -1,35 +1,33 @@
 import type { LoggerLike, ReMeClientLike, ReMeMessage } from "./reme/types.js";
-
 import { messagesDay, nextDailyRun } from "./scheduling.js";
 import { captureMessage, remeSessionId } from "./messages.js";
+import { MemoryOutbox } from "./outbox.js";
+import { safeError } from "./endpoint.js";
 import type { DshSession, ReMeConfig, SessionEvent } from "./types.js";
 import type { ReMeRuntimeSnapshot, ReMeRuntimeTask } from "./runtime-status.js";
 
-interface PendingTurn {
-  messages: ReMeMessage[];
-  day: string;
-}
-
-interface SessionState {
-  session: DshSession;
-  sessionId: string;
-  activeTurn: unknown;
-  activeMessages: ReMeMessage[];
-  pendingTurns: PendingTurn[];
-  unconfirmedTurns: number;
-  writes: Promise<void>;
-  requestController: AbortController;
-}
-
 export class ReMeRuntime {
-  readonly states = new Map<string, SessionState>();
+  private readonly states = new Map<string, ReMeMessage[]>();
   private readonly configSource: () => ReMeConfig;
+  private readonly outbox: MemoryOutbox;
+  private memoryTask: Promise<void> | null = null;
+  private memoryWake = false;
+  private activeMemoryTask: ReMeRuntimeTask | null = null;
+  private memoryController: AbortController | null = null;
+  private readonly retryTimers = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+  >();
+  private readonly failures = new Map<string, number>();
+  private memoryError: string | undefined;
+  private captureError: string | undefined;
   private dreamTimer: ReturnType<typeof setTimeout> | null = null;
   private dreamScheduleGeneration = 0;
   private dreamTask: Promise<void> | null = null;
   private dreamController: AbortController | null = null;
   private started = false;
   private stopping = false;
+  private closed = false;
   private taskSequence = 0;
   private readonly recentTasks: ReMeRuntimeTask[] = [];
   private nextDreamAt: string | undefined;
@@ -44,148 +42,193 @@ export class ReMeRuntime {
     readonly logger: LoggerLike = console,
   ) {
     this.configSource = typeof config === "function" ? config : () => config;
-  }
-
-  stateFor(session: DshSession): SessionState {
-    const existing = this.states.get(session.id);
-    if (existing) {
-      existing.session = session;
-      if (existing.requestController.signal.aborted)
-        existing.requestController = new AbortController();
-      return existing;
-    }
-    const state: SessionState = {
-      session,
-      sessionId: remeSessionId(session.id),
-      activeTurn: null,
-      activeMessages: [],
-      pendingTurns: [],
-      unconfirmedTurns: 0,
-      writes: Promise.resolve(),
-      requestController: new AbortController(),
-    };
-    this.states.set(session.id, state);
-    return state;
+    this.outbox = new MemoryOutbox(this.configSource().autoMemoryQueueDir);
   }
 
   capture(session: DshSession, event: SessionEvent): void {
     const config = this.configSource();
-    if (!config.autoMemoryEnabled) return;
-    const state = this.stateFor(session);
-    const data = isRecord(event.data) ? event.data : undefined;
+    if (this.stopping || !config.autoMemoryEnabled) return;
     if (event.type === "turn/start") {
-      state.activeTurn = data?.turn ?? null;
-      state.activeMessages = [];
+      this.states.set(session.id, []);
       return;
     }
+    const messages = this.states.get(session.id);
+    if (!messages) return;
     const message = captureMessage(event, session.id);
-    if (message) state.activeMessages.push(message);
+    if (message) messages.push(message);
     if (event.type !== "turn/end") return;
-
-    const reason = data?.reason;
-    const reasonKind = isRecord(reason) ? reason.kind : undefined;
-    const completed = reasonKind === "completed" || reasonKind === "max-tokens";
-    const hasUser = state.activeMessages.some((item) => item.role === "user");
-    const hasAssistant = state.activeMessages.some(
-      (item) => item.role === "assistant",
-    );
-    if (completed && hasUser && hasAssistant) {
-      const day = messagesDay(state.activeMessages, config.timezone);
-      const previousDay = state.pendingTurns.at(-1)?.day;
-      if (previousDay && day && previousDay !== day)
-        this.scheduleAutoMemory(state, true);
-      state.pendingTurns.push({ messages: state.activeMessages, day });
+    const data = isRecord(event.data) ? event.data : undefined;
+    const reason = isRecord(data?.reason) ? data.reason.kind : undefined;
+    if (
+      (reason === "completed" || reason === "max-tokens") &&
+      messages.some((item) => item.role === "user") &&
+      messages.some((item) => item.role === "assistant")
+    ) {
+      try {
+        this.outbox.append(
+          config.endpoint,
+          remeSessionId(session.id),
+          messagesDay(messages, config.timezone),
+          messages,
+          config.autoMemoryInterval,
+        );
+      } catch (error) {
+        this.captureError = safeError(error);
+        this.recordMemoryError(error);
+      }
     }
-    state.activeTurn = null;
-    state.activeMessages = [];
-    this.scheduleAutoMemory(state);
+    this.states.set(session.id, []);
+    void this.drain();
   }
 
-  private scheduleAutoMemory(state: SessionState, force = false): void {
-    const interval = this.configSource().autoMemoryInterval;
-    const firstDay = state.pendingTurns[0]?.day;
-    const dayCount = state.pendingTurns.findIndex((turn) =>
-      Boolean(firstDay && turn.day && turn.day !== firstDay),
-    );
-    const available = dayCount === -1 ? state.pendingTurns.length : dayCount;
-    const crossesDayBoundary = dayCount !== -1;
-    if (!force && !crossesDayBoundary && available < interval) return;
-    const count = force || crossesDayBoundary ? available : interval;
-    if (count === 0) return;
-    const turns = state.pendingTurns.splice(0, count);
-    const messages = turns.flatMap((turn) => turn.messages);
-    const date = turns[0]?.day || "";
-    const task: ReMeRuntimeTask = {
-      id: `auto-memory-${++this.taskSequence}`,
-      phase: "queued",
-      queuedAt: new Date().toISOString(),
-      turns: turns.length,
-      messages: messages.length,
-    };
-    this.recentTasks.unshift(task);
-    this.recentTasks.length = Math.min(this.recentTasks.length, 20);
-    state.unconfirmedTurns += turns.length;
-    state.writes = state.writes.then(async () => {
-      task.phase = "running";
-      task.startedAt = new Date().toISOString();
-      try {
-        const result = await this.client.autoMemory(messages, state.sessionId, {
-          date,
-          signal: state.requestController.signal,
-        });
-        if (result.ok) {
-          task.phase = "completed";
-          task.result = resultSummary(result.answer, result.metadata);
-          this.log("debug", "auto_memory_complete", {
-            sessionId: state.sessionId,
-            turns: turns.length,
-          });
-          return;
+  /** Drain ready batches serially; failed batches stay on disk for the retry timer. */
+  drain(): Promise<void> {
+    if (this.closed) return Promise.resolve();
+    if (this.memoryTask) {
+      this.memoryWake = true;
+      return this.memoryTask;
+    }
+    if (this.retryTimers.has("*") || !this.configSource().autoMemoryEnabled)
+      return Promise.resolve();
+    this.memoryController = new AbortController();
+    const controller = this.memoryController;
+    this.memoryTask = Promise.resolve()
+      .then(async () => {
+        while (
+          !controller.signal.aborted &&
+          this.configSource().autoMemoryEnabled
+        ) {
+          const next = this.outbox.next(this.retryTimers);
+          if (!next) return;
+          const { name, batch } = next;
+          const messages = batch.turns.flat();
+          const task: ReMeRuntimeTask = {
+            id: `${batch.id}-${++this.taskSequence}`,
+            phase: "running",
+            queuedAt: new Date(batch.createdAt).toISOString(),
+            startedAt: new Date().toISOString(),
+            turns: batch.turns.length,
+            messages: messages.length,
+          };
+          this.activeMemoryTask = task;
+          this.recentTasks.unshift(task);
+          this.recentTasks.length = Math.min(this.recentTasks.length, 20);
+          try {
+            const result = await this.client.autoMemory(
+              messages,
+              batch.sessionId,
+              {
+                date: batch.date,
+                endpoint: batch.endpoint,
+                requestId: batch.id,
+                signal: controller.signal,
+              },
+            );
+            if (controller.signal.aborted) {
+              task.phase = "cancelled";
+              return;
+            }
+            if (!result.ok)
+              throw new Error(
+                `ReMe automatic-memory request failed (HTTP ${
+                  result.status ?? 0
+                })`,
+              );
+            this.outbox.acknowledge(name);
+            task.phase = "completed";
+            // Reply text and file names can contain personal information.
+            this.failures.delete(batch.endpoint);
+            if (!this.retryTimers.size) this.memoryError = undefined;
+          } catch (error) {
+            task.phase = controller.signal.aborted ? "cancelled" : "failed";
+            task.error = safeError(error);
+            this.recordMemoryError(error);
+            if (this.stopping) return;
+            this.scheduleRetry(batch.endpoint);
+          } finally {
+            task.finishedAt = new Date().toISOString();
+            this.activeMemoryTask = null;
+          }
         }
-        state.pendingTurns.unshift(...turns);
-        task.phase = "failed";
-        task.error =
-          result.error || "ReMe rejected the automatic-memory request";
-        this.log("warn", "auto_memory_failed", {
-          sessionId: state.sessionId,
-          error: result.error,
-        });
-      } catch (error) {
-        state.pendingTurns.unshift(...turns);
-        task.phase = state.requestController.signal.aborted
-          ? "cancelled"
-          : "failed";
-        task.error = error instanceof Error ? error.message : String(error);
-        this.log("warn", "auto_memory_failed", {
-          sessionId: state.sessionId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      } finally {
-        task.finishedAt = new Date().toISOString();
-        state.unconfirmedTurns -= turns.length;
-      }
-    });
+      })
+      .catch((error: unknown) => {
+        this.recordMemoryError(error);
+        this.scheduleRetry();
+      })
+      .finally(() => {
+        this.memoryTask = null;
+        this.memoryController = null;
+        if (this.memoryWake && !this.stopping) {
+          this.memoryWake = false;
+          return this.drain();
+        }
+      });
+    return this.memoryTask;
+  }
+
+  private recordMemoryError(error: unknown): void {
+    this.memoryError = safeError(error);
+    this.log("warn", "auto_memory_failed", { error: this.memoryError });
+  }
+
+  private scheduleRetry(endpoint = "*"): void {
+    if (
+      this.stopping ||
+      this.retryTimers.has(endpoint) ||
+      !this.configSource().autoMemoryEnabled
+    )
+      return;
+    const config = this.configSource();
+    const failures = this.failures.get(endpoint) ?? 0;
+    this.failures.set(endpoint, failures + 1);
+    const delay = Math.min(
+      config.autoMemoryRetryMaxMs,
+      config.autoMemoryRetryMs * 2 ** Math.min(failures, 20),
+    );
+    const timer = setTimeout(() => {
+      this.retryTimers.delete(endpoint);
+      void this.drain();
+    }, delay);
+    timer.unref?.();
+    this.retryTimers.set(endpoint, timer);
+  }
+
+  private clearRetries(): void {
+    for (const timer of this.retryTimers.values()) clearTimeout(timer);
+    this.retryTimers.clear();
+    this.failures.clear();
   }
 
   start(): void {
+    if (this.started || this.stopping) return;
     this.started = true;
-    if (!this.configSource().autoDreamEnabled || this.stopping) return;
-    this.scheduleDream(this.dreamScheduleGeneration);
+    // A previous Host may have stopped before the batching interval was reached.
+    try {
+      this.outbox.flush();
+    } catch (error) {
+      this.outbox.close();
+      throw error;
+    }
+    void this.drain();
+    if (this.configSource().autoDreamEnabled)
+      this.scheduleDream(this.dreamScheduleGeneration);
   }
 
-  /** Apply a changed settings snapshot to pending batching and dream scheduling. */
+  /** Apply settings without discarding captured work or replacing the runtime. */
   reconfigure(): void {
     if (this.stopping) return;
-    const config = this.configSource();
-    if (config.autoMemoryEnabled) {
-      for (const state of this.states.values()) this.scheduleAutoMemory(state);
+    this.clearRetries();
+    if (!this.configSource().autoMemoryEnabled) this.states.clear();
+    if (this.configSource().autoMemoryEnabled) {
+      this.outbox.flush();
+      void this.drain();
     }
     if (!this.started) return;
     this.dreamScheduleGeneration += 1;
     if (this.dreamTimer) clearTimeout(this.dreamTimer);
     this.dreamTimer = null;
     this.nextDreamAt = undefined;
-    if (config.autoDreamEnabled)
+    if (this.configSource().autoDreamEnabled)
       this.scheduleDream(this.dreamScheduleGeneration);
   }
 
@@ -206,7 +249,7 @@ export class ReMeRuntime {
             Date.now();
     } catch (error) {
       this.log("warn", "auto_dream_schedule_invalid", {
-        error: error instanceof Error ? error.message : String(error),
+        error: safeError(error),
       });
       return;
     }
@@ -220,6 +263,7 @@ export class ReMeRuntime {
   }
 
   async runDream(): Promise<void> {
+    if (this.stopping) return;
     if (this.dreamTask) return this.dreamTask;
     const config = this.configSource();
     this.dreamController = new AbortController();
@@ -237,21 +281,20 @@ export class ReMeRuntime {
           result.ok ? "debug" : "warn",
           result.ok ? "auto_dream_complete" : "auto_dream_failed",
           {
-            error: result.ok ? undefined : result.error,
+            error: result.ok ? undefined : safeError(result.error),
           },
         );
         this.dreamLastResult = result.ok ? "completed" : "failed";
         this.dreamLastError = result.ok
           ? undefined
-          : result.error || "ReMe rejected the Auto Dream request";
+          : safeError(result.error || "ReMe rejected the Auto Dream request");
       } catch (error) {
         this.dreamLastResult = this.dreamController?.signal.aborted
           ? "cancelled"
           : "failed";
-        this.dreamLastError =
-          error instanceof Error ? error.message : String(error);
+        this.dreamLastError = safeError(error);
         this.log("warn", "auto_dream_failed", {
-          error: error instanceof Error ? error.message : String(error),
+          error: safeError(error),
         });
       }
     })().finally(() => {
@@ -263,84 +306,62 @@ export class ReMeRuntime {
   }
 
   async dispose(session: DshSession): Promise<void> {
-    const state = this.states.get(session.id);
-    if (!state) return;
-    if (state.requestController.signal.aborted)
-      state.requestController = new AbortController();
-    const flush = (async () => {
-      await state.writes;
-      const retryCount = state.pendingTurns.length;
-      let scheduled = 0;
-      while (state.pendingTurns.length && scheduled < retryCount) {
-        const before = state.pendingTurns.length;
-        this.scheduleAutoMemory(state, true);
-        scheduled += before - state.pendingTurns.length;
-      }
-      await state.writes;
-    })();
-    const completed = await this.withinShutdownBudget(flush, () =>
-      state.requestController.abort(),
-    );
-    const unsentTurns = state.pendingTurns.length + state.unconfirmedTurns;
-    if (unsentTurns) {
-      this.log(
-        "warn",
-        completed ? "auto_memory_retained" : "auto_memory_shutdown_timeout",
-        {
-          sessionId: state.sessionId,
-          unsentTurns,
-        },
-      );
-    } else {
-      this.states.delete(session.id);
-    }
+    this.states.delete(session.id);
+    this.outbox.flush(remeSessionId(session.id));
+    void this.drain();
   }
 
   async disposeAll(): Promise<void> {
+    if (this.stopping) return;
     this.stopping = true;
     this.started = false;
+    this.states.clear();
     this.dreamScheduleGeneration += 1;
     if (this.dreamTimer) clearTimeout(this.dreamTimer);
+    this.clearRetries();
     this.dreamTimer = null;
     this.nextDreamAt = undefined;
     this.dreamController?.abort();
-    const shutdown = Promise.all([
-      ...[...this.states.values()].map((state) => this.dispose(state.session)),
-      ...(this.dreamTask ? [this.dreamTask] : []),
-    ]).then(() => undefined);
-    await this.withinShutdownBudget(shutdown, () => {
-      this.dreamController?.abort();
-      for (const state of this.states.values()) state.requestController.abort();
-    });
+    try {
+      this.outbox.flush();
+      await this.withinShutdownBudget(
+        Promise.all([this.drain(), this.dreamTask]).then(() => undefined),
+        () => {
+          this.memoryController?.abort();
+          this.dreamController?.abort();
+        },
+      );
+    } finally {
+      this.memoryController?.abort();
+      this.outbox.close();
+      this.closed = true;
+    }
   }
 
-  /** Return a content-free snapshot for the local DSH status page. */
+  /** Return queue counts and bounded diagnostics without reply content. */
   snapshot(): ReMeRuntimeSnapshot {
     const config = this.configSource();
-    const tasksRunning = this.recentTasks.filter(
-      (task) => task.phase === "running",
-    ).length;
-    const tasksQueued = this.recentTasks.filter(
-      (task) => task.phase === "queued",
-    ).length;
-    const lastError = this.recentTasks.find(
-      (task) => task.phase === "failed" || task.phase === "cancelled",
-    )?.error;
+    const queued = this.outbox.stats();
+    const running = this.activeMemoryTask === null ? 0 : 1;
     return {
-      phase: this.stopping ? "stopping" : this.started ? "running" : "stopped",
+      phase: this.closed
+        ? "stopped"
+        : this.stopping
+        ? "stopping"
+        : this.started
+        ? "running"
+        : "stopped",
       autoMemory: {
         enabled: config.autoMemoryEnabled,
         interval: config.autoMemoryInterval,
         activeSessions: this.states.size,
-        queuedTurns: [...this.states.values()].reduce(
-          (total, state) =>
-            total + state.pendingTurns.length + state.unconfirmedTurns,
-          0,
-        ),
-        tasksRunning,
-        tasksQueued,
+        queuedTurns: queued.turns,
+        tasksRunning: running,
+        tasksQueued: Math.max(0, queued.batches - running),
         recentTasks: this.recentTasks.map((task) => ({ ...task })),
-        ...(lastError ? { lastError } : {}),
+        ...(this.captureError || this.memoryError
+          ? { lastError: this.captureError || this.memoryError }
+          : {}),
       },
       autoDream: {
         enabled: config.autoDreamEnabled,
@@ -363,16 +384,18 @@ export class ReMeRuntime {
   private async withinShutdownBudget(
     task: Promise<void>,
     abort: () => void,
-  ): Promise<boolean> {
+  ): Promise<void> {
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeout = new Promise<boolean>((resolve) => {
-      timer = setTimeout(() => {
-        abort();
-        resolve(false);
-      }, this.configSource().shutdownTimeoutMs);
-    });
     try {
-      return await Promise.race([task.then(() => true), timeout]);
+      await Promise.race([
+        task,
+        new Promise<void>((resolve) => {
+          timer = setTimeout(() => {
+            abort();
+            resolve();
+          }, this.configSource().shutdownTimeoutMs);
+        }),
+      ]);
     } finally {
       if (timer) clearTimeout(timer);
     }
@@ -386,18 +409,6 @@ export class ReMeRuntime {
     const method = this.logger[level] ?? this.logger.log;
     method?.call(this.logger, `[reme-memory] ${event}`, data);
   }
-}
-
-function resultSummary(
-  answer: unknown,
-  metadata: Record<string, unknown> | undefined,
-): string | undefined {
-  const path = metadata?.path;
-  if (typeof path === "string" && path.length > 0) return path;
-  if (typeof answer !== "string") return undefined;
-  const normalized = answer.trim();
-  if (!normalized) return undefined;
-  return normalized.length > 240 ? `${normalized.slice(0, 237)}…` : normalized;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
