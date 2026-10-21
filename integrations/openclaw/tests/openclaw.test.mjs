@@ -418,3 +418,54 @@ test("registers OpenClaw recall, capture, tool, and shutdown lifecycle", async (
     globalThis.fetch = originalFetch;
   }
 });
+
+for (const [scenario, answer, results] of [
+  ["no results", "No relevant information was found for the given query.", []],
+  [
+    "all returned",
+    "All retrieved content has already been returned in previous responses; no new content was found.",
+    [],
+  ],
+  ["matching memory", "remembered deployment", [{ path: "daily/project.md" }]],
+]) {
+  test(`uses structured results for automatic recall: ${scenario}`, async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          success: true,
+          answer,
+          metadata: { results, counts: { returned: results.length } },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    try {
+      const hooks = new Map();
+      plugin.register({
+        pluginConfig: { autoMemoryEnabled: false, autoDreamEnabled: false },
+        logger: { info() {}, warn() {}, error() {} },
+        registerTool() {},
+        registerHttpRoute() {},
+        session: { controls: { registerControlUiDescriptor() {} } },
+        on(name, handler) {
+          hooks.set(name, handler);
+        },
+        registerService() {},
+      });
+
+      const recalled = await hooks.get("before_prompt_build")(
+        { prompt: "deployment" },
+        { trigger: "user", agentId: "main", sessionId: "session-1" },
+      );
+
+      assert.match(recalled.prependSystemContext, /ReMe/);
+      if (results.length === 0) {
+        assert.equal(recalled.prependContext, undefined);
+      } else {
+        assert.match(recalled.prependContext, /remembered deployment/);
+      }
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+}

@@ -20,6 +20,8 @@ from pathlib import Path
 
 import pytest
 
+from reme.steps.index._source_format import ALL_RETURNED_MESSAGE, NO_RESULTS_MESSAGE
+
 _PLUGIN_PARENT = Path(__file__).resolve().parents[2] / "integrations"
 if str(_PLUGIN_PARENT) not in sys.path:
     sys.path.insert(0, str(_PLUGIN_PARENT))
@@ -375,8 +377,10 @@ class _FakeBackend:
         self.closed = True
 
 
-def test_provider_selects_backend_recalls_and_writes(monkeypatch, tmp_path):
+@pytest.mark.parametrize("metadata", [{"counts": {"returned": 2}}, {"results": [{"id": "one"}, {"id": "two"}]}])
+def test_provider_selects_backend_recalls_and_writes(monkeypatch, tmp_path, metadata):
     backend = _FakeBackend()
+    backend.search = lambda *args, **kwargs: {"success": True, "answer": " remembered ", "metadata": metadata}
     monkeypatch.setattr(PLUGIN_MODULE, "load_config", lambda home=None: ReMeConfig())
     monkeypatch.setattr(PLUGIN_MODULE, "_backend_for", lambda config: backend)
     provider = ReMeMemoryProvider()
@@ -390,6 +394,28 @@ def test_provider_selects_backend_recalls_and_writes(monkeypatch, tmp_path):
     assert len(backend.writes) == 1
     assert backend.writes[0][0].startswith("hermes-work-session-one-")
     assert backend.closed is True
+
+
+@pytest.mark.parametrize("answer", [NO_RESULTS_MESSAGE, ALL_RETURNED_MESSAGE])
+def test_provider_does_not_recall_structured_empty_results(monkeypatch, tmp_path, answer):
+    backend = _FakeBackend()
+    monkeypatch.setattr(PLUGIN_MODULE, "load_config", lambda home=None: ReMeConfig())
+    monkeypatch.setattr(PLUGIN_MODULE, "_backend_for", lambda config: backend)
+    provider = ReMeMemoryProvider()
+    provider.initialize("session", hermes_home=tmp_path)
+    try:
+        assert provider.prefetch("existing memory") == "remembered"
+        assert provider.recall_status().count == 2
+        backend.search = lambda *args, **kwargs: {
+            "success": True,
+            "answer": answer,
+            "metadata": {"results": [], "counts": {"returned": 0}},
+        }
+
+        assert provider.prefetch("past decision") == ""
+        assert provider.recall_status() is None
+    finally:
+        provider.shutdown()
 
 
 def test_session_scope_distinguishes_profiles_and_ambiguous_names():

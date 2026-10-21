@@ -333,7 +333,9 @@ def recall(config: dict, payload: dict) -> dict:
         config["recall_timeout"],
     )
     answer = result.get("answer")
-    if not answer:
+    metadata = result.get("metadata")
+    results = metadata.get("results") if isinstance(metadata, dict) else None
+    if not answer or results == []:
         return {}
     text = answer if isinstance(answer, str) else json.dumps(answer, ensure_ascii=False)
     text = text[: config["context_max_chars"]].replace("</reme-context>", "&lt;/reme-context&gt;")
