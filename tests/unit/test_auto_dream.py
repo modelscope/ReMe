@@ -337,25 +337,69 @@ def test_extract_retries_one_unusable_receipt(tmp_path):
     asyncio.run(run())
 
 
-def test_integrate_invalid_receipt_without_file_change_is_skipped(tmp_path):
-    """An unusable integration receipt is a skipped unit, not a failed unit."""
+@pytest.mark.parametrize(
+    "receipt",
+    ["{}", "not a receipt", '{"action": "CREATE", "target_path": "digest/wiki/missing.md"}'],
+)
+def test_integrate_invalid_receipt_without_file_change_fails(tmp_path, receipt):
+    """An unusable integration receipt cannot acknowledge unprocessed source files."""
 
     async def run():
         unit = {"name": "unit", "bucket": "wiki", "summary": "summary", "paths": ["daily/a.md"]}
         state = DreamState(units=[unit])
         step = DreamIntegrateStep()
-        step.agent_wrapper = _ReplyAgent()
+        step.agent_wrapper = _ReplyAgent({"result": receipt})
 
         await step._integrate_one(state, unit, 1, tmp_path, "digest")  # pylint: disable=protected-access
 
         assert state.integrate_results == []
-        assert len(state.skipped_units) == 1
-        assert state.failed_units == []
-        assert not state.failed_paths
-        assert len(state.warnings) == 1
+        assert state.skipped_units == []
+        assert len(state.failed_units) == 1
+        assert state.failed_units[0]["name"] == unit["name"]
+        assert state.failed_paths == unit["paths"]
+        assert len(state.errors) == 1
+        assert state.warnings == []
         assert step.agent_wrapper.calls == 2
 
     asyncio.run(run())
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("shared_source", [False, True])
+async def test_integrate_failure_only_blocks_affected_sources(tmp_path, monkeypatch, shared_source):
+    """A failed unit prevents checkpointing all its sources, even one used by a successful unit."""
+    good, bad, target = "daily/good.md", "daily/bad.md", "digest/wiki/good.md"
+    observed = {rel: _touch(tmp_path / rel).stat().st_mtime for rel in (good, bad)}
+    failed_paths = [bad, good] if shared_source else [bad]
+    units = [
+        {"name": "good", "bucket": "wiki", "summary": "good memory", "paths": [good]},
+        {"name": "bad", "bucket": "wiki", "summary": "bad memory", "paths": failed_paths},
+    ]
+
+    def integrate_good():
+        _touch(tmp_path / target, "integrated memory")
+        return {"result": json.dumps({"action": "CREATE", "target_path": target})}
+
+    agent = _SequenceAgent(integrate_good, {"result": "{}"}, {"result": "{}"})
+    app_context = ApplicationContext(workspace_dir=str(tmp_path))
+    state = DreamState(units=units, changed_paths=[good, bad], existing=observed, workspace=str(tmp_path))
+    catalog = _Catalog()
+    context = RuntimeContext(dream=state.model_dump(), file_catalog=catalog, file_store=_FileStore(tmp_path))
+    monkeypatch.setattr("reme.steps.evolve.dream.integrate.llm_available", lambda _step: True)
+
+    response = await DreamIntegrateStep(app_context=app_context, agent_wrapper=agent)(context)
+    assert response.success is False
+    response = await DreamFinishStep(app_context=app_context)(context)
+
+    dream = response.metadata["dream"]
+    assert response.success is False
+    assert len(dream["integrate_results"]) == 1
+    assert len(dream["failed_units"]) == 1
+    assert set(dream["failed_paths"]) == set(failed_paths)
+    assert dream["checkpoint_paths"] == ([] if shared_source else [good])
+    assert {node.path for node in catalog.upserts} == (set() if shared_source else {good})
+    assert (tmp_path / target).read_text(encoding="utf-8") == "integrated memory"
+    assert agent.calls == 3
 
 
 def test_integrate_retries_one_invalid_receipt(tmp_path):
@@ -461,7 +505,10 @@ def test_integrate_does_not_recover_a_create_in_another_bucket(tmp_path):
         await step._integrate_one(state, unit, 1, tmp_path, "digest")  # pylint: disable=protected-access
 
         assert state.integrate_results == []
-        assert len(state.skipped_units) == 1
+        assert state.skipped_units == []
+        assert len(state.failed_units) == 1
+        assert state.failed_paths == unit["paths"]
+        assert state.errors
         assert state.nodes_created == []
         assert state.modified_paths == ["digest/procedure/unit.md"]
 
@@ -601,13 +648,13 @@ async def test_integrate_clears_changes_when_skipping_or_missing_llm(tmp_path, m
 @pytest.mark.asyncio
 @pytest.mark.parametrize("job_name", ["auto_dream", "dream_cron"])
 @pytest.mark.parametrize("tag_fails", [False, True])
-@pytest.mark.parametrize("integrate_fails", [False, True])
+@pytest.mark.parametrize("integration_failure", [None, "exception", "invalid_receipt"])
 async def test_dream_jobs_tag_outputs_and_preserve_checkpoint_results(
     tmp_path,
     monkeypatch,
     job_name,
     tag_fails,
-    integrate_fails,
+    integration_failure,
 ):
     """Both configured pipelines tag durable outputs without changing dream success."""
     app_context = ApplicationContext(workspace_dir=str(tmp_path))
@@ -637,8 +684,10 @@ async def test_dream_jobs_tag_outputs_and_preserve_checkpoint_results(
         for path in targets:
             previous = (tmp_path / path).read_text(encoding="utf-8") if (tmp_path / path).exists() else ""
             _touch(tmp_path / path, previous + "ReMe evidence\n")
-        if integrate_fails:
+        if integration_failure == "exception":
             raise RuntimeError("integration unavailable")
+        if integration_failure == "invalid_receipt":
+            return {"result": "{}"}
         return {"result": json.dumps({"action": "CREATE", "target_path": targets[0]})}
 
     agent = _ReplyAgent()
@@ -660,8 +709,9 @@ async def test_dream_jobs_tag_outputs_and_preserve_checkpoint_results(
     finally:
         await job.close()
 
+    integrate_fails = bool(integration_failure)
     assert response.success is not integrate_fails
-    assert response.answer.startswith("AutoDream completed")
+    assert response.answer.startswith("AutoDream failed" if integrate_fails else "AutoDream completed")
     assert response.metadata["modified"] is True
     dream, tagging = response.metadata["dream"], response.metadata["auto_tag"]
     assert (source in dream["checkpoint_paths"]) is not integrate_fails
