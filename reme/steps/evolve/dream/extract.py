@@ -181,6 +181,8 @@ class DreamExtractStep(BaseStep):
             raise ValueError("expected a units list (use units: [] only when nothing is worth remembering)")
         normalized = []
         for raw in units:
+            if isinstance(raw, dict) and isinstance(raw.get("bucket"), str):
+                raw = {**raw, "bucket": raw["bucket"].strip()}
             if (
                 isinstance(raw, dict)
                 and "bucket" in raw

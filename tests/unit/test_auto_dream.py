@@ -304,6 +304,27 @@ def test_extract_clean_output_respects_max_units():
     assert [unit["name"] for unit in state.units] == [f"unit-{i}" for i in range(5)]
 
 
+@pytest.mark.parametrize("field", ["units", "memory_units"])
+@pytest.mark.parametrize(
+    ("raw_bucket", "expected_bucket"),
+    [
+        (" procedure ", "procedure"),
+        ("\tpersonal\n", "personal"),
+        (" wiki ", "wiki"),
+        (" unknown ", "wiki"),
+        (" \t\n ", "wiki"),
+    ],
+)
+def test_extract_validation_strips_bucket_whitespace_before_fallback(field, raw_bucket, expected_bucket):
+    """Padded known buckets retain their destination; unknown and blank values still use wiki."""
+    state = DreamState(changed_paths=["daily/a.md"])
+    unit = {"name": "unit", "bucket": raw_bucket, "summary": "memory", "paths": ["daily/a.md"]}
+
+    DreamExtractStep().clean_output(state, {field: [unit]})
+
+    assert state.units == [{**unit, "bucket": expected_bucket}]
+
+
 def test_extract_validation_preserves_legacy_alias_and_unknown_bucket_fallback():
     """Validation retains the documented bucket fallback and source-path cleanup."""
     state = DreamState(changed_paths=["daily/a.md"])
