@@ -29,6 +29,9 @@ _READ_COMMANDS = {
     "git": {
         "allow": ["status", "diff", "log", "show", "rev-parse", "ls-files"],
         "denied": [
+            # Help dispatch can execute repository-configured man viewers.
+            "--help",
+            "-h",
             "--output",
             "--ext-diff",
             "--textconv",

@@ -14,14 +14,21 @@ OUTPUT_LIMIT_BYTES = 1024 * 1024
 
 
 async def finish_cleanup(operation: Awaitable):
-    """Finish rollback after cancellation, deferring additional cancellation requests."""
+    """Finish cleanup before propagating any cancellation received while waiting."""
     task = asyncio.ensure_future(operation)
+    cancelled = False
     while True:
         try:
-            return await asyncio.shield(task)
+            result = await asyncio.shield(task)
+            break
         except asyncio.CancelledError:
+            cancelled = True
             if task.done():
-                return task.result()
+                result = task.result()
+                break
+    if cancelled:
+        raise asyncio.CancelledError
+    return result
 
 
 class OutputLimitExceeded(RuntimeError):
@@ -117,7 +124,7 @@ class LocalProcessBackend(LocalBackend):
             return await task
         finally:
             task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
+            await finish_cleanup(asyncio.gather(task, return_exceptions=True))
 
     @staticmethod
     async def _collect_output(process, data, stdout, stderr, exceeded):
@@ -150,7 +157,7 @@ class LocalProcessBackend(LocalBackend):
         finally:
             for task in tasks:
                 task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
+            await finish_cleanup(asyncio.gather(*tasks, return_exceptions=True))
 
     @staticmethod
     async def _execute(operation: Awaitable, *, timeout: float | None, cleanup: Callable[[bool], Awaitable[None]]):
@@ -162,9 +169,13 @@ class LocalProcessBackend(LocalBackend):
             completed = True
             return result
         finally:
-            task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
-            await cleanup(completed)
+
+            async def finalize():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+                await cleanup(completed)
+
+            await finish_cleanup(finalize())
 
     async def _communicate(
         self,

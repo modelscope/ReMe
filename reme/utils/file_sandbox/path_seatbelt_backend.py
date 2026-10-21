@@ -208,12 +208,7 @@ class PathSeatbeltBackend(FileSandboxBackend):
                 RuntimeWarning,
                 stacklevel=2,
             )
-            process = await self._start_process(
-                command,
-                cwd,
-                stdin=asyncio.subprocess.PIPE if data is not None else asyncio.subprocess.DEVNULL,
-            )
-            return await self._communicate(process, data=data, timeout=timeout)
+            return await super()._run_job(command, cwd, data=data, timeout=timeout)
         control = Path(tempfile.mkdtemp(prefix="reme-seatbelt-", dir=os.path.realpath(tempfile.gettempdir())))
         sandbox_tmp = control / "sandbox-tmp"
         sandbox_tmp.mkdir()
@@ -304,26 +299,13 @@ class PathSeatbeltBackend(FileSandboxBackend):
                 stderr=bytes(stderr),
             )
         finally:
-            for reader in readers:
-                reader.cancel()
-            await asyncio.gather(*readers, return_exceptions=True)
-            for fd in output_fds:
-                os.close(fd)
-            shutil.rmtree(control)
 
-    async def exec_shell(
-        self,
-        command: list[str],
-        *,
-        cwd: str | None = None,
-        timeout: float | None = None,
-    ) -> ExecResult:
-        return await self._run_job(command, cwd or self._cwd, data=None, timeout=timeout)
+            async def release():
+                for reader in readers:
+                    reader.cancel()
+                await asyncio.gather(*readers, return_exceptions=True)
+                for fd in output_fds:
+                    os.close(fd)
+                shutil.rmtree(control)
 
-    async def write_file(self, path: str, data: bytes) -> None:
-        if not isinstance(data, bytes):
-            raise TypeError("data must be bytes")
-        script = 'mkdir -p -- "$(dirname -- "$1")" && cat > "$1"'
-        result = await self._run_job(["/bin/sh", "-c", script, "sh", path], self._cwd, data=data, timeout=None)
-        if not result.ok():
-            raise OSError(result.stderr.decode(errors="replace"))
+            await finish_cleanup(release())

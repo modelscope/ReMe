@@ -82,8 +82,16 @@ class FileSandboxBackend(LocalProcessBackend):
         timeout: float | None = None,
     ) -> ExecResult:
         """Execute an argv list with a timeout inside the platform sandbox."""
-        process = await self._start_process(command, cwd or self._cwd)
-        return await self._communicate(process, timeout=timeout)
+        return await self._run_job(command, cwd or self._cwd, data=None, timeout=timeout)
+
+    async def _run_job(self, command: list[str], cwd: str, *, data: bytes | None, timeout: float | None) -> ExecResult:
+        """Run with optional stdin; platform backends may own a different job lifecycle."""
+        process = await self._start_process(
+            command,
+            cwd,
+            stdin=asyncio.subprocess.PIPE if data is not None else asyncio.subprocess.DEVNULL,
+        )
+        return await self._communicate(process, data=data, timeout=timeout)
 
     async def read_file(self, path: str) -> bytes:
         """Read through a sandboxed command so file rules still apply."""
@@ -97,11 +105,11 @@ class FileSandboxBackend(LocalProcessBackend):
         if not isinstance(data, bytes):
             raise TypeError("data must be bytes")
         script = 'mkdir -p -- "$(dirname -- "$1")" && cat > "$1"'
-        process = await self._start_process(
+        result = await self._run_job(
             ["/bin/sh", "-c", script, "sh", path],
             self._cwd,
-            stdin=asyncio.subprocess.PIPE,
+            data=data,
+            timeout=None,
         )
-        result = await self._communicate(process, data=data)
         if not result.ok():
             raise OSError(result.stderr.decode(errors="replace"))

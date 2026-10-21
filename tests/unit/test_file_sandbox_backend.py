@@ -4,6 +4,7 @@ import asyncio
 import os
 import plistlib
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 
 import pytest
@@ -108,6 +109,39 @@ def test_seatbelt_excludes_read_only_child_from_writable_parent(tmp_path):
         f'(allow file-write* (require-all (subpath "{tmp_path}") ' f'(require-not (subpath "{protected}"))))'
     ) in profile
     assert f'(allow file-write* (subpath "{output}"))' in profile
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("backend_class", [PathBubbleBackend, PathSeatbeltBackend])
+@pytest.mark.parametrize("data", [b"", b"hello\x00\n\xff"])
+async def test_sandbox_file_io_round_trip(tmp_path, monkeypatch, backend_class, data):
+    """The common file helpers preserve binary stdin, literal paths and write errors."""
+    from unittest.mock import AsyncMock
+
+    backend = backend_class(cwd=tmp_path, read_only_paths=[], writable_paths=[str(tmp_path)])
+    # Exercise shared file I/O with real pipes; OS isolation is checked separately.
+    monkeypatch.setattr(
+        backend,
+        "_start_process",
+        LocalProcessBackend()._start_process,  # pylint: disable=protected-access
+    )
+    if backend_class is PathSeatbeltBackend:
+        monkeypatch.setattr(sys, "platform", "darwin")
+        monkeypatch.setattr("reme.utils.file_sandbox.path_seatbelt_backend.shutil.which", lambda _: "sandbox-exec")
+        monkeypatch.setattr(backend, "_has_gui_launchd", AsyncMock(return_value=False))
+    warning = (
+        pytest.warns(RuntimeWarning, match="No macOS GUI launchd domain")
+        if backend_class is PathSeatbeltBackend
+        else nullcontext()
+    )
+    with warning:
+        path = str(tmp_path / "nested directory" / "literal ' ; name.bin")
+        await backend.write_file(path, data)
+        assert await backend.read_file(path) == data
+        with pytest.raises(TypeError, match="data must be bytes"):
+            await backend.write_file(path, "invalid")
+        with pytest.raises(OSError):
+            await backend.write_file(str(tmp_path), data)
 
 
 @pytest.mark.asyncio
@@ -221,7 +255,7 @@ async def test_python_job_selects_seatbelt_on_macos(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("mode", ["success", "failure", "timeout", "cancel", "error", "kickstart_error"])
+@pytest.mark.parametrize("mode", ["success", "failure", "timeout", "cancel", "error", "kickstart_error", "write"])
 async def test_seatbelt_launchd_lifecycle(tmp_path, monkeypatch, mode):
     """Every launchd outcome unregisters the job and removes its control files."""
     from unittest.mock import AsyncMock, Mock
@@ -241,6 +275,10 @@ async def test_seatbelt_launchd_lifecycle(tmp_path, monkeypatch, mode):
         calls.append(args[0])
         if args[0] == "bootstrap":
             control = Path(args[-1]).parent
+            if mode == "write":
+                with open(args[-1], "rb") as stream:
+                    job = plistlib.load(stream)
+                assert Path(job["StandardInPath"]).read_bytes() == b"binary\x00\xff"
         if args[0] == "kickstart" and mode == "kickstart_error":
             raise RuntimeError("kickstart failed")
         if args[0] == "bootout":
@@ -259,7 +297,12 @@ async def test_seatbelt_launchd_lifecycle(tmp_path, monkeypatch, mode):
 
     monkeypatch.setattr(backend, "_launchctl", launchctl)
     monkeypatch.setattr(backend, "_wait_status", wait_status)
-    task = asyncio.create_task(backend.exec_shell(["true"], timeout=0.01 if mode == "timeout" else None))
+    operation = (
+        backend.write_file(str(tmp_path / "note.bin"), b"binary\x00\xff")
+        if mode == "write"
+        else backend.exec_shell(["true"], timeout=0.01 if mode == "timeout" else None)
+    )
+    task = asyncio.create_task(operation)
     if mode == "cancel":
         await asyncio.wait_for(started.wait(), timeout=1)
         task.cancel()
@@ -270,7 +313,9 @@ async def test_seatbelt_launchd_lifecycle(tmp_path, monkeypatch, mode):
             await asyncio.wait_for(task, timeout=1)
     else:
         result = await asyncio.wait_for(task, timeout=1)
-        if mode == "timeout":
+        if mode == "write":
+            assert result is None
+        elif mode == "timeout":
             assert result == ExecResult(exit_code=-1, stdout=b"", stderr=b"timed out")
         else:
             assert result.exit_code == (7 if mode == "failure" else 0)

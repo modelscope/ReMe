@@ -1,9 +1,10 @@
-"""Cancellation during startup must not abandon OS-owned sandbox resources."""
+"""Cancellation during startup or shutdown must not abandon sandbox resources."""
 
 # pylint: disable=protected-access
 
 import asyncio
 import errno
+import os
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock
@@ -12,6 +13,167 @@ import pytest
 
 from reme.utils.file_sandbox.path_bubble_backend import PathBubbleBackend
 from reme.utils.file_sandbox.path_seatbelt_backend import LaunchctlError, PathSeatbeltBackend
+from reme.utils.local_backend import LocalProcessBackend
+
+
+@pytest.mark.asyncio
+async def test_repeated_cancellation_finishes_fifo_resource_release(tmp_path, monkeypatch):
+    """Even setup failure must drain reader finalizers before closing control resources."""
+    backend = PathSeatbeltBackend(cwd=tmp_path, read_only_paths=[], writable_paths=[])
+    monkeypatch.setattr("reme.utils.file_sandbox.path_seatbelt_backend.sys.platform", "darwin")
+    monkeypatch.setattr("reme.utils.file_sandbox.path_seatbelt_backend.shutil.which", lambda _: "sandbox-exec")
+    monkeypatch.setattr(backend, "_has_gui_launchd", AsyncMock(return_value=True))
+    started = asyncio.Event()
+    stopping = asyncio.Event()
+    reply = asyncio.Event()
+    fds = set()
+    stopped = set()
+    control = None
+
+    async def read_fifo(fd, *_args):
+        fds.add(fd)
+        if len(fds) == 2:
+            started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            stopping.set()
+            await reply.wait()
+            stopped.add(fd)
+
+    async def bootstrap(_domain, plist, _service):
+        nonlocal control
+        control = plist.parent
+        await started.wait()
+        raise RuntimeError("bootstrap failed")
+
+    monkeypatch.setattr(backend, "_read_fifo", read_fifo)
+    monkeypatch.setattr(backend, "_bootstrap", bootstrap)
+    task = asyncio.create_task(backend.exec_shell(["true"]))
+    try:
+        await asyncio.wait_for(stopping.wait(), timeout=1)
+        for _ in range(2):
+            task.cancel()
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            assert not task.done()
+            assert control.exists()
+        reply.set()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, timeout=1)
+        assert stopped == fds
+        assert not control.exists()
+        for fd in fds:
+            with pytest.raises(OSError) as exc:
+                os.fstat(fd)
+            assert exc.value.errno == errno.EBADF
+    finally:
+        reply.set()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+async def test_repeated_cancellation_waits_for_operation_and_backend_cleanup():
+    """Repeated cancellation cannot interrupt the operation's asynchronous finalizer."""
+    entered = asyncio.Event()
+    stopping = asyncio.Event()
+    stopped = asyncio.Event()
+    reply = asyncio.Event()
+    released = []
+
+    async def operation():
+        try:
+            entered.set()
+            await asyncio.Event().wait()
+        finally:
+            stopping.set()
+            await reply.wait()
+            stopped.set()
+
+    async def cleanup(completed):
+        assert stopped.is_set()
+        released.append(completed)
+
+    task = asyncio.create_task(LocalProcessBackend._execute(operation(), timeout=None, cleanup=cleanup))
+    try:
+        await asyncio.wait_for(entered.wait(), timeout=1)
+        task.cancel()
+        await asyncio.wait_for(stopping.wait(), timeout=1)
+        task.cancel()
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        assert not task.done()
+        reply.set()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, timeout=1)
+        assert released == [False]
+    finally:
+        reply.set()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("outcome", ["cancel", "success", "timeout"])
+async def test_execution_cleanup_unregisters_despite_repeated_cancellation(tmp_path, monkeypatch, outcome):
+    """Keep launchd control files until bootout finishes even after repeated cancellation."""
+    backend = PathSeatbeltBackend(cwd=tmp_path, read_only_paths=[], writable_paths=[])
+    monkeypatch.setattr("reme.utils.file_sandbox.path_seatbelt_backend.sys.platform", "darwin")
+    monkeypatch.setattr("reme.utils.file_sandbox.path_seatbelt_backend.shutil.which", lambda _: "sandbox-exec")
+    monkeypatch.setattr(backend, "_has_gui_launchd", AsyncMock(return_value=True))
+    monkeypatch.setattr(backend, "_kill_process", lambda _process: None)
+    running = asyncio.Event()
+    bootout_entered = asyncio.Event()
+    bootout_reply = asyncio.Event()
+    services = set()
+    control = None
+
+    async def launchctl(*args):
+        nonlocal control
+        if args[0] == "bootstrap":
+            control = Path(args[-1]).parent
+            services.add("sandbox")
+        elif args[0] == "kickstart":
+            return "12345"
+        elif args[0] == "bootout":
+            assert control.exists()
+            bootout_entered.set()
+            await bootout_reply.wait()
+            assert control.exists()
+            services.clear()
+        else:
+            pytest.fail(f"Unexpected launchctl call: {args[0]}")
+        return ""
+
+    async def wait_status(*_args):
+        running.set()
+        if outcome == "success":
+            return 0
+        await asyncio.Event().wait()
+        return 0
+
+    monkeypatch.setattr(backend, "_launchctl", launchctl)
+    monkeypatch.setattr(backend, "_wait_status", wait_status)
+    task = asyncio.create_task(backend.exec_shell(["true"], timeout=0.05 if outcome == "timeout" else None))
+    try:
+        await asyncio.wait_for(running.wait(), timeout=1)
+        if outcome == "cancel":
+            task.cancel()
+        await asyncio.wait_for(bootout_entered.wait(), timeout=1)
+        for _ in range(1 if outcome == "cancel" else 2):
+            task.cancel()
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            assert not task.done()
+            assert services
+            assert control.exists()
+        bootout_reply.set()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, timeout=1)
+        assert not services
+        assert not control.exists()
+    finally:
+        bootout_reply.set()
+        await asyncio.gather(task, return_exceptions=True)
 
 
 @pytest.mark.asyncio

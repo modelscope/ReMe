@@ -14,38 +14,21 @@ import pytest
 
 from reme.components.application_context import ApplicationContext
 from reme.steps.common.python_execute import PythonExecuteStep
-from reme.utils.file_sandbox.path_bubble_backend import PathBubbleBackend
 from reme.utils.file_sandbox.path_seatbelt_backend import PathSeatbeltBackend
 from reme.utils.local_backend import LocalProcessBackend, OUTPUT_LIMIT_BYTES
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("backend_name", ["local", "bubble", "seatbelt"])
 @pytest.mark.parametrize("stream", ["stdout", "stderr", "both"])
 @pytest.mark.parametrize("extra", [0, 1])
-async def test_pipe_output_boundary(tmp_path, monkeypatch, backend_name, stream, extra):
+async def test_pipe_output_boundary(tmp_path, stream, extra):
     """Each stream has its own budget; crossing either budget fails execution."""
-    local = LocalProcessBackend()
-    backend = local
-    if backend_name != "local":
-        backend_class = PathBubbleBackend if backend_name == "bubble" else PathSeatbeltBackend
-        backend = backend_class(cwd=tmp_path, read_only_paths=[], writable_paths=[])
-        # Exercise the shared collector with a real process, without requiring
-        # kernel sandbox support or changing the host launchd domain.
-        monkeypatch.setattr(backend, "_start_process", local._start_process)
-        if backend_name == "seatbelt":
-            monkeypatch.setattr("reme.utils.file_sandbox.path_seatbelt_backend.sys.platform", "darwin")
-            monkeypatch.setattr("reme.utils.file_sandbox.path_seatbelt_backend.shutil.which", lambda _: "sandbox-exec")
-            monkeypatch.setattr(backend, "_has_gui_launchd", AsyncMock(return_value=False))
+    backend = LocalProcessBackend()
     size = OUTPUT_LIMIT_BYTES + extra
     code = "import os;" + ";".join(
         f"os.write({fd}, b'x' * {size})" for fd in (1, 2) if stream in ("both", "stdout" if fd == 1 else "stderr")
     )
-    if backend_name == "seatbelt":
-        with pytest.warns(RuntimeWarning, match="No macOS GUI launchd domain"):
-            result = await backend.exec_shell([sys.executable, "-c", code], timeout=5)
-    else:
-        result = await backend.exec_shell([sys.executable, "-c", code], timeout=5)
+    result = await backend.exec_shell([sys.executable, "-c", code], cwd=str(tmp_path), timeout=5)
     assert len(result.stdout) <= OUTPUT_LIMIT_BYTES
     assert len(result.stderr) <= OUTPUT_LIMIT_BYTES
     if extra:

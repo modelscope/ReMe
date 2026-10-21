@@ -519,6 +519,55 @@ async def test_git_pretty_config_cannot_launch_gpg(tmp_path):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("subcommand", ["status", "diff", "log", "show", "rev-parse", "ls-files"])
+@pytest.mark.parametrize("flag", ["--help", "--hel", "--he", "--h", "-h"])
+async def test_git_help_flags_are_denied(tmp_path, monkeypatch, subcommand, flag):
+    """All allowlisted Git commands reject help before starting a process."""
+
+    async def unexpected_process(*_args, **_kwargs):
+        pytest.fail("Git help must be denied before execution")
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", unexpected_process)
+    tool = AutoBash(cwd=tmp_path)
+    command = f"git {subcommand} {flag}"
+
+    assert not await tool.check_read_only({"command": command})
+    chunks = [chunk async for chunk in tool.call(command)]
+    assert len(chunks) == 1
+    assert chunks[0].state == ToolResultState.ERROR
+    assert "Permission denied" in chunks[0].content[0].text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("subcommand", ["rev-parse", "ls-files"])
+async def test_git_help_cannot_run_configured_man_viewer(tmp_path, monkeypatch, subcommand):
+    """Help flags must not dispatch repository-configured commands on the host."""
+    monkeypatch.delenv("GIT_MAN_VIEWER", raising=False)
+
+    def git(*args):
+        return subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    git("init", "-q")
+    marker = tmp_path / "denied.txt"
+    git("config", "man.viewer", "reme-test")
+    git("config", "man.reme-test.cmd", f'echo ran > "{marker}"')
+    # Prove that this fixture would execute the helper without the guard.
+    git(subcommand, "--help")
+    assert marker.exists()
+    marker.unlink()
+    tool = AutoBash(cwd=tmp_path)
+    command = f"git {subcommand} --help"
+
+    chunks = [chunk async for chunk in tool.call(command)]
+
+    assert not marker.exists()
+    assert not await tool.check_read_only({"command": command})
+    assert len(chunks) == 1
+    assert chunks[0].state == ToolResultState.ERROR
+    assert "Permission denied" in chunks[0].content[0].text
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("helper", ["fsmonitor", "diff", "textconv", "clean"])
 async def test_git_configured_helpers_cannot_write(tmp_path, helper):
     """Repository configuration cannot turn an allowed read into helper execution."""
