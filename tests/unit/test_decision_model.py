@@ -238,6 +238,88 @@ def test_failed_or_cancelled_call_does_not_block_close(provider, failure):
     asyncio.run(run())
 
 
+@pytest.mark.parametrize("borrowed", [False, True])
+def test_cancelled_close_drains_requests_and_releases_model(provider, borrowed):
+    """Shutdown defers cancellation until active calls and model cleanup finish."""
+    _, model = provider
+
+    async def run():
+        started, release = asyncio.Event(), asyncio.Event()
+
+        async def reply(**_kwargs):
+            started.set()
+            await release.wait()
+
+        model.side_effect = reply
+        component = AgentScopeAsDecisionModel(credential={"api_key": "test-key"})
+        if borrowed:
+            component.model = model
+        call = asyncio.create_task(component(state="hello", questions={"q": {"type": "binary"}}))
+        await asyncio.wait_for(started.wait(), 2)
+        close = asyncio.create_task(component.close())
+        await asyncio.sleep(0)
+        try:
+            for _ in range(2):
+                close.cancel()
+                await asyncio.sleep(0)
+                assert not close.done()
+                assert component.is_started
+                assert component.model is model
+                model.client.aclose.assert_not_awaited()
+            release.set()
+            await asyncio.wait_for(call, 2)
+            with pytest.raises(asyncio.CancelledError):
+                await asyncio.wait_for(close, 2)
+            assert component.model is None
+            assert not component.is_started
+            assert not component._owns_model
+            await component.close()
+            assert model.client.aclose.await_count == (0 if borrowed else 1)
+        finally:
+            release.set()
+            await asyncio.gather(call, close, return_exceptions=True)
+
+    asyncio.run(run())
+
+
+def test_cancelled_close_finishes_owned_client_cleanup(provider):
+    """Repeated shutdown cancellation cannot interrupt the client's own close."""
+    _, model = provider
+
+    async def run():
+        closing, release, finished = asyncio.Event(), asyncio.Event(), asyncio.Event()
+
+        async def close_client():
+            closing.set()
+            await release.wait()
+            finished.set()
+
+        model.client.aclose.side_effect = close_client
+        component = AgentScopeAsDecisionModel(credential={"api_key": "test-key"})
+        await component(state="hello", questions={"q": {"type": "binary"}})
+        close = asyncio.create_task(component.close())
+        await asyncio.wait_for(closing.wait(), 2)
+        try:
+            for _ in range(2):
+                close.cancel()
+                await asyncio.sleep(0)
+                assert not close.done()
+                assert component.is_started
+            release.set()
+            with pytest.raises(asyncio.CancelledError):
+                await asyncio.wait_for(close, 2)
+            assert finished.is_set()
+            assert component.model is None
+            assert not component.is_started
+            await component.close()
+            model.client.aclose.assert_awaited_once()
+        finally:
+            release.set()
+            await asyncio.gather(close, return_exceptions=True)
+
+    asyncio.run(run())
+
+
 def test_client_close_error_clears_cached_model(provider):
     """A failed close cannot leave a stale client selected on the next start."""
     factory, model = provider

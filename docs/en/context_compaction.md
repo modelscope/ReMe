@@ -173,5 +173,6 @@ The YAML `model` value remains the provider model name. The runtime `model` prop
 and does not construct a client on access. Inject before the first request; ReMe validates and converts JSON
 questions normally, but does not require separate ReMe credentials or close the borrowed client. The host must
 keep the instance alive until ReMe has finished its calls, then close it itself. Close the component before
-replacing an internally constructed model or any model with active requests. Component shutdown detaches the
-instance; inject again before restarting a borrowed-model component. Standalone credential-based behavior is unchanged.
+replacing an internally constructed model or any model with active requests. Shutdown waits for active calls and
+owned-client cleanup even when cancelled, then propagates cancellation. Component shutdown detaches the instance;
+inject again before restarting a borrowed-model component. Standalone credential-based behavior is unchanged.

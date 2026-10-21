@@ -142,6 +142,21 @@ class AgentScopeAsDecisionModel(BaseAsDecisionModel):
                 self._idle.set()
 
     async def _close(self) -> None:
+        """Finish draining and cleanup before propagating shutdown cancellation."""
+        cleanup = asyncio.create_task(self._release_model())
+        cancellation = None
+        while not cleanup.done():
+            try:
+                await asyncio.shield(cleanup)
+            except asyncio.CancelledError as exc:
+                # Keep the lifecycle lock until cleanup finishes, even after
+                # repeated cancellation. No cleanup task outlives close().
+                cancellation = exc
+        cleanup.result()
+        if cancellation is not None:
+            raise cancellation
+
+    async def _release_model(self) -> None:
         """Release the owned TypeSafe client and allow a later fresh start."""
         await self._idle.wait()
         model, owned = self._model, self._owns_model
