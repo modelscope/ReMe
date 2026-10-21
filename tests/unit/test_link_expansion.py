@@ -11,8 +11,8 @@ Two pure helpers:
 
 # pylint: disable=protected-access
 
+from contextlib import chdir as temp_chdir
 import asyncio
-import os
 import tempfile
 import warnings
 from pathlib import Path
@@ -24,22 +24,6 @@ from reme.utils.wikilink_handler import WikilinkHandler
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="jieba")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="pkg_resources")
-
-
-class temp_chdir:
-    """Test helper: chdir to ``path`` on enter, restore previous cwd on exit."""
-
-    def __init__(self, path):
-        self.path = path
-        self.old = None
-
-    def __enter__(self):
-        self.old = os.getcwd()
-        os.chdir(self.path)
-        return self
-
-    def __exit__(self, *exc):
-        os.chdir(self.old)
 
 
 async def _store_with(files: dict[str, dict]) -> LocalFileStore:
@@ -89,7 +73,6 @@ def test_expand_links_empty_paths_short_circuits():
             result = await expand_links(store, [])
             assert result == {}
             await store.close()
-        print("✓ test_expand_links_empty_paths_short_circuits passed")
 
     asyncio.run(run())
 
@@ -123,7 +106,6 @@ def test_expand_links_returns_outlinks_and_inlinks_with_meta():
             assert result["B.md"]["outlinks"] == []
 
             await store.close()
-        print("✓ test_expand_links_returns_outlinks_and_inlinks_with_meta passed")
 
     asyncio.run(run())
 
@@ -149,7 +131,6 @@ def test_expand_links_max_per_direction_caps_neighbors():
             assert len(out) == 2
             assert [n["path"] for n in out] == ["a.md", "b.md"]
             await store.close()
-        print("✓ test_expand_links_max_per_direction_caps_neighbors passed")
 
     asyncio.run(run())
 
@@ -168,7 +149,6 @@ def test_expand_links_node_without_meta_returns_empty_meta_dict():
             result = await expand_links(store, ["src.md"])
             assert result["src.md"]["outlinks"][0]["meta"] == {}
             await store.close()
-        print("✓ test_expand_links_node_without_meta_returns_empty_meta_dict passed")
 
     asyncio.run(run())
 
@@ -180,7 +160,6 @@ def test_render_expansion_lines_empty_input_yields_empty_list():
     """Both directions empty ⇒ no lines."""
     assert not render_expansion_lines({})
     assert not render_expansion_lines({"outlinks": [], "inlinks": []})
-    print("✓ test_render_expansion_lines_empty_input_yields_empty_list passed")
 
 
 def test_render_expansion_lines_outlinks_only():
@@ -200,7 +179,6 @@ def test_render_expansion_lines_outlinks_only():
         "  outlinks (1):",
         '    → B.md  name="B"  description="beta"',
     ]
-    print("✓ test_render_expansion_lines_outlinks_only passed")
 
 
 def test_render_expansion_lines_inlinks_only_with_anchor():
@@ -221,7 +199,6 @@ def test_render_expansion_lines_inlinks_only_with_anchor():
         "    ← src.md  (no meta)",
         "        via anchor=#intro",
     ]
-    print("✓ test_render_expansion_lines_inlinks_only_with_anchor passed")
 
 
 def test_render_expansion_lines_both_directions_in_order():
@@ -239,15 +216,3 @@ def test_render_expansion_lines_both_directions_in_order():
     assert lines[2] == "  inlinks (1):"
     assert lines[1].lstrip().startswith("→")
     assert lines[3].lstrip().startswith("←")
-    print("✓ test_render_expansion_lines_both_directions_in_order passed")
-
-
-if __name__ == "__main__":
-    test_expand_links_empty_paths_short_circuits()
-    test_expand_links_returns_outlinks_and_inlinks_with_meta()
-    test_expand_links_max_per_direction_caps_neighbors()
-    test_expand_links_node_without_meta_returns_empty_meta_dict()
-    test_render_expansion_lines_empty_input_yields_empty_list()
-    test_render_expansion_lines_outlinks_only()
-    test_render_expansion_lines_inlinks_only_with_anchor()
-    test_render_expansion_lines_both_directions_in_order()

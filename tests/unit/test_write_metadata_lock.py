@@ -14,8 +14,8 @@ interleaving).
 
 # pylint: disable=protected-access
 
+from contextlib import chdir as temp_chdir
 import asyncio
-import os
 import tempfile
 import warnings
 from pathlib import Path
@@ -27,22 +27,6 @@ from reme.steps.file_io import write as crud_write
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="jieba")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="pkg_resources")
-
-
-class temp_chdir:
-    """Context manager to temporarily chdir into a path and restore on exit."""
-
-    def __init__(self, path):
-        self.path = path
-        self.old = None
-
-    def __enter__(self):
-        self.old = os.getcwd()
-        os.chdir(self.path)
-        return self
-
-    def __exit__(self, *exc):
-        os.chdir(self.old)
 
 
 def _run(coro):
@@ -87,7 +71,6 @@ def test_write_metadata_extends_frontmatter():
             assert post.metadata["priority"] == 3
             assert post.content.strip() == "body text"
             await store.close()
-        print("✓ test_write_metadata_extends_frontmatter passed")
 
     _run(run())
 
@@ -112,7 +95,6 @@ def test_write_metadata_reserved_keys_ignored():
             assert post.metadata["description"] == "ExplicitDesc"
             assert post.metadata["tag"] == "kept"
             await store.close()
-        print("✓ test_write_metadata_reserved_keys_ignored passed")
 
     _run(run())
 
@@ -134,7 +116,6 @@ def test_write_no_metadata_preserves_legacy_shape():
             post = frontmatter.loads((Path(tmp) / "note.md").read_text(encoding="utf-8"))
             assert set(post.metadata.keys()) == {"name", "description"}
             await store.close()
-        print("✓ test_write_no_metadata_preserves_legacy_shape passed")
 
     _run(run())
 
@@ -157,7 +138,6 @@ def test_write_non_md_drops_metadata():
             on_disk = (Path(tmp) / "note.txt").read_text(encoding="utf-8")
             assert on_disk == "plain body"
             await store.close()
-        print("✓ test_write_non_md_drops_metadata passed")
 
     _run(run())
 
@@ -202,6 +182,5 @@ def test_write_lock_serializes_concurrent_writes():
             idx_body = post.content.strip().split("-", 1)[1]
             assert idx_name == idx_desc == idx_body, (idx_name, idx_desc, idx_body)
             await store.close()
-        print("✓ test_write_lock_serializes_concurrent_writes passed")
 
     _run(run())

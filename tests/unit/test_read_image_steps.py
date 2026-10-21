@@ -13,9 +13,9 @@ Coverage:
 
 # pylint: disable=protected-access
 
+from contextlib import chdir as temp_chdir
 import asyncio
 import base64
-import os
 import tempfile
 import warnings
 from pathlib import Path
@@ -25,22 +25,6 @@ from reme.steps.file_io import read_image as crud_read_image
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="jieba")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="pkg_resources")
-
-
-class temp_chdir:
-    """Context manager to temporarily chdir into a path and restore on exit."""
-
-    def __init__(self, path):
-        self.path = path
-        self.old = None
-
-    def __enter__(self):
-        self.old = os.getcwd()
-        os.chdir(self.path)
-        return self
-
-    def __exit__(self, *exc):
-        os.chdir(self.old)
 
 
 def _run(coro):
@@ -83,7 +67,6 @@ def test_read_image_png():
             assert resp.metadata["size_bytes"] == len(payload), resp.metadata
             assert "oversized" not in resp.metadata, resp.metadata
             await store.close()
-        print("✓ test_read_image_png passed")
 
     _run(run())
 
@@ -101,7 +84,6 @@ def test_read_image_jpeg():
             assert base64.b64decode(resp.answer) == payload
             assert resp.metadata["mime"] == "image/jpeg", resp.metadata
             await store.close()
-        print("✓ test_read_image_jpeg passed")
 
     _run(run())
 
@@ -127,7 +109,6 @@ def test_read_image_oversized():
                 pass  # expected — answer is notice text, not base64
             assert "exceeds max_bytes" in resp.answer
             await store.close()
-        print("✓ test_read_image_oversized passed")
 
     _run(run())
 
@@ -146,7 +127,6 @@ def test_read_image_unknown_suffix():
             assert resp.metadata["non_image_warning"] is True, resp.metadata
             assert resp.metadata["mime"] is None, resp.metadata
             await store.close()
-        print("✓ test_read_image_unknown_suffix passed")
 
     _run(run())
 
@@ -165,7 +145,6 @@ def test_read_image_no_suffix():
             assert resp.metadata["mime"] is None, resp.metadata
             assert base64.b64decode(resp.answer) == payload
             await store.close()
-        print("✓ test_read_image_no_suffix passed")
 
     _run(run())
 
@@ -181,7 +160,6 @@ def test_read_image_missing():
             assert resp.answer.startswith("Error:"), resp
             assert "does not exist" in resp.answer
             await store.close()
-        print("✓ test_read_image_missing passed")
 
     _run(run())
 
@@ -197,7 +175,6 @@ def test_read_image_is_directory():
             assert resp.success is False, resp
             assert "is not a file" in resp.answer, resp
             await store.close()
-        print("✓ test_read_image_is_directory passed")
 
     _run(run())
 
@@ -212,7 +189,6 @@ def test_read_image_path_required():
             assert resp.success is False, resp
             assert "`path` is required" in resp.answer, resp
             await store.close()
-        print("✓ test_read_image_path_required passed")
 
     _run(run())
 
@@ -228,6 +204,5 @@ def test_read_image_invalid_max_bytes():
             assert resp.success is False, resp
             assert "positive integer" in resp.answer, resp
             await store.close()
-        print("✓ test_read_image_invalid_max_bytes passed")
 
     _run(run())

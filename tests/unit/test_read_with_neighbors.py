@@ -13,8 +13,8 @@ so these tests focus on the *integration* layer:
 
 # pylint: disable=protected-access
 
+from contextlib import chdir as temp_chdir
 import asyncio
-import os
 import tempfile
 import warnings
 from pathlib import Path
@@ -26,22 +26,6 @@ from reme.utils.wikilink_handler import WikilinkHandler
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="jieba")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="pkg_resources")
-
-
-class temp_chdir:
-    """Context manager to temporarily chdir into a path and restore on exit."""
-
-    def __init__(self, path):
-        self.path = path
-        self.old = None
-
-    def __enter__(self):
-        self.old = os.getcwd()
-        os.chdir(self.path)
-        return self
-
-    def __exit__(self, *exc):
-        os.chdir(self.old)
 
 
 def _run(coro):
@@ -102,7 +86,6 @@ def test_read_without_neighbors_default():
             assert "Related neighbors" not in str(resp.answer)
             assert "link_expansion" not in resp.metadata
             await store.close()
-        print("✓ test_read_without_neighbors_default passed")
 
     _run(run())
 
@@ -136,7 +119,6 @@ def test_read_with_neighbors_injects_block_and_metadata():
             assert expansion["A.md"]["outlinks"][0]["path"] == "B.md"
             assert expansion["A.md"]["outlinks"][0]["meta"] == {"name": "B Doc", "description": "beta"}
             await store.close()
-        print("✓ test_read_with_neighbors_injects_block_and_metadata passed")
 
     _run(run())
 
@@ -177,7 +159,6 @@ def test_read_with_neighbors_no_links_no_block():
             assert "Related neighbors" not in str(resp.answer)
             assert "link_expansion" not in resp.metadata
             await store.close()
-        print("✓ test_read_with_neighbors_no_links_no_block passed")
 
     _run(run())
 
@@ -198,6 +179,5 @@ def test_read_with_neighbors_non_md_falls_through():
             assert "Related neighbors" not in str(resp.answer)
             assert "link_expansion" not in resp.metadata
             await store.close()
-        print("✓ test_read_with_neighbors_non_md_falls_through passed")
 
     _run(run())

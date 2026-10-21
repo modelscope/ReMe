@@ -10,6 +10,7 @@ downstream ``update_index_step`` to consume; tests assert against that key.
 
 # pylint: disable=protected-access,too-many-lines
 
+from contextlib import chdir as temp_chdir
 import asyncio
 import datetime
 import os
@@ -53,22 +54,6 @@ from reme.steps.index._watch_rules import WatchRule, build_watch_rules, collect_
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="jieba")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="pkg_resources")
-
-
-class temp_chdir:
-    """Context manager to temporarily chdir into a path and restore on exit."""
-
-    def __init__(self, path):
-        self.path = path
-        self.old = None
-
-    def __enter__(self):
-        self.old = os.getcwd()
-        os.chdir(self.path)
-        return self
-
-    def __exit__(self, *exc):
-        os.chdir(self.old)
 
 
 def write_file(path: Path, content: str = "x") -> Path:
@@ -148,7 +133,6 @@ def test_build_watch_rules_basic():
     assert rules[0].path == workspace / "daily"
     assert rules[0].suffixes == ["md"]
     assert rules[1].path == workspace / "digest"
-    print("✓ test_build_watch_rules_basic passed")
 
 
 def test_build_watch_rules_multiple_suffixes():
@@ -167,7 +151,6 @@ def test_build_watch_rules_multiple_suffixes():
     assert len(rules) == 2
     assert rules[0].suffixes == ["md", "jsonl"]
     assert rules[1].suffixes == ["md", "jsonl"]
-    print("✓ test_build_watch_rules_multiple_suffixes passed")
 
 
 def test_build_watch_rules_fallback_literal():
@@ -176,7 +159,6 @@ def test_build_watch_rules_fallback_literal():
     workspace = Path("/fake/workspace")
     rules = build_watch_rules(app_config, workspace, watch_dirs=["custom_dir"], watch_suffixes=["txt"])
     assert rules[0].path == workspace / "custom_dir"
-    print("✓ test_build_watch_rules_fallback_literal passed")
 
 
 def test_match_file_suffix():
@@ -186,7 +168,6 @@ def test_match_file_suffix():
     assert match_file("/workspace/daily/sub/note.md", rules)
     assert not match_file("/workspace/daily/file.txt", rules)
     assert not match_file("/workspace/other/file.md", rules)
-    print("✓ test_match_file_suffix passed")
 
 
 def test_match_file_suffix_is_case_insensitive():
@@ -203,7 +184,6 @@ def test_match_file_no_suffix_filter():
     assert match_file("/workspace/resource/anything.xyz", rules)
     assert match_file("/workspace/resource/sub/deep.pdf", rules)
     assert not match_file("/workspace/other/file.md", rules)
-    print("✓ test_match_file_no_suffix_filter passed")
 
 
 def test_collect_existing_filters():
@@ -227,7 +207,6 @@ def test_collect_existing_filters():
         assert str((daily / "ignore.txt").absolute()) not in paths
         assert str((resource / "data.json").absolute()) in paths
         assert str((resource / "binary.png").absolute()) not in paths
-    print("✓ test_collect_existing_filters passed")
 
 
 def test_collect_existing_matches_uppercase_suffixes():
@@ -270,7 +249,6 @@ def test_clear_and_scan_flow_includes_jsonl_when_configured():
                 assert paths == {"note.md", "events.jsonl"}
             finally:
                 await fs.close()
-        print("✓ test_clear_and_scan_defaults_include_jsonl passed")
 
     asyncio.run(run())
 
@@ -318,7 +296,6 @@ def test_scan_changes_initial_all_added():
                 assert len(ctx["changes"]) == 2
             finally:
                 await _teardown(fs, chunker)
-        print("✓ test_scan_changes_initial_all_added passed")
 
     asyncio.run(run())
 
@@ -341,7 +318,6 @@ def test_scan_changes_no_changes():
                 assert ctx["changes"] == []
             finally:
                 await _teardown(fs, chunker)
-        print("✓ test_scan_changes_no_changes passed")
 
     asyncio.run(run())
 
@@ -371,7 +347,6 @@ def test_scan_changes_detect_modify_delete():
                 assert counts == {"added": 1, "modified": 1, "deleted": 1}
             finally:
                 await _teardown(fs, chunker)
-        print("✓ test_scan_changes_detect_modify_delete passed")
 
     asyncio.run(run())
 
@@ -390,7 +365,6 @@ def test_scan_changes_missing_dir_skipped():
                 assert resp.metadata["counts"] == {"added": 0, "modified": 0, "deleted": 0}
             finally:
                 await _teardown(fs, chunker)
-        print("✓ test_scan_changes_missing_dir_skipped passed")
 
     asyncio.run(run())
 
@@ -416,7 +390,6 @@ def test_scan_changes_resource_dir():
                 assert resp.metadata["counts"]["added"] == 2
             finally:
                 await _teardown(fs, chunker)
-        print("✓ test_scan_changes_resource_dir passed")
 
     asyncio.run(run())
 
@@ -442,7 +415,6 @@ def test_init_changes_named_file_catalog_monitor():
                 assert ctx["changes"][0]["change"] == "added"
             finally:
                 await catalog.close()
-        print("✓ test_init_changes_named_file_catalog_monitor passed")
 
     asyncio.run(run())
 
@@ -461,7 +433,6 @@ def test_bucket_changes_coalesces_by_final_file_state():
         assert buckets[Change.modified] == [str(p)]
         assert buckets[Change.added] == []
         assert buckets[Change.deleted] == []
-    print("✓ test_bucket_changes_coalesces_by_final_file_state passed")
 
 
 def test_update_catalog_relative_path_uses_workspace():
@@ -484,7 +455,6 @@ def test_update_catalog_relative_path_uses_workspace():
                 assert [n.path for n in nodes] == ["daily/a.md"]
             finally:
                 await catalog.close()
-        print("✓ test_update_catalog_relative_path_uses_workspace passed")
 
     asyncio.run(run())
 
@@ -1092,7 +1062,6 @@ def test_index_update_loop_init_dispatch_updates_store_across_batches():
             finally:
                 await chunker.close()
                 await fs.close()
-        print("✓ test_index_update_loop_init_dispatch_updates_store_across_batches passed")
 
     asyncio.run(run())
 
@@ -1158,7 +1127,6 @@ def test_digest_watch_loop_init_dispatch_updates_named_catalog_and_logs():
             finally:
                 await resource_catalog.close()
                 await digest_catalog.close()
-        print("✓ test_digest_watch_loop_init_dispatch_updates_named_catalog_and_logs passed")
 
     asyncio.run(run())
 
@@ -1181,8 +1149,6 @@ def test_watch_changes_default_low_power_timing():
     assert custom.step == 250
     assert custom.poll_delay_ms == 3000
 
-    print("✓ test_watch_changes_default_low_power_timing passed")
-
 
 def test_watch_changes_requires_stop_event():
     """Missing stop_event in context raises a clear error."""
@@ -1200,7 +1166,6 @@ def test_watch_changes_requires_stop_event():
                 assert "stop_event" in str(e)
             else:
                 raise AssertionError("expected RuntimeError")
-        print("✓ test_watch_changes_requires_stop_event passed")
 
     asyncio.run(run())
 
@@ -1221,7 +1186,6 @@ def test_watch_changes_raises_no_valid_paths():
                 assert "No valid watch paths" in str(e)
             else:
                 raise AssertionError("expected RuntimeError")
-        print("✓ test_watch_changes_raises_no_valid_paths passed")
 
     asyncio.run(run())
 
@@ -1244,8 +1208,6 @@ def test_watch_changes_filter_matches_rules():
         assert not step._filter(Change.added, str(workspace / "daily/foo.txt"))
         assert not step._filter(Change.added, str(workspace / "resource/file.md"))
 
-    print("✓ test_watch_changes_filter_matches_rules passed")
-
 
 def test_watch_changes_filter_matches_uppercase_suffixes():
     """The live watcher accepts uppercase extensions configured in lowercase."""
@@ -1266,8 +1228,6 @@ def test_watch_changes_dispatch_steps_list():
     """dispatch_steps config is stored by BaseStep."""
     step = WatchChangesStep(dispatch_steps=["update_catalog_step", "auto_resource_step"])
     assert step.dispatch_step_specs == ["update_catalog_step", "auto_resource_step"]
-
-    print("✓ test_watch_changes_dispatch_steps_list passed")
 
 
 def test_auto_resource_batch_deleted_changes():
@@ -1304,7 +1264,6 @@ def test_auto_resource_batch_deleted_changes():
                 assert not note_path.exists()
             finally:
                 await fs.close()
-        print("✓ test_auto_resource_batch_deleted_changes passed")
 
     asyncio.run(run())
 
@@ -1620,7 +1579,6 @@ def test_auto_resource_accepts_loose_root_resource():
                 "created": True,
                 "source_path": source.resolve(),
             }
-        print("✓ test_auto_resource_accepts_loose_root_resource passed")
 
     asyncio.run(run())
 
@@ -1666,7 +1624,6 @@ def test_auto_resource_loose_root_resource_keeps_existing_dated_resource():
                 "created": True,
                 "source_path": source.resolve(),
             }
-        print("✓ test_auto_resource_loose_root_resource_keeps_existing_dated_resource passed")
 
     asyncio.run(run())
 
@@ -1703,7 +1660,6 @@ def test_auto_resource_modified_missing_note_uses_create_tools():
                 assert (cwd / "daily" / "2026-01-01" / "resource-summary.md").exists()
             finally:
                 await fs.close()
-        print("✓ test_auto_resource_modified_missing_note_uses_create_tools passed")
 
     asyncio.run(run())
 
@@ -1828,7 +1784,6 @@ def test_auto_resource_sanitizes_invalid_generated_name():
                 assert "name: bad-name" in (cwd / "daily" / "2026-01-01" / "bad-name.md").read_text(encoding="utf-8")
             finally:
                 await fs.close()
-        print("✓ test_auto_resource_sanitizes_invalid_generated_name passed")
 
     asyncio.run(run())
 
@@ -1869,7 +1824,6 @@ def test_auto_resource_uniquifies_conflicting_generated_name():
                 assert not (cwd / "daily" / "2026-01-01" / "report.md").exists()
             finally:
                 await fs.close()
-        print("✓ test_auto_resource_uniquifies_conflicting_generated_name passed")
 
     asyncio.run(run())
 
@@ -1903,7 +1857,6 @@ def test_auto_resource_update_finds_renamed_note_by_source_resource():
                 assert "Target note path: daily/2026-01-01/generated-name.md" in wrapper.inputs
             finally:
                 await fs.close()
-        print("✓ test_auto_resource_update_finds_renamed_note_by_source_resource passed")
 
     asyncio.run(run())
 
@@ -1948,7 +1901,6 @@ def test_auto_resource_update_keeps_existing_renamed_path():
                 assert not (cwd / "daily" / "2026-01-01" / "new-suggestion.md").exists()
             finally:
                 await fs.close()
-        print("✓ test_auto_resource_update_keeps_existing_renamed_path passed")
 
     asyncio.run(run())
 
@@ -1981,7 +1933,6 @@ def test_auto_resource_reports_unmodified_when_agent_skips_existing_note():
                 assert resp.metadata["modified"] is False
             finally:
                 await fs.close()
-        print("✓ test_auto_resource_reports_unmodified_when_agent_skips_existing_note passed")
 
     asyncio.run(run())
 
@@ -2013,7 +1964,6 @@ def test_auto_resource_preserves_unowned_loose_root_same_stem_note():
                 assert note_path.read_text(encoding="utf-8") == "---\nname: report\n---\nbody\n"
             finally:
                 await fs.close()
-        print("✓ test_auto_resource_preserves_unowned_loose_root_same_stem_note passed")
 
     asyncio.run(run())
 
@@ -2044,7 +1994,6 @@ def test_auto_resource_deletes_renamed_note_by_source_resource():
                 assert not note_path.exists()
             finally:
                 await fs.close()
-        print("✓ test_auto_resource_deletes_renamed_note_by_source_resource passed")
 
     asyncio.run(run())
 
@@ -2096,7 +2045,6 @@ def test_auto_memory_reports_modified_for_create_and_false_for_skip():
                 assert context["changes"] == []
             finally:
                 await fs.close()
-        print("✓ test_auto_memory_reports_modified_for_create_and_false_for_skip passed")
 
     asyncio.run(run())
 
@@ -2148,7 +2096,6 @@ def test_auto_memory_uses_message_day_for_historical_create():
                 assert (cwd / "daily" / historical_day / "memory.md").is_file()
             finally:
                 await fs.close()
-        print("✓ test_auto_memory_uses_message_day_for_historical_create passed")
 
     asyncio.run(run())
 
@@ -2194,7 +2141,6 @@ def test_auto_memory_rejects_invalid_explicit_date_before_saving_session():
                 assert wrapper.inputs == ""
             finally:
                 await fs.close()
-        print("✓ test_auto_memory_rejects_invalid_explicit_date_before_saving_session passed")
 
     asyncio.run(run())
 
@@ -2237,8 +2183,6 @@ def test_auto_resource_result_hook_is_optional_and_isolated():
             app_ctx.metadata = {"qwenpaw_memory_result_hook": failing_hook}
             await step._emit_result_hook(changes=changes, results=results)
 
-        print("✓ test_auto_resource_result_hook_is_optional_and_isolated passed")
-
     asyncio.run(run())
 
 
@@ -2259,48 +2203,5 @@ def test_log_changes_step():
         resp = await step(ctx)
         assert resp.success is True
         assert resp.metadata["count"] == 2
-        print("✓ test_log_changes_step passed")
 
     asyncio.run(run())
-
-
-if __name__ == "__main__":
-    print("\n=== Background Steps Tests ===")
-    # _watch_rules
-    test_build_watch_rules_basic()
-    test_build_watch_rules_multiple_suffixes()
-    test_build_watch_rules_fallback_literal()
-    test_match_file_suffix()
-    test_match_file_no_suffix_filter()
-    test_collect_existing_filters()
-    # InitChangesStep
-    test_clear_and_scan_flow_includes_jsonl_when_configured()
-    test_scan_changes_initial_all_added()
-    test_scan_changes_no_changes()
-    test_scan_changes_detect_modify_delete()
-    test_scan_changes_missing_dir_skipped()
-    test_scan_changes_resource_dir()
-    test_index_update_loop_init_dispatch_updates_store_across_batches()
-    test_digest_watch_loop_init_dispatch_updates_named_catalog_and_logs()
-    # WatchChangesStep
-    test_watch_changes_default_low_power_timing()
-    test_watch_changes_requires_stop_event()
-    test_watch_changes_raises_no_valid_paths()
-    test_watch_changes_filter_matches_rules()
-    test_watch_changes_dispatch_steps_list()
-    test_auto_resource_batch_deleted_changes()
-    test_auto_resource_accepts_loose_root_resource()
-    test_auto_resource_loose_root_resource_keeps_existing_dated_resource()
-    test_auto_resource_modified_missing_note_uses_create_tools()
-    test_auto_resource_sanitizes_invalid_generated_name()
-    test_auto_resource_uniquifies_conflicting_generated_name()
-    test_auto_resource_update_finds_renamed_note_by_source_resource()
-    test_auto_resource_update_keeps_existing_renamed_path()
-    test_auto_memory_uses_message_day_for_historical_create()
-    test_auto_memory_rejects_invalid_explicit_date_before_saving_session()
-    test_auto_resource_preserves_unowned_loose_root_same_stem_note()
-    test_auto_resource_deletes_renamed_note_by_source_resource()
-    test_auto_resource_result_hook_is_optional_and_isolated()
-    # LogChangesStep
-    test_log_changes_step()
-    print("\n所有测试通过!")
