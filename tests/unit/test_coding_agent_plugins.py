@@ -323,6 +323,24 @@ def test_recall_is_bounded_and_cannot_close_evidence_wrapper(adapter, monkeypatc
     assert call.call_args.args[3] == (10 if adapter.HOST == "codex" else 5)
 
 
+@pytest.mark.parametrize("adapter", ["codex"], indirect=True)
+@pytest.mark.parametrize("notice_name", ["NO_RESULTS_MESSAGE", "ALL_RETURNED_MESSAGE"])
+def test_codex_recall_does_not_inject_search_notices(adapter, monkeypatch, notice_name):
+    mcp = importlib.import_module("reme_mcp")
+    answer = getattr(mcp, notice_name)
+    call = Mock(return_value={"success": True, "answer": answer})
+    monkeypatch.setattr(adapter, "call", call)
+
+    result = adapter.handle_event({"hook_event_name": "UserPromptSubmit", "prompt": "past decision"})
+
+    context = result["hookSpecificOutput"]["additionalContext"]
+    log = (adapter.data_dir() / "hooks.log").read_text()
+    assert answer not in context
+    assert "<reme-context" not in context
+    assert '"event": "recall_empty"' in log
+    assert '"event": "recall_found"' not in log
+
+
 def test_capture_excludes_tools_and_recalled_context(adapter, tmp_path):
     path = tmp_path / "transcript.jsonl"
     extra = [

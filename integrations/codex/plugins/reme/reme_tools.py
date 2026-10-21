@@ -14,7 +14,7 @@ from fastmcp.tools import ToolResult
 from pydantic import Field
 
 from reme_config import load_config
-from reme_mcp import call_async
+from reme_mcp import ALL_RETURNED_MESSAGE, call_async, search_notice_kind
 from reme_runtime import execute_dream
 from reme_state import local_status, log_status
 
@@ -107,9 +107,16 @@ def register_tools(server: FastMCP) -> None:
             log_status("search_failed", exc, config=config)
             raise RuntimeError("ReMe search failed; check the saved MCP address and service status.") from exc
         answer = result["answer"]
-        log_status("search_found" if answer else "search_empty", config=config)
-        empty = "没有找到相关记忆。" if config["language"] == "zh" else "No relevant memory found."
-        return answer_text(answer) if answer else empty
+        notice = search_notice_kind(answer)
+        if not answer or notice:
+            log_status("search_empty", config=config)
+            if notice == "all_returned":
+                return (
+                    "之前找到的相关记忆已全部返回，没有新内容。" if config["language"] == "zh" else ALL_RETURNED_MESSAGE
+                )
+            return "没有找到相关记忆。" if config["language"] == "zh" else "No relevant memory found."
+        log_status("search_found", config=config)
+        return answer_text(answer)
 
     @server.resource(STATUS_URI, title="ReMe status", mime_type="text/html;profile=mcp-app", meta=STATUS_META)
     def status_view() -> ResourceResult:

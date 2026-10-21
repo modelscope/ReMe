@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import reme_config  # noqa: E402
 from reme_config import data_dir, load_config, lock, write_json  # noqa: E402
 from reme_guidance import memory_guidance  # noqa: E402
-from reme_mcp import call  # noqa: E402
+from reme_mcp import call, search_notice_kind  # noqa: E402
 from reme_state import digest, log_status, queue_root  # noqa: E402
 
 HOME_ENV = reme_config.HOME_ENV
@@ -214,8 +214,9 @@ def recall(config: dict, payload: dict) -> dict:
                 config["requestTimeoutMs"] / 1000,
             )
             answer = result.get("answer")
-            log_status("recall_found" if answer else "recall_empty", config=config)
-            if answer:
+            found = bool(answer) and search_notice_kind(answer) is None
+            log_status("recall_found" if found else "recall_empty", config=config)
+            if found:
                 text = answer if isinstance(answer, str) else json.dumps(answer, ensure_ascii=False)
                 text = text.replace("</reme-context>", "&lt;/reme-context&gt;")[:8000]
                 context += (

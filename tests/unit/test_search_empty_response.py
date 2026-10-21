@@ -44,33 +44,27 @@ def _step(tmp_path, store, *, app_context=None, vector_weight=0.0):
     )
 
 
+@pytest.mark.parametrize(
+    "mode,weight,score,min_score",
+    [
+        ("keyword", 0.7, None, 0.0),
+        ("keyword", 0.0, 0.1, 1.0),
+        ("vector", 1.0, 0.1, 1.0),
+        ("hybrid", 0.7, 0.1, 1.0),
+    ],
+    ids=["no-matches", "keyword-below-threshold", "vector-below-threshold", "hybrid-below-threshold"],
+)
 @pytest.mark.parametrize("tool_context_id", ["", "ctx-1"], ids=["without-context", "with-context"])
-def test_search_no_matches_has_explicit_answer(tmp_path, tool_context_id):
-    """An empty retrieval succeeds with a notice and the ordinary empty metadata."""
+def test_search_without_eligible_results_has_explicit_answer(tmp_path, mode, weight, score, min_score, tool_context_id):
+    """No matches and score-filtered hits share the same empty-result behavior."""
+    chunks = [] if score is None else [_chunk(score=score)]
     response = asyncio.run(
-        _step(tmp_path, _store(), vector_weight=0.7)(
-            RuntimeContext(query="missing", tool_context_id=tool_context_id),
-        ),
-    )
-
-    assert response.success
-    assert response.answer == NO_RESULTS_MESSAGE
-    assert response.metadata["results"] == []
-    assert response.metadata["link_expansion"] == {}
-    assert response.metadata["counts"] == {"vector": 0, "keyword": 0, "returned": 0, "hybrid": False}
-    if tool_context_id:
-        assert response.metadata["dedup"]["skipped_seen"] == 0
-    else:
-        assert "dedup" not in response.metadata
-
-
-@pytest.mark.parametrize("mode,weight", [("keyword", 0.0), ("vector", 1.0), ("hybrid", 0.7)])
-@pytest.mark.parametrize("tool_context_id", ["", "ctx-1"], ids=["without-context", "with-context"])
-def test_search_score_filter_has_no_results_answer(tmp_path, mode, weight, tool_context_id):
-    """Results below min_score are missing eligible results, not previously returned content."""
-    response = asyncio.run(
-        _step(tmp_path, _store([_chunk(score=0.1)], mode), vector_weight=weight)(
-            RuntimeContext(query="memory", min_score=1.0, tool_context_id=tool_context_id),
+        _step(tmp_path, _store(chunks, mode), vector_weight=weight)(
+            RuntimeContext(
+                query="missing" if score is None else "memory",
+                min_score=min_score,
+                tool_context_id=tool_context_id,
+            ),
         ),
     )
 
@@ -79,13 +73,15 @@ def test_search_score_filter_has_no_results_answer(tmp_path, mode, weight, tool_
     assert response.metadata["results"] == []
     assert response.metadata["link_expansion"] == {}
     assert response.metadata["counts"] == {
-        "vector": int(mode in {"vector", "hybrid"}),
-        "keyword": int(mode in {"keyword", "hybrid"}),
+        "vector": int(score is not None and mode in {"vector", "hybrid"}),
+        "keyword": int(score is not None and mode in {"keyword", "hybrid"}),
         "returned": 0,
-        "hybrid": mode == "hybrid",
+        "hybrid": score is not None and mode == "hybrid",
     }
     if tool_context_id:
         assert response.metadata["dedup"]["skipped_seen"] == 0
+    else:
+        assert "dedup" not in response.metadata
 
 
 def test_search_all_seen_has_explicit_answer_across_step_instances(tmp_path):

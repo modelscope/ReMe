@@ -15,6 +15,8 @@ from fastmcp import Client, FastMCP
 from fastmcp.exceptions import ToolError
 from mcp.shared.exceptions import McpError
 
+from reme.steps.index._source_format import ALL_RETURNED_MESSAGE, NO_RESULTS_MESSAGE
+
 PLUGIN = Path(__file__).resolve().parents[2] / "integrations/codex/plugins/reme"
 
 
@@ -271,6 +273,32 @@ async def test_focused_search_uses_live_defaults_validates_input_and_reports_emp
     log = (config.data_dir() / "hooks.log").read_text()
     assert "search_failed" in log and "ConnectionError" in log
     assert all(secret not in log for secret in ("private", "Thursday", "decision"))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "language,answer,expected",
+    [
+        ("en", NO_RESULTS_MESSAGE, "No relevant memory found."),
+        ("zh", NO_RESULTS_MESSAGE, "没有找到相关记忆。"),
+        ("en", ALL_RETURNED_MESSAGE, ALL_RETURNED_MESSAGE),
+        ("zh", ALL_RETURNED_MESSAGE, "之前找到的相关记忆已全部返回，没有新内容。"),
+    ],
+    ids=["no-results-en", "no-results-zh", "all-returned-en", "all-returned-zh"],
+)
+async def test_focused_search_treats_reme_notices_as_empty(plugin, monkeypatch, language, answer, expected):
+    config, module, _ = plugin
+    features = importlib.import_module("reme_tools")
+    monkeypatch.setattr(features, "call_async", AsyncMock(return_value={"answer": answer}))
+    config.update_settings({"language": language})
+
+    async with Client(module.create_server()) as client:
+        result = await client.call_tool("reme_search", {"query": "missing"})
+
+    assert result.data == expected
+    log = (config.data_dir() / "hooks.log").read_text()
+    assert '"event": "search_empty"' in log
+    assert '"event": "search_found"' not in log
 
 
 @pytest.mark.asyncio
