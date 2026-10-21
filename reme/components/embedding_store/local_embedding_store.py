@@ -206,6 +206,7 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
 
     async def _call_with_retry(self, texts: list[str], **kwargs) -> _EmbeddingResult:
         """Retry failures owned by the store and isolate input-length rejections."""
+        shortened = False
         for attempt in range(self.max_retries):
             try:
                 embeddings = await self.as_embedding(texts, **kwargs)
@@ -247,6 +248,19 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
                     self.logger.exception("Embedding request failed: provider-wide error, not splitting")
                     break
                 if details.is_input_dependent:
+                    # Retry one item with half the character budget without changing its source text.
+                    # Require a remaining attempt so exhausted input failures stay non-terminal.
+                    if not shortened and len(texts) == 1 and attempt < self.max_retries - 1:
+                        shorter = self._truncate(texts[0], max_length=max(1, self.max_input_length // 2))
+                        if shorter != texts[0]:
+                            self.logger.warning(
+                                f"Embedding input rejected as too long; retrying with a smaller budget "
+                                f"(chars={len(texts[0])} -> {len(shorter)})",
+                            )
+                            texts = [shorter]
+                            shortened = True
+                            await asyncio.sleep(2**attempt)
+                            continue
                     self.logger.exception("Embedding request failed: input-dependent error")
                     self.is_healthy = False
                     if len(texts) > 1:

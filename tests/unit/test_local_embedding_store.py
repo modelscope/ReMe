@@ -1762,3 +1762,241 @@ async def test_service_failures_preserve_the_batch_retry_budget(monkeypatch, err
     assert provider.batch_sizes == [batch_size] * attempts
     assert len(sleeps) == attempts - 1
     assert store.is_healthy is False
+
+
+# -- Bounded input-shortening recovery for over-limit items --
+
+
+class ShrinkablePerItemLimitAsEmbedding:
+    """Reject any text longer than ``max_chars``, so only a shorter request can embed it.
+
+    Mirrors a provider that enforces a token window the store's character budget cannot see:
+    the same text stays rejected no matter how often it is resent, so the only way to keep
+    its vector is to send less of it.
+    """
+
+    dimensions = 2
+    vector_space_id = "fakespace000"
+
+    def __init__(self, max_chars: int):
+        self.max_chars = max_chars
+        self.batch_sizes: list[int] = []
+        self.embedded_texts: list[str] = []
+
+    def initialize_model(self):
+        """Mirror the real component's idempotent initialization hook."""
+
+    async def __call__(self, texts: list[str], **_kwargs):
+        self.batch_sizes.append(len(texts))
+        if any(len(text) > self.max_chars for text in texts):
+            raise ContextLengthError("the input length exceeds the context length")
+        self.embedded_texts.extend(texts)
+        return [[1.0, 0.0] for _ in texts]
+
+
+class RateLimitedError(Exception):
+    """OpenAI-compatible 429 used to burn the retry budget before a length rejection."""
+
+    status_code = 429
+    code = "rate_limit_exceeded"
+
+
+class LateOverLimitAsEmbedding:
+    """Rate-limit the isolated long item, then reject it as too long on its final attempt."""
+
+    dimensions = 2
+    vector_space_id = "fakespace000"
+
+    def __init__(self, max_chars: int, single_call_limits: int = 2):
+        self.max_chars = max_chars
+        self.single_call_limits = single_call_limits
+        self.batch_sizes: list[int] = []
+        self.embedded_texts: list[str] = []
+
+    def initialize_model(self):
+        """Mirror the real component's idempotent initialization hook."""
+
+    async def __call__(self, texts: list[str], **_kwargs):
+        self.batch_sizes.append(len(texts))
+        if any(len(text) > self.max_chars for text in texts):
+            if len(texts) == 1 and self.single_call_limits:
+                self.single_call_limits -= 1
+                raise RateLimitedError("rate limit exceeded")
+            raise ContextLengthError("the input length exceeds the context length")
+        self.embedded_texts.extend(texts)
+        return [[1.0, 0.0] for _ in texts]
+
+
+class UnrelatedBadRequestError(Exception):
+    """A 400 that has nothing to do with the input length, e.g. a malformed parameter."""
+
+    status_code = 400
+
+
+class UnrelatedBadRequestAsEmbedding:
+    """Always fail with a 400 that does not name the input length."""
+
+    dimensions = 2
+    vector_space_id = "fakespace000"
+
+    def __init__(self):
+        self.batch_sizes: list[int] = []
+
+    def initialize_model(self):
+        """Mirror the real component's idempotent initialization hook."""
+
+    async def __call__(self, texts: list[str], **_kwargs):
+        self.batch_sizes.append(len(texts))
+        raise UnrelatedBadRequestError("unsupported encoding format")
+
+
+@pytest.mark.asyncio
+async def test_over_limit_item_is_recovered_by_a_shorter_request():
+    """A per-item rejection that survives isolation must be retried with less input."""
+    provider = ShrinkablePerItemLimitAsEmbedding(max_chars=40)
+    store = LocalEmbeddingStore(
+        name="t_local_embedding_shrink_recovery",
+        enable_cache=False,
+        max_input_length=80,
+    )
+    store.as_embedding = provider
+    long_text = "x" * 80
+
+    result = await store._call_with_retry(["ok", long_text, "also ok"])
+
+    assert result.embeddings == [[1.0, 0.0], [1.0, 0.0], [1.0, 0.0]]
+    assert result.terminal_failure is False
+    assert provider.batch_sizes == [3, 1, 1, 1, 1]
+    assert long_text not in provider.embedded_texts
+    assert provider.embedded_texts == ["ok", "x" * 40, "also ok"]
+
+
+@pytest.mark.asyncio
+async def test_shortened_retry_leaves_the_configured_budget_alone():
+    """Recovery is per request: the shared character budget must not shrink for everyone."""
+    provider = ShrinkablePerItemLimitAsEmbedding(max_chars=40)
+    store = LocalEmbeddingStore(
+        name="t_local_embedding_shrink_budget",
+        enable_cache=False,
+        max_input_length=80,
+    )
+    store.as_embedding = provider
+
+    result = await store._call_with_retry(["x" * 80])
+
+    assert result.embeddings == [[1.0, 0.0]]
+    assert store.max_input_length == 80
+
+
+@pytest.mark.asyncio
+async def test_batch_rejected_for_one_item_keeps_every_vector():
+    """The end-to-end promise: an over-limit chunk no longer costs its batch mates or itself."""
+    store = LocalEmbeddingStore(
+        name="t_local_embedding_shrink_nodes",
+        enable_cache=False,
+        max_input_length=80,
+    )
+    store.as_embedding = ShrinkablePerItemLimitAsEmbedding(max_chars=40)
+    nodes = [EmbNode(text="first"), EmbNode(text="y" * 80), EmbNode(text="third")]
+
+    await store.get_node_embeddings(nodes)
+
+    assert all(node.embedding is not None for node in nodes)
+
+
+@pytest.mark.asyncio
+async def test_input_length_retry_is_skipped_when_the_input_cannot_shrink():
+    """A rejection that a smaller budget cannot change must not be retried at all."""
+    provider = ShrinkablePerItemLimitAsEmbedding(max_chars=8)
+    store = LocalEmbeddingStore(
+        name="t_local_embedding_shrink_noop",
+        enable_cache=False,
+        max_input_length=8192,
+    )
+    store.as_embedding = provider
+
+    result = await store._call_with_retry(["x" * 64])
+
+    assert result.embeddings is None
+    assert provider.batch_sizes == [1]
+
+
+@pytest.mark.asyncio
+async def test_shortening_needs_an_attempt_left_to_send():
+    """With no retry budget left the store gives up instead of resending a shorter input."""
+    provider = ShrinkablePerItemLimitAsEmbedding(max_chars=40)
+    store = LocalEmbeddingStore(
+        name="t_local_embedding_shrink_bounded",
+        enable_cache=False,
+        max_input_length=80,
+        max_retries=1,
+    )
+    store.as_embedding = provider
+
+    result = await store._call_with_retry(["x" * 80])
+
+    assert result.embeddings is None
+    assert result.terminal_failure is False
+    assert provider.batch_sizes == [1]
+
+
+@pytest.mark.asyncio
+async def test_final_attempt_rejection_keeps_the_healthy_siblings():
+    """An input-length rejection on the last attempt must not stop the per-item isolation.
+
+    Shortening cannot be sent without an attempt left, so that request has to fall through to
+    the input-dependent path. Otherwise the single item's rejection is recorded as a terminal
+    batch failure and every item after it is never requested -- the reported regression.
+    """
+    provider = ShrinkablePerItemLimitAsEmbedding(max_chars=40)
+    store = LocalEmbeddingStore(
+        name="t_local_embedding_shrink_final_attempt",
+        enable_cache=False,
+        max_input_length=80,
+        max_retries=1,
+    )
+    store.as_embedding = provider
+
+    result = await store._call_with_retry(["ok", "x" * 80, "after"])
+
+    assert result.embeddings == [[1.0, 0.0], None, [1.0, 0.0]]
+    assert result.terminal_failure is False
+    assert provider.embedded_texts == ["ok", "after"]
+    assert provider.batch_sizes == [3, 1, 1, 1]
+
+
+@pytest.mark.asyncio
+async def test_rate_limited_item_rejected_on_its_final_attempt_keeps_the_siblings():
+    """The same regression through rate limits: two 429s burn the budget before the rejection."""
+    provider = LateOverLimitAsEmbedding(max_chars=40, single_call_limits=2)
+    store = LocalEmbeddingStore(
+        name="t_local_embedding_shrink_after_rate_limits",
+        enable_cache=False,
+        max_input_length=80,
+        max_retries=3,
+    )
+    store.as_embedding = provider
+
+    result = await store._call_with_retry(["ok", "x" * 80, "after"])
+
+    assert result.embeddings == [[1.0, 0.0], None, [1.0, 0.0]]
+    assert result.terminal_failure is False
+    assert provider.embedded_texts == ["ok", "after"]
+    assert provider.batch_sizes == [3, 1, 1, 1, 1, 1]
+
+
+@pytest.mark.asyncio
+async def test_unrelated_bad_request_is_not_retried_with_a_shorter_input():
+    """Only a 400 that names the input length may be answered with less input."""
+    provider = UnrelatedBadRequestAsEmbedding()
+    store = LocalEmbeddingStore(
+        name="t_local_embedding_shrink_unrelated",
+        enable_cache=False,
+        max_input_length=80,
+    )
+    store.as_embedding = provider
+
+    result = await store._call_with_retry(["x" * 80])
+
+    assert result.embeddings is None
+    assert provider.batch_sizes == [1]
