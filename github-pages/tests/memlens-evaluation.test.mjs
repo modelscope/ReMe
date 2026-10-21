@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -26,25 +26,34 @@ const reproductionLinks = [
   `https://github.com/agentscope-ai/ReMe/commit/${publicRevision}`,
 ];
 
-test("MemLens notes, chart geometry and bilingual blog values agree", async () => {
+test("MemLens chart labels and geometry match the published scores", async () => {
+  for (const model of models) {
+    const svg = await readFile(path.join(docsDir, "figure", `memlens-256k-${model.figure}-judge.svg`), "utf8");
+    const bars = [...svg.matchAll(/<g data-method="([^"]+)" data-score="([\d.]+)">\s*<rect[^>]*y="([\d.]+)"[^>]*height="([\d.]+)"[^>]*\/>\s*<text[^>]*>([\d.]+)%<\/text>/g)];
+    assert.equal(bars.length, methods.length);
+    for (const [index, method] of methods.entries()) {
+      const score = (100 * model.correct[index] / 189).toFixed(2);
+      assert.equal(bars[index][1], method);
+      assert.equal(bars[index][2], score);
+      assert.equal(bars[index][5], score, `${model.name}/${method}: visible score`);
+      assert.ok(Math.abs(Number(bars[index][4]) - Number(score) * 3) < 0.001);
+      assert.ok(Math.abs(Number(bars[index][3]) + Number(bars[index][4]) - 416) < 0.001);
+    }
+  }
+});
+
+test("MemLens bilingual notes and blogs match the published scores", async () => {
   for (const language of ["en", "zh"]) {
     const blog = await readFile(path.join(generatedDir, language, "blog_20261009.md"), "utf8");
     const notes = await readFile(path.join(generatedDir, language, "memlens_256k_evaluation.md"), "utf8");
     const rows = notes.split("\n").filter((line) => /^\| Qwen.*\| \d+ \/ 189 \|/.test(line));
     assert.equal(rows.length, 10);
     for (const model of models) {
-      const svg = await readFile(path.join(docsDir, "figure", `memlens-256k-${model.figure}-judge.svg`), "utf8");
-      const bars = [...svg.matchAll(/<g data-method="([^"]+)" data-score="([\d.]+)">\s*<rect[^>]*y="([\d.]+)"[^>]*height="([\d.]+)"/g)];
-      assert.equal(bars.length, 5);
       for (const [index, method] of methods.entries()) {
         const correct = model.correct[index];
         const score = (100 * correct / 189).toFixed(2);
         assert.ok(rows.includes(`| ${model.name} | ${method} | ${correct} / 189 | ${score} |`));
         assert.ok(blog.includes(`${method} ${score}%`), `${language}: alt text for ${model.name}/${method}`);
-        assert.equal(bars[index][1], method);
-        assert.equal(bars[index][2], score);
-        assert.ok(Math.abs(Number(bars[index][4]) - Number(score) * 3) < 0.001);
-        assert.ok(Math.abs(Number(bars[index][3]) + Number(bars[index][4]) - 416) < 0.001);
       }
       const gain = (100 * (model.correct[2] - model.correct[0]) / 189).toFixed(2);
       assert.ok(blog.includes(`**${gain}**`));
@@ -53,7 +62,7 @@ test("MemLens notes, chart geometry and bilingual blog values agree", async () =
   }
 });
 
-test("MemLens notes identify each moderation case and separate paired results", async () => {
+test("MemLens notes disclose moderation filters, paired results and Judge settings", async () => {
   const triggers = {
     zh: [
       ["OpenViking / Max", "记忆构建"],
@@ -84,8 +93,12 @@ test("MemLens notes identify each moderation case and separate paired results", 
     assert.match(filter, /189\/195/);
     assert.ok(notes.includes("| Qwen3.6-35B-A3B | 188 | 100 | 96 | 53.19 → 51.06 |"));
     assert.ok(notes.includes("| Qwen3.8-Max | 187 | 135 | 134 | 72.19 → 71.66 |"));
-    assert.match(notes, /temperature 0|temperature \*\*0\*\*/);
-    assert.match(notes, /256/);
+    const judge = notes.split("\n\n").find((paragraph) => /(?:as|作为) Judge/.test(paragraph));
+    assert.ok(judge, `${language}: Judge settings must be documented`);
+    assert.match(judge, /\*\*Qwen3\.8-Max\*\*/);
+    assert.match(judge, /temperature (?:为 )?\*\*0\*\*/);
+    assert.match(judge, /thinking \*\*(?:disabled|关闭)\*\*/);
+    assert.match(judge, /\*\*256(?:-token| tokens)\*\*/);
     assert.match(notes, /memory-only|restricted to memory|限定为 memory/);
   }
 });
@@ -93,9 +106,7 @@ test("MemLens notes identify each moderation case and separate paired results", 
 test("MemLens notes pin the public evaluation revision without private audit details", async () => {
   for (const language of ["en", "zh"]) {
     const blog = await readFile(path.join(generatedDir, language, "blog_20261009.md"), "utf8");
-    const notesPath = path.join(generatedDir, language, "memlens_256k_evaluation.md");
-    await access(notesPath);
-    const notes = await readFile(notesPath, "utf8");
+    const notes = await readFile(path.join(generatedDir, language, "memlens_256k_evaluation.md"), "utf8");
     assert.match(blog, /\]\(\.\/memlens_256k_evaluation\.md\)/);
     assert.match(notes, /\]\(\.\/blog_20261009\.md#memlens-256k-results\)/);
     assert.doesNotMatch(notes, /\/mnt\/|\/Users\/|docs\/_build|file:\/\//);
