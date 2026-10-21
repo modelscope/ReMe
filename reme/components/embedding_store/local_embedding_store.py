@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import re
 from collections import OrderedDict
 from pathlib import Path
 
@@ -13,6 +14,81 @@ from ..as_embedding import BaseAsEmbedding
 
 Miss = tuple[int, str, str]  # (result_index, text, cache_key)
 _MAX_VECTOR_SPACE_ATTEMPTS = 3
+
+_PROVIDER_WIDE_STATUS_CODES = frozenset({401, 403, 404})
+
+# Transport failures raised by the OpenAI SDK and httpx. They do not inherit from the built-in
+# TimeoutError / ConnectionError / OSError, so the built-in check alone lets them slip into the
+# generic handler and fan out into per-item requests. Matching on class names (across the MRO,
+# so subclasses such as APITimeoutError are covered) keeps this module free of SDK imports.
+_TRANSPORT_FAILURE_TYPES = frozenset(
+    {
+        "APIConnectionError",
+        "APITimeoutError",
+        "ConnectError",
+        "ConnectTimeout",
+        "PoolTimeout",
+        "ReadError",
+        "ReadTimeout",
+        "RemoteProtocolError",
+        "WriteError",
+        "WriteTimeout",
+    },
+)
+
+# Transport errors an SDK retries on its own. A positive numeric retry budget is not evidence:
+# AgentScope's Ollama model keeps the inherited ``max_retries=3`` next to an empty policy, and
+# the number never buys a retry. Only a client that both has a budget and retries this class of
+# error owns the failure; otherwise the store keeps its backoff.
+_SDK_TRANSPORT_RETRY_TYPES = frozenset({"APIConnectionError", "APITimeoutError"})
+
+# The status a provider reports can live in more than one place. ``status_code`` is the
+# OpenAI-compatible attribute, Google GenAI exposes an integer ``code``, httpx-style wrappers
+# keep it on ``response``, and AgentScope's DashScope implementation raises a plain
+# ``RuntimeError`` whose message embeds the structured response, so the status has to be read
+# back out of the message. A string ``code`` names an error (``insufficient_quota``,
+# ``rate_limit_exceeded``, ``InvalidApiKey``) and is never a status.
+_STATUS_IN_MESSAGE = re.compile(r'"status_code"\s*:\s*(\d{3})')
+
+# The business error code travels the same way the status does: a string ``code`` on the
+# OpenAI-compatible SDKs, ``error.code`` inside a structured body, and a serialized
+# ``"code"`` in the message for AgentScope's DashScope ``RuntimeError``. Reading only the
+# attribute loses the DashScope case and misclassifies a quota error as a rate limit.
+_CODE_IN_MESSAGE = re.compile(r'"code"\s*:\s*"([^"]+)"')
+
+# A rejected batch can only be paid back one item at a time when the provider blames an input.
+# A context-length rejection is the one status an over-long item explains by itself, so it is
+# the only error allowed to fan out into per-item requests.
+_INPUT_DEPENDENT_STATUS_CODES = frozenset({400})
+
+# A 413 is ambiguous. Providers such as Ollama v0.40.3 normalize an embedding input-limit
+# rejection to 413, but a bare 413 can also describe an unrelated request-body limit that no
+# single input explains. It therefore only qualifies as input-dependent when the error itself
+# names the input length, which is why it is checked through the marker list instead of being
+# accepted outright.
+_INPUT_DEPENDENT_AMBIGUOUS_STATUS_CODES = frozenset({413})
+
+_INPUT_DEPENDENT_ERROR_TYPES = frozenset(
+    {
+        "ContextLengthError",
+        "ContextWindowExceededError",
+        "InputLengthError",
+        "TokenLimitError",
+    },
+)
+
+_INPUT_DEPENDENT_MARKERS = (
+    "context length",
+    "context_length",
+    "context window",
+    "input length",
+    "input is too long",
+    "maximum context",
+    "reduce the length",
+    "token limit",
+    "too many tokens",
+    "too long",
+)
 
 
 @R.register("local")
@@ -162,7 +238,17 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
 
     async def _compute_batch(self, batch: list[Miss], **kwargs) -> list[tuple[int, str, np.ndarray]]:
         texts = [text for _, text, _ in batch]
-        embeddings = await self._call_with_retry(texts, **kwargs)
+        # A provider-wide failure can end a request after some of its vectors were already
+        # recovered. Those vectors are still worth keeping, but they must not report the
+        # provider as healthy again: the unhealthy-to-healthy transition is what schedules
+        # missing-vector backfill, so a hidden outage would either trigger it while the
+        # provider is still unavailable or suppress a later genuine recovery.
+        terminal_failure: list[bool] = []
+        embeddings = await self._call_with_retry(
+            texts,
+            terminal_failure=terminal_failure,
+            **kwargs,
+        )
         if not embeddings or len(embeddings) != len(texts):
             return []
         out: list[tuple[int, str, np.ndarray]] = []
@@ -178,22 +264,75 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
         if bad_dims:
             details = ", ".join(f"{count} with dim {dim}" for dim, count in sorted(bad_dims.items()))
             self.logger.error(f"Embedding dimension mismatch in batch: expected {self.dimensions}; rejected {details}")
-        if out:
+        if out and not terminal_failure:
             self.is_healthy = True
         else:
             self.is_healthy = False
         return out
 
-    async def _call_with_retry(self, texts: list[str], **kwargs) -> list[list[float] | None] | None:
+    async def _call_with_retry(
+        self,
+        texts: list[str],
+        *,
+        terminal_failure: list[bool] | None = None,
+        **kwargs,
+    ) -> list[list[float] | None] | None:
+        """Answer a batch, retrying transient failures and isolating input ones.
+
+        Transport failures are provider-wide: no individual input can explain them, so the
+        request is never split per item. Which layer retries them depends on the provider, not
+        on where the request came from: when the embedding model below already retries the
+        transport exceptions it raises (AgentScope's OpenAI model does, and the OpenAI SDK
+        retries each of those attempts), the store answers once and leaves that budget there.
+        A provider whose model has no retry policy -- Ollama inherits an empty retryable tuple
+        and its SDK turns ``httpx.ConnectError`` into a plain ``ConnectionError`` -- gets the
+        store's backoff instead, because otherwise a single dropped connection would cost the
+        vector.
+
+        ``terminal_failure`` is an optional out-parameter. When the caller passes a list,
+        it is set to ``[True]`` if this call gave up on a failure that no remaining item
+        can explain (a provider-wide error, exhausted quota, or exhausted transient
+        retries). The per-item isolation loop uses it to stop instead of asking for every
+        remaining item and multiplying the rejected requests, and it forwards the same
+        flag to its caller so a request that recovered some vectors before the failure is
+        still not reported as healthy.
+        """
+
+        def stop() -> None:
+            """Record that this failure ends the work for the whole batch."""
+            if terminal_failure is not None:
+                terminal_failure[:] = [True]
+
         for attempt in range(self.max_retries):
             try:
                 result = await self.as_embedding(texts, **kwargs)
                 if result and len(result) == len(texts):
                     return result
-            except (TimeoutError, ConnectionError, OSError):
-                if attempt < self.max_retries - 1:
-                    await asyncio.sleep(2**attempt)
             except Exception as error:
+                if self._is_transport_failure(error):
+                    # A connection failure or a timeout describes the endpoint, not any single
+                    # item, so this request is never split per item. Whether the store retries
+                    # it is a property of the provider: when the model below has its own retry
+                    # policy, that layer (and the SDK under it) already answers the failure --
+                    # a batch they answer after 12 attempts used to reach the provider 36 times
+                    # with this store retrying on top of them, and an isolated item used to
+                    # multiply the same budget a third time.
+                    if self._provider_owns_transport_retry(error):
+                        self.logger.exception(
+                            "Embedding request failed: transport error owned by the provider, not splitting",
+                        )
+                        self.is_healthy = False
+                        stop()
+                        break
+                    if attempt < self.max_retries - 1:
+                        await asyncio.sleep(2**attempt)
+                        continue
+                    self.logger.exception(
+                        "Embedding request failed: transport error after exhausting retries",
+                    )
+                    self.is_healthy = False
+                    stop()
+                    break
                 if self._is_rate_limited(error):
                     if attempt < self.max_retries - 1:
                         delay = 2**attempt
@@ -202,6 +341,7 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
                         continue
                     self.logger.exception("Embedding request failed after exhausting rate-limit retries")
                     self.is_healthy = False
+                    stop()
                     return None
                 if (
                     self.quota_retry_delay is not None
@@ -213,35 +353,291 @@ class LocalEmbeddingStore(BaseEmbeddingStore):
                     )
                     await asyncio.sleep(self.quota_retry_delay)
                     continue
-                self.logger.exception("Embedding request failed")
-                self.is_healthy = False
-                return None
+                if self._is_insufficient_quota(error):
+                    # Quota is a service-level failure: no single item is to blame, so splitting the
+                    # batch cannot isolate anything and would only multiply the rejected requests.
+                    # This also covers the case where the quota retries above are exhausted.
+                    self.logger.exception("Embedding request failed: quota exhausted")
+                    self.is_healthy = False
+                    stop()
+                    return None
+                if self._is_provider_wide_failure(error):
+                    # Credentials, permissions and server outages describe the endpoint, not any
+                    # single item: isolation cannot fix them, so give up on the whole batch
+                    # instead of multiplying the rejected requests.
+                    #
+                    # A 5xx is deliberately *not* retried here. The embedding wrapper and the
+                    # provider SDK already retry transient server errors, and every extra layer
+                    # that retries multiplies the attempts and the waiting time of the layers
+                    # below it -- a batch the SDK answered after 12 attempts became 36 once this
+                    # store retried on top of it. Retry ownership therefore stays with those
+                    # layers: a caller that wants a longer budget configures it there instead of
+                    # stacking another silent loop here. A transport failure is left to them for
+                    # the same reason; it only skips the per-item split.
+                    self.logger.exception("Embedding request failed: provider-wide error, not splitting")
+                    stop()
+                    break
+                if self._is_input_dependent_failure(error):
+                    # A rejection a single input explains by itself is the one case the per-item
+                    # split can resolve: isolating it keeps the remaining vectors usable.
+                    self.logger.exception("Embedding request failed: input-dependent error")
+                    self.is_healthy = False
+                    if len(texts) > 1:
+                        return await self._embed_individually(
+                            texts,
+                            terminal_failure=terminal_failure,
+                            **kwargs,
+                        )
+                    return None
+                # Anything else counts as provider-wide. Splitting cannot recover a vector unless
+                # the failing input is identified, so an unrecognized error is never answered
+                # with one request per item.
+                self.logger.exception("Embedding request failed: unrecognized error, not splitting")
+                stop()
+                break
         self.is_healthy = False
+        stop()
         return None
+
+    async def _embed_individually(
+        self,
+        texts: list[str],
+        *,
+        terminal_failure: list[bool] | None = None,
+        **kwargs,
+    ) -> list[list[float] | None]:
+        """Retry a rejected batch one item at a time so one bad item cannot drop the rest.
+
+        Provider-side request errors, such as a per-item context-length limit, reject the
+        whole batch and would otherwise cost every vector in it. Isolating each item bounds
+        the damage to the item that actually failed and keeps the remaining vectors usable.
+        Each single-item request goes back through ``_call_with_retry`` so that a rate limit and
+        a transient transport failure still get the retries that layer owns instead of losing
+        the vector; a provider-wide failure ends the work for the whole batch rather than being
+        asked for every remaining item, and a one-item request never splits again.
+        When the loop stops on a provider-wide failure, ``terminal_failure`` is set for the
+        caller so the vectors recovered before it are not read as a healthy provider.
+        """
+        results: list[list[float] | None] = []
+        for index, text in enumerate(texts):
+            terminal: list[bool] = []
+            single = await self._call_with_retry(
+                [text],
+                terminal_failure=terminal,
+                **kwargs,
+            )
+            if single:
+                results.append(single[0])
+                continue
+            self.logger.error(f"Embedding request failed for a single item (chars={len(text)})")
+            results.append(None)
+            if terminal and terminal[0]:
+                # No remaining item can explain a provider-wide failure, so asking for the
+                # rest would only multiply the rejected requests. Keep the vectors already
+                # recovered and leave the items that were never answered as None. The batch
+                # caller has to learn about it as well: a partial success must not report
+                # the provider as healthy again.
+                if terminal_failure is not None:
+                    terminal_failure[:] = [True]
+                self.logger.error(
+                    f"Stopping per-item isolation after {index + 1}/{len(texts)} items: "
+                    "the failure is not specific to any input",
+                )
+                results.extend([None] * (len(texts) - index - 1))
+                break
+        return results
+
+    @staticmethod
+    def _is_transport_failure(error: Exception) -> bool:
+        """Return whether an error describes a transport failure rather than a rejected input.
+
+        Covers the built-in socket errors as well as the provider/httpx exceptions that describe
+        a connection failure or a timeout. Transport failures are provider-wide: no individual
+        input can be blamed, so the request is never split per item. Who retries them is decided
+        per provider by ``_provider_owns_transport_retry`` rather than per call site.
+        """
+        if isinstance(error, (TimeoutError, ConnectionError, OSError)):
+            return True
+        return any(cls.__name__ in _TRANSPORT_FAILURE_TYPES for cls in type(error).__mro__)
+
+    def _provider_owns_transport_retry(self, error: Exception) -> bool:
+        """Return whether a lower layer retries *this* transport failure.
+
+        Retry ownership is a property of the provider and of the error, not of the call site.
+        A model whose ``_get_retryable_exceptions()`` covers the error owns the retry, and so
+        does an SDK that retries that class of error. Everything else must keep the store's
+        backoff, or one dropped connection costs the vector.
+
+        Two shapes are deliberately not treated as ownership. AgentScope's Ollama embedding
+        model declares an empty policy but keeps the inherited ``max_retries=3``: its loop
+        re-raises every exception outside the empty tuple, so the number never buys a retry.
+        AgentScope's DashScope model declares ``(RuntimeError,)``, which does not cover a
+        connection error raised underneath it. A nonempty policy is therefore checked against
+        the error that actually occurred rather than trusted as a whole.
+
+        A model that exposes no policy at all -- test doubles and custom providers -- is only
+        trusted to an SDK that has a positive retry budget *and* retries this class of
+        transport error. Otherwise the store answers, as the base implementation did.
+        """
+        model = getattr(self.as_embedding, "model", None)
+        if model is None:
+            return False
+        policy = self._declared_retry_policy(model)
+        if policy:
+            max_retries = getattr(model, "max_retries", None)
+            if isinstance(max_retries, int) and max_retries > 0 and self._policy_covers(policy, error):
+                return True
+        return self._sdk_owns_transport_retry(model, error)
+
+    @staticmethod
+    def _declared_retry_policy(model) -> tuple[type[Exception], ...] | None:
+        """Return the model's declared retryable types, or ``None`` when it declares none."""
+        retryable = getattr(model, "_get_retryable_exceptions", None)
+        if not callable(retryable):
+            return None
+        try:
+            return tuple(retryable())  # pylint: disable=not-callable
+        except Exception:  # pragma: no cover - a broken policy owns nothing
+            return None
+
+    @staticmethod
+    def _policy_covers(policy: tuple[type[Exception], ...], error: Exception) -> bool:
+        """Return whether the declared policy actually retries this exception."""
+        try:
+            return isinstance(error, policy)
+        except TypeError:  # pragma: no cover - a malformed policy covers nothing
+            return False
+
+    @staticmethod
+    def _sdk_owns_transport_retry(model, error: Exception) -> bool:
+        """Return whether the SDK under the model retries this transport error itself.
+
+        The numeric ``max_retries`` only counts once the client also identifies this error as
+        retryable. The OpenAI client retries ``APIConnectionError`` / ``APITimeoutError``;
+        Ollama's client has no retry budget at all, and AgentScope's DashScope path calls the
+        module directly, so neither has a client to consult.
+        """
+        if not LocalEmbeddingStore._is_transport_failure(error):
+            return False
+        client = getattr(model, "client", None)
+        if client is None:
+            return False
+        max_retries = getattr(client, "max_retries", None)
+        if not isinstance(max_retries, int) or max_retries <= 0:
+            return False
+        return any(cls.__name__ in _SDK_TRANSPORT_RETRY_TYPES for cls in type(error).__mro__)
+
+    @staticmethod
+    def _http_status(error: Exception) -> int | None:
+        """Return the HTTP status an exception carries, across the provider SDK shapes.
+
+        ``status_code`` covers the OpenAI-compatible SDKs, an integer ``code`` covers Google
+        GenAI, ``response.status_code`` covers httpx-style wrappers, and the structured
+        ``status_code`` embedded in the message covers AgentScope's DashScope ``RuntimeError``.
+        Only integers are accepted: a string ``code`` is a provider error name such as
+        ``insufficient_quota``, and reading it as a status would misclassify those errors.
+        """
+        for attribute in ("status_code", "code"):
+            value = getattr(error, attribute, None)
+            if isinstance(value, int) and not isinstance(value, bool):
+                return value
+        value = getattr(getattr(error, "response", None), "status_code", None)
+        if isinstance(value, int) and not isinstance(value, bool):
+            return value
+        match = _STATUS_IN_MESSAGE.search(str(error))
+        return int(match.group(1)) if match else None
+
+    @staticmethod
+    def _is_provider_wide_failure(error: Exception) -> bool:
+        """Return whether an error describes the provider rather than a single input.
+
+        Authentication, permission, missing model or route and server errors belong to the
+        endpoint, the credentials or the deployment: no individual input can be blamed, so
+        splitting the batch cannot isolate anything and would only multiply the rejected
+        requests. Rate limits and quota exhaustion have their own branches above and never
+        reach this classifier. A context-length ``400`` stays input-dependent on purpose,
+        because that is the one status an over-limit item can explain by itself.
+        """
+        status = LocalEmbeddingStore._http_status(error)
+        if status is not None and (status in _PROVIDER_WIDE_STATUS_CODES or 500 <= status < 600):
+            return True
+        return type(error).__name__ in (
+            "AuthenticationError",
+            "PermissionDeniedError",
+            "NotFoundError",
+            "InternalServerError",
+        )
+
+    @staticmethod
+    def _is_input_dependent_failure(error: Exception) -> bool:
+        """Return whether a single input can be blamed for the rejected request.
+
+        Only a context-length rejection qualifies: it is the one error an over-long item
+        explains by itself, and therefore the only one a per-item retry can resolve. It can
+        arrive as a ``400`` or, from a provider that normalizes the rejection (Ollama reports
+        ``413``), as an ambiguous status that is accepted only when the error names the input
+        itself. Anything else stays on the provider-wide path, so a client never answers a
+        service failure with one request per item.
+        """
+        status = LocalEmbeddingStore._http_status(error)
+        if status is not None and status not in _INPUT_DEPENDENT_STATUS_CODES:
+            if status not in _INPUT_DEPENDENT_AMBIGUOUS_STATUS_CODES:
+                return False
+            # The status alone does not name an input for an ambiguous code, so the error text
+            # has to carry the signal; otherwise this is a request-level rejection.
+            text = LocalEmbeddingStore._error_text(error)
+            return any(marker in text for marker in _INPUT_DEPENDENT_MARKERS)
+        if type(error).__name__ in _INPUT_DEPENDENT_ERROR_TYPES:
+            return True
+        text = LocalEmbeddingStore._error_text(error)
+        return any(marker in text for marker in _INPUT_DEPENDENT_MARKERS)
+
+    @staticmethod
+    def _error_text(error: Exception) -> str:
+        """Flatten an exception and its OpenAI-compatible body into one lowercase string."""
+        parts = [str(error)]
+        body = getattr(error, "body", None)
+        if isinstance(body, dict):
+            parts.append(str(body))
+        return " ".join(parts).lower()
+
+    @staticmethod
+    def _error_code(error: Exception) -> str | None:
+        """Return the provider's business error code, across the supported error shapes.
+
+        ``code`` covers the OpenAI-compatible SDKs when the provider puts the error name
+        there, ``error.code`` inside ``body`` covers the structured OpenAI payload, and the
+        serialized message covers AgentScope's DashScope ``RuntimeError`` — the same shape
+        ``_http_status`` already reads the status back out of. Without the last case a
+        DashScope quota error is indistinguishable from an ordinary 429.
+        """
+        code = getattr(error, "code", None)
+        if isinstance(code, str) and code:
+            return code
+        body = getattr(error, "body", None)
+        if isinstance(body, dict):
+            details = body.get("error", body)
+            if isinstance(details, dict):
+                inner = details.get("code")
+                if isinstance(inner, str) and inner:
+                    return inner
+        match = _CODE_IN_MESSAGE.search(str(error))
+        return match.group(1) if match else None
 
     @staticmethod
     def _is_rate_limited(error: Exception) -> bool:
         """Recognize an OpenAI-compatible 429 response without importing a provider SDK."""
-        if LocalEmbeddingStore._is_insufficient_quota(error):
+        code = LocalEmbeddingStore._error_code(error)
+        if code == "insufficient_quota":
             return False
-        if getattr(error, "status_code", None) == 429:
+        if code == "rate_limit_exceeded":
             return True
-        body = getattr(error, "body", None)
-        if not isinstance(body, dict):
-            return False
-        details = body.get("error", body)
-        return isinstance(details, dict) and details.get("code") == "rate_limit_exceeded"
+        return LocalEmbeddingStore._http_status(error) == 429
 
     @staticmethod
     def _is_insufficient_quota(error: Exception) -> bool:
         """Recognize OpenAI-compatible quota errors without importing a provider SDK."""
-        if getattr(error, "code", None) == "insufficient_quota":
-            return True
-        body = getattr(error, "body", None)
-        if not isinstance(body, dict):
-            return False
-        details = body.get("error", body)
-        return isinstance(details, dict) and details.get("code") == "insufficient_quota"
+        return LocalEmbeddingStore._error_code(error) == "insufficient_quota"
 
     def _validate_dim(self, emb: np.ndarray) -> bool:
         """Return whether an embedding exactly matches the configured dimension."""
