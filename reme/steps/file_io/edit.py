@@ -11,6 +11,44 @@ from ..base_step import BaseStep
 from ...components import R
 
 
+def _replace_normalized_newlines(body: str, old: str, new: str) -> tuple[str, int]:
+    """Find literal LF text, mapping its spans back without normalizing untouched text."""
+    normalized = body.replace("\r\n", "\n").replace("\r", "\n")
+    position = normalized.find(old)
+    if position < 0:
+        return body, 0
+
+    # Only CRLF pairs change offsets. Consume them once as match boundaries advance;
+    # no per-character offset array or regex search for the user-supplied needle.
+    crlf_starts = (match.start() for match in re.finditer("\r\n", body))
+    next_crlf = next(crlf_starts, len(body))
+    removed = 0
+    source_cursor = 0
+    count = 0
+    parts = []
+    while position >= 0:
+        source_start = position + removed
+        while next_crlf < source_start:
+            removed += 1
+            source_start += 1
+            next_crlf = next(crlf_starts, len(body))
+
+        end = position + len(old)
+        source_end = end + removed
+        while next_crlf < source_end:
+            removed += 1
+            source_end += 1
+            next_crlf = next(crlf_starts, len(body))
+
+        parts.extend((body[source_cursor:source_start], new))
+        source_cursor = source_end
+        count += 1
+        position = normalized.find(old, end)
+
+    parts.append(body[source_cursor:])
+    return "".join(parts), count
+
+
 @R.register("edit_step")
 class EditStep(BaseStep):
     """Replace every occurrence of ``old`` with ``new`` inside the file body.
@@ -91,12 +129,8 @@ class EditStep(BaseStep):
                 body = raw_text
                 not_found_msg = f"text to replace was not found in {target}"
 
-            if "\n" in old_str and "\r" not in old_str:
-                # Match the LF view returned by read without rewriting unmatched text.
-                # A CRLF pair is one line break, even when matching consecutive breaks.
-                newline = r"(?:\r\n|\r(?!\n)|(?<!\r)\n)"
-                pattern = newline.join(re.escape(part) for part in old_str.split("\n"))
-                new_body, count = re.subn(pattern, lambda _: new_str, body)
+            if "\r" in body and "\n" in old_str and "\r" not in old_str:
+                new_body, count = _replace_normalized_newlines(body, old_str, new_str)
             else:
                 count = body.count(old_str)
                 new_body = body.replace(old_str, new_str)
