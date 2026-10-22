@@ -1,5 +1,7 @@
 """Find-and-replace text in a markdown file body (front matter is preserved)."""
 
+import re
+
 import frontmatter
 import yaml
 
@@ -89,12 +91,19 @@ class EditStep(BaseStep):
                 body = raw_text
                 not_found_msg = f"text to replace was not found in {target}"
 
-            if old_str not in body:
+            if "\n" in old_str and "\r" not in old_str:
+                # Match the LF view returned by read without rewriting unmatched text.
+                # A CRLF pair is one line break, even when matching consecutive breaks.
+                newline = r"(?:\r\n|\r(?!\n)|(?<!\r)\n)"
+                pattern = newline.join(re.escape(part) for part in old_str.split("\n"))
+                new_body, count = re.subn(pattern, lambda _: new_str, body)
+            else:
+                count = body.count(old_str)
+                new_body = body.replace(old_str, new_str)
+
+            if count == 0:
                 self._fail(not_found_msg, path=str(target))
                 return None
-
-            count = body.count(old_str)
-            new_body = body.replace(old_str, new_str)
 
             if is_md and post is not None:
                 post.content = new_body
