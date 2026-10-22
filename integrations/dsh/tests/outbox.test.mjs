@@ -31,6 +31,41 @@ const messages = [
   },
 ];
 
+test("preserves batch order across equal timestamps, clock rollback, and restart", (t) => {
+  const now = Date.parse("2026-10-21T12:00:00Z");
+  t.mock.timers.enable({ apis: ["Date"], now });
+  const path = directory(t);
+  let queue = new MemoryOutbox(path);
+  const append = (id) =>
+    queue.append(
+      "http://localhost:2333",
+      "session",
+      "2026-10-21",
+      [{ ...messages[0], id }],
+      1,
+    );
+  try {
+    append("first");
+    append("second");
+    const batches = readdirSync(path)
+      .filter((name) => name.startsWith("ready-"))
+      .map((name) => JSON.parse(readFileSync(join(path, name), "utf8")));
+    assert.equal(new Set(batches.map((batch) => batch.createdAt)).size, 2);
+    queue.close();
+    t.mock.timers.setTime(now - 1000);
+    queue = new MemoryOutbox(path);
+    append("third");
+    const received = [];
+    for (let next = queue.next(); next; next = queue.next()) {
+      received.push(next.batch.turns[0][0].id);
+      queue.acknowledge(next.name);
+    }
+    assert.deepEqual(received, ["first", "second", "third"]);
+  } finally {
+    queue.close();
+  }
+});
+
 test("recovers a partial batch after the owning process exits without cleanup", (t) => {
   const path = directory(t);
   const child = spawnSync(
@@ -190,6 +225,10 @@ test("preserves invalid records and keeps parser errors free of message content"
       () => queue.next(),
       (error) => !error.message.includes("PRIVATE-CONTENT"),
     );
+    assert.equal(readFileSync(join(path, name), "utf8"), "PRIVATE-CONTENT");
+    queue.close();
+    assert.throws(() => new MemoryOutbox(path), /Invalid ReMe outbox record/);
+    assert.equal(existsSync(join(path, ".lock")), false);
     assert.equal(readFileSync(join(path, name), "utf8"), "PRIVATE-CONTENT");
   } finally {
     queue.close();
