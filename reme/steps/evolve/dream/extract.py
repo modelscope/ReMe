@@ -133,6 +133,7 @@ class DreamExtractStep(BaseStep):
                         max_units=max_units,
                     ),
                     job_tools=list(_TOOLS),
+                    **self._workspace_forward_kwargs(),
                 )
                 self.logger.info(f"[{self.name}] agent done has_result={bool(result.get('result'))}")
                 raw_result = agent_reply_result_text(result)

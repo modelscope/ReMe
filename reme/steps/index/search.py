@@ -104,7 +104,7 @@ class SearchStep(BaseStep):
             contexts = self.app_context.metadata.setdefault(self.TOOL_CONTEXTS_KEY, {})
         else:
             contexts = self.kwargs.setdefault(self.TOOL_CONTEXTS_KEY, {})
-        return contexts.setdefault(tool_context_id, {})
+        return contexts.setdefault(self._scoped_state_key(tool_context_id), {})
 
     def _dedupe_tool_context(
         self,
@@ -244,7 +244,7 @@ class SearchStep(BaseStep):
             if maximum < 1:
                 raise ValueError("max_search_calls must be positive")
             budgets = self.app_context.metadata.setdefault("__search_call_budgets", {})
-            budget = budgets.setdefault(tool_context_id, {"count": 0, "lock": asyncio.Lock()})
+            budget = budgets.setdefault(self._scoped_state_key(tool_context_id), {"count": 0, "lock": asyncio.Lock()})
             async with budget["lock"]:
                 if budget["count"] >= maximum:
                     self.logger.warning(

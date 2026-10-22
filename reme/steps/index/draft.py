@@ -18,7 +18,7 @@ class AddDraftStep(BaseStep):
             contexts = self.app_context.metadata.setdefault(self.TOOL_CONTEXTS_KEY, {})
         else:
             contexts = self.kwargs.setdefault(self.TOOL_CONTEXTS_KEY, {})
-        return contexts.setdefault(tool_context_id, {})
+        return contexts.setdefault(self._scoped_state_key(tool_context_id), {})
 
     async def execute(self):
         assert self.context is not None
