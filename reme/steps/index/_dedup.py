@@ -63,15 +63,18 @@ class _ToolContextDedupMixin:
     def _tool_context_store(self, tool_context_id: str) -> dict:
         """Return the mutable state bucket for a tool context.
 
-        The bucket is created lazily on first access and lives at
-        ``metadata["tool_contexts"][tool_context_id]`` (or the same path under
-        ``kwargs`` when no ``app_context`` is available, e.g. in unit tests).
+        Bound calls read the bound WorkspaceContext's own state, so identical
+        tool_context_ids in different workspaces stay independent. Unbound
+        standalone use keeps the legacy metadata/kwargs bucket.
         """
+        bound = getattr(self.context, "workspace", None) if self.context is not None else None
+        if bound is not None:
+            return bound.tool_contexts.setdefault(tool_context_id, {})
         if self.app_context is not None:
             contexts = self.app_context.metadata.setdefault(self.TOOL_CONTEXTS_KEY, {})
         else:
             contexts = self.kwargs.setdefault(self.TOOL_CONTEXTS_KEY, {})
-        return contexts.setdefault(self._scoped_state_key(tool_context_id), {})
+        return contexts.setdefault(tool_context_id, {})
 
     @staticmethod
     def _now_ts() -> float:
