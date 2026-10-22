@@ -14,6 +14,9 @@ class AddDraftStep(BaseStep):
     DRAFTS_KEY: Final[str] = "drafts"
 
     def _tool_context_store(self, tool_context_id: str) -> dict:
+        bound = getattr(self.context, "workspace", None) if self.context is not None else None
+        if bound is not None:
+            return bound.tool_contexts.setdefault(tool_context_id, {})
         if self.app_context is not None:
             contexts = self.app_context.metadata.setdefault(self.TOOL_CONTEXTS_KEY, {})
         else:
