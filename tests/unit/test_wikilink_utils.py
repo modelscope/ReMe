@@ -14,8 +14,8 @@ short ``[[x]]`` and no-ext ``[[topics/x]]`` are left alone by design.
 
 # pylint: disable=protected-access
 
+from contextlib import chdir as temp_chdir
 import asyncio
-import os
 import tempfile
 import warnings
 from pathlib import Path
@@ -26,22 +26,6 @@ from reme.utils.wikilink_handler import WikilinkHandler
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="jieba")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="pkg_resources")
-
-
-class temp_chdir:
-    """Test helper: chdir to ``path`` on enter, restore previous cwd on exit."""
-
-    def __init__(self, path):
-        self.path = path
-        self.old = None
-
-    def __enter__(self):
-        self.old = os.getcwd()
-        os.chdir(self.path)
-        return self
-
-    def __exit__(self, *exc):
-        os.chdir(self.old)
 
 
 async def _store_with(files: dict[str, str]) -> LocalFileStore:
@@ -98,7 +82,6 @@ def test_retarget_exact_full_path_match():
             assert "[[topics/Alice.md]]" not in body
             assert "[[topics/Bob.md]]" in body
             await store.close()
-        print("✓ test_retarget_exact_full_path_match passed")
 
     asyncio.run(run())
 
@@ -123,7 +106,6 @@ def test_retarget_short_and_no_ext_forms_ignored():
             assert "[[Alice]]" in body  # short form untouched
             assert "[[topics/Alice]]" in body  # no-ext form untouched
             await store.close()
-        print("✓ test_retarget_short_and_no_ext_forms_ignored passed")
 
     asyncio.run(run())
 
@@ -140,7 +122,6 @@ def test_retarget_anchor_preserved():
             body = (root / "note.md").read_text(encoding="utf-8")
             assert "[[people/Alice.md#intro]]" in body
             await store.close()
-        print("✓ test_retarget_anchor_preserved passed")
 
     asyncio.run(run())
 
@@ -157,7 +138,6 @@ def test_retarget_alias_preserved():
             body = (root / "note.md").read_text(encoding="utf-8")
             assert "[[people/Alice.md|Alice the Architect]]" in body
             await store.close()
-        print("✓ test_retarget_alias_preserved passed")
 
     asyncio.run(run())
 
@@ -174,7 +154,6 @@ def test_retarget_anchor_and_alias_together():
             body = (root / "note.md").read_text(encoding="utf-8")
             assert "[[people/Alice.md#bio|her bio]]" in body
             await store.close()
-        print("✓ test_retarget_anchor_and_alias_together passed")
 
     asyncio.run(run())
 
@@ -191,7 +170,6 @@ def test_retarget_image_marker_preserved():
             body = (root / "note.md").read_text(encoding="utf-8")
             assert "![[diagrams/diagram.md]]" in body
             await store.close()
-        print("✓ test_retarget_image_marker_preserved passed")
 
     asyncio.run(run())
 
@@ -212,7 +190,6 @@ def test_retarget_preserves_surrounding_relation_text():
             assert "colleague:: [[people/Alice.md]]" in body
             assert "[负责:: [[people/Alice.md]]]" in body
             await store.close()
-        print("✓ test_retarget_preserves_surrounding_relation_text passed")
 
     asyncio.run(run())
 
@@ -256,7 +233,6 @@ def test_retarget_multiple_files_aggregate_counts():
             by_file = {row["path"]: row["count"] for row in payload["by_file"]}
             assert by_file == {"a.md": 2, "sub/b.md": 1}
             await store.close()
-        print("✓ test_retarget_multiple_files_aggregate_counts passed")
 
     asyncio.run(run())
 
@@ -280,7 +256,6 @@ def test_retarget_dry_run_does_not_write():
             assert payload["files_touched"] == 1
             assert (root / "note.md").read_text(encoding="utf-8") == original
             await store.close()
-        print("✓ test_retarget_dry_run_does_not_write passed")
 
     asyncio.run(run())
 
@@ -310,7 +285,6 @@ def test_retarget_scope_limits_sweep():
             assert "[[people/Alice.md]]" in in_body
             assert "[[topics/Alice.md]]" in out_body  # untouched
             await store.close()
-        print("✓ test_retarget_scope_limits_sweep passed")
 
     asyncio.run(run())
 
@@ -325,7 +299,6 @@ def test_retarget_src_eq_dst_is_noop():
             assert payload["links_changed"] == 0
             assert payload["files_touched"] == 0
             await store.close()
-        print("✓ test_retarget_src_eq_dst_is_noop passed")
 
     asyncio.run(run())
 
@@ -340,7 +313,6 @@ def test_retarget_empty_src_or_dst_errors():
                 payload = await WikilinkHandler.retarget_links(store, **kwargs)
                 assert "error" in payload, f"expected error for {kwargs}"
             await store.close()
-        print("✓ test_retarget_empty_src_or_dst_errors passed")
 
     asyncio.run(run())
 
@@ -355,7 +327,6 @@ def test_retarget_dst_with_forbidden_chars_errors():
                 payload = await WikilinkHandler.retarget_links(store, src="topics/Alice.md", dst=bad)
                 assert "error" in payload, f"expected error for dst={bad!r}, got {payload}"
             await store.close()
-        print("✓ test_retarget_dst_with_forbidden_chars_errors passed")
 
     asyncio.run(run())
 
@@ -373,7 +344,6 @@ def test_retarget_absolute_path_rejected():
                 payload = await WikilinkHandler.retarget_links(store, **kwargs)
                 assert "error" in payload, f"expected error for {kwargs}"
             await store.close()
-        print("✓ test_retarget_absolute_path_rejected passed")
 
     asyncio.run(run())
 
@@ -396,27 +366,5 @@ def test_find_inbound_counts_references():
             by_file = {row["path"]: row["count"] for row in payload["by_file"]}
             assert by_file == {"a.md": 2, "b.md": 1}
             await store.close()
-        print("✓ test_find_inbound_counts_references passed")
 
     asyncio.run(run())
-
-
-if __name__ == "__main__":
-    print("\n=== wikilink helper tests ===")
-    test_retarget_exact_full_path_match()
-    test_retarget_short_and_no_ext_forms_ignored()
-    test_retarget_anchor_preserved()
-    test_retarget_alias_preserved()
-    test_retarget_anchor_and_alias_together()
-    test_retarget_image_marker_preserved()
-    test_retarget_preserves_surrounding_relation_text()
-    test_markdown_links_are_ignored()
-    test_retarget_multiple_files_aggregate_counts()
-    test_retarget_dry_run_does_not_write()
-    test_retarget_scope_limits_sweep()
-    test_retarget_src_eq_dst_is_noop()
-    test_retarget_empty_src_or_dst_errors()
-    test_retarget_dst_with_forbidden_chars_errors()
-    test_retarget_absolute_path_rejected()
-    test_find_inbound_counts_references()
-    print("\n所有测试通过!")

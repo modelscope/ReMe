@@ -107,7 +107,6 @@ def test_parse_empty_file():
             file_node, chunks = await chunker.chunk(temp_path)
             assert file_node.path == temp_path
             assert len(chunks) == 0
-            print("✓ test_parse_empty_file passed")
         finally:
             os.unlink(temp_path)
 
@@ -130,7 +129,6 @@ def test_parse_small_file():
             assert chunks[0].start_line == 1
             assert chunks[0].end_line == 3
             assert chunks[0].text == content
-            print("✓ test_parse_small_file passed")
         finally:
             os.unlink(temp_path)
 
@@ -154,7 +152,6 @@ def test_parse_chunked_file():
             assert len(chunks) > 1, f"Expected multiple chunks, got {len(chunks)}"
             # Verify overlap by checking that consecutive chunks share some content
             print(f"  Created {len(chunks)} chunks")
-            print("✓ test_parse_chunked_file passed")
         finally:
             os.unlink(temp_path)
 
@@ -175,7 +172,6 @@ def test_parse_with_custom_encoding():
             _, chunks = await chunker.chunk(temp_path)
             assert len(chunks) >= 1
             assert "你好世界" in chunks[0].text
-            print("✓ test_parse_with_custom_encoding passed")
         finally:
             os.unlink(temp_path)
 
@@ -253,7 +249,6 @@ def test_parse_links_bare():
     assert link.source_path == "src.md"
     assert link.target_path == "note"
     assert link.target_anchor is None
-    print("✓ test_parse_links_bare passed")
 
 
 def test_parse_links_with_anchor():
@@ -262,7 +257,6 @@ def test_parse_links_with_anchor():
     assert len(links) == 1
     assert links[0].target_path == "note"
     assert links[0].target_anchor == "section A"
-    print("✓ test_parse_links_with_anchor passed")
 
 
 def test_parse_links_alias_dropped():
@@ -271,7 +265,6 @@ def test_parse_links_alias_dropped():
     assert len(links) == 1
     assert links[0].target_path == "note"
     assert links[0].target_anchor is None
-    print("✓ test_parse_links_alias_dropped passed")
 
 
 def test_parse_links_anchor_and_alias():
@@ -280,7 +273,6 @@ def test_parse_links_anchor_and_alias():
     assert len(links) == 1
     assert links[0].target_path == "note"
     assert links[0].target_anchor == "sec"
-    print("✓ test_parse_links_anchor_and_alias passed")
 
 
 def test_parse_links_ignores_legacy_relation_wrappers():
@@ -304,7 +296,6 @@ def test_parse_links_multiple_on_one_line():
         ("x", None),
         ("y", "h"),
     ]
-    print("✓ test_parse_links_multiple_on_one_line passed")
 
 
 def test_parse_wikilink_line_ranges():
@@ -336,7 +327,6 @@ def test_parse_links_no_match():
     assert len(WikilinkHandler.extract_links("no link here :: foo", "src.md")) == 0
     assert len(WikilinkHandler.extract_links("plain text without brackets", "src.md")) == 0
     assert len(WikilinkHandler.extract_links("", "src.md")) == 0
-    print("✓ test_parse_links_no_match passed")
 
 
 def test_parse_links_in_file():
@@ -363,7 +353,6 @@ def test_parse_links_in_file():
             assert file_node.front_matter == FileFrontMatter()
             assert len(chunks) == 1
             assert chunks[0].text == content
-            print("✓ test_parse_links_in_file passed")
         finally:
             os.unlink(temp_path)
 
@@ -388,7 +377,6 @@ def test_parse_links_empty_when_no_content():
             node2, _ = await chunker.chunk(fm_only_path)
             assert node1.links == []
             assert node2.links == []
-            print("✓ test_parse_links_empty_when_no_content passed")
         finally:
             os.unlink(empty_path)
             os.unlink(fm_only_path)
@@ -413,28 +401,7 @@ def test_min_chunk_and_overlap_size():
         try:
             _, chunks = await chunker.chunk(temp_path)
             assert len(chunks) == 1
-            print("✓ test_min_chunk_and_overlap_size passed")
         finally:
             os.unlink(temp_path)
 
     asyncio.run(run())
-
-
-if __name__ == "__main__":
-    test_parse_empty_file()
-    test_parse_small_file()
-    test_parse_chunked_file()
-    test_parse_with_custom_encoding()
-    test_parse_links_bare()
-    test_parse_links_with_anchor()
-    test_parse_links_alias_dropped()
-    test_parse_links_anchor_and_alias()
-    test_parse_links_ignores_legacy_relation_wrappers()
-    test_parse_links_multiple_on_one_line()
-    test_parse_wikilink_line_ranges()
-    test_parse_markdown_links_are_ignored()
-    test_parse_links_no_match()
-    test_parse_links_in_file()
-    test_parse_links_empty_when_no_content()
-    test_min_chunk_and_overlap_size()
-    print("\n所有测试通过!")

@@ -8,6 +8,7 @@ a markdown-to-FileNode transformer.
 
 # pylint: disable=protected-access
 
+from contextlib import chdir as temp_chdir
 import asyncio
 import os
 import tempfile
@@ -16,22 +17,6 @@ from unittest.mock import patch
 import pytest
 
 from reme.components.file_chunker import DefaultFileChunker, MarkdownFileChunker
-
-
-class temp_chdir:
-    """Context manager to temporarily chdir into a path and restore on exit."""
-
-    def __init__(self, path):
-        self.path = path
-        self.old = None
-
-    def __enter__(self):
-        self.old = os.getcwd()
-        os.chdir(self.path)
-        return self
-
-    def __exit__(self, *exc):
-        os.chdir(self.old)
 
 
 def _write_md(tmpdir: str, name: str, body: str) -> str:
@@ -54,7 +39,6 @@ def test_parse_empty_file():
             assert node.path == "x.md"
             assert chunks == []
             assert node.links == []
-        print("✓ test_parse_empty_file passed")
 
     asyncio.run(run())
 
@@ -168,7 +152,6 @@ def test_parse_frontmatter_only():
             assert node.front_matter.name == "t"
             assert chunks == []
             assert node.links == []
-        print("✓ test_parse_frontmatter_only passed")
 
     asyncio.run(run())
 
@@ -222,7 +205,6 @@ def test_parse_frontmatter_metadata_is_opt_in():
                 "description": "Jon lost his job",
                 "conversation_date": "2023-01-19",
             }
-        print("✓ test_parse_frontmatter_metadata_is_opt_in passed")
 
     asyncio.run(run())
 
@@ -282,7 +264,6 @@ def test_parse_frontmatter_metadata_keys_allowlist():
             )
             _, chunks = await chunker.chunk(path)
             assert chunks[0].metadata == {}
-        print("✓ test_parse_frontmatter_metadata_keys_allowlist passed")
 
     asyncio.run(run())
 
@@ -299,7 +280,6 @@ def test_parse_small_body_one_chunk():
             assert len(chunks) == 1
             assert "this is a small body" in chunks[0].text
             assert node.chunk_ids == [chunks[0].id]
-        print("✓ test_parse_small_body_one_chunk passed")
 
     asyncio.run(run())
 
@@ -374,7 +354,6 @@ def test_parse_oversized_body_splits():
             _, chunks = await chunker.chunk(path)
             assert len(chunks) > 1
             assert all(len(chunk.text.encode("utf-8")) <= chunker.chunk_byte_size for chunk in chunks)
-        print("✓ test_parse_oversized_body_splits passed")
 
     asyncio.run(run())
 
@@ -390,7 +369,6 @@ def test_parse_chunk_ids_match_node_chunk_ids():
             chunker = MarkdownFileChunker(chunk_byte_size=200)
             node, chunks = await chunker.chunk(path)
             assert node.chunk_ids == [c.id for c in chunks]
-        print("✓ test_parse_chunk_ids_match_node_chunk_ids passed")
 
     asyncio.run(run())
 
@@ -410,7 +388,6 @@ def test_parse_links_literal_targets():
             # source_path always equals the node's own path
             for link in node.links:
                 assert link.source_path == node.path
-        print("✓ test_parse_links_literal_targets passed")
 
     asyncio.run(run())
 
@@ -432,7 +409,6 @@ def test_parse_links_short_and_no_ext_kept_literally():
             node, _ = await chunker.chunk(path)
             targets = {link.target_path for link in node.links}
             assert targets == {"Alice", "topics/Alice", "topics/Alice.md"}
-        print("✓ test_parse_links_short_and_no_ext_kept_literally passed")
 
     asyncio.run(run())
 
@@ -447,7 +423,6 @@ def test_parse_links_legacy_relation_text_is_ignored():
             chunker = MarkdownFileChunker()
             node, _ = await chunker.chunk(path)
             assert {link.target_path for link in node.links} == {"A.md", "B.md"}
-        print("✓ test_parse_links_legacy_relation_text_is_ignored passed")
 
     asyncio.run(run())
 
@@ -462,7 +437,6 @@ def test_parse_links_deduped():
             chunker = MarkdownFileChunker()
             node, _ = await chunker.chunk(path)
             assert len([link for link in node.links if link.target_path == "A.md"]) == 1
-        print("✓ test_parse_links_deduped passed")
 
     asyncio.run(run())
 
@@ -471,7 +445,6 @@ def test_parse_min_chunk_byte_size_clamped():
     """chunk_byte_size below 100 should be clamped to 100."""
     chunker = MarkdownFileChunker(chunk_byte_size=10)
     assert chunker.chunk_byte_size == 100
-    print("✓ test_parse_min_chunk_byte_size_clamped passed")
 
 
 def test_parse_embed_toc_prefixes_chunk_text():
@@ -485,7 +458,6 @@ def test_parse_embed_toc_prefixes_chunk_text():
             _, chunks = await chunker.chunk(path)
             # Single small section fits; check that the heading appears in text.
             assert any("Top" in c.text for c in chunks)
-        print("✓ test_parse_embed_toc_prefixes_chunk_text passed")
 
     asyncio.run(run())
 
@@ -680,7 +652,6 @@ def test_parse_frontmatter_preserves_original_line_numbers():
             assert len(chunks) == 1
             assert chunks[0].start_line == 4
             assert chunks[0].end_line == 6
-        print("✓ test_parse_frontmatter_preserves_original_line_numbers passed")
 
     asyncio.run(run())
 
@@ -698,7 +669,6 @@ def test_parse_frontmatter_offsets_split_table_rows():
             assert len(chunks) > 1
             assert chunks[0].start_line == 6
             assert chunks[0].end_line >= chunks[0].start_line
-        print("✓ test_parse_frontmatter_offsets_split_table_rows passed")
 
     asyncio.run(run())
 
@@ -716,7 +686,6 @@ def test_parse_bad_frontmatter_does_not_abort_chunking():
             assert len(chunks) == 1
             assert chunks[0].start_line == 4
             assert "body" in chunks[0].text
-        print("✓ test_parse_bad_frontmatter_does_not_abort_chunking passed")
 
     asyncio.run(run())
 
@@ -743,7 +712,6 @@ def test_chunk_does_not_split_wikilink_at_boundary():
             assert "[[" not in first or "]]" in first, f"first chunk has dangling '[[': {first!r}"
             # And the link should appear intact in some chunk.
             assert any(link in c.text for c in chunks), "link was split across all chunks"
-            print("✓ test_chunk_does_not_split_wikilink_at_boundary passed")
         finally:
             os.unlink(temp_path)
 
@@ -773,7 +741,6 @@ def test_chunk_does_not_split_wikilink_in_overlap():
                 if "]]" in t and "[[" not in t.split("]]", 1)[0]:
                     raise AssertionError(f"chunk starts mid-link: {t[:40]!r}")
             assert any(link in c.text for c in chunks)
-            print("✓ test_chunk_does_not_split_wikilink_in_overlap passed")
         finally:
             os.unlink(temp_path)
 
@@ -799,40 +766,7 @@ def test_chunk_falls_back_for_oversize_link():
             _, chunks = await chunker.chunk(temp_path)
             # Must terminate (not hang) and cover the whole file.
             assert len(chunks) >= 2
-            print("✓ test_chunk_falls_back_for_oversize_link passed")
         finally:
             os.unlink(temp_path)
 
     asyncio.run(run())
-
-
-if __name__ == "__main__":
-    print("\n=== MarkdownFileChunker tests ===")
-    test_parse_empty_file()
-    test_parse_frontmatter_only()
-    test_parse_frontmatter_metadata_is_opt_in()
-    test_parse_small_body_one_chunk()
-    test_parse_small_children_are_cached_without_recursive_calls()
-    test_parse_child_cache_flushes_at_exact_limit()
-    test_parse_oversized_child_flushes_parent_cache()
-    test_parse_oversized_body_splits()
-    test_parse_chunk_ids_match_node_chunk_ids()
-    test_parse_links_literal_targets()
-    test_parse_links_short_and_no_ext_kept_literally()
-    test_parse_links_legacy_relation_text_is_ignored()
-    test_parse_links_deduped()
-    test_parse_min_chunk_byte_size_clamped()
-    test_parse_embed_toc_prefixes_chunk_text()
-    test_parse_embed_toc_is_enabled_by_default()
-    test_count_sections_ignores_fenced_headings_and_supports_setext()
-    test_parse_excessive_sections_uses_plain_text_without_ast()
-    test_parse_section_limit_is_inclusive_for_ast()
-    test_parse_small_sections_are_merged_and_headings_preserved()
-    test_parse_embed_toc_uses_breadcrumbs_without_sibling_duplication()
-    test_parse_heading_heavy_output_grows_linearly()
-    test_parse_nested_sections_merge_within_recursive_context()
-    test_parse_breadcrumbs_and_part_markers_share_byte_budget()
-    test_parse_frontmatter_preserves_original_line_numbers()
-    test_parse_frontmatter_offsets_split_table_rows()
-    test_parse_bad_frontmatter_does_not_abort_chunking()
-    print("\n所有测试通过!")

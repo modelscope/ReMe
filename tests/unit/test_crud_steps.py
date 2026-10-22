@@ -26,6 +26,7 @@ outside the workspace are rejected.
 
 # pylint: disable=protected-access,redefined-builtin
 
+from contextlib import chdir as temp_chdir
 import asyncio
 import os
 import tempfile
@@ -49,22 +50,6 @@ from reme.utils.wikilink_handler import WikilinkHandler
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="jieba")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="pkg_resources")
-
-
-class temp_chdir:
-    """Context manager to temporarily chdir into a path and restore on exit."""
-
-    def __init__(self, path):
-        self.path = path
-        self.old = None
-
-    def __enter__(self):
-        self.old = os.getcwd()
-        os.chdir(self.path)
-        return self
-
-    def __exit__(self, *exc):
-        os.chdir(self.old)
 
 
 async def _make_store(files: dict[str, str] | None = None) -> LocalFileStore:
@@ -130,7 +115,6 @@ def test_stat_indexed_file():
             assert payload["mime"].startswith("text/")
             assert payload["frontmatter"] == {"name": "T"}
             await store.close()
-        print("✓ test_stat_indexed_file passed")
 
     asyncio.run(run())
 
@@ -149,7 +133,6 @@ def test_stat_directory_fallback():
             assert payload["type"] == "dir"
             assert step.context.response.answer == f"stat: topics (dir, mtime {payload['mtime']})"
             await store.close()
-        print("✓ test_stat_directory_fallback passed")
 
     asyncio.run(run())
 
@@ -185,7 +168,6 @@ def test_stat_directory_wins_over_same_name_index():
             assert payload["type"] == "file"
             assert payload["frontmatter"] == {"name": "index"}
             await store.close()
-        print("✓ test_stat_directory_wins_over_same_name_index passed")
 
     asyncio.run(run())
 
@@ -211,7 +193,6 @@ def test_stat_shadowed_extensionless_reports_resolved_path():
             assert payload["absolute_path"].endswith("LICENSE.md")
             assert payload["resolved_path"] == "LICENSE.md"
             await store.close()
-        print("✓ test_stat_shadowed_extensionless_reports_resolved_path passed")
 
     asyncio.run(run())
 
@@ -232,7 +213,6 @@ def test_stat_extensionless_file_without_md_sibling():
             assert payload["absolute_path"].endswith("LICENSE")
             assert "resolved_path" not in payload
             await store.close()
-        print("✓ test_stat_extensionless_file_without_md_sibling passed")
 
     asyncio.run(run())
 
@@ -250,7 +230,6 @@ def test_stat_missing_reports_probed_md_path():
             assert payload["resolved_path"] == "digest/missing.md"
             assert "digest/missing.md" in str(step.context.response.answer)
             await store.close()
-        print("✓ test_stat_missing_reports_probed_md_path passed")
 
     asyncio.run(run())
 
@@ -279,7 +258,6 @@ def test_list_lists_files():
             assert answer.startswith("Listed 3 file(s) under topics:\n")
             assert all(f"- {item}" in answer for item in payload["items"])
             await store.close()
-        print("✓ test_list_lists_files passed")
 
     asyncio.run(run())
 
@@ -304,7 +282,6 @@ def test_list_empty_directory_has_explicit_answer():
             assert step.context.response.answer == "No files found under topics."
             assert _metadata(step) == {"items": [], "count": 0}
             await store.close()
-        print("✓ test_list_empty_directory_has_explicit_answer passed")
 
     asyncio.run(run())
 
@@ -327,7 +304,6 @@ def test_list_respects_limit_and_non_recursive():
             assert payload["count"] == 1
             assert len(payload["items"]) == 1
             await store.close()
-        print("✓ test_list_respects_limit_and_non_recursive passed")
 
     asyncio.run(run())
 
@@ -420,7 +396,6 @@ def test_move_relocates_within_workspace():
             assert not (Path(tmp) / "daily/2026-05-18/foo/foo.md").exists()
             assert (Path(tmp) / "knowledge/foo/foo.md").read_text(encoding="utf-8") == "draft"
             await store.close()
-        print("✓ test_move_relocates_within_workspace passed")
 
     asyncio.run(run())
 
@@ -442,7 +417,6 @@ def test_move_refuses_overwrite_without_flag():
             assert "destination exists" in payload.get("error", "")
             assert (Path(tmp) / "a/x.md").exists()
             await store.close()
-        print("✓ test_move_refuses_overwrite_without_flag passed")
 
     asyncio.run(run())
 
@@ -477,7 +451,6 @@ def test_move_default_retargets_inbound_links():
             assert "[[daily/2026-05-18/draft/draft.md]]" not in notes
             assert notes.count("[[knowledge/draft/draft.md]]") == 2
             await store.close()
-        print("✓ test_move_default_retargets_inbound_links passed")
 
     asyncio.run(run())
 
@@ -508,7 +481,6 @@ def test_move_opt_out_leaves_links_dangling():
             # link UNCHANGED — caller opted out of retarget
             assert "[[daily/2026-05-18/draft/draft.md]]" in notes
             await store.close()
-        print("✓ test_move_opt_out_leaves_links_dangling passed")
 
     asyncio.run(run())
 
@@ -528,7 +500,6 @@ def test_delete_removes_file():
             assert payload.get("deleted") is True
             assert not (Path(tmp) / "knowledge/draft/draft.md").exists()
             await store.close()
-        print("✓ test_delete_removes_file passed")
 
     asyncio.run(run())
 
@@ -544,7 +515,6 @@ def test_delete_missing_returns_error():
             payload = _metadata(step)
             assert payload["error"] == "not found"
             await store.close()
-        print("✓ test_delete_missing_returns_error passed")
 
     asyncio.run(run())
 
@@ -583,7 +553,6 @@ def test_delete_reports_inbound_refs():
             assert inbound["files_touched"] == 2
             assert inbound["links_total"] == 3
             await store.close()
-        print("✓ test_delete_reports_inbound_refs passed")
 
     asyncio.run(run())
 
@@ -614,7 +583,6 @@ def test_delete_folder_removes_tree():
             assert not (Path(tmp) / "scratch").exists()
             assert (Path(tmp) / "keeper/k.md").exists()
             await store.close()
-        print("✓ test_delete_folder_removes_tree passed")
 
     asyncio.run(run())
 
@@ -654,7 +622,6 @@ def test_delete_folder_reports_only_external_inbound():
             b_sources = {row["path"]: row["count"] for row in by_target["doomed/b.md"]["by_file"]}
             assert b_sources == {"outside/x.md": 1}
             await store.close()
-        print("✓ test_delete_folder_reports_only_external_inbound passed")
 
     asyncio.run(run())
 
@@ -676,7 +643,6 @@ def test_delete_folder_empty_has_no_inbound():
             assert payload["inbound"]["links_total"] == 0
             assert not (Path(tmp) / "empty").exists()
             await store.close()
-        print("✓ test_delete_folder_empty_has_no_inbound passed")
 
     asyncio.run(run())
 
@@ -723,7 +689,6 @@ def test_read_relative_path():
             assert "# Recipe" in str(resp.answer)
             assert "flour and water" in str(resp.answer)
             await store.close()
-        print("✓ test_read_relative_path passed")
 
     _run(run())
 
@@ -739,7 +704,6 @@ def test_read_no_suffix_autoappends_md():
             assert resp.success is True
             assert "auto-md" in str(resp.answer)
             await store.close()
-        print("✓ test_read_no_suffix_autoappends_md passed")
 
     _run(run())
 
@@ -759,7 +723,6 @@ def test_read_line_range():
             assert "L1" not in str(resp.answer)
             assert "L5" not in str(resp.answer)
             await store.close()
-        print("✓ test_read_line_range passed")
 
     _run(run())
 
@@ -775,7 +738,6 @@ def test_read_absolute_path_inside_workspace_accepted():
             assert resp.success is True
             assert "x" in str(resp.answer)
             await store.close()
-        print("✓ test_read_absolute_path_inside_workspace_accepted passed")
 
     _run(run())
 
@@ -816,7 +778,6 @@ def test_file_io_ops_reject_outside_workspace_path():
             assert move_step.context.response.success is False
 
             await store.close()
-        print("✓ test_file_io_ops_reject_outside_workspace_path passed")
 
     _run(run())
 
@@ -832,7 +793,6 @@ def test_read_non_md_degraded():
             assert resp.success is True
             assert "plain-text body" in str(resp.answer)
             await store.close()
-        print("✓ test_read_non_md_degraded passed")
 
     _run(run())
 
@@ -847,7 +807,6 @@ def test_read_missing_file():
             assert resp.success is False
             assert "does not exist" in str(resp.answer).lower()
             await store.close()
-        print("✓ test_read_missing_file passed")
 
     _run(run())
 
@@ -863,7 +822,6 @@ def test_read_start_after_end():
             assert resp.success is False
             assert "start_line" in str(resp.answer)
             await store.close()
-        print("✓ test_read_start_after_end passed")
 
     _run(run())
 
@@ -879,7 +837,6 @@ def test_read_start_line_exceeds_total():
             assert resp.success is False
             assert "exceeds" in str(resp.answer).lower()
             await store.close()
-        print("✓ test_read_start_line_exceeds_total passed")
 
     _run(run())
 
@@ -912,7 +869,6 @@ def test_read_trailing_newline_does_not_inflate_total_lines():
             assert str(in_range.answer).strip() == "line3"
 
             await store.close()
-        print("✓ test_read_trailing_newline_does_not_inflate_total_lines passed")
 
     _run(run())
 
@@ -931,7 +887,6 @@ def test_read_truncation():
             assert "truncated" in str(resp.answer)
             assert "start_line=" in str(resp.answer)
             await store.close()
-        print("✓ test_read_truncation passed")
 
     _run(run())
 
@@ -946,7 +901,6 @@ def test_read_empty_path_rejected():
             assert resp.success is False
             assert "required" in str(resp.answer).lower()
             await store.close()
-        print("✓ test_read_empty_path_rejected passed")
 
     _run(run())
 
@@ -979,7 +933,6 @@ def test_read_format_session_injected_false_disables_yaml_true():
             assert "[user @" not in str(step.context.response.answer)
 
             await store.close()
-        print("✓ test_read_format_session_injected_false_disables_yaml_true passed")
 
     _run(run())
 
@@ -1033,7 +986,6 @@ def test_write_basic_with_frontmatter():
             assert "description: a friendly hello note" in on_disk
             assert "# Hello" in on_disk
             await store.close()
-        print("✓ test_write_basic_with_frontmatter passed")
 
     _run(run())
 
@@ -1058,7 +1010,6 @@ def test_write_rejects_invalid_path_components():
             # Sanity: no `Notes/` directory got created from any of the bad attempts.
             assert not (Path(tmp) / "Notes").exists()
             await store.close()
-        print("✓ test_write_rejects_invalid_path_components passed")
 
     _run(run())
 
@@ -1073,7 +1024,6 @@ def test_write_no_suffix_autoappends_md():
             assert resp.success is True
             assert (Path(tmp) / "Notes/My.md").exists()
             await store.close()
-        print("✓ test_write_no_suffix_autoappends_md passed")
 
     _run(run())
 
@@ -1093,7 +1043,6 @@ def test_write_overwrites_with_notice():
             on_disk = (Path(tmp) / "Existing.md").read_text(encoding="utf-8")
             assert "new" in on_disk and "old" not in on_disk, on_disk
             await store.close()
-        print("✓ test_write_overwrites_with_notice passed")
 
     _run(run())
 
@@ -1108,7 +1057,6 @@ def test_write_creates_parent_dirs():
             assert resp.success is True
             assert (Path(tmp) / "a/b/c/D.md").exists()
             await store.close()
-        print("✓ test_write_creates_parent_dirs passed")
 
     _run(run())
 
@@ -1128,7 +1076,6 @@ def test_write_no_frontmatter_when_all_empty():
             assert not on_disk.startswith("---"), on_disk
             assert "# Hello" in on_disk
             await store.close()
-        print("✓ test_write_no_frontmatter_when_all_empty passed")
 
     _run(run())
 
@@ -1161,7 +1108,6 @@ def test_write_ignores_arbitrary_extra_fields():
             assert "tags:" not in on_disk
             assert "body" in on_disk
             await store.close()
-        print("✓ test_write_ignores_arbitrary_extra_fields passed")
 
     _run(run())
 
@@ -1179,7 +1125,6 @@ def test_write_only_description_present():
             assert "description: just a description" in on_disk
             assert "name:" not in on_disk
             await store.close()
-        print("✓ test_write_only_description_present passed")
 
     _run(run())
 
@@ -1196,7 +1141,6 @@ def test_edit_global_replace():
             assert "3" in str(resp.answer)  # 3 replacements
             assert (Path(tmp) / "E.md").read_text(encoding="utf-8") == "qux bar qux\nqux\n"
             await store.close()
-        print("✓ test_edit_global_replace passed")
 
     _run(run())
 
@@ -1213,7 +1157,6 @@ def test_edit_old_not_found():
             assert "not found" in str(resp.answer).lower()
             assert (Path(tmp) / "E.md").read_text(encoding="utf-8") == "hello world\n"
             await store.close()
-        print("✓ test_edit_old_not_found passed")
 
     _run(run())
 
@@ -1228,7 +1171,6 @@ def test_edit_missing_file():
             assert resp.success is False
             assert "does not exist" in str(resp.answer).lower()
             await store.close()
-        print("✓ test_edit_missing_file passed")
 
     _run(run())
 
@@ -1258,7 +1200,6 @@ def test_edit_skips_frontmatter():
             assert "beta and beta" in on_disk, on_disk
             assert "alpha and alpha" not in on_disk, on_disk
             await store.close()
-        print("✓ test_edit_skips_frontmatter passed")
 
     _run(run())
 
@@ -1277,7 +1218,6 @@ def test_edit_match_only_in_frontmatter_fails():
             # File untouched.
             assert (Path(tmp) / "FMOnly.md").read_text(encoding="utf-8") == body
             await store.close()
-        print("✓ test_edit_match_only_in_frontmatter_fails passed")
 
     _run(run())
 
@@ -1306,7 +1246,6 @@ def test_write_non_md_skips_frontmatter():
             assert "name: Greetings" not in on_disk
             assert on_disk == "# Hello"
             await store.close()
-        print("✓ test_write_non_md_skips_frontmatter passed")
 
     _run(run())
 
@@ -1328,7 +1267,6 @@ def test_edit_non_md_full_text():
             assert "name: replaced" in on_disk, on_disk
             assert "foo bar foo" in on_disk, on_disk
             await store.close()
-        print("✓ test_edit_non_md_full_text passed")
 
     _run(run())
 
@@ -1347,7 +1285,6 @@ def test_read_non_utf8_encoding():
             assert resp.success is True
             assert "你好世界" in str(resp.answer)
             await store.close()
-        print("✓ test_read_non_utf8_encoding passed")
 
     _run(run())
 
@@ -1369,7 +1306,6 @@ def test_edit_preserves_gbk_encoding():
             decoded = raw.decode("gbk")
             assert "替换后" in decoded and "原始内容" not in decoded
             await store.close()
-        print("✓ test_edit_preserves_gbk_encoding passed")
 
     _run(run())
 
@@ -1388,7 +1324,6 @@ def test_read_utf8_bom():
             assert "hello world" in str(resp.answer)
             assert "﻿" not in str(resp.answer)
             await store.close()
-        print("✓ test_read_utf8_bom passed")
 
     _run(run())
 
@@ -1415,62 +1350,5 @@ def test_all_read_cases_one_store():
             assert resp.success is True and str(resp.answer).strip() == "L2"
 
             await store.close()
-        print("✓ test_all_read_cases_one_store passed")
 
     _run(run())
-
-
-if __name__ == "__main__":
-    print("\n=== crud step tests (opaque-byte surface) ===")
-    # stat / list / move / delete
-    test_stat_indexed_file()
-    test_stat_directory_fallback()
-    test_stat_directory_wins_over_same_name_index()
-    test_stat_shadowed_extensionless_reports_resolved_path()
-    test_stat_extensionless_file_without_md_sibling()
-    test_stat_missing_reports_probed_md_path()
-    test_list_lists_files()
-    test_list_respects_limit_and_non_recursive()
-    test_move_relocates_within_workspace()
-    test_move_refuses_overwrite_without_flag()
-    test_move_default_retargets_inbound_links()
-    test_move_opt_out_leaves_links_dangling()
-    test_delete_removes_file()
-    test_delete_missing_returns_error()
-    test_delete_reports_inbound_refs()
-    test_delete_folder_removes_tree()
-    test_delete_folder_reports_only_external_inbound()
-    test_delete_folder_empty_has_no_inbound()
-    print("\n=== crud_md (read) E2E tests ===")
-    test_read_relative_path()
-    test_read_no_suffix_autoappends_md()
-    test_read_line_range()
-    test_read_absolute_path_inside_workspace_accepted()
-    test_file_io_ops_reject_outside_workspace_path()
-    test_read_non_md_degraded()
-    test_read_missing_file()
-    test_read_start_after_end()
-    test_read_start_line_exceeds_total()
-    test_read_trailing_newline_does_not_inflate_total_lines()
-    test_read_truncation()
-    test_read_empty_path_rejected()
-    print("\n=== crud_md (write/edit) E2E tests ===")
-    test_write_basic_with_frontmatter()
-    test_write_no_suffix_autoappends_md()
-    test_write_overwrites_with_notice()
-    test_write_creates_parent_dirs()
-    test_write_no_frontmatter_when_all_empty()
-    test_write_ignores_arbitrary_extra_fields()
-    test_write_only_description_present()
-    test_edit_global_replace()
-    test_edit_old_not_found()
-    test_edit_missing_file()
-    test_edit_skips_frontmatter()
-    test_edit_match_only_in_frontmatter_fails()
-    print("\n=== crud_md (non-md degraded mode) E2E tests ===")
-    test_write_non_md_skips_frontmatter()
-    test_edit_non_md_full_text()
-    test_read_non_utf8_encoding()
-    test_edit_preserves_gbk_encoding()
-    test_read_utf8_bom()
-    print("\n所有测试通过!")
