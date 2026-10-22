@@ -16,7 +16,7 @@ import pytest
 from reme.components.file_store import ZvecLocalFileStore
 from reme.schema import FileChunk
 
-from .file_store_test_support import FakeEmbeddingStore, _new_zvec_store, chunk, node
+from .file_store_test_support import FakeEmbeddingStore, _new_zvec_store, _seed_unembedded_chunk, chunk, node
 
 
 def embedded_chunk(chunk_id: str, path: str, text: str, embedding: list[float]) -> FileChunk:
@@ -56,14 +56,6 @@ async def _started_store(name, **kwargs) -> ZvecLocalFileStore:
     if store._collection is None:
         store._collection = store._create_collection()
     return store
-
-
-async def _seed_unembedded_chunk(store: ZvecLocalFileStore, chunk_id: str, path: str, text: str) -> None:
-    """Attach one chunk without a vector, keeping the graph invariant intact."""
-    store.file_chunks[chunk_id] = chunk(chunk_id, path, text)
-    file_node = node(path)
-    file_node.chunk_ids = [chunk_id]
-    await store.file_graph.upsert_nodes([file_node])
 
 
 # -- CRUD / search ------------------------------------------------------------

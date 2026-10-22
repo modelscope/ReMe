@@ -11,15 +11,14 @@ import pytest
 from reme.components.file_store import LocalFileStore
 from reme.steps.index import OptimizeIndexStep
 
-from .file_store_test_support import FakeEmbeddingStore, _new_faiss_store, _settle_reindex, chunk, node
-
-
-async def _seed_unembedded_chunk(store: LocalFileStore, chunk_id: str, path: str, text: str) -> None:
-    """Attach one chunk without a vector, keeping the graph invariant intact."""
-    store.file_chunks[chunk_id] = chunk(chunk_id, path, text)
-    file_node = node(path)
-    file_node.chunk_ids = [chunk_id]
-    await store.file_graph.upsert_nodes([file_node])
+from .file_store_test_support import (
+    FakeEmbeddingStore,
+    _new_faiss_store,
+    _seed_unembedded_chunk,
+    _settle_reindex,
+    chunk,
+    node,
+)
 
 
 @pytest.mark.asyncio

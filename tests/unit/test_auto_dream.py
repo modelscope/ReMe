@@ -471,58 +471,54 @@ async def test_extract_retry_includes_parser_error_and_recovers_json(tmp_path, l
     assert "submodules: recursive" in example["units"][0]["summary"]
 
 
-def test_extract_retries_one_unusable_receipt(tmp_path):
+@pytest.mark.asyncio
+async def test_extract_retries_one_unusable_receipt(tmp_path):
     """A transient malformed extraction receipt gets one bounded retry."""
 
-    async def run():
-        _touch(tmp_path / "daily" / "2026-05-28" / "session.md")
-        agent = _SequenceAgent({"result": "{}"}, {"result": '{"units": []}'})
-        step = DreamExtractStep(
-            scan_days=1,
-            app_context=ApplicationContext(workspace_dir=str(tmp_path)),
-            agent_wrapper=agent,
+    _touch(tmp_path / "daily" / "2026-05-28" / "session.md")
+    agent = _SequenceAgent({"result": "{}"}, {"result": '{"units": []}'})
+    step = DreamExtractStep(
+        scan_days=1,
+        app_context=ApplicationContext(workspace_dir=str(tmp_path)),
+        agent_wrapper=agent,
+    )
+
+    with (
+        patch("reme.steps.evolve.dream.extract.refresh_day_index", return_value={}),
+        patch("reme.steps.evolve.dream.extract.llm_available", return_value=True),
+    ):
+        response = await step(
+            RuntimeContext(date="2026-05-28", file_catalog=_Catalog(), file_store=_FileStore(tmp_path)),
         )
 
-        with (
-            patch("reme.steps.evolve.dream.extract.refresh_day_index", return_value={}),
-            patch("reme.steps.evolve.dream.extract.llm_available", return_value=True),
-        ):
-            response = await step(
-                RuntimeContext(date="2026-05-28", file_catalog=_Catalog(), file_store=_FileStore(tmp_path)),
-            )
-
-        assert response.success is True
-        assert response.metadata["dream"]["warnings"] == []
-        assert agent.calls == 2
-
-    asyncio.run(run())
+    assert response.success is True
+    assert response.metadata["dream"]["warnings"] == []
+    assert agent.calls == 2
 
 
 @pytest.mark.parametrize(
     "receipt",
     ["{}", "not a receipt", '{"action": "CREATE", "target_path": "digest/wiki/missing.md"}'],
 )
-def test_integrate_invalid_receipt_without_file_change_fails(tmp_path, receipt):
+@pytest.mark.asyncio
+async def test_integrate_invalid_receipt_without_file_change_fails(tmp_path, receipt):
     """An unusable integration receipt cannot acknowledge unprocessed source files."""
 
-    async def run():
-        unit = {"name": "unit", "bucket": "wiki", "summary": "summary", "paths": ["daily/a.md"]}
-        state = DreamState(units=[unit])
-        step = DreamIntegrateStep()
-        step.agent_wrapper = _ReplyAgent({"result": receipt})
+    unit = {"name": "unit", "bucket": "wiki", "summary": "summary", "paths": ["daily/a.md"]}
+    state = DreamState(units=[unit])
+    step = DreamIntegrateStep()
+    step.agent_wrapper = _ReplyAgent({"result": receipt})
 
-        await step._integrate_one(state, unit, 1, tmp_path, "digest")  # pylint: disable=protected-access
+    await step._integrate_one(state, unit, 1, tmp_path, "digest")  # pylint: disable=protected-access
 
-        assert state.integrate_results == []
-        assert state.skipped_units == []
-        assert len(state.failed_units) == 1
-        assert state.failed_units[0]["name"] == unit["name"]
-        assert state.failed_paths == unit["paths"]
-        assert len(state.errors) == 1
-        assert state.warnings == []
-        assert step.agent_wrapper.calls == 2
-
-    asyncio.run(run())
+    assert state.integrate_results == []
+    assert state.skipped_units == []
+    assert len(state.failed_units) == 1
+    assert state.failed_units[0]["name"] == unit["name"]
+    assert state.failed_paths == unit["paths"]
+    assert len(state.errors) == 1
+    assert state.warnings == []
+    assert step.agent_wrapper.calls == 2
 
 
 @pytest.mark.asyncio
@@ -563,149 +559,137 @@ async def test_integrate_failure_only_blocks_affected_sources(tmp_path, monkeypa
     assert agent.calls == 3
 
 
-def test_integrate_retries_one_invalid_receipt(tmp_path):
+@pytest.mark.asyncio
+async def test_integrate_retries_one_invalid_receipt(tmp_path):
     """A transient invalid integration receipt gets one bounded retry."""
 
-    async def run():
-        unit = {"name": "unit", "bucket": "wiki", "summary": "summary", "paths": ["daily/a.md"]}
-        state = DreamState(units=[unit])
-        target = _touch(tmp_path / "digest" / "wiki" / "unit.md", "integrated")
-        agent = _SequenceAgent(
-            {"result": "{}"},
-            {
-                "result": (
-                    '{"action": "REFINE", "target_path": "digest/wiki/unit.md", ' '"note": "updated after retry"}'
-                ),
-            },
-        )
-        step = DreamIntegrateStep(agent_wrapper=agent)
+    unit = {"name": "unit", "bucket": "wiki", "summary": "summary", "paths": ["daily/a.md"]}
+    state = DreamState(units=[unit])
+    target = _touch(tmp_path / "digest" / "wiki" / "unit.md", "integrated")
+    agent = _SequenceAgent(
+        {"result": "{}"},
+        {
+            "result": ('{"action": "REFINE", "target_path": "digest/wiki/unit.md", ' '"note": "updated after retry"}'),
+        },
+    )
+    step = DreamIntegrateStep(agent_wrapper=agent)
 
-        with patch(
-            "reme.steps.evolve.dream.integrate._snapshot_digest",
-            wraps=_snapshot_digest,
-        ) as snapshot:
-            await step._integrate_one(state, unit, 1, tmp_path, "digest")  # pylint: disable=protected-access
+    with patch(
+        "reme.steps.evolve.dream.integrate._snapshot_digest",
+        wraps=_snapshot_digest,
+    ) as snapshot:
+        await step._integrate_one(state, unit, 1, tmp_path, "digest")  # pylint: disable=protected-access
 
-        assert target.is_file()
-        assert state.integrate_results[0]["target_path"] == "digest/wiki/unit.md"
-        assert state.skipped_units == []
-        assert agent.calls == 2
-        assert snapshot.call_count == 3
-
-    asyncio.run(run())
+    assert target.is_file()
+    assert state.integrate_results[0]["target_path"] == "digest/wiki/unit.md"
+    assert state.skipped_units == []
+    assert agent.calls == 2
+    assert snapshot.call_count == 3
 
 
-def test_integrate_invalid_receipt_recovers_one_changed_digest_file(tmp_path):
+@pytest.mark.asyncio
+async def test_integrate_invalid_receipt_recovers_one_changed_digest_file(tmp_path):
     """The file-native side effect wins when the agent's final receipt is malformed."""
 
-    async def run():
-        unit = {"name": "unit", "bucket": "wiki", "summary": "summary", "paths": ["daily/a.md"]}
-        state = DreamState(units=[unit])
-        target = tmp_path / "digest" / "wiki" / "unit.md"
+    unit = {"name": "unit", "bucket": "wiki", "summary": "summary", "paths": ["daily/a.md"]}
+    state = DreamState(units=[unit])
+    target = tmp_path / "digest" / "wiki" / "unit.md"
 
-        def write_digest():
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text("integrated", encoding="utf-8")
+    def write_digest():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("integrated", encoding="utf-8")
 
-        step = DreamIntegrateStep()
-        step.agent_wrapper = _ReplyAgent(on_reply=write_digest)
+    step = DreamIntegrateStep()
+    step.agent_wrapper = _ReplyAgent(on_reply=write_digest)
 
-        await step._integrate_one(state, unit, 1, tmp_path, "digest")  # pylint: disable=protected-access
+    await step._integrate_one(state, unit, 1, tmp_path, "digest")  # pylint: disable=protected-access
 
-        assert state.skipped_units == []
-        assert state.failed_units == []
-        assert state.integrate_results[0]["action"] == "CREATE"
-        assert state.integrate_results[0]["target_path"] == "digest/wiki/unit.md"
-        assert state.nodes_created == ["digest/wiki/unit.md"]
-        assert state.modified_paths == ["digest/wiki/unit.md"]
-        assert len(state.warnings) == 1
-
-    asyncio.run(run())
+    assert state.skipped_units == []
+    assert state.failed_units == []
+    assert state.integrate_results[0]["action"] == "CREATE"
+    assert state.integrate_results[0]["target_path"] == "digest/wiki/unit.md"
+    assert state.nodes_created == ["digest/wiki/unit.md"]
+    assert state.modified_paths == ["digest/wiki/unit.md"]
+    assert len(state.warnings) == 1
 
 
-def test_integrate_recovers_an_update_to_another_bucket(tmp_path):
+@pytest.mark.asyncio
+async def test_integrate_recovers_an_update_to_another_bucket(tmp_path):
     """A malformed receipt can recover an update to an existing cross-bucket node."""
 
-    async def run():
-        unit = {"name": "unit", "bucket": "wiki", "summary": "summary", "paths": ["daily/a.md"]}
-        state = DreamState(units=[unit])
-        target = tmp_path / "digest" / "procedure" / "unit.md"
-        _touch(target, "existing procedure")
+    unit = {"name": "unit", "bucket": "wiki", "summary": "summary", "paths": ["daily/a.md"]}
+    state = DreamState(units=[unit])
+    target = tmp_path / "digest" / "procedure" / "unit.md"
+    _touch(target, "existing procedure")
 
-        def write_digest():
-            target.write_text("updated procedure", encoding="utf-8")
+    def write_digest():
+        target.write_text("updated procedure", encoding="utf-8")
 
-        step = DreamIntegrateStep()
-        step.agent_wrapper = _ReplyAgent(on_reply=write_digest)
+    step = DreamIntegrateStep()
+    step.agent_wrapper = _ReplyAgent(on_reply=write_digest)
 
-        await step._integrate_one(state, unit, 1, tmp_path, "digest")  # pylint: disable=protected-access
+    await step._integrate_one(state, unit, 1, tmp_path, "digest")  # pylint: disable=protected-access
 
-        assert state.skipped_units == []
-        assert state.integrate_results[0]["action"] == "UPDATED"
-        assert state.integrate_results[0]["target_path"] == "digest/procedure/unit.md"
-        assert state.nodes_updated == ["digest/procedure/unit.md"]
-        assert state.modified_paths == ["digest/procedure/unit.md"]
-        assert step.agent_wrapper.calls == 1
-
-    asyncio.run(run())
+    assert state.skipped_units == []
+    assert state.integrate_results[0]["action"] == "UPDATED"
+    assert state.integrate_results[0]["target_path"] == "digest/procedure/unit.md"
+    assert state.nodes_updated == ["digest/procedure/unit.md"]
+    assert state.modified_paths == ["digest/procedure/unit.md"]
+    assert step.agent_wrapper.calls == 1
 
 
-def test_integrate_does_not_recover_a_create_in_another_bucket(tmp_path):
+@pytest.mark.asyncio
+async def test_integrate_does_not_recover_a_create_in_another_bucket(tmp_path):
     """A malformed receipt cannot recover a cross-bucket create."""
 
-    async def run():
-        unit = {"name": "unit", "bucket": "wiki", "summary": "summary", "paths": ["daily/a.md"]}
-        state = DreamState(units=[unit])
-        target = tmp_path / "digest" / "procedure" / "unit.md"
+    unit = {"name": "unit", "bucket": "wiki", "summary": "summary", "paths": ["daily/a.md"]}
+    state = DreamState(units=[unit])
+    target = tmp_path / "digest" / "procedure" / "unit.md"
 
-        def write_digest():
-            _touch(target, "created procedure")
+    def write_digest():
+        _touch(target, "created procedure")
 
-        step = DreamIntegrateStep(agent_wrapper=_ReplyAgent(on_reply=write_digest))
+    step = DreamIntegrateStep(agent_wrapper=_ReplyAgent(on_reply=write_digest))
 
-        await step._integrate_one(state, unit, 1, tmp_path, "digest")  # pylint: disable=protected-access
+    await step._integrate_one(state, unit, 1, tmp_path, "digest")  # pylint: disable=protected-access
 
-        assert state.integrate_results == []
-        assert state.skipped_units == []
-        assert len(state.failed_units) == 1
-        assert state.failed_paths == unit["paths"]
-        assert state.errors
-        assert state.nodes_created == []
-        assert state.modified_paths == ["digest/procedure/unit.md"]
-
-    asyncio.run(run())
+    assert state.integrate_results == []
+    assert state.skipped_units == []
+    assert len(state.failed_units) == 1
+    assert state.failed_paths == unit["paths"]
+    assert state.errors
+    assert state.nodes_created == []
+    assert state.modified_paths == ["digest/procedure/unit.md"]
 
 
-def test_integrate_accepts_cross_bucket_update_receipt(tmp_path):
+@pytest.mark.asyncio
+async def test_integrate_accepts_cross_bucket_update_receipt(tmp_path):
     """An UPDATE receipt may target an existing node in any supported bucket."""
 
-    async def run():
-        unit = {"name": "unit", "bucket": "wiki", "summary": "summary", "paths": ["daily/a.md"]}
-        state = DreamState(units=[unit])
-        _touch(tmp_path / "digest" / "procedure" / "unit.md", "updated procedure")
-        agent = _ReplyAgent(
-            result={
-                "result": (
-                    '{"action": "REFINE", "target_path": "digest/procedure/unit.md", '
-                    '"note": "updated existing procedure"}'
-                ),
-            },
-        )
-        step = DreamIntegrateStep(agent_wrapper=agent)
+    unit = {"name": "unit", "bucket": "wiki", "summary": "summary", "paths": ["daily/a.md"]}
+    state = DreamState(units=[unit])
+    _touch(tmp_path / "digest" / "procedure" / "unit.md", "updated procedure")
+    agent = _ReplyAgent(
+        result={
+            "result": (
+                '{"action": "REFINE", "target_path": "digest/procedure/unit.md", '
+                '"note": "updated existing procedure"}'
+            ),
+        },
+    )
+    step = DreamIntegrateStep(agent_wrapper=agent)
 
-        with patch(
-            "reme.steps.evolve.dream.integrate._snapshot_digest",
-            wraps=_snapshot_digest,
-        ) as snapshot:
-            await step._integrate_one(state, unit, 1, tmp_path, "digest")  # pylint: disable=protected-access
+    with patch(
+        "reme.steps.evolve.dream.integrate._snapshot_digest",
+        wraps=_snapshot_digest,
+    ) as snapshot:
+        await step._integrate_one(state, unit, 1, tmp_path, "digest")  # pylint: disable=protected-access
 
-        assert state.skipped_units == []
-        assert state.integrate_results[0]["action"] == "REFINE"
-        assert state.nodes_updated == ["digest/procedure/unit.md"]
-        assert state.modified_paths == []
-        assert snapshot.call_count == 2
-
-    asyncio.run(run())
+    assert state.skipped_units == []
+    assert state.integrate_results[0]["action"] == "REFINE"
+    assert state.nodes_updated == ["digest/procedure/unit.md"]
+    assert state.modified_paths == []
+    assert snapshot.call_count == 2
 
 
 def test_integrate_uses_one_application_wide_lock(tmp_path):
@@ -889,174 +873,162 @@ async def test_dream_jobs_tag_outputs_and_preserve_checkpoint_results(
     assert (tmp_path / source).read_text(encoding="utf-8") == "Source about ReMe"
 
 
-def test_extract_without_llm_marks_changed_paths_failed(tmp_path):
+@pytest.mark.asyncio
+async def test_extract_without_llm_marks_changed_paths_failed(tmp_path):
     """A missing LLM must not let finish checkpoint unprocessed source files."""
 
-    async def run():
-        note = _touch(tmp_path / "daily" / "2026-05-28" / "session.md")
-        step = DreamExtractStep(app_context=ApplicationContext(workspace_dir=str(tmp_path)))
+    note = _touch(tmp_path / "daily" / "2026-05-28" / "session.md")
+    step = DreamExtractStep(app_context=ApplicationContext(workspace_dir=str(tmp_path)))
 
-        response = await step(
-            RuntimeContext(date="2026-05-28", file_catalog=_Catalog(), file_store=_FileStore(tmp_path)),
-        )
+    response = await step(
+        RuntimeContext(date="2026-05-28", file_catalog=_Catalog(), file_store=_FileStore(tmp_path)),
+    )
 
-        dream = response.metadata["dream"]
-        assert response.success is False
-        assert note.relative_to(tmp_path).as_posix() in dream["changed_paths"]
-        assert dream["failed_paths"] == dream["changed_paths"]
-
-    asyncio.run(run())
+    dream = response.metadata["dream"]
+    assert response.success is False
+    assert note.relative_to(tmp_path).as_posix() in dream["changed_paths"]
+    assert dream["failed_paths"] == dream["changed_paths"]
 
 
-def test_finish_does_not_checkpoint_failed_changed_paths():
+@pytest.mark.asyncio
+async def test_finish_does_not_checkpoint_failed_changed_paths():
     """Finish does not checkpoint failed changed paths."""
 
-    async def run():
-        with tempfile.TemporaryDirectory() as tmp:
-            workspace = Path(tmp)
-            ok = _touch(workspace / "daily" / "2026-05-28" / "ok.md")
-            failed = _touch(workspace / "daily" / "2026-05-28" / "failed.md")
-            day_index = _touch(workspace / "daily" / "2026-05-28.md")
-            state = DreamState(
-                date="2026-05-28",
-                dates=["2026-05-26", "2026-05-27", "2026-05-28"],
-                workspace=str(workspace),
-                daily_dir="daily",
-                changed_paths=[ok.relative_to(workspace).as_posix(), failed.relative_to(workspace).as_posix()],
-                existing={
-                    path.relative_to(workspace).as_posix(): path.stat().st_mtime for path in (ok, failed, day_index)
+    with tempfile.TemporaryDirectory() as tmp:
+        workspace = Path(tmp)
+        ok = _touch(workspace / "daily" / "2026-05-28" / "ok.md")
+        failed = _touch(workspace / "daily" / "2026-05-28" / "failed.md")
+        day_index = _touch(workspace / "daily" / "2026-05-28.md")
+        state = DreamState(
+            date="2026-05-28",
+            dates=["2026-05-26", "2026-05-27", "2026-05-28"],
+            workspace=str(workspace),
+            daily_dir="daily",
+            changed_paths=[ok.relative_to(workspace).as_posix(), failed.relative_to(workspace).as_posix()],
+            existing={path.relative_to(workspace).as_posix(): path.stat().st_mtime for path in (ok, failed, day_index)},
+            failed_paths=[failed.relative_to(workspace).as_posix()],
+            modified_paths=["digest/procedure/example.md"],
+            integrate_results=[
+                {
+                    "action": "CREATE",
+                    "target_path": "digest/procedure/example.md",
+                    "note": "Created a concise procedure node.",
                 },
-                failed_paths=[failed.relative_to(workspace).as_posix()],
-                modified_paths=["digest/procedure/example.md"],
-                integrate_results=[
-                    {
-                        "action": "CREATE",
-                        "target_path": "digest/procedure/example.md",
-                        "note": "Created a concise procedure node.",
-                    },
-                ],
-            )
-            step, catalog = DreamFinishStep(), _Catalog()
-            resp = await step(RuntimeContext(dream=state.model_dump(), file_catalog=catalog))
+            ],
+        )
+        step, catalog = DreamFinishStep(), _Catalog()
+        resp = await step(RuntimeContext(dream=state.model_dump(), file_catalog=catalog))
 
-            upserted = [n.path for n in catalog.upserts]
-            assert resp.success is True
-            assert resp.answer.startswith("AutoDream completed\n\n")
-            assert "action:" not in resp.answer
-            assert "topics:" not in resp.answer
-            assert "Changes:" in resp.answer
-            assert "- [digest/procedure/example.md][CREATE]: Created a concise procedure node." in resp.answer
-            assert ok.relative_to(workspace).as_posix() in upserted
-            assert failed.relative_to(workspace).as_posix() not in upserted
-            assert day_index.relative_to(workspace).as_posix() in upserted
-            assert catalog.dumps == 1
-            assert resp.metadata["modified"] is True
-
-    asyncio.run(run())
+        upserted = [n.path for n in catalog.upserts]
+        assert resp.success is True
+        assert resp.answer.startswith("AutoDream completed\n\n")
+        assert "action:" not in resp.answer
+        assert "topics:" not in resp.answer
+        assert "Changes:" in resp.answer
+        assert "- [digest/procedure/example.md][CREATE]: Created a concise procedure node." in resp.answer
+        assert ok.relative_to(workspace).as_posix() in upserted
+        assert failed.relative_to(workspace).as_posix() not in upserted
+        assert day_index.relative_to(workspace).as_posix() in upserted
+        assert catalog.dumps == 1
+        assert resp.metadata["modified"] is True
 
 
-def test_finish_does_not_readd_a_failed_day_index(tmp_path):
+@pytest.mark.asyncio
+async def test_finish_does_not_readd_a_failed_day_index(tmp_path):
     """The generated day-index list cannot bypass the failed-path filter."""
 
-    async def run():
-        day_index = _touch(tmp_path / "daily" / "2026-05-28.md")
-        rel_path = day_index.relative_to(tmp_path).as_posix()
-        state = DreamState(
-            date="2026-05-28",
-            dates=["2026-05-28"],
-            workspace=str(tmp_path),
-            daily_dir="daily",
-            changed_paths=[rel_path],
-            existing={rel_path: day_index.stat().st_mtime},
-            failed_paths=[rel_path],
-            errors=["extract unavailable"],
-        )
-        step, catalog = DreamFinishStep(), _Catalog()
+    day_index = _touch(tmp_path / "daily" / "2026-05-28.md")
+    rel_path = day_index.relative_to(tmp_path).as_posix()
+    state = DreamState(
+        date="2026-05-28",
+        dates=["2026-05-28"],
+        workspace=str(tmp_path),
+        daily_dir="daily",
+        changed_paths=[rel_path],
+        existing={rel_path: day_index.stat().st_mtime},
+        failed_paths=[rel_path],
+        errors=["extract unavailable"],
+    )
+    step, catalog = DreamFinishStep(), _Catalog()
 
-        response = await step(RuntimeContext(dream=state.model_dump(), file_catalog=catalog))
+    response = await step(RuntimeContext(dream=state.model_dump(), file_catalog=catalog))
 
-        assert response.success is False
-        assert not catalog.upserts
-        assert response.metadata["dream"]["checkpoint_paths"] == []
-        assert response.metadata["modified"] is False
-
-    asyncio.run(run())
+    assert response.success is False
+    assert not catalog.upserts
+    assert response.metadata["dream"]["checkpoint_paths"] == []
+    assert response.metadata["modified"] is False
 
 
-def test_finish_keeps_skipped_agent_output_successful(tmp_path):
+@pytest.mark.asyncio
+async def test_finish_keeps_skipped_agent_output_successful(tmp_path):
     """Best-effort agent skips remain successful and checkpointed after their bounded retry."""
 
-    async def run():
-        rel_path = "daily/2026-05-28/source.md"
-        source = _touch(tmp_path / rel_path)
-        state = DreamState(
-            date="2026-05-28",
-            dates=["2026-05-28"],
-            workspace=str(tmp_path),
-            daily_dir="daily",
-            changed_paths=[rel_path],
-            existing={rel_path: source.stat().st_mtime},
-            skipped_units=[{"name": "unit", "reason": "unusable receipt"}],
-            warnings=["unit 'unit' skipped: unusable agent receipt"],
-        )
-        step, catalog = DreamFinishStep(), _Catalog()
+    rel_path = "daily/2026-05-28/source.md"
+    source = _touch(tmp_path / rel_path)
+    state = DreamState(
+        date="2026-05-28",
+        dates=["2026-05-28"],
+        workspace=str(tmp_path),
+        daily_dir="daily",
+        changed_paths=[rel_path],
+        existing={rel_path: source.stat().st_mtime},
+        skipped_units=[{"name": "unit", "reason": "unusable receipt"}],
+        warnings=["unit 'unit' skipped: unusable agent receipt"],
+    )
+    step, catalog = DreamFinishStep(), _Catalog()
 
-        response = await step(RuntimeContext(dream=state.model_dump(), file_catalog=catalog))
+    response = await step(RuntimeContext(dream=state.model_dump(), file_catalog=catalog))
 
-        assert response.success is True
-        assert response.answer.startswith("AutoDream completed with warnings\n\n")
-        assert "- Integrated: 0 ok, 1 skipped, 0 failed" in response.answer
-        assert response.metadata["dream"]["checkpoint_paths"] == [rel_path]
-
-    asyncio.run(run())
+    assert response.success is True
+    assert response.answer.startswith("AutoDream completed with warnings\n\n")
+    assert "- Integrated: 0 ok, 1 skipped, 0 failed" in response.answer
+    assert response.metadata["dream"]["checkpoint_paths"] == [rel_path]
 
 
 @pytest.mark.parametrize("stage", ["extract", "integrate"])
-def test_dream_initializes_started_provider_before_availability_check(tmp_path, stage):
+@pytest.mark.asyncio
+async def test_dream_initializes_started_provider_before_availability_check(tmp_path, stage):
     """Dream's real availability check must initialize a started lazy provider."""
 
-    async def run():
-        context = ApplicationContext(workspace_dir=str(tmp_path))
-        credential_cls = Mock()
-        llm = BaseAsLLM(app_context=context, model="test")
-        llm.credential_cls = credential_cls
-        source = "daily/2026-05-28/session.md"
-        _touch(tmp_path / source, "memory source")
-        unit = {"name": "memory", "bucket": "wiki", "summary": "memory summary", "paths": [source]}
-        target = "digest/wiki/memory.md"
-        if stage == "extract":
-            agent = _ReplyAgent({"result": json.dumps({"units": [unit]})})
-            step = DreamExtractStep(app_context=context, scan_days=1)
-            inputs = {"date": "2026-05-28"}
-        else:
-            agent = _ReplyAgent(
-                {"result": json.dumps({"action": "CREATE", "target_path": target, "note": "created"})},
-                on_reply=lambda: _touch(tmp_path / target, "# Memory\n\nmemory summary\n"),
+    context = ApplicationContext(workspace_dir=str(tmp_path))
+    credential_cls = Mock()
+    llm = BaseAsLLM(app_context=context, model="test")
+    llm.credential_cls = credential_cls
+    source = "daily/2026-05-28/session.md"
+    _touch(tmp_path / source, "memory source")
+    unit = {"name": "memory", "bucket": "wiki", "summary": "memory summary", "paths": [source]}
+    target = "digest/wiki/memory.md"
+    if stage == "extract":
+        agent = _ReplyAgent({"result": json.dumps({"units": [unit]})})
+        step = DreamExtractStep(app_context=context, scan_days=1)
+        inputs = {"date": "2026-05-28"}
+    else:
+        agent = _ReplyAgent(
+            {"result": json.dumps({"action": "CREATE", "target_path": target, "note": "created"})},
+            on_reply=lambda: _touch(tmp_path / target, "# Memory\n\nmemory summary\n"),
+        )
+        step = DreamIntegrateStep(app_context=context)
+        inputs = {"dream": {"units": [unit], "workspace": str(tmp_path)}}
+    context.components[ComponentEnum.AS_LLM] = {"default": llm}
+    context.components[ComponentEnum.AGENT_WRAPPER] = {"default": agent}
+    await llm.start()
+    await agent.start()
+    try:
+        credential_cls.assert_not_called()
+        with patch("reme.steps.evolve.dream.extract.refresh_day_index", return_value={}):
+            response = await step(
+                RuntimeContext(file_catalog=_Catalog(), file_store=_FileStore(tmp_path), **inputs),
             )
-            step = DreamIntegrateStep(app_context=context)
-            inputs = {"dream": {"units": [unit], "workspace": str(tmp_path)}}
-        context.components[ComponentEnum.AS_LLM] = {"default": llm}
-        context.components[ComponentEnum.AGENT_WRAPPER] = {"default": agent}
-        await llm.start()
-        await agent.start()
-        try:
-            credential_cls.assert_not_called()
-            with patch("reme.steps.evolve.dream.extract.refresh_day_index", return_value={}):
-                response = await step(
-                    RuntimeContext(file_catalog=_Catalog(), file_store=_FileStore(tmp_path), **inputs),
-                )
-            assert response.success, response.answer
-            assert agent.calls == 1
-            credential_cls.assert_called_once_with()
-            dream = response.metadata["dream"]
-            assert dream["errors"] == []
-            assert dream["failed_paths"] == []
-            if stage == "extract":
-                assert dream["units"][0]["name"] == "memory"
-            else:
-                assert dream["integrate_results"][0]["target_path"] == target
-        finally:
-            await agent.close()
-            await llm.close()
-
-    asyncio.run(run())
+        assert response.success, response.answer
+        assert agent.calls == 1
+        credential_cls.assert_called_once_with()
+        dream = response.metadata["dream"]
+        assert dream["errors"] == []
+        assert dream["failed_paths"] == []
+        if stage == "extract":
+            assert dream["units"][0]["name"] == "memory"
+        else:
+            assert dream["integrate_results"][0]["target_path"] == target
+    finally:
+        await agent.close()
+        await llm.close()
