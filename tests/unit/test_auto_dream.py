@@ -27,7 +27,12 @@ from reme.steps.evolve.auto_tag import AutoTagStep
 from reme.steps.evolve.dream.extract import DreamExtractStep
 from reme.steps.evolve.dream.finish import DreamFinishStep
 from reme.steps.evolve.dream.integrate import DreamIntegrateStep, _snapshot_digest
-from reme.steps.evolve.dream.utils import parse_structured_reply, recent_dates, scan_day_files
+from reme.steps.evolve.dream.utils import (  # noqa: E501
+    batch_paths,
+    parse_structured_reply,
+    recent_dates,
+    scan_day_files,
+)
 from reme.steps.file_io.frontmatter_update import FrontmatterUpdateStep
 
 _MALFORMED_EXTRACT_REPLY = (
@@ -1032,3 +1037,216 @@ async def test_dream_initializes_started_provider_before_availability_check(tmp_
     finally:
         await agent.close()
         await llm.close()
+
+
+# ---------------------------------------------------------------------------
+# Dream extract batching (#659): oversized material must never be sent in one
+# call, and nothing may be silently dropped.
+# ---------------------------------------------------------------------------
+
+
+def test_batch_paths_partitions_without_dropping(tmp_path):
+    """Every path lands in exactly one batch and same-day files stay together."""
+    day1 = [f"daily/2026-05-28/f{i}.md" for i in range(3)]
+    day2 = [f"daily/2026-05-27/g{i}.md" for i in range(2)]
+    for rel in [*day1, *day2]:
+        _touch(tmp_path / rel, "x" * 1000)
+
+    batches = batch_paths(tmp_path, [*day1, *day2], max_chars=4000)
+
+    assert [sorted(b) for b in batches] == [sorted(day1), sorted(day2)]
+    flat = [rel for batch in batches for rel in batch]
+    assert sorted(flat) == sorted([*day1, *day2])
+    assert len(flat) == len(set(flat))
+
+
+def test_batch_paths_keeps_oversize_file_alone(tmp_path):
+    """A single file larger than the budget gets its own batch, never dropped."""
+    _touch(tmp_path / "daily/2026-05-28/huge.md", "x" * 9000)
+    _touch(tmp_path / "daily/2026-05-28/small.md", "x" * 100)
+
+    batches = batch_paths(
+        tmp_path,
+        ["daily/2026-05-28/huge.md", "daily/2026-05-28/small.md"],
+        max_chars=1000,
+    )
+
+    assert ["daily/2026-05-28/huge.md"] in [list(b) for b in batches]
+    flat = [rel for batch in batches for rel in batch]
+    assert sorted(flat) == ["daily/2026-05-28/huge.md", "daily/2026-05-28/small.md"]
+
+
+async def _run_dream_extract(tmp_path, agent, **kwargs):
+    step = DreamExtractStep(
+        app_context=ApplicationContext(workspace_dir=str(tmp_path)),
+        agent_wrapper=agent,
+        **kwargs,
+    )
+    with (
+        patch("reme.steps.evolve.dream.extract.refresh_day_index", return_value={}),
+        patch("reme.steps.evolve.dream.extract.llm_available", return_value=True),
+    ):
+        return await step(
+            RuntimeContext(
+                date="2026-05-28",
+                file_catalog=_Catalog(),
+                file_store=_FileStore(tmp_path),
+            ),
+        )
+
+
+@pytest.mark.asyncio
+async def test_extract_splits_oversized_material_across_calls(tmp_path):
+    """8 changed files must not be packed into a single extraction request."""
+    day1 = [f"daily/2026-05-28/f{i}.md" for i in range(4)]
+    day2 = [f"daily/2026-05-27/g{i}.md" for i in range(4)]
+    for rel in [*day1, *day2]:
+        _touch(tmp_path / rel, "x" * 1000)
+
+    agent = _SequenceAgent({"result": '{"units": []}'}, {"result": '{"units": []}'})
+    response = await _run_dream_extract(
+        tmp_path,
+        agent,
+        scan_days=2,
+        max_units=5,
+        max_chars_per_batch=4000,
+    )
+
+    assert response.success is True
+    assert agent.calls == 2
+    seen = [rel for message, _kwargs in agent.requests for rel in [*day1, *day2] if rel in message]
+    assert sorted(seen) == sorted([*day1, *day2])
+    assert not response.metadata["dream"]["failed_paths"]
+
+
+@pytest.mark.asyncio
+async def test_extract_bisects_a_failing_batch(tmp_path):
+    """A transport failure splits the batch instead of retrying a larger prompt."""
+    day1 = [f"daily/2026-05-28/f{i}.md" for i in range(2)]
+    for rel in day1:
+        _touch(tmp_path / rel, "x" * 1000)
+
+    agent = _SequenceAgent(
+        RuntimeError("prompt too large"),
+        {"result": '{"units": []}'},
+        {"result": '{"units": []}'},
+    )
+    response = await _run_dream_extract(
+        tmp_path,
+        agent,
+        scan_days=2,
+        max_units=5,
+        max_chars_per_batch=9000,
+    )
+
+    assert agent.calls == 3
+    assert response.success is True
+    assert not response.metadata["dream"]["failed_paths"]
+
+
+@pytest.mark.asyncio
+async def test_extract_isolates_one_offending_file(tmp_path):
+    """A file that always fails only blocks itself, not the whole run."""
+    day1 = [f"daily/2026-05-28/f{i}.md" for i in range(2)]
+    for rel in day1:
+        _touch(tmp_path / rel, "x" * 1000)
+
+    good = {
+        "result": json.dumps(
+            {
+                "units": [
+                    {
+                        "name": "kept",
+                        "bucket": "wiki",
+                        "summary": "kept unit",
+                        "paths": ["daily/2026-05-28/f0.md"],
+                    },
+                ],
+            },
+        ),
+    }
+    agent = _SequenceAgent(
+        RuntimeError("prompt too large"),
+        good,
+        RuntimeError("engine crashed"),
+    )
+    response = await _run_dream_extract(
+        tmp_path,
+        agent,
+        scan_days=2,
+        max_units=5,
+        max_chars_per_batch=9000,
+    )
+
+    dream = response.metadata["dream"]
+    assert [u["name"] for u in dream["units"]] == ["kept"]
+    assert dream["failed_paths"] == ["daily/2026-05-28/f1.md"]
+    assert response.success is False
+
+
+@pytest.mark.asyncio
+async def test_extract_merges_same_name_units_across_batches(tmp_path):
+    """The same abstraction surfaced by two batches becomes one unit."""
+    _touch(tmp_path / "daily/2026-05-28/a.md", "x" * 1000)
+    _touch(tmp_path / "daily/2026-05-27/b.md", "x" * 1000)
+
+    first = {
+        "result": json.dumps(
+            {
+                "units": [
+                    {
+                        "name": "ci-submodules",
+                        "bucket": "procedure",
+                        "summary": "short",
+                        "paths": ["daily/2026-05-27/b.md"],
+                    },
+                ],
+            },
+        ),
+    }
+    second = {
+        "result": json.dumps(
+            {
+                "units": [
+                    {
+                        "name": "CI-Submodules",
+                        "bucket": "procedure",
+                        "summary": "a much longer summary",
+                        "paths": ["daily/2026-05-28/a.md"],
+                    },
+                ],
+            },
+        ),
+    }
+    agent = _SequenceAgent(first, second)
+    response = await _run_dream_extract(
+        tmp_path,
+        agent,
+        scan_days=2,
+        max_units=5,
+        max_chars_per_batch=1200,
+    )
+
+    units = response.metadata["dream"]["units"]
+    assert agent.calls == 2
+    assert len(units) == 1
+    assert units[0]["paths"] == ["daily/2026-05-27/b.md", "daily/2026-05-28/a.md"]
+    assert units[0]["summary"] == "a much longer summary"
+
+
+@pytest.mark.asyncio
+async def test_extract_single_small_input_stays_one_call(tmp_path):
+    """Batching must not change behaviour for inputs that already fit."""
+    _touch(tmp_path / "daily/2026-05-28/only.md", "x" * 100)
+    agent = _SequenceAgent({"result": '{"units": []}'})
+
+    response = await _run_dream_extract(
+        tmp_path,
+        agent,
+        scan_days=1,
+        max_units=5,
+        max_chars_per_batch=40000,
+    )
+
+    assert response.success is True
+    assert agent.calls == 1
