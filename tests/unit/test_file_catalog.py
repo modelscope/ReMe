@@ -2,8 +2,8 @@
 
 # pylint: disable=protected-access
 
+from contextlib import chdir as temp_chdir
 import asyncio
-import os
 import tempfile
 
 import pytest
@@ -11,22 +11,6 @@ import pytest
 from reme.components.file_catalog import LocalFileCatalog
 from reme.schema import FileNode
 from reme.utils.jsonl_zst import write_jsonl_zst
-
-
-class temp_chdir:
-    """Context manager to temporarily chdir into a path and restore on exit."""
-
-    def __init__(self, path):
-        self.path = path
-        self.old = None
-
-    def __enter__(self):
-        self.old = os.getcwd()
-        os.chdir(self.path)
-        return self
-
-    def __exit__(self, *exc):
-        os.chdir(self.old)
 
 
 def make_node(path: str, mtime: float = 1.0) -> FileNode:
@@ -172,14 +156,3 @@ def test_start_failure_does_not_overwrite_persisted_catalog(tmp_path):
             assert catalog._catalog_file.read_bytes() == original_bytes
 
     asyncio.run(run())
-
-
-if __name__ == "__main__":
-    print("\n=== FileCatalog Tests ===")
-    for backend in BACKENDS:
-        test_upsert_and_get_nodes(backend)
-        test_upsert_replaces_existing(backend)
-        test_delete_single_and_list(backend)
-        test_get_nodes_empty_inputs(backend)
-        test_persistence_roundtrip(backend)
-    print("\n所有测试通过!")

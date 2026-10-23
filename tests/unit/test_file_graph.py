@@ -2,8 +2,8 @@
 
 # pylint: disable=protected-access
 
+from contextlib import chdir as temp_chdir
 import asyncio
-import os
 import tempfile
 
 import pytest
@@ -11,22 +11,6 @@ import pytest
 from reme.components.file_graph import LocalFileGraph, NxFileGraph
 from reme.enumeration import LinkScopeEnum
 from reme.schema import FileLink, FileNode
-
-
-class temp_chdir:
-    """Context manager to temporarily chdir into a path and restore on exit."""
-
-    def __init__(self, path):
-        self.path = path
-        self.old = None
-
-    def __enter__(self):
-        self.old = os.getcwd()
-        os.chdir(self.path)
-        return self
-
-    def __exit__(self, *exc):
-        os.chdir(self.old)
 
 
 def make_node(path: str, links: list[tuple[str, str | None]] | None = None) -> FileNode:
@@ -436,19 +420,3 @@ def test_get_nodes_empty_inputs(backend_cls):
             print(f"✓ test_get_nodes_empty_inputs[{backend_cls.__name__}] passed")
 
     asyncio.run(run())
-
-
-if __name__ == "__main__":
-    print("\n=== FileGraph Tests ===")
-    for backend in BACKENDS:
-        test_upsert_and_get_nodes(backend)
-        test_upsert_replaces_old_links(backend)
-        test_outlinks_include_virtual_targets(backend)
-        test_inlinks_visible_for_virtual_target(backend)
-        test_delete_keeps_inbound_view(backend)
-        test_delete_outgoing_links_cleared(backend)
-        test_clear(backend)
-        test_rebuild_links_idempotent(backend)
-        test_persistence_roundtrip(backend)
-        test_get_nodes_empty_inputs(backend)
-    print("\n所有测试通过!")

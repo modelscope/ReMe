@@ -38,7 +38,6 @@ def test_basic_chinese():
 
         assert "北京" in jieba_result[0] or "天安门" in jieba_result[0]
         assert "我" in regex_result[0]
-        print("✓ test_basic_chinese passed")
 
     asyncio.run(run())
 
@@ -54,7 +53,6 @@ def test_basic_english():
 
         assert "love" in regex_result[0]
         assert "beijing" in regex_result[0]
-        print("✓ test_basic_english passed")
 
     asyncio.run(run())
 
@@ -70,7 +68,6 @@ def test_mixed_chinese_english():
 
         assert "python" in jieba_result[0]
         assert "python" in regex_result[0]
-        print("✓ test_mixed_chinese_english passed")
 
     asyncio.run(run())
 
@@ -92,8 +89,6 @@ def test_open_example():
         assert "我" in regex_result[0]
         assert "很" in regex_result[0]
 
-        print("✓ test_open_example passed")
-
     asyncio.run(run())
 
 
@@ -112,8 +107,6 @@ def test_with_stopwords():
         assert "吗" not in regex_result[0]
         assert "的" not in jieba_result[0]
 
-        print("✓ test_with_stopwords passed")
-
     asyncio.run(run())
 
 
@@ -130,7 +123,6 @@ def test_multiple_texts():
 
         assert len(jieba_result) == 3
         assert len(regex_result) == 3
-        print("✓ test_multiple_texts passed")
 
     asyncio.run(run())
 
@@ -152,8 +144,6 @@ def test_tokenizer_lifecycle():
         assert not tokenizer.is_started
         assert len(tokenizer.stopwords) == 0
 
-        print("✓ test_tokenizer_lifecycle passed")
-
     asyncio.run(run())
 
 
@@ -166,16 +156,3 @@ def test_jieba_tokenizer_requires_start():
         assert "Call start() first" in str(exc)
     else:
         raise AssertionError("expected RuntimeError when JiebaTokenizer is used before start()")
-
-
-if __name__ == "__main__":
-    print("\n=== Tokenizer Tests ===")
-    test_basic_chinese()
-    test_basic_english()
-    test_mixed_chinese_english()
-    test_open_example()
-    test_with_stopwords()
-    test_multiple_texts()
-    test_tokenizer_lifecycle()
-    test_jieba_tokenizer_requires_start()
-    print("\n所有测试通过!")

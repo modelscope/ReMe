@@ -82,7 +82,6 @@ def test_add_step_coerces_numeric_inputs():
         assert resp.success is True
         assert resp.answer == "3.5"
         assert resp.metadata["result"] == 3.5
-        print("✓ test_add_step_coerces_numeric_inputs passed")
 
     _run(run())
 
@@ -95,7 +94,6 @@ def test_add_step_rejects_invalid_inputs():
         resp = await step(a="one", b=2)
         assert resp.success is False
         assert "Invalid add arguments" in resp.answer
-        print("✓ test_add_step_rejects_invalid_inputs passed")
 
     _run(run())
 
@@ -111,7 +109,6 @@ def test_python_execute_step_returns_printed_stdout(tmp_path):
         assert resp.answer == f"{tmp_path.name}\n"
         assert resp.metadata["returncode"] == 0
         assert resp.metadata["stderr"] == ""
-        print("✓ test_python_execute_step_returns_printed_stdout passed")
 
     _run(run())
 
@@ -126,7 +123,6 @@ def test_python_execute_step_reports_stderr_on_failure():
         assert resp.metadata["returncode"] != 0
         assert "RuntimeError: boom" in resp.answer
         assert "RuntimeError: boom" in resp.metadata["stderr"]
-        print("✓ test_python_execute_step_reports_stderr_on_failure passed")
 
     _run(run())
 
@@ -140,7 +136,6 @@ def test_python_execute_step_times_out():
         assert resp.success is False
         assert resp.answer == "Python execution timed out after 0.01s"
         assert resp.metadata["python_timeout"] == 0.01
-        print("✓ test_python_execute_step_times_out passed")
 
     _run(run())
 
@@ -154,7 +149,6 @@ def test_python_execute_step_accepts_legacy_timeout_name():
         assert resp.success is False
         assert resp.answer == "Python execution timed out after 0.01s"
         assert resp.metadata["python_timeout"] == 0.01
-        print("✓ test_python_execute_step_accepts_legacy_timeout_name passed")
 
     _run(run())
 
@@ -167,7 +161,6 @@ def test_python_execute_step_rejects_invalid_timeout():
         resp = await step(code="print(1)", python_timeout=0)
         assert resp.success is False
         assert resp.answer == "python_timeout must be a positive number"
-        print("✓ test_python_execute_step_rejects_invalid_timeout passed")
 
     _run(run())
 
@@ -194,7 +187,6 @@ def test_llm_demo_always_registers_add_tool():
         assert resp.success is True
         assert wrapper.last_kwargs["job_tools"] == ["add"]
         assert "job_tools" not in resp.metadata
-        print("✓ test_llm_demo_always_registers_add_tool passed")
 
     _run(run())
 
@@ -217,7 +209,6 @@ def test_file_graph_health_reports_neo4j_cached_counts():
     assert status["n_nodes"] == 3
     assert status["n_edges"] == 4
     assert status["n_virtual"] == 1
-    print("✓ test_file_graph_health_reports_neo4j_cached_counts passed")
 
 
 # ===========================================================================
@@ -248,7 +239,6 @@ def test_traverse_forward_depth_1():
             assert c_edge["source"] == "a.md"
             assert c_edge["depth"] == 1
             await store.close()
-        print("✓ test_traverse_forward_depth_1 passed")
 
     asyncio.run(run())
 
@@ -292,7 +282,6 @@ def test_traverse_backward_returns_inlinks():
                 ("c.md", "b.md"),
             }
             await store.close()
-        print("✓ test_traverse_backward_returns_inlinks passed")
 
     asyncio.run(run())
 
@@ -316,7 +305,6 @@ def test_traverse_depth_2_expands():
             assert depth_map.get("b.md") == 1
             assert depth_map.get("c.md") == 2
             await store.close()
-        print("✓ test_traverse_depth_2_expands passed")
 
     asyncio.run(run())
 
@@ -339,7 +327,6 @@ def test_traverse_short_seed_yields_empty():
             # No error, just empty results because "Bob" isn't a graph key.
             assert payload == []
             await store.close()
-        print("✓ test_traverse_short_seed_yields_empty passed")
 
     asyncio.run(run())
 
@@ -355,7 +342,6 @@ def test_traverse_not_found_seed():
             payload = _edges(step)
             assert payload == []
             await store.close()
-        print("✓ test_traverse_not_found_seed passed")
 
     asyncio.run(run())
 
@@ -380,7 +366,6 @@ def test_traverse_both_directions():
                 ("center.md", "downstream.md"),
             }
             await store.close()
-        print("✓ test_traverse_both_directions passed")
 
     asyncio.run(run())
 
@@ -463,17 +448,3 @@ def test_traverse_depth_zero_returns_only_seed_nodes():
             await store.close()
 
     asyncio.run(run())
-
-
-if __name__ == "__main__":
-    print("\n=== traverse step tests ===")
-    test_traverse_forward_depth_1()
-    test_traverse_backward_returns_inlinks()
-    test_traverse_depth_2_expands()
-    test_traverse_short_seed_yields_empty()
-    test_traverse_not_found_seed()
-    test_traverse_both_directions()
-    test_traverse_both_preserves_reciprocal_edge_directions()
-    test_traverse_returns_frontmatter_and_unresolved_nodes()
-    test_traverse_depth_zero_returns_only_seed_nodes()
-    print("\n所有测试通过!")

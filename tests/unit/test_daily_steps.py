@@ -21,8 +21,8 @@ to the plugin layer.
 
 # pylint: disable=protected-access
 
+from contextlib import chdir as temp_chdir
 import asyncio
-import os
 import tempfile
 import warnings
 from pathlib import Path
@@ -40,22 +40,6 @@ from reme.steps.file_io import (
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="jieba")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="pkg_resources")
-
-
-class temp_chdir:
-    """Context manager: chdir into a path on enter, restore on exit."""
-
-    def __init__(self, path):
-        self.path = path
-        self.old = None
-
-    def __enter__(self):
-        self.old = os.getcwd()
-        os.chdir(self.path)
-        return self
-
-    def __exit__(self, *_):
-        os.chdir(self.old)
 
 
 def _today() -> str:
@@ -131,7 +115,6 @@ def test_daily_list_default_date_is_today():
             assert f"daily/{_today()}/today-a.md" in answer
             assert f"daily/{_today()}/today-b.md" in answer
             await store.close()
-        print("✓ test_daily_list_default_date_is_today passed")
 
     asyncio.run(run())
 
@@ -155,7 +138,6 @@ def test_daily_list_filters_by_date():
             answer = step.context.response.answer
             assert "daily/2026-05-18/a.md" in answer
             await store.close()
-        print("✓ test_daily_list_filters_by_date passed")
 
     asyncio.run(run())
 
@@ -195,7 +177,6 @@ def test_daily_list_returns_path_and_frontmatter_notes():
             assert "session-123" in answer
             assert "[[sessions/dialog/session-123.jsonl]]" in answer
             await store.close()
-        print("✓ test_daily_list_returns_path_and_frontmatter_notes passed")
 
     asyncio.run(run())
 
@@ -224,7 +205,6 @@ def test_daily_list_ignores_subdirectories():
             answer = step.context.response.answer
             assert "daily/2026-05-18/main.md" in answer
             await store.close()
-        print("✓ test_daily_list_ignores_subdirectories passed")
 
     asyncio.run(run())
 
@@ -241,7 +221,6 @@ def test_daily_list_empty_when_no_daily_dir():
             payload = _metadata(step)
             assert payload == {"date": "2026-05-18", "count": 0, "notes": []}
             await store.close()
-        print("✓ test_daily_list_empty_when_no_daily_dir passed")
 
     asyncio.run(run())
 
@@ -265,7 +244,6 @@ def test_daily_list_does_not_refresh_index():
 
             assert not index_path.exists(), "daily_list must not refresh the day index — use daily_reindex"
             await store.close()
-        print("✓ test_daily_list_does_not_refresh_index passed")
 
     asyncio.run(run())
 
@@ -286,7 +264,6 @@ def test_daily_list_response_shape():
             assert set(payload.keys()) == {"date", "count", "notes"}
             assert payload["notes"] == [{"path": "daily/2026-05-18/alpha.md", "name": "alpha"}]
             await store.close()
-        print("✓ test_daily_list_response_shape passed")
 
     asyncio.run(run())
 
@@ -328,7 +305,6 @@ def test_daily_write_delegates_to_write_and_refreshes_index():
             assert index.is_file()
             assert f"[[daily/{_today()}/project-plan.md]]" in index.read_text(encoding="utf-8")
             await store.close()
-        print("✓ test_daily_write_delegates_to_write_and_refreshes_index passed")
 
     asyncio.run(run())
 
@@ -358,7 +334,6 @@ def test_daily_write_accepts_explicit_date():
                 encoding="utf-8",
             )
             await store.close()
-        print("✓ test_daily_write_accepts_explicit_date passed")
 
     asyncio.run(run())
 
@@ -384,7 +359,6 @@ def test_daily_write_rejects_timestamp_as_explicit_date():
             assert step.context.response.metadata["date"] == "2023-01-19T08:00:00"
             assert not (Path(tmp) / "daily").exists()
             await store.close()
-        print("✓ test_daily_write_rejects_timestamp_as_explicit_date passed")
 
     asyncio.run(run())
 
@@ -418,7 +392,6 @@ def test_daily_write_reserved_metadata_keys_are_overridden():
             assert post.metadata["source_conversation"] == "[[session/dialog/real-session.jsonl]]"
             assert post.metadata["priority"] == 2
             await store.close()
-        print("✓ test_daily_write_reserved_metadata_keys_are_overridden passed")
 
     asyncio.run(run())
 
@@ -437,7 +410,6 @@ def test_daily_write_rejects_invalid_name_and_session_id():
             assert step.context.response.success is False
             assert not (Path(tmp) / "daily" / _today()).exists()
             await store.close()
-        print("✓ test_daily_write_rejects_invalid_name_and_session_id passed")
 
     asyncio.run(run())
 
@@ -466,7 +438,6 @@ def test_day_index_lists_each_note():
             assert "Alpha Project" in text
             assert "Beta Project" in text
             await store.close()
-        print("✓ test_day_index_lists_each_note passed")
 
     asyncio.run(run())
 
@@ -497,7 +468,6 @@ def test_day_index_includes_note_descriptions():
             )
             assert "description:" not in text.split("[[daily/2026-05-18/gamma.md]]")[1].split("\n")[0]
             await store.close()
-        print("✓ test_day_index_includes_note_descriptions passed")
 
     asyncio.run(run())
 
@@ -531,7 +501,6 @@ def test_day_index_hides_conversation_metadata():
             assert "source_conversation" not in line
             assert "[[session/dialog/session-123.jsonl]]" not in line
             await store.close()
-        print("✓ test_day_index_hides_conversation_metadata passed")
 
     asyncio.run(run())
 
@@ -554,7 +523,6 @@ def test_day_index_description_is_note_count():
             assert "description:" in text
             assert "2 note(s) today." in text
             await store.close()
-        print("✓ test_day_index_description_is_note_count passed")
 
     asyncio.run(run())
 
@@ -577,7 +545,6 @@ def test_day_index_description_updates_when_note_count_changes():
             assert "2 note(s) today." in text
             assert "1 note(s) today." not in text
             await store.close()
-        print("✓ test_day_index_description_updates_when_note_count_changes passed")
 
     asyncio.run(run())
 
@@ -608,7 +575,6 @@ def test_day_index_preserves_user_content_outside_marker():
             assert "## 我的笔记" in after
             assert "[[daily/2026-05-18/beta.md]]" in after
             await store.close()
-        print("✓ test_day_index_preserves_user_content_outside_marker passed")
 
     asyncio.run(run())
 
@@ -643,7 +609,6 @@ def test_daily_reindex_returns_write_view():
             assert "[[daily/2026-05-18/alpha.md]]" in text
             assert "[[daily/2026-05-18/beta.md]]" in text
             await store.close()
-        print("✓ test_daily_reindex_returns_write_view passed")
 
     asyncio.run(run())
 
@@ -667,31 +632,5 @@ def test_daily_reindex_created_flag_flips_on_rerun():
             assert payload_second["created"] is False
             assert payload_second["notes_count"] == 1
             await store.close()
-        print("✓ test_daily_reindex_created_flag_flips_on_rerun passed")
 
     asyncio.run(run())
-
-
-if __name__ == "__main__":
-    print("\n=== Daily step tests ===")
-    test_daily_list_default_date_is_today()
-    test_daily_list_filters_by_date()
-    test_daily_list_returns_path_and_frontmatter_notes()
-    test_daily_list_ignores_subdirectories()
-    test_daily_list_empty_when_no_daily_dir()
-    test_daily_list_does_not_refresh_index()
-    test_daily_list_response_shape()
-    test_daily_write_delegates_to_write_and_refreshes_index()
-    test_daily_write_accepts_explicit_date()
-    test_daily_write_rejects_timestamp_as_explicit_date()
-    test_daily_write_reserved_metadata_keys_are_overridden()
-    test_daily_write_rejects_invalid_name_and_session_id()
-    test_day_index_lists_each_note()
-    test_day_index_includes_note_descriptions()
-    test_day_index_hides_conversation_metadata()
-    test_day_index_description_is_note_count()
-    test_day_index_description_updates_when_note_count_changes()
-    test_day_index_preserves_user_content_outside_marker()
-    test_daily_reindex_returns_write_view()
-    test_daily_reindex_created_flag_flips_on_rerun()
-    print("\nAll tests passed!")
