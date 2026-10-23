@@ -103,7 +103,10 @@ def _decode_known_file(data: bytes, file_extension: str) -> tuple[str, str]:
 
 
 async def read_file_safe(
-    file_path, max_bytes: int = MAX_FILE_READ_BYTES, *, require_complete: bool = False
+    file_path,
+    max_bytes: int = MAX_FILE_READ_BYTES,
+    *,
+    require_complete: bool = False,
 ) -> tuple[str, str]:
     """Read file in byte mode and decode using extension-aware strategy.
 
