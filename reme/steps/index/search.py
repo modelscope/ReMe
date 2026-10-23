@@ -5,6 +5,7 @@ import datetime
 import os
 from typing import Final
 
+from ._source_format import ALL_RETURNED_MESSAGE, NO_RESULTS_MESSAGE
 from ._tool_context import _ToolContextMixin
 from ..base_step import BaseStep
 from ..file_io import extract_daily_date
@@ -195,6 +196,7 @@ class SearchStep(_ToolContextMixin, BaseStep):
 
     async def execute(self):
         assert self.context is not None
+        self.context.response.metadata.pop("empty_result", None)
         raw_query = self.context.get("query")
         query: str = "" if raw_query is None else str(raw_query).strip()
         limit: int = int(self.context.get("limit") or _default_limit())
@@ -341,6 +343,7 @@ class SearchStep(_ToolContextMixin, BaseStep):
                 )
             fused = [c for c in fused if c.score >= min_score]
 
+        pre_dedup_count = len(fused)
         dedup: dict | None = None
         if tool_context_id:
             fused, dedup = self._dedupe_tool_context(fused, tool_context_id, limit)
@@ -361,6 +364,11 @@ class SearchStep(_ToolContextMixin, BaseStep):
             answer_lines.extend(render_expansion_lines(link_expansion.get(c.path, {})))
 
         self.context.response.answer = "\n".join(answer_lines)
+        if not fused:
+            self.context.response.metadata["empty_result"] = {
+                "reason": "all_returned" if pre_dedup_count else "no_results",
+                "message": ALL_RETURNED_MESSAGE if pre_dedup_count else NO_RESULTS_MESSAGE,
+            }
         self.context.response.metadata["results"] = [
             c.model_dump(exclude_none=True, exclude={"embedding"}) for c in fused
         ]
