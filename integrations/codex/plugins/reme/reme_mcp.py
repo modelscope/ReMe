@@ -4,21 +4,6 @@ from __future__ import annotations
 
 import asyncio
 
-# Keep these exact notices in sync with reme.steps.index._source_format; the Codex plugin is installed separately.
-NO_RESULTS_MESSAGE = "No relevant information was found for the given query."
-ALL_RETURNED_MESSAGE = (
-    "All retrieved content has already been returned in previous responses; no new content was found."
-)
-_SEARCH_NOTICE_KINDS = {
-    NO_RESULTS_MESSAGE: "no_results",
-    ALL_RETURNED_MESSAGE: "all_returned",
-}
-
-
-def search_notice_kind(answer: object) -> str | None:
-    """Classify the exact empty-result notices returned by ReMe search."""
-    return _SEARCH_NOTICE_KINDS.get(answer) if isinstance(answer, str) else None
-
 
 async def call_async(config: dict, action: str, payload: dict, timeout: float) -> dict:
     """Acknowledge a write only after a successful MCP result, including connection time."""

@@ -323,10 +323,8 @@ class ReMeMemoryProvider(MemoryProvider):
                 self._close_backend_if_shutdown_locked()
         finally:
             self._backend_lock.release()
-        metadata = response.get("metadata")
-        results = metadata.get("results") if isinstance(metadata, dict) else None
         answer = response.get("answer")
-        answer = answer.strip() if isinstance(answer, str) and results != [] else ""
+        answer = answer.strip() if isinstance(answer, str) else ""
         if answer:
             self._recall_status = RecallStatus(
                 provider_label="ReMe",

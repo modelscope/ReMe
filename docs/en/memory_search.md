@@ -276,11 +276,22 @@ connects to. If a result is worth pursuing, use `read path=...` to open the sour
   followed by outlinks and inlinks.
 - `response.metadata`: structured programmatic results containing `results`, `link_expansion`, and `counts`.
 
-If no candidates match or survive `min_score`, `response.answer` is
-`No relevant information was found for the given query.` If all eligible chunks were already returned within the same
-`tool_context_id`, the answer is
-`All retrieved content has already been returned in previous responses; no new content was found.`
-Both outcomes are successful searches with an empty `results` list and `counts.returned` equal to `0`.
+When the default `search` Job returns no results, `response.answer` remains `""` and `success` remains `true`.
+The `results` list is empty and `counts.returned` is `0`. An optional `response.metadata.empty_result` explains why:
+
+| `reason`       | Meaning                                                                     |
+|----------------|-----------------------------------------------------------------------------|
+| `no_results`   | No candidates matched or survived `min_score`.                               |
+| `all_returned` | All eligible chunks were already returned within the same `tool_context_id`. |
+
+The field also contains a human-readable `message`. Programmatic consumers should use `reason` to distinguish the
+outcomes. Normal hits omit `empty_result` and keep their existing answer format.
+
+To show the explanation through the running service's CLI client, enable the existing metadata display option:
+
+```bash
+reme search query="recent discussions about indexing" show_metadata=true
+```
 
 Typical text structure:
 

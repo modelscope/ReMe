@@ -196,6 +196,7 @@ class SearchStep(_ToolContextMixin, BaseStep):
 
     async def execute(self):
         assert self.context is not None
+        self.context.response.metadata.pop("empty_result", None)
         raw_query = self.context.get("query")
         query: str = "" if raw_query is None else str(raw_query).strip()
         limit: int = int(self.context.get("limit") or _default_limit())
@@ -364,7 +365,10 @@ class SearchStep(_ToolContextMixin, BaseStep):
 
         self.context.response.answer = "\n".join(answer_lines)
         if not fused:
-            self.context.response.answer = ALL_RETURNED_MESSAGE if pre_dedup_count else NO_RESULTS_MESSAGE
+            self.context.response.metadata["empty_result"] = {
+                "reason": "all_returned" if pre_dedup_count else "no_results",
+                "message": ALL_RETURNED_MESSAGE if pre_dedup_count else NO_RESULTS_MESSAGE,
+            }
         self.context.response.metadata["results"] = [
             c.model_dump(exclude_none=True, exclude={"embedding"}) for c in fused
         ]

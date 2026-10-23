@@ -67,11 +67,7 @@ const plugin: OpenClawPluginDefinition = definePluginEntry({
           );
           return { prependSystemContext: guidance };
         }
-        const results = result.metadata?.results;
-        const prependContext =
-          Array.isArray(results) && results.length === 0
-            ? ""
-            : formatReMeContext(result.answer);
+        const prependContext = formatReMeContext(result.answer);
         return {
           prependSystemContext: guidance,
           ...(prependContext ? { prependContext } : {}),
