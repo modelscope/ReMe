@@ -72,6 +72,7 @@ jobs:
         file_catalog: dream
         scan_days: 2
         max_units: 5
+        max_chars_per_batch: 40000
       - backend: dream_integrate_step
       - backend: dream_finish_step
         file_catalog: dream
@@ -157,11 +158,16 @@ jobs:
           type: integer
           description: "maximum number of extracted memory units"
           default: 5
+        max_chars_per_batch:
+          type: integer
+          description: "maximum characters of changed material sent per extraction call"
+          default: 40000
     steps:
       - backend: dream_extract_step
         file_catalog: dream
         scan_days: 2
         max_units: 5
+        max_chars_per_batch: 40000
       - backend: dream_integrate_step
       - backend: dream_finish_step
         file_catalog: dream
