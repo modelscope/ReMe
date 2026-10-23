@@ -7,6 +7,7 @@ from ._base import _FileIOStep
 from ._file_io import get_path_lock, read_file_safe, write_file_safe
 from ._path import _check_path_permission, NON_MD_WARNING, gate_md, resolve_path
 from ...components import R
+from ...constants import MAX_FILE_READ_BYTES
 
 
 @R.register("edit_step")
@@ -60,7 +61,7 @@ class EditStep(_FileIOStep):
                 return None
 
             try:
-                raw_text, encoding = await read_file_safe(target)
+                raw_text, encoding = await read_file_safe(target, max_bytes=MAX_FILE_READ_BYTES, require_complete=True)
             except Exception as e:  # pylint: disable=broad-except
                 self._fail(f"read failed: {e}", path=str(target))
                 return None
