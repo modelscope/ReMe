@@ -2160,3 +2160,78 @@ async def test_faiss_delete_queries_graph_once():
 
         store.file_graph.get_nodes = original_get_nodes
         await store.close()
+
+
+class OverLimitError(Exception):
+    """OpenAI-compatible 400 raised for an item over the provider's per-item window."""
+
+    status_code = 400
+    body = {"error": {"message": "the input length exceeds the context length"}}
+
+
+class OverLimitAsEmbedding:
+    """Reject any text longer than ``max_chars`` and record every text it did embed."""
+
+    dimensions = 2
+    vector_space_id = "fakespace000"
+
+    def __init__(self, max_chars: int):
+        self.max_chars = max_chars
+        self.embedded_texts: list[str] = []
+
+    def initialize_model(self):
+        """Mirror the real component's idempotent initialization hook."""
+
+    async def __call__(self, texts: list[str], **_kwargs):
+        if any(len(text) > self.max_chars for text in texts):
+            raise OverLimitError("the input length exceeds the context length")
+        self.embedded_texts.extend(texts)
+        return [[1.0, 0.0] for _ in texts]
+
+
+@pytest.mark.parametrize("store_factory", [_new_local_store, _new_faiss_store, _new_zvec_store])
+@pytest.mark.asyncio
+async def test_embedding_reindex_completes_when_a_chunk_exceeds_the_provider_limit(store_factory):
+    """An over-limit chunk must not block the embedding gate forever.
+
+    Reproduces the reported dead end: the provider rejects one chunk as longer than its
+    token window, so the chunk never gets a vector, the scoped reindex keeps raising and
+    the gate never clears. A bounded input-shortening retry has to recover that chunk
+    instead, so reindex completes and the gate opens with every vector in place.
+    """
+    with tempfile.TemporaryDirectory() as tmp, temp_chdir(tmp):
+        store = store_factory(name="t_reindex_over_limit_chunk")
+        await store.start()
+        long_text = "x" * 64
+        await set_chunks_with_graph(
+            store,
+            {
+                "good": chunk("good", "a.md", "alpha text"),
+                "long": chunk("long", "b.md", long_text),
+            },
+        )
+        provider = OverLimitAsEmbedding(max_chars=32)
+        embedding = LocalEmbeddingStore(
+            name="t_reindex_over_limit_chunk_embedding",
+            enable_cache=False,
+            max_input_length=64,
+        )
+        embedding.as_embedding = provider
+        store.embedding_store = embedding
+        _ensure_zvec_collection(store)
+        if isinstance(store, FaissLocalFileStore):
+            store._rebuild_index()
+        elif isinstance(store, ZvecLocalFileStore):
+            store._rebuild_collection()
+        await store.require_embedding_rebuild()
+
+        result = await store.reindex("embedding")
+
+        assert result == {"indexed": 2, "scope": "embedding"}
+        assert store._embedding_rebuild_pending is False
+        # The health probe also reaches the provider, so only the chunk texts matter here.
+        assert "alpha text" in provider.embedded_texts
+        assert "x" * 32 in provider.embedded_texts
+        assert long_text not in provider.embedded_texts
+
+        await store.close()
