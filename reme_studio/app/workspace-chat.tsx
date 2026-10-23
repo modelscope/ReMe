@@ -80,23 +80,25 @@ function ChatBlockView({
     block.status === "calling" ||
     block.status === "running";
   const failed = block.status === "error";
-  if (block.type === "tool") {
-    const call = formatStreamPayloads(block.callPayloads);
-    const result = formatStreamPayloads(block.resultPayloads);
-    return (
-      <details
-        className={`stream-block tool ${failed ? "failed" : ""}`}
-        open={block.expanded}
-        onToggle={(event) => {
-          if (event.currentTarget.open !== block.expanded)
-            onToggle(block.id, event.currentTarget.open);
-        }}
-      >
-        <summary>
-          <ChunkStatus active={active} error={failed} />
-          <span>{block.name}</span>
-          <small>{active ? t("streaming") : t("completed")}</small>
-        </summary>
+  const tool = block.type === "tool";
+  const call = tool ? formatStreamPayloads(block.callPayloads) : "";
+  const result = tool ? formatStreamPayloads(block.resultPayloads) : "";
+  const detail = tool ? "" : formatStreamPayloads(block.payloads);
+  return (
+    <details
+      className={`stream-block ${block.type} ${failed ? "failed" : ""}`}
+      open={block.expanded}
+      onToggle={(event) => {
+        if (event.currentTarget.open !== block.expanded)
+          onToggle(block.id, event.currentTarget.open);
+      }}
+    >
+      <summary>
+        <ChunkStatus active={active} error={failed} />
+        <span>{tool ? block.name : detailLabel(block, t)}</span>
+        <small>{active ? t("streaming") : t("completed")}</small>
+      </summary>
+      {tool ? (
         <div className="stream-block-body">
           {call && (
             <section>
@@ -111,30 +113,11 @@ function ChatBlockView({
             </section>
           )}
         </div>
-      </details>
-    );
-  }
-
-  const detail = formatStreamPayloads(block.payloads);
-  return (
-    <details
-      className={`stream-block ${block.type} ${failed ? "failed" : ""}`}
-      open={block.expanded}
-      onToggle={(event) => {
-        if (event.currentTarget.open !== block.expanded)
-          onToggle(block.id, event.currentTarget.open);
-      }}
-    >
-      <summary>
-        <ChunkStatus active={active} error={failed} />
-        <span>{detailLabel(block, t)}</span>
-        <small>{active ? t("streaming") : t("completed")}</small>
-      </summary>
-      {detail && (
+      ) : detail ? (
         <div className="stream-block-body">
           <pre>{detail}</pre>
         </div>
-      )}
+      ) : null}
     </details>
   );
 }

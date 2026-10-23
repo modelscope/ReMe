@@ -8,7 +8,7 @@ import time
 import numpy as np
 import pytest
 
-from reme.components.file_store import FaissLocalFileStore, ZvecLocalFileStore
+from reme.components.file_store import FaissLocalFileStore, LocalFileStore, ZvecLocalFileStore
 from reme.schema import FileChunk, FileNode
 
 
@@ -50,6 +50,14 @@ def node(path: str) -> FileNode:
 def chunk(chunk_id: str, path: str, text: str, **metadata) -> FileChunk:
     """Build a minimal file chunk."""
     return FileChunk(id=chunk_id, path=path, text=text, start_line=1, end_line=1, metadata=metadata)
+
+
+async def _seed_unembedded_chunk(store: LocalFileStore, chunk_id: str, path: str, text: str) -> None:
+    """Attach one chunk without a vector, keeping the graph invariant intact."""
+    store.file_chunks[chunk_id] = chunk(chunk_id, path, text)
+    file_node = node(path)
+    file_node.chunk_ids = [chunk_id]
+    await store.file_graph.upsert_nodes([file_node])
 
 
 def _new_faiss_store(name, **kwargs):
