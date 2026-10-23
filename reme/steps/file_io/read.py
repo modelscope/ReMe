@@ -156,6 +156,8 @@ class ReadStep(BaseStep):
             if content is None:
                 return None
 
+            # Match text-mode streaming reads and the chunker's source line numbers.
+            content = content.replace("\r\n", "\n").replace("\r", "\n")
             all_lines = content.split("\n")
             if content.endswith("\n"):
                 # split() yields a trailing empty element for the final newline;
