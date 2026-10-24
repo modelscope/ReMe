@@ -13,6 +13,7 @@ import aiofiles.os
 from ...constants import DEFAULT_MAX_BYTES, MAX_FILE_READ_BYTES, TRUNCATION_NOTICE_MARKER
 from ...schema import FileChunk
 from ...utils import get_logger
+from ...utils.async_utils import complete_in_thread
 
 logger = get_logger(log_to_file=False)
 
@@ -171,7 +172,7 @@ async def write_file_safe(file_path: Path, content: str | bytes, encoding: str =
 
     def publish():
         mode = S_IMODE(file_path.stat().st_mode) if file_path.exists() else None
-        fd, temporary = tempfile.mkstemp(prefix=f".{file_path.name}.", suffix=".tmp", dir=file_path.parent)
+        fd, temporary = tempfile.mkstemp(prefix=".reme-", suffix=".tmp", dir=file_path.parent)
         try:
             with os.fdopen(fd, "wb") as handle:
                 handle.write(payload)
@@ -181,7 +182,7 @@ async def write_file_safe(file_path: Path, content: str | bytes, encoding: str =
         finally:
             Path(temporary).unlink(missing_ok=True)
 
-    await asyncio.to_thread(publish)
+    await complete_in_thread(publish)
 
 
 # ---------------------------------------------------------------------------

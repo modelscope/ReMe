@@ -123,6 +123,11 @@ class WatchChangesStep(BaseStep):
             async for raw_changes in watcher:
                 if stop_event.is_set():
                     break
+                changes = [
+                    {"change": c.name, "path": p}
+                    for c, p in raw_changes
+                    if c in (Change.added, Change.modified, Change.deleted)
+                ]
                 if needs_initial_scan:
                     # Subscribe first, then recover writes made after the
                     # preceding scan but before watcher initialization.
@@ -133,16 +138,13 @@ class WatchChangesStep(BaseStep):
                                 "monitor_type": self.monitor_type,
                                 "monitor_name": self.monitor_name,
                                 "recursive": self.recursive,
-                                "dispatch_steps": self.dispatch_step_specs,
                             },
                         ],
                     )
+                    # The scan only produces changes. Merge overlapping events
+                    # before running handlers, which may have model side effects.
+                    changes.extend(self.context.get("changes") or [])
                     needs_initial_scan = False
-                changes = [
-                    {"change": c.name, "path": p}
-                    for c, p in raw_changes
-                    if c in (Change.added, Change.modified, Change.deleted)
-                ]
                 changes = coalesce_changes(changes)
                 if changes:
                     self.logger.info(f"Detected {len(changes)} change(s)")

@@ -1,11 +1,15 @@
 """Memory writers publish complete files to concurrent index readers."""
 
+import asyncio
 import os
 import stat
+import threading
 
 import pytest
 
 from reme.steps.file_io._file_io import write_file_safe
+from reme.components.application_context import ApplicationContext
+from reme.steps.file_io.save import SaveStep
 
 
 @pytest.mark.asyncio
@@ -54,3 +58,52 @@ async def test_new_encoded_file_and_binary_payload(tmp_path):
     assert target.read_bytes() == "中文".encode("gbk")
     await write_file_safe(target, b"\x00\xff")
     assert target.read_bytes() == b"\x00\xff"
+
+
+@pytest.mark.asyncio
+async def test_atomic_write_accepts_long_valid_filename(tmp_path):
+    """Temporary names must not grow with the destination's filename."""
+    target = tmp_path / ("a" * 241 + ".md")
+    target.write_text("original", encoding="utf-8")
+
+    await write_file_safe(target, "replacement")
+
+    assert target.read_text(encoding="utf-8") == "replacement"
+    assert list(tmp_path.iterdir()) == [target]
+
+
+@pytest.mark.asyncio
+async def test_cancelled_save_keeps_path_lock_until_publication(tmp_path, monkeypatch):
+    """A repeatedly cancelled writer cannot overwrite a later successful save."""
+    target = tmp_path / "memory.md"
+    target.write_text("original", encoding="utf-8")
+    context = ApplicationContext(workspace_dir=str(tmp_path))
+    started, release = threading.Event(), threading.Event()
+    replace = os.replace
+
+    def delayed_replace(source, destination):
+        if not started.is_set():
+            started.set()
+            assert release.wait(5)
+        replace(source, destination)
+
+    monkeypatch.setattr(os, "replace", delayed_replace)
+    first = asyncio.create_task(SaveStep(app_context=context)(path="memory.md", content="cancelled write"))
+    second = None
+    try:
+        assert await asyncio.to_thread(started.wait, 5)
+        for _ in range(3):
+            first.cancel()
+            await asyncio.sleep(0)
+        second = asyncio.create_task(SaveStep(app_context=context)(path="memory.md", content="successful write"))
+        await asyncio.sleep(0)
+        assert not first.done()
+        assert not second.done()
+    finally:
+        release.set()
+        results = await asyncio.gather(first, *([second] if second is not None else []), return_exceptions=True)
+
+    assert isinstance(results[0], asyncio.CancelledError)
+    assert results[1].success
+    assert target.read_text(encoding="utf-8") == "successful write"
+    assert list(tmp_path.iterdir()) == [target]
