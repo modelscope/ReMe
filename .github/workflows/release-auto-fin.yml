@@ -133,7 +133,8 @@ jobs:
           assert set(manifest.backends) == {
               "auto_fin_data_step",
               "auto_fin_topic_step",
-              "auto_fin_merge_step",
+              "auto_fin_research_step",
+              "auto_fin_digest_step",
           }
           assert set(manifest.application_defaults["jobs"]) == {
               "auto_fin",
