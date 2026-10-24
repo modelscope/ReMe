@@ -60,6 +60,8 @@ class WatchChangesStep(BaseStep):
         step: int = DEFAULT_WATCH_STEP_MS,
         poll_delay_ms: int = DEFAULT_LOW_POWER_POLL_MS,
         watch_mode: Literal["awatch", "watch"] = "awatch",
+        monitor_type: Literal["file_store", "file_catalog"] | None = None,
+        monitor_name: str = "default",
         **kwargs,
     ):
         if watch_mode not in ("awatch", "watch"):
@@ -71,6 +73,8 @@ class WatchChangesStep(BaseStep):
         self.debounce: int = debounce
         self.step: int = step
         self.poll_delay_ms: int = poll_delay_ms
+        self.monitor_type = monitor_type
+        self.monitor_name = monitor_name
         self._rules: list[WatchRule] = []
 
     def _get_watch_rules(self) -> list[WatchRule]:
@@ -112,11 +116,28 @@ class WatchChangesStep(BaseStep):
             step=self.step,
             poll_delay_ms=self.poll_delay_ms,
             stop_event=stop_event,
+            yield_on_timeout=self.monitor_type is not None,
         )
+        needs_initial_scan = self.monitor_type is not None
         async with aclosing(watcher):
             async for raw_changes in watcher:
                 if stop_event.is_set():
                     break
+                if needs_initial_scan:
+                    # Subscribe first, then recover writes made after the
+                    # preceding scan but before watcher initialization.
+                    await self.dispatch_steps(
+                        [
+                            {
+                                "backend": "init_changes_step",
+                                "monitor_type": self.monitor_type,
+                                "monitor_name": self.monitor_name,
+                                "recursive": self.recursive,
+                                "dispatch_steps": self.dispatch_step_specs,
+                            },
+                        ],
+                    )
+                    needs_initial_scan = False
                 changes = [
                     {"change": c.name, "path": p}
                     for c, p in raw_changes

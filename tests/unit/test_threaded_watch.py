@@ -50,6 +50,37 @@ def test_watch_mode_defaults_and_validation():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["watch", "awatch"])
+async def test_watcher_reconciles_startup_gap_on_first_idle_batch(tmp_path, monkeypatch, mode):
+    """Both watchers reconcile once even when no subsequent change arrives."""
+
+    async def idle_batches(*_paths, **kwargs):
+        assert kwargs["yield_on_timeout"] is True
+        yield set()
+        yield set()
+
+    monkeypatch.setattr("reme.steps.index.watch_changes.awatch", idle_batches)
+    monkeypatch.setattr("reme.steps.index.watch_changes.watch_in_thread", idle_batches)
+    step = _step(tmp_path, asyncio.Event(), mode=mode)
+    step.monitor_type = "file_store"
+    step.dispatch_step_specs = ["update_index_step"]
+
+    await step.execute()
+
+    step.dispatch_steps.assert_awaited_once_with(
+        [
+            {
+                "backend": "init_changes_step",
+                "monitor_type": "file_store",
+                "monitor_name": "default",
+                "recursive": True,
+                "dispatch_steps": ["update_index_step"],
+            },
+        ],
+    )
+
+
+@pytest.mark.asyncio
 async def test_default_mode_uses_awatch_and_closes_on_dispatch_failure(tmp_path, monkeypatch):
     """An exception in downstream processing closes the default generator."""
     closed = []

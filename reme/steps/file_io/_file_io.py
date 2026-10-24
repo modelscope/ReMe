@@ -1,7 +1,10 @@
 """Encoding-aware file IO, output truncation, and per-path write locks."""
 
 import asyncio
+import os
 from pathlib import Path
+from stat import S_IMODE
+import tempfile
 from typing import Iterable
 
 import aiofiles
@@ -152,7 +155,7 @@ async def detect_file_encoding(file_path, sniff_bytes: int = 8192) -> str:
 
 
 async def write_file_safe(file_path: Path, content: str | bytes, encoding: str = "utf-8") -> None:
-    """Write ``content`` to ``file_path`` in binary mode; creates parent dirs."""
+    """Publish complete bytes atomically so index readers never see a partial write."""
     file_path.parent.mkdir(parents=True, exist_ok=True)
     if isinstance(content, str):
         try:
@@ -165,8 +168,20 @@ async def write_file_safe(file_path: Path, content: str | bytes, encoding: str =
             payload = content.encode("utf-8")
     else:
         payload = content
-    async with aiofiles.open(str(file_path), "wb") as f:
-        await f.write(payload)
+
+    def publish():
+        mode = S_IMODE(file_path.stat().st_mode) if file_path.exists() else None
+        fd, temporary = tempfile.mkstemp(prefix=f".{file_path.name}.", suffix=".tmp", dir=file_path.parent)
+        try:
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(payload)
+            if mode is not None:
+                os.chmod(temporary, mode)
+            os.replace(temporary, file_path)
+        finally:
+            Path(temporary).unlink(missing_ok=True)
+
+    await asyncio.to_thread(publish)
 
 
 # ---------------------------------------------------------------------------
