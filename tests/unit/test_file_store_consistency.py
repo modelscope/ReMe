@@ -523,6 +523,27 @@ async def test_vector_search_batches_candidates_and_preserves_stable_ties(monkey
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("zero_query", [False, True])
+async def test_vector_search_zero_embeddings_have_finite_scores(zero_query):
+    """Zero float16 embeddings do not leak NaN scores into local search ranking."""
+    store = LocalFileStore(name="t_vector_zero", embedding_store="")
+    store.embedding_store = FakeEmbeddingStore()
+    query = np.array([0.0, 0.0] if zero_query else [1.0, 0.0], dtype=np.float16)
+    store.embedding_store.get_embedding = AsyncMock(return_value=query)
+    for chunk_id, embedding in [("zero", [0.0, 0.0]), ("match", [1.0, 0.0])]:
+        candidate = chunk(chunk_id, f"{chunk_id}.md", "alpha")
+        candidate.embedding = np.array(embedding, dtype=np.float16)
+        store.file_chunks[candidate.id] = candidate
+
+    with np.errstate(invalid="raise", divide="raise"):
+        results = await store.vector_search("alpha", 2, {})
+
+    expected_ids = ["zero", "match"] if zero_query else ["match", "zero"]
+    assert [result.id for result in results] == expected_ids
+    assert [result.scores["vector"] for result in results] == ([0.0, 0.0] if zero_query else [1.0, 0.0])
+
+
+@pytest.mark.asyncio
 async def test_chunk_persistence_loads_legacy_json_embedding_list():
     """Existing indexes with JSON float-list embeddings remain readable."""
     with tempfile.TemporaryDirectory() as tmp, temp_chdir(tmp):
